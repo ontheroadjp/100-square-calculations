@@ -59,17 +59,32 @@ def main(args):
         # Create PDF
         doc = SimpleDocTemplate("result.pdf", pagesize=A4)
 
+        # Add header
+        #header_style = ParagraphStyle(name='Header', leftIndent=350, fontName='Helvetica', fontSize=12)
+        header_style = ParagraphStyle(name='Header', leftIndent=0, fontName='Helvetica', fontSize=12)
+        header = Paragraph("<b>Nuts Education</b>", header_style)
+
         # Add title
         title_style = ParagraphStyle(name='Title', fontName='Helvetica-Bold', fontSize=24)
         title = Paragraph("<b>100 square calculations</b>", title_style)
 
+#        # Add sub title
+#        sub_title_style = ParagraphStyle(name='SubTitle', leftIndent=350, fontName='Helvetica', fontSize=12)
+#        sub_title = Paragraph("<b>Nuts Education</b>", sub_title_style)
+
         # Add date and time
-        now = datetime.now()
+        #now = datetime.now()
         date_time_style = ParagraphStyle(name='DateTime', fontSize=12)
         date = Paragraph(f"<u>Date:</u> {'_' * 15}", date_time_style)
         time = Paragraph(f"<u>Time:</u> {'_' * 15}", date_time_style)
 
-        # Create table
+        # Combine date and time horizontally
+        date_time = Table([[date, time]], colWidths=[7.5 * cm, 7.5 * cm])
+#        date_time.setStyle([
+#            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+#            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+#        ])
+
         # Create table
         table = Table(table_data, colWidths=[1.2 * cm] * 12, rowHeights=[1.2 * cm] * 12)  # 修正箇所: 幅と高さを2cmに変更
         #table = Table(table_data, colWidths=35, rowHeights=35)
@@ -85,7 +100,15 @@ def main(args):
         ])
 
         # Add title, date, time, and table to content
-        content = [title, Spacer(1, 40), date, Spacer(1, 20), time, Spacer(1, 20), table]
+        content = [
+                header, Spacer(1, 0),
+                title, Spacer(1, 40),
+                #sub_title, Spacer(1, 40),
+                #date, Spacer(1, 20),
+                date_time, Spacer(1, 20),
+                #time, Spacer(1, 20),
+                table
+        ]
 
         # Build PDF
         doc.build(content)
