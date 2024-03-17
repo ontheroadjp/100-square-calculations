@@ -60,8 +60,43 @@ def get_random_num_list(num=10, min=1, max=9):
     return random_num
 
 
-def get_equation_list(nums_a, nums_b, include_num=False, include_answer=True
-                     ,is_reverse=False, operators=['+', '-', '*', '/']):
+def get_complement_list(nums_a, target=100, include_num=False, include_answer=False):
+    """
+    Create complement from target of nums_s
+
+    Args:
+        nums_a: list
+            List of seed numbers for using develop complemention
+        include_number: bool, optional
+            Whether to include the number before the complemention (default is False)
+        include_answer: bool, optional
+            Whether to include the answer in the complemention (default is True)
+
+    Returns:
+        complements: list
+            List of equations in the format like "a + b = c" or "c = a + b"
+    """
+    complements = []
+    count = 1
+    for num in nums_a:
+        if include_answer:
+            c = 100 - num
+            comp = f"{num} => {c}"
+        else:
+            comp = f"{num} =>"
+
+
+        if include_num:
+            complements.append(str(count) + ') ' + comp)
+        else:
+            complements.append(comp)
+
+        count += 1
+    return complements
+
+
+def get_equation_list(nums_a, nums_b, operators=['+', '-', '*', '/']
+                , include_num=False, include_answer=True, is_reverse=False):
     """
     Create equations from num_a and num_b.
 
@@ -76,12 +111,10 @@ def get_equation_list(nums_a, nums_b, include_num=False, include_answer=True
             Whether to include the answer in the equations (default is True)
         is_reverse: bool, optional
             Output equations reversed (default is False)
-        operators: list, optional
-            List of operators to use in the equations (default is ['+', '-', '*', '/'])
 
     Returns:
         equations: list
-            List of equations in the format "a + b = c"
+            List of equations in the format like "a + b = c" or "c = a + b"
     """
     equations = []
     print_operations = {
@@ -134,6 +167,7 @@ def get_equation_list(nums_a, nums_b, include_num=False, include_answer=True
                 equations.append(equation)
 
             count += 1
+
     return equations
 
 
@@ -254,6 +288,7 @@ def main(ini):
         args: argparse object
             Parsed arguments.
     """
+
     try:
         # Create PDF
         if(ini.paper_size == 'A4'):
@@ -309,7 +344,24 @@ def main(ini):
         # ------------------------------------------------
         print_type = 100
         print_type = 10
+        print_type = 'comp'
         # ------------------------------------------------
+
+        # Create complement table
+        if print_type == 'comp':
+            if(PAPER_SIZE == A4):
+                table_height = 550
+                font_size = 14
+            elif(PAPER_SIZE == B5):
+                table_height = 410
+                font_size = 12
+            num_rows = 10
+            num_columns = 4
+            nums = get_random_num_list(num_rows * num_columns, 1, 99)
+            comps = get_complement_list(nums, include_answer=False)
+            comp_table = create_basic_table(
+                comps, table_height, font_size, num_rows, num_columns
+            )
 
         # Create 100 seq table
         if print_type == 100:
@@ -346,8 +398,7 @@ def main(ini):
             include_answer = True
             is_reverse = False
             equations = get_equation_list(
-                nums_a, nums_b, include_number, include_answer, is_reverse, operators
-            )
+                nums_a, nums_b, operators, include_number, include_answer, is_reverse)
 
             # create table
             table = create_basic_table(
@@ -360,7 +411,8 @@ def main(ini):
             header, Spacer(1, 0),
             title, Spacer(1, 60),
             date_time, Spacer(1, 20),
-            table
+#            table
+            comp_table
         ]
 
         # Build PDF
