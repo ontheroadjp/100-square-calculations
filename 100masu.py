@@ -65,7 +65,7 @@ def get_random_nums(num=10, min=1, max=9):
     return random_num
 
 
-def get_complement_data(nums_a, target=100, include_num=False):
+def get_complement_list(nums_a, target=100, include_num=False):
     """
     Create complement from target of nums_s
 
