@@ -6,7 +6,7 @@ import random
 from datetime import datetime
 from reportlab.lib.pagesizes import B5, A4, landscape, portrait
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Table, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, Paragraph, Spacer, PageBreak
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm
 
@@ -29,6 +29,10 @@ def _init():
         , choices = ['A4', 'B5', 'a4', 'b5']
         , help = 'Paper size of output PDF'
     )
+    parser.add_argument('command'
+        , choices = ['ope', 'operations', 'comp', 'complements', '100']
+        , help = 'To determine what kind of print output'
+    )
 #    parser.add_argument('paper_type'
 #        , default = ''
 #        , choices = ['A4', 'B5', 'a4', 'b5']
@@ -37,7 +41,7 @@ def _init():
     args = parser.parse_args()
     return args
 
-def get_random_num_list(num=10, min=1, max=9):
+def get_random_nums(num=10, min=1, max=9):
     """
     Generate random numbers
 
@@ -60,43 +64,44 @@ def get_random_num_list(num=10, min=1, max=9):
     return random_num
 
 
-def get_complement_list(nums_a, target=100, include_num=False, include_answer=False):
+def get_complement_list(nums_a, target=100, include_num=False):
     """
     Create complement from target of nums_s
 
     Args:
         nums_a: list
             List of seed numbers for using develop complemention
+        target: int
+            Complement target number
         include_number: bool, optional
             Whether to include the number before the complemention (default is False)
-        include_answer: bool, optional
-            Whether to include the answer in the complemention (default is True)
 
     Returns:
         complements: list
             List of equations in the format like "a + b = c" or "c = a + b"
     """
     complements = []
+    complements_w_answer = []
     count = 1
     for num in nums_a:
-        if include_answer:
-            c = 100 - num
-            comp = f"{num} => {c}"
-        else:
-            comp = f"{num} =>"
+        c = target - num
+        comp = f"{num} =>"
+        comp_w_answer = f"{num} => {c}"
 
 
         if include_num:
-            complements.append(str(count) + ') ' + comp)
+            complements.append(str(count) + ' )  ' + comp)
+            complements_w_answer.append(str(count) + ' )  ' + comp_w_answer)
         else:
             complements.append(comp)
+            complements_w_answer.append(comp_w_answer)
 
         count += 1
-    return complements
+    return [complements, complements_w_answer]
 
 
 def get_equation_list(nums_a, nums_b, operators=['+', '-', '*', '/']
-                , include_num=False, include_answer=True, is_reverse=False):
+                , include_num=False, is_reverse=False):
     """
     Create equations from num_a and num_b.
 
@@ -117,6 +122,7 @@ def get_equation_list(nums_a, nums_b, operators=['+', '-', '*', '/']
             List of equations in the format like "a + b = c" or "c = a + b"
     """
     equations = []
+    equations_w_answer = []
     print_operations = {
         '+': '+'
         , '-': '-'
@@ -153,22 +159,22 @@ def get_equation_list(nums_a, nums_b, operators=['+', '-', '*', '/']
                     a = random.choice(nums_a)
                     b = random.choice(nums_b)
             if is_reverse:
-                equation = f"{c} = "
-                if include_answer:
-                    equation += f"{a} " + print_operations[operator] + f" {b}"
+                equ = f"{c} = "
+                equ_w_answer = f"{c} = {a} {print_operations[operator]} {b}"
             else:
-                equation = f"{a} " + print_operations[operator] + f" {b} = "
-                if include_answer:
-                    equation += f"{c}"
+                equ = f"{a} {print_operations[operator]} {b} = "
+                equ_w_answer = f"{a} {print_operations[operator]} {b} = {c}"
 
             if include_num:
-                equations.append(str(count) + ') ' + equation)
+                equations.append(str(count) + ' )  ' + equ)
+                equations_w_answer.append(str(count) + ' )  ' + equ_w_answer)
             else:
-                equations.append(equation)
+                equations.append(equ)
+                equations_w_answer.append(equ_w_answer)
 
             count += 1
 
-    return equations
+    return [equations, equations_w_answer]
 
 
 def create_basic_table(
@@ -291,45 +297,56 @@ def main(ini):
 
     try:
         # Create PDF
-        if(ini.paper_size == 'A4'):
+        header_str = 'Nuts Education'
+        title_str = '100 square calculations'
+        sub_title_str = 'for Mental Arithmetic'
+        date_label = 'Date:'
+        time_label = 'Time:'
+        if(ini.paper_size == 'A4' or ini.paper_size == 'a4'):
             PAPER_SIZE = A4
-        elif(ini.paper_size == 'a4'):
-            PAPER_SIZE = A4
-        elif(ini.paper_size == 'B5'):
+            header_font_size = 14
+            title_font_size = 24
+            sub_title_font_size = 10
+            date_time_font_size = 10
+            table_height = 550
+            table_font_size = 14
+        elif(ini.paper_size == 'B5' or ini.paper_size == 'b5'):
             PAPER_SIZE = B5
-        elif(ini.paper_size == 'b5'):
-            PAPER_SIZE = B5
+            header_font_size = 12
+            title_font_size = 18
+            sub_title_font_size = 8
+            date_time_font_size = 8
+            table_height = 410
+            table_font_size = 12
 
         OUT_FILENAME = 'result.pdf'
         doc = SimpleDocTemplate(OUT_FILENAME, pagesize=PAPER_SIZE)
 
         # Add header
-        HEADER = 'Nuts Education'
         header_style = ParagraphStyle(
-            name='Header', leftIndent=0, fontName='Helvetica', fontSize=12
+            name='Header', leftIndent=0, fontName='Helvetica'
+            , fontSize=header_font_size
         )
-        header = Paragraph('<b>' + HEADER + '</b>', header_style)
+        header = Paragraph(f'<b>{header_str}</b>', header_style)
 
         # Add title
-        TITLE = '100 square calculations'
         title_style = ParagraphStyle(
-            name='Title', fontName='Helvetica-Bold', fontSize=24
+            name='Title', fontName='Helvetica-Bold', fontSize=title_font_size
         )
-        title = Paragraph('<b>' + TITLE + '</b>', title_style)
+        title = Paragraph(f'<b>{title_str}</b>', title_style)
 
         # Add sub title
-        SUB_TITLE = 'for Mental Arithmetic'
         sub_title_style = ParagraphStyle(
-            name='SubTitle', leftIndent=350, fontName='Helvetica', fontSize=10
+            name='SubTitle', leftIndent=350, fontName='Helvetica'
+            , fontSize=sub_title_font_size
         )
-        sub_title = Paragraph('<b>' + SUB_TITLE + '</b>', sub_title_style)
+        sub_title = Paragraph(f'<b>{sub_title_str}</b>', sub_title_style)
 
         # Add date and time
         #now = datetime.now()
-        date_time_style = ParagraphStyle(name='DateTime', fontSize=10)
-        date = Paragraph(f"<b>Date:</b> {'_' * 15}", date_time_style)
-        time = Paragraph(f"<b>Time:</b> {'_' * 15}", date_time_style)
-        #time = Paragraph(f"<u>Time:</u> {'_' * 15}", date_time_style) # w/underline
+        date_time_style = ParagraphStyle(name='DateTime', fontSize=date_time_font_size)
+        date = Paragraph(f"<b>{date_label}</b> {'_' * 15}", date_time_style)
+        time = Paragraph(f"<b>{time_label}</b> {'_' * 15}", date_time_style)
 
         # Combine date and time horizontally
         date_time = Table([[date, time]], colWidths=[5.5 * cm, 5.5 * cm])
@@ -338,71 +355,62 @@ def main(ini):
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('GRID', (0, 0), (-1, -1), 0, colors.white),
             ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
         ])
 
         # ------------------------------------------------
         print_type = 100
-        print_type = 10
-        print_type = 'comp'
+        print_type = 'ope' # operation
+        print_type = 'comp' # complement
+        print_type = ini.command
         # ------------------------------------------------
 
+        # table spec
+        num_rows = 15
+        num_columns = 3
+        data_size = num_rows * num_columns
+
         # Create complement table
-        if print_type == 'comp':
-            if(PAPER_SIZE == A4):
-                table_height = 550
-                font_size = 14
-            elif(PAPER_SIZE == B5):
-                table_height = 410
-                font_size = 12
-            num_rows = 10
-            num_columns = 4
-            nums = get_random_num_list(num_rows * num_columns, 1, 99)
-            comps = get_complement_list(nums, include_answer=False)
-            comp_table = create_basic_table(
-                comps, table_height, font_size, num_rows, num_columns
+        if print_type == 'comp' or print_type == 'complements':
+            target = 30
+            nums = get_random_nums(data_size, 1, target - 1)
+            comps = get_complement_list(nums, target)
+            table = create_basic_table(
+                comps[0], table_height, table_font_size, num_rows, num_columns
+            )
+            table_w_answer = create_basic_table(
+                comps[1], table_height, table_font_size, num_rows, num_columns
             )
 
         # Create 100 seq table
-        if print_type == 100:
+        elif print_type == str(100):
             cell_width = 1.2
-            font_size = 20
-            top_row_numbers = get_random_num_list(10, 1, 9)
-            left_column_numbers = get_random_num_list(10, 1, 9)
+            table_font_size = 20
+            top_row_numbers = get_random_nums(10, 1, 9)
+            left_column_numbers = get_random_nums(10, 1, 9)
             table = create_100seq_table(
                 cell_width
-                , font_size
+                , table_font_size
                 , top_row_numbers
                 , left_column_numbers
             )
 
        # Create equations table
-        if print_type == 10:
-            # table spec
-            if(PAPER_SIZE == A4):
-                table_height = 550
-                font_size = 14
-            elif(PAPER_SIZE == B5):
-                table_height = 410
-                font_size = 12
-            num_rows = 10
-            num_columns = 4
-
-            # get equations
-            num = num_rows * num_columns
-            nums_a = get_random_num_list(num, 10, 99)
-            nums_b = get_random_num_list(num, 1, 9)
+        elif print_type == 'ope' or print_type == 'operations':
+            nums_a = get_random_nums(data_size, 10, 99)
+            nums_b = get_random_nums(data_size, 1, 9)
             operators = ['+', '-', '*', '/']
             operators = ['/']
-            include_number = False
-            include_answer = True
+            include_number = True
             is_reverse = False
             equations = get_equation_list(
-                nums_a, nums_b, operators, include_number, include_answer, is_reverse)
+                nums_a, nums_b, operators, include_number, is_reverse)
 
             # create table
             table = create_basic_table(
-                equations, table_height, font_size, num_rows, num_columns
+                equations[0], table_height, table_font_size, num_rows, num_columns
+            )
+            table_w_answer = create_basic_table(
+                equations[1], table_height, table_font_size, num_rows, num_columns
             )
 
         # Add title, date, time, and table to content
@@ -411,8 +419,8 @@ def main(ini):
             header, Spacer(1, 0),
             title, Spacer(1, 60),
             date_time, Spacer(1, 20),
-#            table
-            comp_table
+            table, PageBreak(),
+            table_w_answer
         ]
 
         # Build PDF
