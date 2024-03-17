@@ -65,7 +65,7 @@ def get_random_nums(num=10, min=1, max=9):
     return random_num
 
 
-def get_complement_data(nums_a, target=100, include_num=False):
+def get_complement_list(nums_a, target=100, include_num=False):
     """
     Create complement from target of nums_s
 
@@ -102,7 +102,7 @@ def get_complement_data(nums_a, target=100, include_num=False):
     return [complements, complements_w_answer]
 
 
-def get_equation_data(nums_a, nums_b, operators=['+', '-', '*', '/']
+def get_equation_list(nums_a, nums_b, operators=['+', '-', '*', '/']
                 , include_num=False, is_reverse=False):
     """
     Create equations from num_a and num_b.
@@ -327,6 +327,28 @@ def main(ini):
 
     try:
         # Create PDF
+        header_str = 'Nuts Education'
+        title_str = '100 square calculations'
+        sub_title_str = 'for Mental Arithmetic'
+        date_label = 'Date:'
+        time_label = 'Time:'
+        if(ini.paper_size == 'A4' or ini.paper_size == 'a4'):
+            PAPER_SIZE = A4
+            header_font_size = 14
+            title_font_size = 24
+            sub_title_font_size = 10
+            date_time_font_size = 10
+            table_height = 550
+            table_font_size = 14
+        elif(ini.paper_size == 'B5' or ini.paper_size == 'b5'):
+            PAPER_SIZE = B5
+            header_font_size = 12
+            title_font_size = 18
+            sub_title_font_size = 8
+            date_time_font_size = 8
+            table_height = 410
+            table_font_size = 12
+
         OUT_FILENAME = 'result.pdf'
         doc = SimpleDocTemplate(OUT_FILENAME, pagesize=PAPER_SIZE)
 
