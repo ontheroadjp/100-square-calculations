@@ -58,6 +58,7 @@ def get_random_nums(num=10, min=1, max=9):
             random numbers
     """
     min_max_list = list(range(min, max + 1))
+    random.shuffle(min_max_list)
     random_num = []
     for i in range(num):
         random_num.append(random.choice(min_max_list))
@@ -79,6 +80,7 @@ def get_complement_list(nums_a, target=100, include_num=False):
     Returns:
         complements: list
             List of equations in the format like "a + b = c" or "c = a + b"
+            [0] = no answer, [1] = with answer
     """
     complements = []
     complements_w_answer = []
@@ -120,10 +122,11 @@ def get_equation_list(nums_a, nums_b, operators=['+', '-', '*', '/']
     Returns:
         equations: list
             List of equations in the format like "a + b = c" or "c = a + b"
+            [0] = no answer, [1] = with answer
     """
     equations = []
     equations_w_answer = []
-    print_operations = {
+    print_style = {
         '+': '+'
         , '-': '-'
         , '*': '×'
@@ -132,9 +135,6 @@ def get_equation_list(nums_a, nums_b, operators=['+', '-', '*', '/']
 
     count = 1
     for _ in range(len(nums_a)):
-        random.shuffle(operators)
-#        random.shuffle(nums_a)
-#        random.shuffle(nums_b)
         for operator in operators:
             a = random.choice(nums_a)
             b = random.choice(nums_b)
@@ -160,10 +160,10 @@ def get_equation_list(nums_a, nums_b, operators=['+', '-', '*', '/']
                     b = random.choice(nums_b)
             if is_reverse:
                 equ = f"{c} = "
-                equ_w_answer = f"{c} = {a} {print_operations[operator]} {b}"
+                equ_w_answer = f"{c} = {a} {print_style[operator]} {b}"
             else:
-                equ = f"{a} {print_operations[operator]} {b} = "
-                equ_w_answer = f"{a} {print_operations[operator]} {b} = {c}"
+                equ = f"{a} {print_style[operator]} {b} = "
+                equ_w_answer = f"{a} {print_style[operator]} {b} = {c}"
 
             if include_num:
                 equations.append(str(count) + ' )  ' + equ)
@@ -243,18 +243,18 @@ def create_basic_table(
     return table
 
 
-def create_100seq_table(cell_width, font_size, top_row_numbers, left_column_numbers):
+def create_100seq_table(table_width, font_size, top_row_nums, left_column_nums):
     """
     Create 100 square calculations
 
     Args:
-        cell_width: [int | float]
-            table cell size in cm
+        table_width: [int | float]
+            table width
         font_size: int
             table font size in pt
-        top_row_numbers: list
+        top_row_nums: list
             numbers for top row as list type
-        left_column_numbers: list
+        left_column_nums: list
             numbers for column as list type
 
     Returns:
@@ -263,15 +263,22 @@ def create_100seq_table(cell_width, font_size, top_row_numbers, left_column_numb
     """
     table_data = [[None] * 11 for _ in range(11)]
     for i in range(10):
-        table_data[0][i+1] = top_row_numbers[i]
-        table_data[i+1][0] = left_column_numbers[i]
+        table_data[0][i+1] = top_row_nums[i]
+        table_data[i+1][0] = left_column_nums[i]
 
     # Create table
     table = Table(
         table_data,
-        colWidths = [cell_width * cm] * 11,
-        rowHeights = [cell_width * cm] * 11
+        colWidths = [table_width // 11] * 11,
+        rowHeights = [table_width // 11] * 11
     )
+
+#    table = Table(
+#        table_data,
+#        colWidths = [cell_width * cm] * 11,
+#        rowHeights = [cell_width * cm] * 11
+#    )
+
     #table = Table(table_data, colWidths=35, rowHeights=35)
     table.setStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
@@ -294,6 +301,29 @@ def main(ini):
         args: argparse object
             Parsed arguments.
     """
+    header_str = 'Nuts Education'
+    title_str = '100 square calculations'
+    sub_title_str = 'for Mental Arithmetic'
+    date_label = 'Date:'
+    time_label = 'Time:'
+    if(ini.paper_size == 'A4' or ini.paper_size == 'a4'):
+        PAPER_SIZE = A4
+        header_font_size = 14
+        title_font_size = 24
+        sub_title_font_size = 10
+        date_time_font_size = 10
+        table_width = 500
+        table_height = 550
+        table_font_size = 14
+    elif(ini.paper_size == 'B5' or ini.paper_size == 'b5'):
+        PAPER_SIZE = B5
+        header_font_size = 12
+        title_font_size = 18
+        sub_title_font_size = 8
+        date_time_font_size = 8
+        table_width = 380
+        table_height = 410
+        table_font_size = 12
 
     try:
         # Create PDF
@@ -372,26 +402,31 @@ def main(ini):
         # Create complement table
         if print_type == 'comp' or print_type == 'complements':
             target = 30
-            nums = get_random_nums(data_size, 1, target - 1)
-            comps = get_complement_list(nums, target)
+            random_nums = get_random_nums(data_size, 1, target - 1)
+            data = get_complement_data(random_nums, target)
             table = create_basic_table(
-                comps[0], table_height, table_font_size, num_rows, num_columns
+                data[0], table_height, table_font_size, num_rows, num_columns
             )
             table_w_answer = create_basic_table(
-                comps[1], table_height, table_font_size, num_rows, num_columns
+                data[1], table_height, table_font_size, num_rows, num_columns
             )
 
         # Create 100 seq table
         elif print_type == str(100):
-            cell_width = 1.2
             table_font_size = 20
-            top_row_numbers = get_random_nums(10, 1, 9)
-            left_column_numbers = get_random_nums(10, 1, 9)
+            top_row_nums = get_random_nums(10, 1, 9)
+            left_column_nums = get_random_nums(10, 1, 9)
             table = create_100seq_table(
-                cell_width
+                table_width
                 , table_font_size
-                , top_row_numbers
-                , left_column_numbers
+                , top_row_nums
+                , left_column_nums
+            )
+            table_w_answer = create_100seq_table(
+                table_width, cell_width
+                , table_font_size
+                , top_row_nums
+                , left_column_nums
             )
 
        # Create equations table
@@ -402,15 +437,15 @@ def main(ini):
             operators = ['/']
             include_number = True
             is_reverse = False
-            equations = get_equation_list(
+            data = get_equation_data(
                 nums_a, nums_b, operators, include_number, is_reverse)
 
             # create table
             table = create_basic_table(
-                equations[0], table_height, table_font_size, num_rows, num_columns
+                data[0], table_height, table_font_size, num_rows, num_columns
             )
             table_w_answer = create_basic_table(
-                equations[1], table_height, table_font_size, num_rows, num_columns
+                data[1], table_height, table_font_size, num_rows, num_columns
             )
 
         # Add title, date, time, and table to content
