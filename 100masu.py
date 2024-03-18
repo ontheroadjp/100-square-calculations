@@ -41,6 +41,13 @@ def _init():
         , choices = ['ope', 'operations', 'comp', 'complements', '100']
         , help = 'To determine what kind of print output'
     )
+    parser.add_argument('-o', '--operator'
+        , type = str
+        , default = '+'
+        , choices = ['+', '-', '*', '/']
+        , nargs="*"
+        , help = 'formular operator(s)'
+    )
     parser.add_argument('--a-min'
         , type = int
         , default = 10
@@ -60,13 +67,6 @@ def _init():
         , type = int
         , default = 99
         , help = 'seed number max value of b '
-    )
-    parser.add_argument('-o', '--operator'
-        , type = str
-        , default = '+'
-        , choices = ['+', '-', '*', '/']
-        , nargs="*"
-        , help = 'formular operator(s)'
     )
     parser.add_argument('-r', '--rows'
         , type = int
@@ -446,20 +446,20 @@ def main(ini):
         # Header
         header_style = ParagraphStyle(
             name='Header', leftIndent=0, fontName='Helvetica'
-            , fontSize=header_font_size
+            , fontSize=HEADER_FONT_SIZE
         )
         header = Paragraph(f'<b>{HEADER_STR}</b>', header_style)
 
         # Title
         title_style = ParagraphStyle(
-            name='Title', fontName='Helvetica-Bold', fontSize=title_font_size
+            name='Title', fontName='Helvetica-Bold', fontSize=TITLE_FONT_SIZE
         )
         title = Paragraph(f'<b>{TITLE_STR}</b>', title_style)
 
         # Sub title
         sub_title_style = ParagraphStyle(
             name='SubTitle', leftIndent=350, fontName='Helvetica'
-            , fontSize=sub_title_font_size
+            , fontSize=SUB_TITLE_FONT_SIZE
         )
         sub_title = Paragraph(f'<b>{SUB_TITLE_STR}</b>', sub_title_style)
 
