@@ -48,7 +48,10 @@ def _init():
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> 3ad3ed0df3b3978d088b9a1811e8321c0295ccfd
     parser.add_argument('-o', '--operator'
         , type = str
         , default = '+'
@@ -56,6 +59,7 @@ def _init():
         , nargs="*"
         , help = 'formular operator(s)'
     )
+<<<<<<< HEAD
 >>>>>>> f1075ef ([REFACTOR])
 =======
 >>>>>>> 7548d14 ([WIP])
@@ -69,6 +73,8 @@ def _init():
         , help = 'The number of digits in the second term of the formula'
     )
 >>>>>>> 2582d5e ([WIP])
+=======
+>>>>>>> 3ad3ed0df3b3978d088b9a1811e8321c0295ccfd
     parser.add_argument('--a-min'
         , type = int
         , default = 1
@@ -89,6 +95,7 @@ def _init():
         , default = 9
         , help = 'Maximum value of the second term of the formula'
     )
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 =======
@@ -122,6 +129,8 @@ def _init():
         , help = 'Multiplication table in random order'
     )
 >>>>>>> f3161d6 ([WIP])
+=======
+>>>>>>> 3ad3ed0df3b3978d088b9a1811e8321c0295ccfd
     parser.add_argument('-r', '--rows'
         , type = int
         , default = 10
@@ -939,20 +948,20 @@ def main(ini):
         # Header
         header_style = ParagraphStyle(
             name='Header', leftIndent=0, fontName='Helvetica'
-            , fontSize=header_font_size
+            , fontSize=HEADER_FONT_SIZE
         )
         header = Paragraph(f'<b>{HEADER_STR}</b>', header_style)
 
         # Title
         title_style = ParagraphStyle(
-            name='Title', fontName='Helvetica-Bold', fontSize=title_font_size
+            name='Title', fontName='Helvetica-Bold', fontSize=TITLE_FONT_SIZE
         )
         title = Paragraph(f'<b>{TITLE_STR}</b>', title_style)
 
         # Sub title
         sub_title_style = ParagraphStyle(
             name='SubTitle', leftIndent=350, fontName='Helvetica'
-            , fontSize=sub_title_font_size
+            , fontSize=SUB_TITLE_FONT_SIZE
         )
         sub_title = Paragraph(f'<b>{SUB_TITLE_STR}</b>', sub_title_style)
 
