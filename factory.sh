@@ -69,8 +69,7 @@ function _main() {
 
     page='-p 3'
 
-#    for operator in 'add' 'sub' 'mul' 'div'; do
-    for operator in 'sub' 'mul' 'div'; do
+    for operator in 'add' 'sub' 'mul' 'div' 'mix'; do
         print_ope=''
         if [ "${operator}" == "add" ]; then
             print_ope='tasu'
@@ -81,7 +80,7 @@ function _main() {
         elif [ "${operator}" == "div" ]; then
             print_ope='waru'
         elif [ "${operator}" == "mix" ]; then
-            print_ope='kongou'
+            print_ope='mix'
         fi
 
         for level in 1 2 3 4 5; do

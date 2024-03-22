@@ -10,12 +10,8 @@ from reportlab.platypus import BaseDocTemplate, PageTemplate
 from reportlab.platypus import Frame, FrameBreak, PageBreak
 from reportlab.platypus import Table, Paragraph, Spacer
 from reportlab.lib.styles import ParagraphStyle
-<<<<<<< HEAD
 from reportlab.lib.units import mm
 from reportlab.lib import colors
-=======
-from reportlab.lib.units import cm, mm
->>>>>>> f1075ef ([REFACTOR])
 
 def _init():
     """
@@ -42,28 +38,9 @@ def _init():
     )
     parser.add_argument('command'
         , type = str
-        , choices = ['99', 'ope', 'operation', 'com', 'complement', '100', 'mannaka']
+        , choices = ['99', 'ope', 'operation', 'com', 'complement', '100', 'aBc']
         , help = 'Type of formula to output'
     )
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-=======
->>>>>>> 3ad3ed0df3b3978d088b9a1811e8321c0295ccfd
-    parser.add_argument('-o', '--operator'
-        , type = str
-        , default = '+'
-        , choices = ['+', '-', '*', '/']
-        , nargs="*"
-        , help = 'formular operator(s)'
-    )
-<<<<<<< HEAD
->>>>>>> f1075ef ([REFACTOR])
-=======
->>>>>>> 7548d14 ([WIP])
-=======
     parser.add_argument('-a', '--a-digits'
         , type = int
         , help = 'Number of digits in the first term of the formula'
@@ -72,9 +49,6 @@ def _init():
         , type = int
         , help = 'The number of digits in the second term of the formula'
     )
->>>>>>> 2582d5e ([WIP])
-=======
->>>>>>> 3ad3ed0df3b3978d088b9a1811e8321c0295ccfd
     parser.add_argument('--a-min'
         , type = int
         , default = 1
@@ -95,24 +69,12 @@ def _init():
         , default = 9
         , help = 'Maximum value of the second term of the formula'
     )
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 7548d14 ([WIP])
     parser.add_argument('-o', '--operator'
         , default = ['add']
         , choices = ['add', 'sub', 'mul', 'div', 'mix']
         , nargs="*"
         , help = 'Types of operations included in formulas'
     )
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> f1075ef ([REFACTOR])
-=======
->>>>>>> 7548d14 ([WIP])
-=======
     parser.add_argument('--kuku-dan'
         , type = int
         , choices = [1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -128,9 +90,6 @@ def _init():
         , action = 'store_true'
         , help = 'Multiplication table in random order'
     )
->>>>>>> f3161d6 ([WIP])
-=======
->>>>>>> 3ad3ed0df3b3978d088b9a1811e8321c0295ccfd
     parser.add_argument('-r', '--rows'
         , type = int
         , default = 10
@@ -156,19 +115,6 @@ def _init():
         , default = '1'
         , help = 'Number of pages included in the output file'
     )
-<<<<<<< HEAD
-=======
-    parser.add_argument('-s', '--serial-number'
-        , action='store_true'
-        , default = False
-        , help = 'Show serial number'
-    )
-    parser.add_argument('--reverse'
-        , action='store_true'
-        , default = False
-        , help = 'Show reverse formula'
-    )
->>>>>>> f1075ef ([REFACTOR])
     parser.add_argument('--out-file'
         , default = 'result.pdf'
         , help = 'Output file path'
@@ -279,24 +225,7 @@ def get_kuku_data(dan, columns = 2, print_index = 1, is_reverse = False, is_shuf
     return (data_index, vals_a, operator_marks, vals_b, equal_marks, vals_c)
 
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-def get_four_operation_data(nums_a, nums_b, operators=['+', '-', '*', '/']):
-=======
-def get_four_operation_data(nums_a, nums_b, operators=['+', '-', '*', '/']
-                , include_num=False, is_reverse=False):
->>>>>>> f1075ef ([REFACTOR])
-=======
-def get_four_operation_data(nums_a, nums_b, operators=['+', '-', '*', '/'], print_index = 1):
->>>>>>> 2582d5e ([WIP])
-=======
-#def get_four_operation_data(nums_a, nums_b, operators=['+', '-', '*', '/'], print_index = 1):
-=======
->>>>>>> ef037b9 ([WIP])
-def get_four_operation_data(nums_a, nums_b, operators=['add'], order=10, print_index = 1):
->>>>>>> 68f6329 ([WIP])
+def get_operation_data(nums_a, nums_b, operators=['add'], order=10, print_index = 1):
     """
     Create the four operations from num_a and num_b.
 
@@ -305,7 +234,6 @@ def get_four_operation_data(nums_a, nums_b, operators=['add'], order=10, print_i
             List of seed numbers for using develop the four operations
         nums_b: list
             List of seed numbers for using develop the forur operations
-<<<<<<< HEAD
         operators: list
             List of operator symbol
         order: int
@@ -324,84 +252,12 @@ def get_four_operation_data(nums_a, nums_b, operators=['add'], order=10, print_i
     equal_marks = []
     vals_c = []
     print_style = {'add':'+', 'sub':'-', 'mul':'×', 'div':'÷'}
-<<<<<<< HEAD
-    counter = 1
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-        include_number: bool, optional
-            Whether to include the number before the four operations (default is False)
-        include_answer: bool, optional
-            Whether to include the answer in the four operations (default is True)
-        is_reverse: bool, optional
-            Output the four operations reversed (default is False)
-
-    Returns:
-        the four operations: list
-            List of the four operations in the format like "a + b = c" or "c = a + b"
-            [0] = no answer, [1] = with answer
-    """
-    four_operations = []
-    four_operations_w_answer = []
-    print_style = {'+':'+' , '-':'-' , '*':'×' , '/':'÷'}
-    count = 1
->>>>>>> f1075ef ([REFACTOR])
-    for _ in range(len(nums_a)):
-=======
-#    for _ in range(len(nums_a)):
-=======
-=======
->>>>>>> f3161d6 ([WIP])
     if operators.count('mix') > 0:
         operators = ['add', 'sub', 'mul', 'div']
->>>>>>> ef037b9 ([WIP])
     for _ in range(order):
->>>>>>> 68f6329 ([WIP])
         a = random.choice(nums_a)
         b = random.choice(nums_b)
         random.shuffle(operators)
-<<<<<<< HEAD
-        for operator in operators:
-            a = random.choice(nums_a)
-            b = random.choice(nums_b)
-            if operator == '+':
-                c = a + b
-            elif operator == '-':
-                while True:
-                    # Make sure the answer is not a negative number.
-                    if a - b > 0:
-                        c = a - b
-                        break
-                    a = random.choice(nums_a)
-                    b = random.choice(nums_b)
-            elif operator == '*':
-                c = a * b
-            elif operator == '/':
-                while True:
-                    # Only if not divisible by zero and divisible by
-                    if b != 0 and a % b == 0:
-                        c = a // b
-                        break
-                    a = random.choice(nums_a)
-                    b = random.choice(nums_b)
-<<<<<<< HEAD
-            counter_str = str(counter) + ')'
-            data_no.append([counter_str])
-            vals_a.append([str(a)])
-            operator_mark.append([str(print_style[operator])])
-            vals_b.append([str(b)])
-            equal_mark.append(['='])
-            vals_c.append([str(c)])
-
-#            data_no.append(str(counter))
-#            vals_a.append(str(a))
-#            operator_mark.append(str(print_style[operator]))
-#            vals_b.append(str(b))
-#            equal_mark.append('=')
-#            vals_c.append(str(c))
-            counter += 1
-    return [data_no, vals_a, operator_mark, vals_b, equal_mark, vals_c]
-=======
         operator = random.choice(operators)
         if operator == 'add':
             c = a + b
@@ -433,38 +289,6 @@ def get_four_operation_data(nums_a, nums_b, operators=['add'], order=10, print_i
         vals_c.append([str(c)])
 
         print_index += 1
-<<<<<<< HEAD
-        counter += 1
-    return (data_index, vals_a, operator_mark, vals_b, equal_mark, vals_c)
->>>>>>> 2582d5e ([WIP])
-
-
-<<<<<<< HEAD
-def create_paragraph_table(
-        data_list, table_width, table_height, font_size, num_rows=15, num_columns=2):
-=======
-            if is_reverse:
-                ope = f"{c} = "
-                ope_w_answer = f"{c} = {a} {print_style[operator]} {b}"
-            else:
-                ope = f"{a} {print_style[operator]} {b} = "
-                ope_w_answer = f"{a} {print_style[operator]} {b} = {c}"
-            if include_num:
-                four_operations.append(str(count) + ' )  ' + ope)
-                four_operations_w_answer.append(str(count) + ' )  ' + ope_w_answer)
-            else:
-                four_operations.append(ope)
-                four_operations_w_answer.append(ope_w_answer)
-            count += 1
-    return [four_operations, four_operations_w_answer]
-
-
-def create_basic_table(
-        data_list, table_height, font_size, num_rows=15, num_columns=2):
->>>>>>> f1075ef ([REFACTOR])
-    """
-    Create a table containing data.
-=======
     return (data_index, vals_a, operator_mark, vals_b, equal_marks, vals_c)
 
 
@@ -489,7 +313,7 @@ def get_complement_data(nums_a, target=100, order=10, print_index=1):
     vals_a = []
     equal_marks = []
     vals_c = []
-    count = 1
+#    count = 1
     for _ in range(order):
         a = random.choice(nums_a)
         c = target - a
@@ -499,8 +323,39 @@ def get_complement_data(nums_a, target=100, order=10, print_index=1):
         equal_marks.append(['=>'])
         vals_c.append([c])
         print_index += 1
-        count += 1
+#        count += 1
     return(data_index, vals_a, equal_marks, vals_c)
+
+
+
+def get_aBc_data(order = 10, print_index = 1):
+    nums = [a for a in range(0, 10)]
+
+    vals_a = []
+    equal_marks = []
+    vals_c = []
+    data_index = []
+    for i in range(order):
+        a = random.choice(nums)
+        b = random.choice(nums)
+        c = random.choice(nums)
+        d = random.choice(nums)
+
+        abcd = a * 1000 + b * 100 + c * 10 + d
+        ab = (a * 10 + b) * 10
+        cd = c * 10 + d
+        a_d = ab + cd
+        if len(str(abcd)) == 3:
+            abcd = '0' + str(abcd)
+            vals_a.append([abcd])
+        else:
+            vals_a.append([str(abcd)])
+        equal_marks.append(['=>'])
+        vals_c.append([str(a_d)])
+        counter_str = str(print_index) + ')'
+        data_index.append([counter_str])
+        print_index += 1
+    return (data_index, vals_a, equal_marks, vals_c)
 
 
 def add_vertical_content(table_type, contents, data_elements
@@ -521,12 +376,14 @@ def add_vertical_content(table_type, contents, data_elements
             data = get_kuku_data(dan, cols, print_index, is_reverse, is_shuffle)
         elif table_type == 'operation' or table_type == 'ope':
             nums_a, nums_b, operator = data_elements
-            data = get_four_operation_data(
+            data = get_operation_data(
                 nums_a, nums_b, operator, data_order, print_index)
         elif table_type == 'complement' or table_type == 'com':
             target, random_nums = data_elements
             data = get_complement_data(
                 random_nums, target, data_order, print_index)
+        elif table_type == 'aBc':
+            data = get_aBc_data(data_order, print_index)
 
         for data_index in range(len(data)):
             if data_index == (len(data) - 1):
@@ -570,123 +427,6 @@ def add_vertical_content(table_type, contents, data_elements
         ])
         contents.append(table)
     contents.append(FrameBreak())
->>>>>>> f3161d6 ([WIP])
-
-    Args:
-        data_list: list
-            List of data_list
-        table_height: int
-            Table height
-        font_size: int
-            Font size for the table in pt
-        num_rows: int, optional
-            Number of table rows (default is 10)
-        num_columns: int, optional
-            Number of table columns (default is 3)
-
-    Returns:
-        table: table object
-            Table containing table data
-    """
-    # insert table data
-<<<<<<< HEAD
-#    rows = [data_list[i*num_columns:(i+1)*num_columns] for i in range(num_rows)]
-    rows = data_list
-#    table_data = [[Paragraph(col, ParagraphStyle(name='Operation', fontName='Helvetica', fontSize=font_size, keepWithNext=True)) for col in row] for row in rows]
-=======
-    rows = [data_list[i*num_columns:(i+1)*num_columns] for i in range(num_rows)]
-#    table_data = [[Paragraph(cell, ParagraphStyle(name='Operation', fontName='Helvetica', fontSize=font_size, keepWithNext=True)) for cell in row] for row in rows]
->>>>>>> f1075ef ([REFACTOR])
-    table_data = []
-    for row in rows:
-        paragraph_row = []
-<<<<<<< HEAD
-        for col in row:
-            paragraph = Paragraph(col, ParagraphStyle(
-                name='Operation'
-                , fontName='Helvetica'
-                , fontSize=font_size
-                , keepWithNext=True
-                , alignment=1
-            ))
-=======
-        for cell in row:
-            paragraph = Paragraph(cell, ParagraphStyle(
-                                            name='Operation'
-                                            , fontName='Helvetica'
-                                            , fontSize=font_size
-                                            , keepWithNext=True)
-                                        )
->>>>>>> f1075ef ([REFACTOR])
-            paragraph_row.append(paragraph)
-        table_data.append(paragraph_row)
-    table = Table(
-        table_data
-        , rowHeights = [table_height / num_rows] * num_rows
-        , colWidths = [table_width / num_columns] * num_columns
-    )
-<<<<<<< HEAD
-=======
-
-    table.setStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER')
-        , ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
-        , ('FONTNAME', (0, 0), (-1, -1), 'Helvetica')
-        , ('FONTSIZE', (0, 0), (-1, -1), font_size)
-        , ('GRID', (0, 0), (-1, -1), 0, colors.white)
-#        , ('BOX', (0,0), (-1,-1), 0.25, colors.white)
-#        , ('INNERGRID', (0,0), (-1,-1), 0.25, colors.white)
-    ])
->>>>>>> f1075ef ([REFACTOR])
-    return table
-
-
-#def create_100seq_table(table_width, font_size, top_row_nums, left_column_nums):
-=======
->>>>>>> 4b495bd ([WIP])
-def create_100seq_table(table_width, top_row_nums, left_column_nums):
-    """
-    Create 100 square calculations
-
-    Args:
-        table_width: [int | float]
-            table width
-        top_row_nums: list
-            numbers for top row as list type
-        left_column_nums: list
-            numbers for column as list type
-
-    Returns:
-        table: table object
-            100 sequare table object for PDF
-    """
-<<<<<<< HEAD
-    table_data = [[None] * 11 for _ in range(11)]
-    for i in range(10):
-        table_data[0][i+1] = top_row_nums[i]
-        table_data[i+1][0] = left_column_nums[i]
-    # Create table
-    table = Table(
-        table_data
-        , colWidths = [table_width // 11] * 11
-        , rowHeights = [table_width // 11] * 11
-    )
-<<<<<<< HEAD
-    return table
-=======
-#    table_data = [[None] * 11 for _ in range(11)]
-#    for i in range(10):
-#        table_data[0][i+1] = top_row_nums[i]
-#        table_data[i+1][0] = left_column_nums[i]
-#    # Create table
-#    table = Table(
-#        table_data
-#        , colWidths = [table_width // 11] * 11
-#        , rowHeights = [table_width // 11] * 11
-#    )
-#    return table
-    return 'hoge'
->>>>>>> f3161d6 ([WIP])
 
 
 def addPageNumber(canvas, doc):
@@ -704,51 +444,6 @@ def addPageNumber(canvas, doc):
     canvas.drawString(25, 25, copyright)
 
 
-<<<<<<< HEAD
-def calc_table_frame_width(data, ratio):
-    total_ratio = 0
-    total_data = 0
-    value = []
-    for i in ratio:
-        total_ratio += i
-    for i in data:
-        total_data += i
-    for i, v in enumerate(data):
-        value.append(total_data * (ratio[i] / total_ratio))
-    return value
-=======
-    #table = Table(table_data, colWidths=35, rowHeights=35)
-    table.setStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-        ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), font_size),
-        ('TOPPADDING', (0, 0), (-1, -1), -10),
-    ])
-    return table
-
-def addPageNumber(canvas, doc):
-    """
-    Add the page number
-    # https://docs.reportlab.com/reportlab/userguide/ch2_graphics/
-    """
-    page_num = canvas.getPageNumber()
-    page_no = "Page #%s" % page_num
-    canvas.setFont("Helvetica", 8)
-    width, height = doc.pagesize
-    #canvas.line(25,45,550,45)
-    canvas.drawRightString(width - 25, 25, page_no)
-    copyright = 'Copyright(c) 2024 Nuts Education'
-    canvas.drawString(25, 25, copyright)
-
->>>>>>> f1075ef ([REFACTOR])
-
-=======
->>>>>>> f3161d6 ([WIP])
 def main(ini):
     """
     Main routine to generate the table and output as PDF.
@@ -767,11 +462,6 @@ def main(ini):
     SUBJECT = ''
 #    FONT = "Helvetica"
 #    FONT = "Courier"
-<<<<<<< HEAD
-    if(ini.paper_size == 'A4' or ini.paper_size == 'a4'):
-        PAPER_SIZE = A4
-<<<<<<< HEAD
-=======
     if ini.paper_size.lower() == 'a4':
         paper_width, paper_height = A4
         top_margin = 20 * mm
@@ -779,7 +469,6 @@ def main(ini):
         left_margin = 20 * mm
         right_margin = 20 * mm
 
->>>>>>> 2582d5e ([WIP])
         header_font_size = 14
         title_font_size = 24
         sub_title_font_size = 10
@@ -807,43 +496,12 @@ def main(ini):
             , rightMargin = right_margin
             , bottomMargin = bottom_margin
             , pagesize = (paper_width, paper_height)
-=======
-        PAPER_MARGIN = 30
-        HEADER_FONT_SIZE = 14
-        TITLE_FONT_SIZE = 24
-        SUB_TITLE_FONT_SIZE = 10
-        DATE_TIME_FONT_SIZE = 10
-        TABLE_WIDTH = 520 - PAPER_MARGIN * mm
-        TABLE_HEIGHT = 500
-        TABLE_FONT_SIZE = 14
-    elif(ini.paper_size == 'B5' or ini.paper_size == 'b5'):
-        PAPER_SIZE = B5
-        PAPER_MARGIN = 20
-        HEADER_FONT_SIZE = 12
-        TITLE_FONT_SIZE = 18
-        SUB_TITLE_FONT_SIZE = 8
-        DATE_TIME_FONT_SIZE = 8
-        TABLE_WIDTH = 380 - PAPER_MARGIN * mm
-        TABLE_HEIGHT = 410
-        TABLE_FONT_SIZE = 12
-    try:
-        # Create PDF
-        OUT_FILENAME = ini.out_file
-        doc = SimpleDocTemplate(
-            OUT_FILENAME
-            , topMargin = PAPER_MARGIN * mm
-            , leftMargin = PAPER_MARGIN * mm
-            , rightMargin = PAPER_MARGIN * mm
-            , bottomMargin = PAPER_MARGIN * mm
-            , pagesize = PAPER_SIZE
->>>>>>> f1075ef ([REFACTOR])
             , title = TITLE_STR
             , author = AUTHOR
             , subject = SUBJECT
             , creator = AUTHOR
             , producer = AUTHOR
         )
-<<<<<<< HEAD
 
 #        print(paper_width)
 #        print(paper_height)
@@ -911,7 +569,8 @@ def main(ini):
                 , rightPadding = 0, topPadding = 0
                 , showBoundary = show
             ))
-        elif ini.command == 'complement' or ini.command == 'com':
+        elif ini.command == 'complement' or ini.command == 'com' \
+                or ini.command == 'aBc':
             x = left_margin
             y = header_region_y - body_region[1] + bottom_body_region[1]
             w = top_body_region[0]
@@ -936,53 +595,38 @@ def main(ini):
             , showBoundary = show
         ))
 
-        page_templats = PageTemplate("frames", frames = frames)
+#        page_templats = PageTemplate("frames", frames = frames)
+#        page_templats = PageTemplate("frames", frames=frames
+#                            , onPage=addPageNumber, onPageEnd=addPageNumber)
+        page_templats = PageTemplate("frames", frames=frames, onPage=addPageNumber)
         doc.addPageTemplates(page_templats)
 
         contents = []
 
-=======
-        contents = []
-
->>>>>>> f1075ef ([REFACTOR])
         # Header
         header_style = ParagraphStyle(
             name='Header', leftIndent=0, fontName='Helvetica'
-            , fontSize=HEADER_FONT_SIZE
+            , fontSize=header_font_size
         )
         header = Paragraph(f'<b>{HEADER_STR}</b>', header_style)
 
         # Title
         title_style = ParagraphStyle(
-            name='Title', fontName='Helvetica-Bold', fontSize=TITLE_FONT_SIZE
+            name='Title', fontName='Helvetica-Bold', fontSize=title_font_size
         )
         title = Paragraph(f'<b>{TITLE_STR}</b>', title_style)
 
         # Sub title
         sub_title_style = ParagraphStyle(
             name='SubTitle', leftIndent=350, fontName='Helvetica'
-            , fontSize=SUB_TITLE_FONT_SIZE
+            , fontSize=sub_title_font_size
         )
         sub_title = Paragraph(f'<b>{SUB_TITLE_STR}</b>', sub_title_style)
 
         # Date and Time
-<<<<<<< HEAD
-        #now = datetime.now()
-<<<<<<< HEAD
-        date_time_style = ParagraphStyle(name='DateTime', fontSize=date_time_font_size)
-=======
-        date_time_style = ParagraphStyle(name='DateTime', fontSize=DATE_TIME_FONT_SIZE)
->>>>>>> f1075ef ([REFACTOR])
-        date = Paragraph(f"<b>{DATE_LABEL}</b> {'_' * 15}", date_time_style)
-        time = Paragraph(f"<b>{TIME_LABEL}</b> {'_' * 15}", date_time_style)
-
-        # Combine date and time horizontally
-        date_time = Table([[date, time]], colWidths=[55 * mm, 55 * mm])
-=======
         date_time = Table([[f"Date: {'_' * 15}", f"Time: {'_' * 15}"]],
             colWidths = [header_region[0] / 2] * 2
         )
->>>>>>> 2582d5e ([WIP])
         date_time.setStyle([
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
@@ -991,53 +635,22 @@ def main(ini):
         ])
 
         headers = [
-<<<<<<< HEAD
-            header, Spacer(1, 0),
-            title, Spacer(1, 60),
-#            sub_title, Spacer(1, 10),
-<<<<<<< HEAD
-            date_time
-=======
             header, Spacer(1, 0)
             , title, Spacer(1, 60)
 #            , sub_title, Spacer(1, 10)
             , date_time
->>>>>>> 2582d5e ([WIP])
         ]
 
-=======
-            date_time, Spacer(1, 40)
-        ]
-
-        contents.extend(headers)
-
->>>>>>> f1075ef ([REFACTOR])
         # ------------------------------------------------
         # ini.command == 100 # 100 square
         # ini.command == 'ope' # operation
         # ini.command == 'com' # complement
         # ------------------------------------------------
 
-<<<<<<< HEAD
-        # table spec
-<<<<<<< HEAD
-#        num_rows = ini.rows
-        num_columns = ini.columns
-<<<<<<< HEAD
-<<<<<<< HEAD
-        data_size = num_rows * 1 # num_rows * num_columns
-=======
-        data_size = ini.rows * 1 # ini.rows * num_columns
->>>>>>> 2582d5e ([WIP])
-=======
-        data_size = ini.rows * 1 # ini.rows * ini.columns
->>>>>>> 0755d4b ([WIP])
-        table_frame_h = table_frame_h - 30
-=======
         # Generic Dimentions (for Top & Bottom table layout)
         rows = ini.rows
         cols = ini.columns
-        row_heights = [top_body_region[1] / rows] * rows
+        row_heights = [(top_body_region[1] - 40) / rows] * rows
         if table_frame_calc_w:
             col_widths = table_frame_calc_w
 
@@ -1074,7 +687,6 @@ def main(ini):
                     , tbl2_w, tbl2_h
                     , ini.with_answer, ini.with_bottom_answer, ini.debug
                 )
->>>>>>> f3161d6 ([WIP])
 
         if ini.command == 'operation' or ini.command == 'ope':
             for page_index in range(ini.page):
@@ -1099,106 +711,6 @@ def main(ini):
 
         # Create 100 seq table
         elif ini.command == str(100):
-<<<<<<< HEAD
-            contents.extend(headers)
-            contents.append(FrameBreak())
-            seed = [i for i in range(1, 9)]
-            seed.extend([i for i in range(1, 9)])
-            top_row_nums = random.sample(seed, 10)
-            left_column_nums = random.sample(seed, 10)
-            table = create_100seq_table(
-<<<<<<< HEAD
-                table_frame_w
-<<<<<<< HEAD
-#                , table_font_size
-=======
-        data_size = num_rows * num_columns
-
-        page = 30
-
-        # Create four operations table
-        if print_type == 'ope' or print_type == 'operations':
-            for index in range(page):
-                nums_a = get_random_nums(data_size, 1, 9)
-                nums_b = get_random_nums(data_size, 1, 9)
-                operators = ini.operator
-                include_number = ini.serial_number
-                is_reverse = ini.reverse
-                table_height = TABLE_HEIGHT
-
-                if index > 0:
-                    contents.extend(headers)
-
-                # get table data
-                data = get_four_operation_data(
-                    nums_a, nums_b, operators, include_number, is_reverse)
-
-                # create table
-                table = create_basic_table(
-                    data[0], table_height, TABLE_FONT_SIZE, num_rows, num_columns
-                )
-                table_w_answer = create_basic_table(
-                    data[1], table_height, TABLE_FONT_SIZE, num_rows, num_columns
-                )
-
-                contents.append(table)
-                contents.append(PageBreak())
-#                contents.append(table_w_answer)
-#                contents.append(PageBreak())
-
-        # Create 100 seq table
-        elif print_type == str(100):
-            TABLE_FONT_SIZE = 20
-            top_row_nums = get_random_nums(10, 1, 9)
-            left_column_nums = get_random_nums(10, 1, 9)
-            table = create_100seq_table(
-                TABLE_WIDTH
-                , TABLE_FONT_SIZE
->>>>>>> f1075ef ([REFACTOR])
-=======
->>>>>>> 0755d4b ([WIP])
-=======
-#                table_frame_w
-                body_region_w
->>>>>>> 47634a6 ([WIP])
-                , top_row_nums
-                , left_column_nums
-            )
-            table.setStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-                ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-                ('FONTSIZE', (0, 0), (-1, -1), 20),
-                ('TOPPADDING', (0, 0), (-1, -1), -10),
-            ])
-<<<<<<< HEAD
-            table_w_answer = create_100seq_table(
-<<<<<<< HEAD
-                table_frame_w
-=======
-                TABLE_WIDTH
-                , TABLE_FONT_SIZE
->>>>>>> f1075ef ([REFACTOR])
-                , top_row_nums
-                , left_column_nums
-            )
-            contents.append(table)
-<<<<<<< HEAD
-            contents.append(FrameBreak())
-=======
-#            table_w_answer = create_100seq_table(
-#                table_frame_w
-#                , top_row_nums
-#                , left_column_nums
-#            )
-#            contents.append(table)
-#            contents.append(FrameBreak())
->>>>>>> 0755d4b ([WIP])
-=======
             for page_index in range(ini.page):
                 contents.extend(headers)
                 contents.append(FrameBreak())
@@ -1234,7 +746,6 @@ def main(ini):
                 contents.append(table)
 #                contents.append(FrameBreak())
                 contents.append(PageBreak())
->>>>>>> f3161d6 ([WIP])
 
         # Create complement table
         elif ini.command == 'complement' or ini.command == 'com':
@@ -1256,28 +767,27 @@ def main(ini):
                     , ini.with_answer, ini.with_bottom_answer, ini.debug
                 )
 
+        # Create aBc table
+        elif ini.command == 'aBc':
+            for page_index in range(ini.page):
+                contents.extend(headers)
+                contents.append(FrameBreak())
+
+                # Data elements
+                data_elements = ()
+
+                # Add table
+                add_vertical_content(ini.command, contents, data_elements
+                    , rows, cols, row_heights, col_widths
+                    , align, valign, font_size, top_padding, left_padding, grid_color, text_color
+                    , tbl2_w, tbl2_h
+                    , ini.with_answer, ini.with_bottom_answer, ini.debug
+                )
+
         # Build PDF
 #        doc.build(contents, onFirstPage = addPageNumber, onLaterPages = addPageNumber)
 #        doc.multiBuild(contents)
         doc.build(contents)
-=======
-
-        # Create complement table
-        elif print_type == 'comp' or print_type == 'complements':
-            target = 30
-            random_nums = get_random_nums(data_size, 1, target - 1)
-            data = get_complement_data(random_nums, target)
-            table = create_basic_table(
-                data[0], TABLE_HEIGHT, TABLE_FONT_SIZE, num_rows, num_columns
-            )
-            table_w_answer = create_basic_table(
-                data[1], TABLE_HEIGHT, TABLE_FONT_SIZE, num_rows, num_columns
-            )
-            contents.append(table)
-
-        # Build PDF
-        doc.build(contents, onFirstPage = addPageNumber, onLaterPages = addPageNumber)
->>>>>>> f1075ef ([REFACTOR])
 
         print("All done")
     except Exception as e:
