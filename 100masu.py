@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import os
 import argparse
 import random
+import csv
+#import copy
 #import math
 #from datetime import datetime
 from reportlab.lib.pagesizes import B5, A4, A3, landscape, portrait
@@ -44,12 +47,10 @@ def _init():
     )
     parser.add_argument('-a', '--a-value'
         , type = int
-        , default = 1
         , help = 'Number of digits in the first term of the formula'
     )
     parser.add_argument('-b', '--b-value'
         , type = int
-        , default = 1
         , help = 'The number of digits in the second term of the formula'
     )
     parser.add_argument('--a-min'
@@ -98,11 +99,11 @@ def _init():
         , default = 2
         , help = 'Number of columns of questions per page'
     )
-    parser.add_argument('-w', '--with-answer'
-        , default = False
-        , action = 'store_true'
-        , help = 'Flag whether the answer to a formula should be displayed or not'
-    )
+#    parser.add_argument('-w', '--with-answer'
+#        , default = False
+#        , action = 'store_true'
+#        , help = 'Flag whether the answer to a formula should be displayed or not'
+#    )
     parser.add_argument('-ww', '--with-bottom-answer'
         , default = False
         , action = 'store_true'
@@ -112,6 +113,11 @@ def _init():
         , type = int
         , default = '1'
         , help = 'Number of pages included in the output file'
+    )
+    parser.add_argument('-m', '--merge'
+        , default = False
+        , action = 'store_true'
+        , help = 'Flag whether or not to merge answers file'
     )
     parser.add_argument('--out-file'
         , default = 'result.pdf'
@@ -124,17 +130,35 @@ def _init():
     )
     args = parser.parse_args()
 
-    if args.command == '100' and args.a_value > 3:
-        print(f"bad argument: -a {args.a_value}")
-        print('It must be less than 3.')
-        exit()
-
-    if args.command == 'ope' or args.command == '100':
+    def set_min_max_value(value):
         digits_list = ((1, 9), (10, 99), (100, 999), (1000, 9999), (10000, 99999))
+        min_val, max_val = digits_list[value - 1]
+        return [min_val, max_val]
+
+    if args.command == 'ope':
         if args.a_value is not None:
-            args.a_min, args.a_max = digits_list[args.a_value - 1]
+            args.a_min, args.a_max = set_min_max_value(args.a_value)
         if args.b_value is not None:
-            args.b_min, args.b_max = digits_list[args.b_value - 1]
+            args.b_min, args.b_max = set_min_max_value(args.b_value)
+    elif args.command == 'com' \
+            or args.command == '99' \
+            or args.command == 'squ' \
+            or args.command == 'pi':
+        if args.a_value is None:
+            print(f"-a option must be set.")
+            exit()
+    elif args.command == '100':
+        if args.a_value is None:
+            args.a_value = 1
+            args.a_min, args.a_max = set_min_max_value(args.a_value)
+        if args.b_value is None:
+            args.b_value = 1
+            args.b_min, args.b_max = set_min_max_value(args.b_value)
+        if args.a_value > 3 or args.b_value > 3:
+            print(f"bad argument: -a or -b")
+            print('They must be less than 3.')
+            exit()
+
     return args
 
 
@@ -390,18 +414,18 @@ def add_header_index(contents, data, width, height, grid_color):
     contents.append(FrameBreak())
 
 
-def add_vertical_content(command, contents, data_elements
-    , rows, cols, row_heights, col_widths
+def get_vertical_contents(command, data_elements
+    , rows, columns, row_heights, col_widths
     , align, valign, font_size, top_padding, left_padding, grid_color, text_color
-    , tbl2_w, tbl2_h
-    , with_answer, with_bottom_answer, debug):
+    , tbl2_w, tbl2_h):
 
     # create table
     calc_results = []
     cumulative_index = 1
     result_vals_for_print = []
     data_order = rows * 1 # ini.rows * ini.columns
-    for column_index in range(cols):
+    vertical_contents = []
+    for column_index in range(columns):
         print_index = 1 + (rows * column_index)
         if command == '99' or command == 'squ' or command == 'pi':
             mode, start_num, is_reverse, is_shuffle = data_elements
@@ -417,6 +441,7 @@ def add_vertical_content(command, contents, data_elements
         elif command == 'aBc':
             data = get_aBc_data(data_order, print_index)
 
+        table_set = []
         for data_index in range(len(data)):
             if data_index == (len(data) - 1):
                 for val in data[data_index]:
@@ -440,25 +465,26 @@ def add_vertical_content(command, contents, data_elements
                 , ('LEFTPADDING', (0, 0), (-1, -1), left_padding[data_index])
                 , ('GRID', (0, 0), (-1, -1), 0, grid_color)
             ])
-            contents.append(top_table)
-            contents.append(FrameBreak())
+            table_set.append(top_table)
+        vertical_contents.append(table_set)
+
+#    bottom_table = None
+#    if with_bottom_answer:
     if len(result_vals_for_print):
         calc_results.append(result_vals_for_print)
-    if with_bottom_answer:
-        row_heights = [tbl2_h / len(calc_results)] * len(calc_results)
-        col_widths = [tbl2_w / 20] * 20
-        bottom_table = Table(calc_results
-            , rowHeights = row_heights
-            , colWidths = col_widths
-        )
-        bottom_table.setStyle([
-            ('FONTSIZE', (0, 0), (-1, -1), 8)
-            , ('ALIGN', (0, 0), (-1, -1), 'CENTER')
-            , ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
-            , ('GRID', (0, 0), (-1, -1), 0, grid_color)
-        ])
-        contents.append(bottom_table)
-    contents.append(FrameBreak())
+    row_heights = [tbl2_h / len(calc_results)] * len(calc_results)
+    col_widths = [tbl2_w / 20] * 20
+    bottom_table = Table(calc_results
+        , rowHeights = row_heights
+        , colWidths = col_widths
+    )
+    bottom_table.setStyle([
+        ('FONTSIZE', (0, 0), (-1, -1), 8)
+        , ('ALIGN', (0, 0), (-1, -1), 'CENTER')
+        , ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
+        , ('GRID', (0, 0), (-1, -1), 0, grid_color)
+    ])
+    return [vertical_contents, bottom_table]
 
 
 def addPageNumber(canvas, doc):
@@ -504,6 +530,13 @@ def main(ini):
         args: argparse object
             Parsed arguments.
     """
+#    print(f"{ini.a_value=}")
+#    print(f"{ini.b_value=}")
+#    print(f"{ini.a_min=}")
+#    print(f"{ini.a_max=}")
+#    print(f"{ini.b_min=}")
+#    print(f"{ini.b_max=}")
+
     HEADER_STR = 'Nuts Education'
     TITLE_STR = '100 square calculations'
     SUB_TITLE_STR = 'for Mental Arithmetic'
@@ -524,8 +557,8 @@ def main(ini):
 
     margin_top = 20 * mm
     margin_bottom = 20 * mm
-    margin_left = 20 * mm
-    margin_right = 20 * mm
+    margin_left = 15 * mm
+    margin_right = 15 * mm
 
     if ini.paper_size.lower() == 'a4':
         header_font_size = 14
@@ -541,23 +574,46 @@ def main(ini):
         date_time_font_size = 8
     try:
         # Create Document (PDF)
-        OUT_FILENAME = ini.out_file
-        doc = BaseDocTemplate(
-            OUT_FILENAME
-            , topMargin = margin_top
-            , leftMargin = margin_left
-            , rightMargin = margin_right
-            , bottomMargin = margin_bottom
-            , pagesize = (paper_width, paper_height)
-            , title = TITLE_STR
-            , author = AUTHOR
-            , subject = SUBJECT
-            , creator = AUTHOR
-            , producer = AUTHOR
-        )
+        OUTFILE_NAME = ini.out_file
+        OUTFILE_NAME_READ = ini.out_file.rstrip('.pdf') + '_read.pdf'
 
-#        print(paper_width)
-#        print(paper_height)
+        docs = [
+            BaseDocTemplate(
+                OUTFILE_NAME
+                , topMargin = margin_top
+                , leftMargin = margin_left
+                , rightMargin = margin_right
+                , bottomMargin = margin_bottom
+                , pagesize = (paper_width, paper_height)
+                , title = TITLE_STR
+                , author = AUTHOR
+                , subject = SUBJECT
+                , creator = AUTHOR
+                , producer = AUTHOR
+            )
+        ]
+        if ini.merge is False:
+            docs.append(BaseDocTemplate(
+                OUTFILE_NAME_READ
+                , topMargin = margin_top
+                , leftMargin = margin_left
+                , rightMargin = margin_right
+                , bottomMargin = margin_bottom
+                , pagesize = (paper_width, paper_height)
+                , title = TITLE_STR
+                , author = AUTHOR
+                , subject = SUBJECT
+                , creator = AUTHOR
+                , producer = AUTHOR
+            ))
+
+        if os.path.isfile(f"./{OUTFILE_NAME}"):
+            os.remove(f"./{OUTFILE_NAME}")
+        if os.path.isfile(f"./{OUTFILE_NAME_READ}"):
+            os.remove(f"./{OUTFILE_NAME_READ}")
+
+#        print(f"{paper_width=}")
+#        print(f"{paper_height=}")
 #        print('-------------------------')
 #        print(297 * mm) # A3
 #        print(420 * mm) # A3
@@ -583,7 +639,9 @@ def main(ini):
                 , (0, 0), (paper_width / 2, 0)
             )
 
-        frames = []
+        # 0: normal, 1: read
+        frames = [[],[]]
+#        frames = [[]] * len(docs)
 
         for index in range(page_split):
             offset_x, offset_y = reference_points[index]
@@ -598,11 +656,12 @@ def main(ini):
             y = header_region_y
             w = header_region_w
             h = header_region_h
-            frames.append(Frame(x, y, w, h
-                , leftPadding = 0, bottomPadding = 0
-                , rightPadding = 0, topPadding = 0
-                , showBoundary = ini.debug
-            ))
+            for i in range(len(frames)):
+                frames[i].append(Frame(x, y, w, h
+                    , leftPadding = 0, bottomPadding = 0
+                    , rightPadding = 0, topPadding = 0
+                    , showBoundary = ini.debug
+                ))
 
             # Index Frame
             header_index_frame_w = 20 * mm
@@ -611,89 +670,90 @@ def main(ini):
             y = header_region_y + header_region_h - header_index_frame_h
             w = header_index_frame_w
             h = header_index_frame_h
-            frames.append(Frame(x, y, w, h
-                , leftPadding = 0, bottomPadding = 0
-                , rightPadding = 0, topPadding = 0
-                , showBoundary = ini.debug
-            ))
+            for i in range(len(frames)):
+                frames[i].append(Frame(x, y, w, h
+                    , leftPadding = 0, bottomPadding = 0
+                    , rightPadding = 0, topPadding = 0
+                    , showBoundary = ini.debug
+                ))
 
             # Body Region
             body_region_w = header_region_w
             body_region_h = vp_h - margin_top - header_region_h - margin_bottom
+            body_region_x = header_region_x
+            body_region_y = header_region_y - body_region_h
 
             # Bottom Body Region
             bottom_body_region_w = body_region_w
-            bottom_body_region_h = 25 * mm
+            bottom_body_region_h = 0 * mm
+            if ini.with_bottom_answer:
+                bottom_body_region_h = 25 * mm
 
             # Top Body Region
             top_body_region_w = body_region_w
             top_body_region_h = body_region_h - bottom_body_region_h
+            top_body_region_x = header_region_x
+            top_body_region_y = header_region_y - top_body_region_h
 
             table_frame_calc_w = []
             if ini.command == 'operation' or ini.command == 'ope' \
                     or ini.command == '99' or ini.command == 'squ' \
                     or ini.command == 'pi':
-                x = header_region_x
-                y = header_region_y - top_body_region_h
+                x = top_body_region_x
+                y = top_body_region_y
                 w = top_body_region_w
                 h = top_body_region_h
-                frame_amount = ini.columns * 6
                 w_ratio = [4.0, 3.2, 1.2, 2.5, 1.2, 3.2]
-#                if ini.paper_size.lower() == 'a3':
-#                    w_ratio = [4.0, 3.2, 1.2, 2.5, 1.2, 3.2]
-#                elif ini.paper_size.lower() == 'a4':
-#                    w_ratio = [4.0, 3.2, 1.2, 2.5, 1.2, 3.2]
-#                elif ini.paper_size.lower() == 'b5' or ini.paper_size.lower() == 'a4l':
-#                    w_ratio = [4.0, 3.2, 1.2, 2.5, 1.2, 3.2]
-                table_frame_calc_w = add_vertical_frame_set(
-                    frames, x, y, w, h, frame_amount, w_ratio, ini.debug
-                )
+                frame_amount = ini.columns * len(w_ratio)
+                for i in range(len(frames)):
+                    table_frame_calc_w = add_vertical_frame_set(
+                        frames[i], x, y, w, h, frame_amount, w_ratio, ini.debug
+                    )
             elif ini.command == '100':
-                x = header_region_x
-                y = header_region_y - top_body_region_h
-                w = header_region_w
-                h = body_region_w
-                frames.append(Frame(x, y, w, h
-                    , leftPadding = 0, bottomPadding = 0
-                    , rightPadding = 0, topPadding = 0
-                    , showBoundary = ini.debug
-                ))
+                x = body_region_x
+                y = body_region_y
+                w = body_region_w
+                h = body_region_h
+                for i in range(len(frames)):
+                    frames[i].append(Frame(x, y, w, h
+                        , leftPadding = 0, bottomPadding = 0
+                        , rightPadding = 0, topPadding = 0
+                        , showBoundary = ini.debug
+                    ))
             elif ini.command == 'complement' or ini.command == 'com' \
                     or ini.command == 'aBc':
                 x = header_region_x
                 y = header_region_y - top_body_region_h
                 w = top_body_region_w
                 h = top_body_region_h
-                frame_amount = ini.columns * 4
                 w_ratio = [1, 1.5, 0.6, 1.5]
-#                if ini.paper_size.lower() == 'a3':
-#                    w_ratio = [1, 1, 1, 1]
-#                if ini.paper_size.lower() == 'a4' or ini.paper_size.lower() == 'a4l':
-#                    w_ratio = [1, 1, 1, 1]
-#                elif ini.paper_size.lower() == 'b5':
-#                    w_ratio = [1, 1, 1, 1]
-                table_frame_calc_w = add_vertical_frame_set(
-                    frames, x, y, w, h, frame_amount, w_ratio, ini.debug
-                )
+                frame_amount = ini.columns * len(w_ratio)
+                for i in range(len(frames)):
+                    table_frame_calc_w = add_vertical_frame_set(
+                        frames[i], x, y, w, h, frame_amount, w_ratio, ini.debug
+                    )
 
             # Table 2 frame
             tbl2_w = body_region_w
             tbl2_h = bottom_body_region_h
             tbl2_x = header_region_x
             tbl2_y = header_region_y - body_region_h
-            frames.append(Frame(tbl2_x, tbl2_y, tbl2_w, tbl2_h
-                , leftPadding=0, bottomPadding=0
-                , rightPadding=0, topPadding=0
-                , showBoundary = ini.debug
-            ))
+            for i in range(len(frames)):
+                frames[i].append(Frame(tbl2_x, tbl2_y, tbl2_w, tbl2_h
+                    , leftPadding=0, bottomPadding=0
+                    , rightPadding=0, topPadding=0
+                    , showBoundary = ini.debug
+                ))
 
-#        page_templats = PageTemplate("frames", frames = frames)
-#        page_templats = PageTemplate("frames", frames=frames
-#                            , onPage=addPageNumber, onPageEnd=addPageNumber)
-        page_templats = PageTemplate("frames", frames=frames, onPageEnd=addPageNumber)
-        doc.addPageTemplates(page_templats)
+#        pt = PageTemplate("frames", frames=frames
+#                , onPage=addPageNumber, onPageEnd=addPageNumber)
+        for i in range(len(docs)):
+            pt = PageTemplate("frames", frames=frames[i], onPageEnd=addPageNumber)
+            docs[i].addPageTemplates(pt)
 
-        contents = []
+        # 0: normal, 1: read
+        contents = [[], []]
+#        contents = [[]] * len(docs)
 
         # Header
         header_style = ParagraphStyle(
@@ -742,22 +802,24 @@ def main(ini):
 
         # Generic Dimentions (for Top & Bottom table layout)
         rows = ini.rows
-        cols = ini.columns
-        row_heights = [(top_body_region_h - 40) / rows] * rows
+        columns = ini.columns
+        row_heights = [(top_body_region_h - 0) / rows] * rows
+        if ini.with_bottom_answer:
+            row_heights = [(top_body_region_h - 20) / rows] * rows
         if table_frame_calc_w:
             col_widths = table_frame_calc_w
 
         # Generic Table Style (for 6 columns / unit)
         align = ['RIGHT', 'CENTER', 'CENTER', 'CENTER', 'CENTER', 'LEFT']
         valign = ['MIDDLE', 'MIDDLE', 'MIDDLE', 'MIDDLE', 'MIDDLE', 'MIDDLE']
-        text_color = ['black', 'black', 'black', 'black', 'black', 'white']
+        text_color = ['black', 'black', 'black', 'black', 'black', 'black']
         if ini.paper_size.lower() == 'a4':
             font_size = (10, 16, 16, 16, 16, 16)
-        if ini.paper_size.lower() == 'b5' or ini.paper_size.lower() == 'a4l' \
+        if ini.paper_size.lower() == 'b5' \
+                or ini.paper_size.lower() == 'a4l' \
                 or ini.paper_size.lower() == 'a3':
             font_size = (7, 11, 11, 11, 11, 11)
         grid_color = colors.white if not ini.debug else colors.blue
-
         top_padding = (5, 0, -2, 0, -2, 0)
         left_padding = (4, 4, 2, 4, 4, 4)
 
@@ -767,25 +829,24 @@ def main(ini):
             text_color[3] = 'white'
             font_size = (7, 11, 9, 11)
 
-        # with answer & for debug
-        if ini.with_answer or ini.debug:
+        # for debug
+        if ini.debug:
             text_color[-1] = 'black'
             text_color[3] = 'black'
-#        if ini.debug:
-#            grid_color = colors.blue
-
         # Document Development
         if not ini.command == '100':
             virtual_page_counter = 1
+#            data_csv_lines = []
             for page_index in range(ini.page):
+                next_content = None
                 for _ in range(page_split):
-                    contents.extend(headers)
-                    contents.append(FrameBreak())
-
-                    # Header Index
-                    add_header_index(contents, [f"# {virtual_page_counter}"],
-                        header_index_frame_w, header_index_frame_h, grid_color
-                    )
+                    # Header & Header Index
+                    for i in range(len(contents)):
+                        contents[i].extend(headers)
+                        contents[i].append(FrameBreak())
+                        add_header_index(contents[i], [f"# {virtual_page_counter}"],
+                            header_index_frame_w, header_index_frame_h, grid_color
+                        )
 
                     # Main Table
                     # Create Data Elements
@@ -793,12 +854,19 @@ def main(ini):
                     if ini.command == '99' or ini.command == 'squ' \
                             or ini.command == 'pi':
                         data_elements = (
-                                ini.command, ini.a_value, ini.reverse, ini.shuffle)
+                            ini.command, ini.a_value, ini.reverse, ini.shuffle
+                        )
                     elif ini.command == 'operation' or ini.command == 'ope':
-                        seed = [i for i in range(ini.a_min, ini.a_max)]
-                        nums_a = random.sample(seed, len(seed))
-                        seed = [i for i in range(ini.b_min, ini.b_max)]
-                        nums_b = random.sample(seed, len(seed))
+                        if ini.a_min is not ini.a_max:
+                            seed = [i for i in range(ini.a_min, ini.a_max)]
+                            nums_a = random.sample(seed, len(seed))
+                        else:
+                            nums_a = [ini.a_min]
+                        if ini.b_min is not ini.b_max:
+                            seed = [i for i in range(ini.b_min, ini.b_max)]
+                            nums_b = random.sample(seed, len(seed))
+                        else:
+                            nums_b = [ini.b_min]
                         operator = ini.operator
                         data_elements = (nums_a, nums_b, operator)
                     elif ini.command == 'complement' or ini.command == 'com':
@@ -810,82 +878,153 @@ def main(ini):
                     elif ini.command == 'aBc':
                         data_elements = ()
 
-                    add_vertical_content(ini.command, contents, data_elements
-                        , rows, cols, row_heights, col_widths
-                        , align, valign, font_size, top_padding
-                        , left_padding, grid_color, text_color
+                    vertical_contents = get_vertical_contents(
+                        ini.command, data_elements
+                        , rows, columns, row_heights, col_widths
+                        , align, valign, font_size, top_padding, left_padding
+                        , grid_color, text_color
                         , tbl2_w, tbl2_h
-                        , ini.with_answer, ini.with_bottom_answer, ini.debug
                     )
-                    virtual_page_counter += 1
+
+                    # In case of next_content == None is ini.merge == False
+                    # or ini.merge == True but next_content == None
+                    vc = vertical_contents if next_content is None else next_content
+
+                    for col_idx in range(len(vc[0])):
+                        for unit_idx in range(len(vc[0][col_idx])):
+                            table = vc[0][col_idx][unit_idx]
+                            if next_content is None:
+                                if unit_idx is not len(vc[0][col_idx]) - 1:
+                                    contents[0].append(table)
+                            else:
+                                contents[0].append(table)
+                            contents[0].append(FrameBreak())
+
+                            if ini.merge is False:
+                                contents[1].append(table)
+                                contents[1].append(FrameBreak())
+
+                            if unit_idx is len(vc[0][col_idx]) - 1:
+                                table.setStyle([
+                                    ('TEXTCOLOR', (0, 0), (-1, -1), 'red')
+                                ])
+
+                    if ini.with_bottom_answer:
+                        contents[0].append(vertical_contents[1])
+                    for i in range(len(contents)):
+                        contents[i].append(FrameBreak())
+
+                    if ini.merge and next_content == None:
+                        next_content = vertical_contents
+                    else:
+                        next_content = None
+                        virtual_page_counter += 1
+
+#                    # CSV
+#                    for column_idx in range(len(dataset)):
+#                        for row_idx in range(len(dataset[column_idx][0])):
+#                            csv_line = [page_index]
+#                            for element_idx in range(len(dataset[column_idx])):
+#                                csv_line.append(
+#                                    dataset[column_idx][element_idx][row_idx][0].rstrip(')')
+#                                )
+#                            data_csv_lines.append(csv_line)
+#            # Write CSV
+#            csv_file_name = ini.out_file.rstrip('.pdf') + '.csv'
+#            with open(csv_file_name, 'w') as f:
+#                writer = csv.writer(f)
+#                writer.writerows(data_csv_lines)
+
         else:
             virtual_page_counter = 1
-            is_anser_page = False
             for page_index in range(ini.page):
+                next_content = None
                 for _ in range(page_split):
-                    contents.extend(headers)
-                    contents.append(FrameBreak())
+                    for i in range(len(contents)):
+                        contents[i].extend(headers)
+                        contents[i].append(FrameBreak())
 
                     # Header Index
                     text = [f"# {virtual_page_counter}"]
-                    if is_anser_page:
+                    if next_content is not None:
                         text.append('ans.')
-                    add_header_index(contents, text,
-                        header_index_frame_w, header_index_frame_h, grid_color
-                    )
+                    for i in range(len(contents)):
+                        add_header_index(contents[i], text,
+                            header_index_frame_w, header_index_frame_h, grid_color
+                        )
 
-                    if not is_anser_page:
-                        # Data elements
-                        seed = [i for i in range(ini.a_min, ini.a_max)]
-                        seed.extend([i for i in range(ini.a_min, ini.a_max)])
-                        left_column_nums = random.sample(seed, 10)
-                        seed = [i for i in range(ini.b_min, ini.b_max)]
-                        seed.extend([i for i in range(ini.b_min, ini.b_max)])
-                        top_row_nums = random.sample(seed, 10)
+                    # Data elements
+                    seed = [i for i in range(ini.a_min, ini.a_max)]
+                    seed.extend([i for i in range(ini.a_min, ini.a_max)])
+                    left_column_nums = random.sample(seed, 10)
+                    seed = [i for i in range(ini.b_min, ini.b_max)]
+                    seed.extend([i for i in range(ini.b_min, ini.b_max)])
+                    top_row_nums = random.sample(seed, 10)
 
-                        # Create data
-                        table_data = [[None] * 11 for _ in range(11)]
+                    # Create data
+                    table_data = [[None] * 11 for _ in range(11)]
+                    table_data_ans = [[None] * 11 for _ in range(11)]
+                    for i in range(10):
+                        table_data[0][i+1] = top_row_nums[i]
+                        table_data[i+1][0] = left_column_nums[i]
+                        table_data_ans[0][i+1] = top_row_nums[i]
+                        table_data_ans[i+1][0] = left_column_nums[i]
+
+                    # Fill in ansers
+                    for r in range(10):
                         for i in range(10):
-                            table_data[0][i+1] = top_row_nums[i]
-                            table_data[i+1][0] = left_column_nums[i]
-
-                        # Fill in ansers
-                        for r in range(10):
-                            for i in range(10):
-                                table_data[r+1][i+1] = \
-                                    table_data[r+1][0] + table_data[0][i+1]
+                            table_data_ans[r+1][i+1] = \
+                                table_data_ans[r+1][0] + table_data_ans[0][i+1]
 
                     # Add Table for 100 seq.
-                    table = Table( table_data
-                        , colWidths = [top_body_region_w / 11] * 11
-                        , rowHeights = [top_body_region_w / 11] * 11
-                    )
-                    table.setStyle([
-                        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-                        ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
-                        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-                        ('FONTSIZE', (0, 0), (-1, -1), 16),
-                        ('TOPPADDING', (0, 0), (-1, -1), -7),
-                    ])
-                    if not is_anser_page:
-                        table.setStyle([('TEXTCOLOR', (1, 1), (-1, -1), 'white')])
-
-                    contents.append(table)
-                    contents.append(FrameBreak())
-                    contents.append(FrameBreak())
-                    if is_anser_page:
-                        is_anser_page = False
+                    tables = []
+                    table_datas = [table_data, table_data_ans]
+                    for i in range(2):
+                        tables.append(Table(table_datas[i]
+                            , colWidths = [top_body_region_w / 11] * 11
+                            , rowHeights = [top_body_region_w / 11] * 11
+                        ))
+                        tables[i].setStyle([
+                            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+                            ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
+                            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                            ('FONTSIZE', (0, 0), (-1, -1), 16),
+                            ('TOPPADDING', (0, 0), (-1, -1), -7),
+                        ])
+                    if ini.merge is False:
+                        for i in range(len(contents)):
+                            contents[i].append(tables[i])
+                            contents[i].append(FrameBreak())
+                            contents[i].append(FrameBreak())
                         virtual_page_counter += 1
                     else:
-                        is_anser_page = True
+                        if next_content == None:
+                            contents[0].append(tables[0])
+                            next_content = tables[1]
+                        else:
+                            contents[0].append(next_content)
+                            next_content = None
+                            virtual_page_counter += 1
+                        contents[0].append(FrameBreak())
+                        contents[0].append(FrameBreak())
+
+#            # Write CSV
+#            csv_file_name = ini.out_file.rstrip('.pdf') + '.csv'
+#            with open(csv_file_name, 'w') as f:
+#                writer = csv.writer(f)
+#                writer.writerows(table_data)
 
         # Build PDF
-#        doc.build(contents, onFirstPage = addPageNumber, onLaterPages = addPageNumber)
-#        doc.multiBuild(contents)
-        doc.build(contents)
+        if ini.merge is False:
+            for i in range(len(docs)):
+                docs[i].build(contents[i])
+                print('export PDF')
+        else:
+            docs[0].build(contents[0])
+            print('export PDF')
 
         print("All done")
     except Exception as e:
