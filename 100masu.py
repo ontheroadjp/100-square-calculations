@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import sys
 import os
 import argparse
 import random
@@ -8,13 +9,21 @@ import csv
 #import copy
 #import math
 #from datetime import datetime
-from reportlab.lib.pagesizes import B5, A4, A3, landscape, portrait
+from reportlab.lib.pagesizes import B5, A4, A3, landscape
 from reportlab.platypus import BaseDocTemplate, PageTemplate
 from reportlab.platypus import Frame, FrameBreak, PageBreak
 from reportlab.platypus import Table, Paragraph, Spacer
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.lib import colors
+
+
+def failure(e):
+    exc_type, exc_obj, tb = sys.exc_info()
+    lineno = tb.tb_lineno
+    print(str(lineno) + ": " + str(type(e)))
+    print(str(lineno) + ": " + str(e))
+    exit(-1)
 
 
 def _init():
@@ -36,13 +45,13 @@ def _init():
     )
     parser.add_argument('paper_size'
         , type = str
-        , default = 'A4'
         , choices = ['A3', 'A4', 'B5', 'a3', 'a4', 'b5', 'a4l']
         , help = 'Paper size of prints to be output'
     )
     parser.add_argument('command'
         , type = str
-        , choices = ['99', 'ope', 'operation', 'com', 'complement', '100', 'aBc', 'squ', 'pi']
+#        , choices = ['ope', 'mul-intermediate', 'com', '100', '99', 'aBc', 'squ', 'pi']
+        , choices = ['ope', 'com', '100', '99', 'aBc', 'squ', 'pi']
         , help = 'Type of formula to output'
     )
     parser.add_argument('-a', '--a-value'
@@ -79,6 +88,11 @@ def _init():
         , nargs="*"
         , help = 'Types of operations included in formulas'
     )
+    parser.add_argument('--descend'
+        , default = False
+        , action = 'store_true'
+        , help = 'Multiplication table in descending order'
+    )
     parser.add_argument('--reverse'
         , default = False
         , action = 'store_true'
@@ -88,6 +102,11 @@ def _init():
         , default = False
         , action = 'store_true'
         , help = 'Multiplication table in random order'
+    )
+    parser.add_argument('--intermediate'
+        , default = False
+        , action = 'store_true'
+        , help = 'Write an intermediate formula'
     )
     parser.add_argument('-r', '--rows'
         , type = int
@@ -99,11 +118,6 @@ def _init():
         , default = 2
         , help = 'Number of columns of questions per page'
     )
-#    parser.add_argument('-w', '--with-answer'
-#        , default = False
-#        , action = 'store_true'
-#        , help = 'Flag whether the answer to a formula should be displayed or not'
-#    )
     parser.add_argument('-ww', '--with-bottom-answer'
         , default = False
         , action = 'store_true'
@@ -118,6 +132,11 @@ def _init():
         , default = False
         , action = 'store_true'
         , help = 'Flag whether or not to merge answers file'
+    )
+    parser.add_argument('--csv'
+        , default = False
+        , action = 'store_true'
+        , help = 'Flag whether or not to output csv raw data'
     )
     parser.add_argument('--out-file'
         , default = 'result.pdf'
@@ -135,7 +154,8 @@ def _init():
         min_val, max_val = digits_list[value - 1]
         return [min_val, max_val]
 
-    if args.command == 'ope':
+#    if args.command == 'ope' or args.command == 'mul-intermediate':
+    if args.command == 'ope' or ini.intermediate:
         if args.a_value is not None:
             args.a_min, args.a_max = set_min_max_value(args.a_value)
         if args.b_value is not None:
@@ -158,7 +178,6 @@ def _init():
             print(f"bad argument: -a or -b")
             print('They must be less than 3.')
             exit()
-
     return args
 
 
@@ -168,6 +187,18 @@ def add_vertical_frame_set(frames, start_x, start_y, region_w, region_h, frame_a
 
     table_frame_w_list = []
     [table_frame_w_list.append(table_frame_w) for i in range(len(w_ratio))]
+
+    def calc_table_frame_width(data, ratio):
+        total_ratio = 0
+        total_data = 0
+        value = []
+        for i in ratio:
+            total_ratio += i
+        for i in data:
+            total_data += i
+        for i, v in enumerate(data):
+            value.append(total_data * (ratio[i] / total_ratio))
+        return value
 
     table_frame_calc_w = calc_table_frame_width(table_frame_w_list, w_ratio)
     tmp = calc_table_frame_width(table_frame_w_list, w_ratio)
@@ -188,20 +219,10 @@ def add_vertical_frame_set(frames, start_x, start_y, region_w, region_h, frame_a
     return table_frame_calc_w
 
 
-def calc_table_frame_width(data, ratio):
-    total_ratio = 0
-    total_data = 0
-    value = []
-    for i in ratio:
-        total_ratio += i
-    for i in data:
-        total_data += i
-    for i, v in enumerate(data):
-        value.append(total_data * (ratio[i] / total_ratio))
-    return value
-
-
-def get_operation_data(nums_a, nums_b, operators=['add'], order=10, print_index = 1):
+def get_operation_data(
+        nums_a, nums_b, operators=['add'], order=10, print_index = 1,
+        intermediate = False
+    ):
     """
     Create the four operations from num_a and num_b.
 
@@ -227,45 +248,95 @@ def get_operation_data(nums_a, nums_b, operators=['add'], order=10, print_index 
     vals_b = []
     equal_marks = []
     vals_c = []
+    vals_aabb = []
     print_style = {'add':'+', 'sub':'-', 'mul':'×', 'div':'÷'}
     if operators.count('mix') > 0:
         operators = ['add', 'sub', 'mul', 'div']
+
+    def calc_add(a, b):
+        c = a + b
+        return (a, b, c)
+
+    def calc_sub(a, b):
+        while True:
+            # Make sure the answer is not a negative number.
+            if a - b > 0:
+                c = a - b
+                return (a, b, c)
+            a = random.choice(nums_a)
+            b = random.choice(nums_b)
+
+    def calc_mul(a, b):
+        c = a * b
+        return (a, b, c)
+
+    def calc_div(a, b):
+        while True:
+            # Only if not divisible by zero and divisible by
+            if b != 0 and a % b == 0:
+                c = a // b
+                return (a, b, c)
+            a = random.choice(nums_a)
+            b = random.choice(nums_b)
+
     for _ in range(order):
         a = random.choice(nums_a)
         b = random.choice(nums_b)
         random.shuffle(operators)
         operator = random.choice(operators)
         if operator == 'add':
-            c = a + b
+#            c = a + b
+            a, b, c = calc_add(a, b)
         elif operator == 'sub':
-            while True:
-                # Make sure the answer is not a negative number.
-                if a - b > 0:
-                    c = a - b
-                    break
-                a = random.choice(nums_a)
-                b = random.choice(nums_b)
+#            while True:
+#                # Make sure the answer is not a negative number.
+#                if a - b > 0:
+#                    c = a - b
+#                    break
+#                a = random.choice(nums_a)
+#                b = random.choice(nums_b)
+            a, b, c = calc_sub(a, b)
         elif operator == 'mul':
-            c = a * b
+#        elif operator == 'mul' or operator == 'mul-intermediate':
+#            c = a * b
+            a, b, c = calc_mul(a, b)
+            if intermediate:
+                single_a = a // 10
+                single_b = a % 10
+                single_c = b // 10
+                single_d = b % 10
+                aa = '00' + str(single_a * single_d)
+                bb = '00' + str(single_b * single_d)
+                aabb = aa[-2:] + bb[-2:]
+#                print(str(a) + '×' + str(b) + '=>' + str(aabb) + '=>' + str(c))
         elif operator == 'div':
-            while True:
-                # Only if not divisible by zero and divisible by
-                if b != 0 and a % b == 0:
-                    c = a // b
-                    break
-                a = random.choice(nums_a)
-                b = random.choice(nums_b)
+#            while True:
+#                # Only if not divisible by zero and divisible by
+#                if b != 0 and a % b == 0:
+#                    c = a // b
+#                    break
+#                a = random.choice(nums_a)
+#                b = random.choice(nums_b)
+            a, b, c = calc_div(a, b)
 
         counter_str = str(print_index) + ')'
         data_index.append([counter_str])
         vals_a.append([str(a)])
-        operator_mark.append([str(print_style[operator])])
+        operator_mark.append([str(print_style[operator[:3]])])
         vals_b.append([str(b)])
-        equal_marks.append(['='])
         vals_c.append([str(c)])
+        if intermediate:
+            equal_marks.append(['=>'])
+            vals_aabb.append([str(aabb)])
+        else:
+            equal_marks.append(['='])
 
         print_index += 1
-    return (data_index, vals_a, operator_mark, vals_b, equal_marks, vals_c)
+
+    if intermediate:
+        return (data_index, vals_a, operator_mark, vals_b, equal_marks, vals_aabb, equal_marks, vals_c)
+    else:
+        return (data_index, vals_a, operator_mark, vals_b, equal_marks, vals_c)
 
 
 def get_complement_data(nums_a, target=100, order=10, print_index=1):
@@ -303,7 +374,8 @@ def get_complement_data(nums_a, target=100, order=10, print_index=1):
     return(data_index, vals_a, equal_marks, vals_c)
 
 
-def get_fixed_format_data(mode, start_num=1, order=10, print_index=1, is_reverse=False, is_shuffle=False):
+def get_fixed_format_data(mode, start_num=1, order=10, print_index=1,
+                            descend=False, is_reverse=False, is_shuffle=False):
     """
     Create the square numbers operations
 
@@ -314,8 +386,8 @@ def get_fixed_format_data(mode, start_num=1, order=10, print_index=1, is_reverse
             Number of creating 99 questions
         print_index: int
             begining number of question
-        is_reverse: boolean
-            Output in reverse order of 99
+        descend: boolean
+            Output in descending order of 99
         is_shuffle: boolean
             Disjointed output of the order of the 99
 
@@ -335,7 +407,7 @@ def get_fixed_format_data(mode, start_num=1, order=10, print_index=1, is_reverse
     else:
         num_list = [(start_num + i) for i in range(order)]
 
-    if is_reverse:
+    if descend:
         num_list.reverse()
     if is_shuffle:
         random.shuffle(num_list)
@@ -365,21 +437,35 @@ def get_fixed_format_data(mode, start_num=1, order=10, print_index=1, is_reverse
 
         if not mode == '99':
             start_num += 1
+    if is_reverse is True:
+        return (data_index, vals_c, equal_marks, vals_a, operator_marks, vals_b)
     return (data_index, vals_a, operator_marks, vals_b, equal_marks, vals_c)
 
 
 def get_aBc_data(order = 10, print_index = 1):
-    nums = [a for a in range(0, 10)]
+    """
+    Create the aBc statement
+
+    Args:
+        order: int
+            Create number of statement
+        print_index: int
+            statement No
+    Returns:
+        the aBc statements: tuple
+            List of the aBc statements
+    """
+    seed_nums = [a for a in range(0, 10)]
 
     vals_a = []
     equal_marks = []
     vals_c = []
     data_index = []
     for i in range(order):
-        a = random.choice(nums)
-        b = random.choice(nums)
-        c = random.choice(nums)
-        d = random.choice(nums)
+        a = random.choice(seed_nums)
+        b = random.choice(seed_nums)
+        c = random.choice(seed_nums)
+        d = random.choice(seed_nums)
 
         abcd = a * 1000 + b * 100 + c * 10 + d
         ab = (a * 10 + b) * 10
@@ -399,6 +485,23 @@ def get_aBc_data(order = 10, print_index = 1):
 
 
 def add_header_index(contents, data, width, height, grid_color):
+    """
+    Add header index table. This table has one column and one row.
+
+    Args:
+        contents: list
+            Container of the header index content
+        data: list
+            Header index content
+        width: int
+            Region width of the header index table
+        height: int
+            Region height of the header index table
+        grid_color: str
+            Grid color of the header index table
+    Returns:
+        Not available
+    """
     header_index_tbl = Table( [data]
         , colWidths = [width] * 2
         , rowHeights = [height] * 1
@@ -413,44 +516,74 @@ def add_header_index(contents, data, width, height, grid_color):
     contents.append(header_index_tbl)
     contents.append(FrameBreak())
 
+def get_vertical_contents_raw_dataset(command, data_elements, rows, columns):
+    """
+    Return the vertical contents raw data.
 
-def get_vertical_contents(command, data_elements
-    , rows, columns, row_heights, col_widths
-    , align, valign, font_size, top_padding, left_padding, grid_color, text_color
-    , tbl2_w, tbl2_h):
-
-    # create table
-    calc_results = []
-    cumulative_index = 1
-    result_vals_for_print = []
-    data_order = rows * 1 # ini.rows * ini.columns
-    vertical_contents = []
+    Args:
+        command: str
+            This is from an argument of this script
+        data_elements: list
+            Seed for creating contents data
+        rows: int
+            Number of row of a table
+        columns: int
+            Number of column of a table
+    Returns:
+        dataset: list
+            All of the raw data created
+    """
+    order = rows * 1
+    dataset = []
     for column_index in range(columns):
         print_index = 1 + (rows * column_index)
         if command == '99' or command == 'squ' or command == 'pi':
-            mode, start_num, is_reverse, is_shuffle = data_elements
-            data = get_fixed_format_data(mode, start_num, data_order, print_index, is_reverse, is_shuffle)
-        elif command == 'operation' or command == 'ope':
-            nums_a, nums_b, operator = data_elements
+            mode, start_num, descend, is_reverse, is_shuffle = data_elements
+            data = get_fixed_format_data(
+                mode, start_num, order, print_index
+                , descend, is_reverse, is_shuffle
+            )
+        elif command == 'ope':
+            nums_a, nums_b, operator, intermediate = data_elements
+            if intermediate:
+                operator = ['mul']
             data = get_operation_data(
-                nums_a, nums_b, operator, data_order, print_index)
-        elif command == 'complement' or command == 'com':
+                nums_a, nums_b, operator, order, print_index, intermediate
+            )
+#        elif command == 'mul-intermediate':
+#            nums_a, nums_b, operator = data_elements
+#            data = get_operation_data(
+#                nums_a, nums_b, operator, order, print_index
+#            )
+        elif command == 'com':
             target, random_nums = data_elements
             data = get_complement_data(
-                random_nums, target, data_order, print_index)
+                random_nums, target, order, print_index
+            )
         elif command == 'aBc':
-            data = get_aBc_data(data_order, print_index)
+            data = get_aBc_data(order, print_index)
 
+#        elif command == 'mix':
+#            nums_a = 2
+#            nums_b = 1
+#            operator = 'mul'
+#            order = 4
+#            data = get_operation_data(
+#                nums_a, nums_b, operator, order, print_index
+#            )
+
+        dataset.append(data)
+    return dataset
+
+
+def get_vertical_contents(dataset, row_heights, col_widths
+#    ,align ,valign ,font_size ,top_padding ,left_padding ,grid_color ,text_color):
+    ,align ,valign ,font_size ,top_padding ,left_padding ,grid_color):
+
+    vertical_contents = []
+    for data in dataset:
         table_set = []
         for data_index in range(len(data)):
-            if data_index == (len(data) - 1):
-                for val in data[data_index]:
-                    result_vals_for_print.append(f"({cumulative_index})")
-                    result_vals_for_print.append(val[0])
-                    cumulative_index += 1
-                    if len(result_vals_for_print) > 18:
-                        calc_results.append(result_vals_for_print)
-                        result_vals_for_print = []
             top_table = Table(data[data_index]
                 , rowHeights = row_heights
                 , colWidths = col_widths[data_index]
@@ -460,31 +593,50 @@ def get_vertical_contents(command, data_elements
                 , ('VALIGN', (0, 0), (-1, -1), valign[data_index])
                 , ('FONTNAME', (0, 0), (-1, -1), 'Helvetica')
                 , ('FONTSIZE', (0, 0), (-1, -1), font_size[data_index])
-                , ('TEXTCOLOR', (0, 0), (-1, -1), text_color[data_index])
+#                , ('TEXTCOLOR', (0, 0), (-1, -1), text_color[data_index])
                 , ('TOPPADDING', (0, 0), (-1, -1), top_padding[data_index])
                 , ('LEFTPADDING', (0, 0), (-1, -1), left_padding[data_index])
                 , ('GRID', (0, 0), (-1, -1), 0, grid_color)
+#                , ('INNERGRID', (0, 0), (-1, -1), 0, grid_color)
+#                , ('BOX', (0, 0), (-1, -1), 0, grid_color)
+#                , ('INNERGRID', (0, 0), (-1, -1), 0, grid_color)
+#                , ('OUTLINE', (0, 0), (-1, -1), 0, grid_color)
             ])
             table_set.append(top_table)
         vertical_contents.append(table_set)
+    return vertical_contents
 
-#    bottom_table = None
-#    if with_bottom_answer:
-    if len(result_vals_for_print):
-        calc_results.append(result_vals_for_print)
-    row_heights = [tbl2_h / len(calc_results)] * len(calc_results)
+
+def get_bottom_results(dataset, tbl2_w, tbl2_h, grid_color):
+    cumulative_index = 1
+    bottom_results = []
+    bottom_result_line = []
+    for data in dataset:
+        for data_index in range(len(data)):
+            if data_index == (len(data) - 1):
+                for val in data[data_index]:
+                    bottom_result_line.append(f"({cumulative_index})")
+                    bottom_result_line.append(val[0])
+                    cumulative_index += 1
+                    if len(bottom_result_line) > 18:
+                        bottom_results.append(bottom_result_line)
+                        bottom_result_line = []
+    if len(bottom_result_line):
+        bottom_results.append(bottom_result_line)
+
+    row_heights = [tbl2_h / len(bottom_results)] * len(bottom_results)
     col_widths = [tbl2_w / 20] * 20
-    bottom_table = Table(calc_results
+    table = Table(bottom_results
         , rowHeights = row_heights
         , colWidths = col_widths
     )
-    bottom_table.setStyle([
+    table.setStyle([
         ('FONTSIZE', (0, 0), (-1, -1), 8)
         , ('ALIGN', (0, 0), (-1, -1), 'CENTER')
         , ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
         , ('GRID', (0, 0), (-1, -1), 0, grid_color)
     ])
-    return [vertical_contents, bottom_table]
+    return table
 
 
 def addPageNumber(canvas, doc):
@@ -521,6 +673,7 @@ def addPageNumber(canvas, doc):
     # Draw Copyrights
     cr = 'Copyright(c) 2024 Nuts Education'
     canvas.drawString(25, 25, cr)
+
 
 def main(ini):
     """
@@ -576,6 +729,7 @@ def main(ini):
         # Create Document (PDF)
         OUTFILE_NAME = ini.out_file
         OUTFILE_NAME_READ = ini.out_file.rstrip('.pdf') + '_read.pdf'
+        OUTFILE_NAME_CSV = ini.out_file.rstrip('.pdf') + '.csv'
 
         docs = [
             BaseDocTemplate(
@@ -635,13 +789,23 @@ def main(ini):
             page_split = 4
             vp_w, vp_h = [paper_width / 2, paper_height / 2]
             reference_points = (
-                (0, paper_height / 2), (paper_width / 2, paper_height / 2)
-                , (0, 0), (paper_width / 2, 0)
+                (0, paper_height / 2)
+                ,(paper_width / 2, paper_height / 2)
+                ,(0, 0), (paper_width / 2, 0)
             )
 
         # 0: normal, 1: read
         frames = [[],[]]
 #        frames = [[]] * len(docs)
+
+        def get_frame_ratio(command):
+            if command == 'com' or command == 'aBc':
+                w_ratio = [1, 1.5, 0.6, 1.5]
+            elif ini.intermediate:
+                w_ratio = [2, 2, 1.5, 1.5, 1.5, 4.2, 1.5, 4.2]
+            else:
+                w_ratio = [4.0, 3.2, 1.5, 2.5, 1.5, 3.2]
+            return w_ratio
 
         for index in range(page_split):
             offset_x, offset_y = reference_points[index]
@@ -692,18 +856,24 @@ def main(ini):
             # Top Body Region
             top_body_region_w = body_region_w
             top_body_region_h = body_region_h - bottom_body_region_h
-            top_body_region_x = header_region_x
+            top_body_region_x = body_region_x
             top_body_region_y = header_region_y - top_body_region_h
 
+
             table_frame_calc_w = []
-            if ini.command == 'operation' or ini.command == 'ope' \
-                    or ini.command == '99' or ini.command == 'squ' \
-                    or ini.command == 'pi':
+            if ini.command == 'ope' \
+                    or ini.command == '99' \
+                    or ini.command == 'squ' \
+                    or ini.command == 'pi' \
+                    or ini.command == 'com' \
+                    or ini.command == 'aBc':
+#                    or ini.command == 'aBc' \
+#                    or ini.command == 'mul-intermediate':
                 x = top_body_region_x
                 y = top_body_region_y
                 w = top_body_region_w
                 h = top_body_region_h
-                w_ratio = [4.0, 3.2, 1.2, 2.5, 1.2, 3.2]
+                w_ratio = get_frame_ratio(ini.command)
                 frame_amount = ini.columns * len(w_ratio)
                 for i in range(len(frames)):
                     table_frame_calc_w = add_vertical_frame_set(
@@ -720,19 +890,6 @@ def main(ini):
                         , rightPadding = 0, topPadding = 0
                         , showBoundary = ini.debug
                     ))
-            elif ini.command == 'complement' or ini.command == 'com' \
-                    or ini.command == 'aBc':
-                x = header_region_x
-                y = header_region_y - top_body_region_h
-                w = top_body_region_w
-                h = top_body_region_h
-                w_ratio = [1, 1.5, 0.6, 1.5]
-                frame_amount = ini.columns * len(w_ratio)
-                for i in range(len(frames)):
-                    table_frame_calc_w = add_vertical_frame_set(
-                        frames[i], x, y, w, h, frame_amount, w_ratio, ini.debug
-                    )
-
             # Table 2 frame
             tbl2_w = body_region_w
             tbl2_h = bottom_body_region_h
@@ -756,30 +913,23 @@ def main(ini):
 #        contents = [[]] * len(docs)
 
         # Header
-        header_style = ParagraphStyle(
+        header = Paragraph(f'<b>{HEADER_STR}</b>', ParagraphStyle(
             name='Header', leftIndent=0, fontName='Courier-Bold'
             , fontSize=header_font_size
-        )
-        header = Paragraph(f'<b>{HEADER_STR}</b>', header_style)
-
+        ))
         # Title
-        title_style = ParagraphStyle(
+        title = Paragraph(f'<b>{TITLE_STR}</b>', ParagraphStyle(
             name='Title', fontName='Helvetica-Bold', fontSize=title_font_size
-        )
-        title = Paragraph(f'<b>{TITLE_STR}</b>', title_style)
-
+        ))
         # Sub title
-        sub_title_style = ParagraphStyle(
+        sub_title = Paragraph(f'<b>{SUB_TITLE_STR}</b>', ParagraphStyle(
             name='SubTitle', leftIndent=350, fontName='Helvetica'
             , fontSize=sub_title_font_size
-        )
-        sub_title = Paragraph(f'<b>{SUB_TITLE_STR}</b>', sub_title_style)
-
+        ))
         # Date and Time
         date_time = Table([[f"Date: {'_' * 15}", f"Time: {'_' * 15}"]],
             colWidths = [header_region_w / 2] * 2
         )
-
         date_time.setStyle([
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -801,44 +951,49 @@ def main(ini):
         # ------------------------------------------------
 
         # Generic Dimentions (for Top & Bottom table layout)
-        rows = ini.rows
-        columns = ini.columns
-        row_heights = [(top_body_region_h - 0) / rows] * rows
-        if ini.with_bottom_answer:
-            row_heights = [(top_body_region_h - 20) / rows] * rows
-        if table_frame_calc_w:
-            col_widths = table_frame_calc_w
+#        table_space = 0 if ini.with_bottom_answer else -20
+#        row_heights = [(top_body_region_h - table_space) / ini.rows] * ini.rows
 
-        # Generic Table Style (for 6 columns / unit)
-        align = ['RIGHT', 'CENTER', 'CENTER', 'CENTER', 'CENTER', 'LEFT']
-        valign = ['MIDDLE', 'MIDDLE', 'MIDDLE', 'MIDDLE', 'MIDDLE', 'MIDDLE']
-        text_color = ['black', 'black', 'black', 'black', 'black', 'black']
+        row_heights = [(top_body_region_h - 0) / ini.rows] * ini.rows
+        if ini.with_bottom_answer:
+            row_heights = [(top_body_region_h - 20) / ini.rows] * ini.rows
+
+        # Generic Table Style (for 6 units / column)
+        align = ['RIGHT', 'CENTER', 'CENTER', 'CENTER', 'CENTER', 'LEFT', 'CENTER', 'CENTER']
+        valign = ['MIDDLE', 'MIDDLE', 'MIDDLE', 'MIDDLE', 'MIDDLE', 'MIDDLE', 'MIDDLE', 'MIDDLE']
+#        text_color = ['black', 'black', 'black', 'black', 'black', 'black', 'black', 'black']
         if ini.paper_size.lower() == 'a4':
-            font_size = (10, 16, 16, 16, 16, 16)
+            font_size = (10, 16, 16, 16, 16, 16, 16, 16)
         if ini.paper_size.lower() == 'b5' \
                 or ini.paper_size.lower() == 'a4l' \
                 or ini.paper_size.lower() == 'a3':
-            font_size = (7, 11, 11, 11, 11, 11)
-        grid_color = colors.white if not ini.debug else colors.blue
-        top_padding = (5, 0, -2, 0, -2, 0)
-        left_padding = (4, 4, 2, 4, 4, 4)
+            font_size = (7, 11, 11, 11, 11, 11, 11, 11)
+        grid_color = colors.HexColor('#00FFFFFF') if not ini.debug else colors.blue
+        top_padding = (5, 0, -2, 0, -2, 0, 0, 0)
+        left_padding = (4, 4, 2, 4, 4, 4, 4, 4)
 
-        # Generic Table Style (for 4 columns / unit)
+        # Generic Table Style (for 4 units / column)
         if ini.command == 'com' or ini.command == 'aBc':
             align[3] = 'LEFT'
-            text_color[3] = 'white'
+#            text_color[3] = 'white'
             font_size = (7, 11, 9, 11)
 
-        # for debug
-        if ini.debug:
-            text_color[-1] = 'black'
-            text_color[3] = 'black'
+        if ini.intermediate:
+            align[5] = 'CENTER'
+            font_size = (7, 11, 11, 11, 9, 11, 9, 11)
+            top_padding = (5, 0, -2, 0, 1, 0, 1, 0)
+
+#        # for debug
+#        if ini.debug:
+#            text_color[-1] = 'black'
+#            text_color[3] = 'black'
+
         # Document Development
+        csv_data = []
+        virtual_page_counter = 1
+        next_content = None
         if not ini.command == '100':
-            virtual_page_counter = 1
-#            data_csv_lines = []
             for page_index in range(ini.page):
-                next_content = None
                 for _ in range(page_split):
                     # Header & Header Index
                     for i in range(len(contents)):
@@ -848,15 +1003,16 @@ def main(ini):
                             header_index_frame_w, header_index_frame_h, grid_color
                         )
 
-                    # Main Table
                     # Create Data Elements
                     data_elements = ()
                     if ini.command == '99' or ini.command == 'squ' \
                             or ini.command == 'pi':
                         data_elements = (
-                            ini.command, ini.a_value, ini.reverse, ini.shuffle
+                            ini.command, ini.a_value
+                            , ini.descend, ini.reverse, ini.shuffle
                         )
-                    elif ini.command == 'operation' or ini.command == 'ope':
+#                    elif ini.command == 'ope' or ini.command == 'mul-intermediate':
+                    elif ini.command == 'ope':
                         if ini.a_min is not ini.a_max:
                             seed = [i for i in range(ini.a_min, ini.a_max)]
                             nums_a = random.sample(seed, len(seed))
@@ -867,9 +1023,15 @@ def main(ini):
                             nums_b = random.sample(seed, len(seed))
                         else:
                             nums_b = [ini.b_min]
+
+#                        if ini.command == 'ope':
+#                            operator = ini.operator
+#                        elif ini.intermediate:
+#                            operator = ['mul-intermediate']
+
                         operator = ini.operator
-                        data_elements = (nums_a, nums_b, operator)
-                    elif ini.command == 'complement' or ini.command == 'com':
+                        data_elements = (nums_a, nums_b, operator, ini.intermediate)
+                    elif ini.command == 'com':
                         # Data elements
                         target = ini.a_value
                         seed = [i for i in range(1, target - 1)]
@@ -878,24 +1040,47 @@ def main(ini):
                     elif ini.command == 'aBc':
                         data_elements = ()
 
-                    vertical_contents = get_vertical_contents(
-                        ini.command, data_elements
-                        , rows, columns, row_heights, col_widths
-                        , align, valign, font_size, top_padding, left_padding
-                        , grid_color, text_color
-                        , tbl2_w, tbl2_h
+                    dataset = get_vertical_contents_raw_dataset(
+                        ini.command, data_elements, ini.rows, ini.columns
                     )
 
-                    # In case of next_content == None is ini.merge == False
-                    # or ini.merge == True but next_content == None
-                    vc = vertical_contents if next_content is None else next_content
+                    # for CSV
+                    if ini.csv or ini.debug:
+                        for i in range(len(dataset)):
+                            for row in range(len(dataset[i][0])):
+                                csv_line = []
+                                csv_line.append(page_index)
+                                csv_line.append(virtual_page_counter)
+                                for el in range(len(dataset[i])):
+                                    csv_line.append(dataset[i][el][row][0])
+                                csv_data.append(csv_line)
 
-                    for col_idx in range(len(vc[0])):
-                        for unit_idx in range(len(vc[0][col_idx])):
-                            table = vc[0][col_idx][unit_idx]
+                    # for PDF table
+                    vertical_contents = get_vertical_contents(
+                        dataset, row_heights, table_frame_calc_w
+                        , align, valign, font_size, top_padding, left_padding
+#                        , grid_color, text_color
+                        , grid_color
+                    )
+
+#                    print(vertical_contents)
+
+                    #!!! In case of next_content == None is ini.merge == False
+                    #!!! or ini.merge == True but next_content == None
+                    vc = vertical_contents if next_content is None else next_content
+                    for col_idx in range(len(vc)):
+                        for unit_idx in range(len(vc[col_idx])):
+                            table = vc[col_idx][unit_idx]
                             if next_content is None:
-                                if unit_idx is not len(vc[0][col_idx]) - 1:
-                                    contents[0].append(table)
+                                if ini.reverse:
+                                    if unit_idx < 3:
+                                        contents[0].append(table)
+                                elif ini.intermediate:
+                                    if unit_idx != 5 and unit_idx != 7:
+                                        contents[0].append(table)
+                                else:
+                                    if unit_idx is not len(vc[col_idx]) - 1:
+                                        contents[0].append(table)
                             else:
                                 contents[0].append(table)
                             contents[0].append(FrameBreak())
@@ -904,41 +1089,32 @@ def main(ini):
                                 contents[1].append(table)
                                 contents[1].append(FrameBreak())
 
-                            if unit_idx is len(vc[0][col_idx]) - 1:
+                            if (ini.reverse and unit_idx > 2) \
+                                    or unit_idx is len(vc[col_idx]) - 1:
                                 table.setStyle([
                                     ('TEXTCOLOR', (0, 0), (-1, -1), 'red')
                                 ])
+                            if (ini.intermediate):
+                                if (unit_idx == 5 or unit_idx == 7):
+                                    table.setStyle([
+                                        ('TEXTCOLOR', (0, 0), (-1, -1), 'red')
+                                    ])
 
                     if ini.with_bottom_answer:
-                        contents[0].append(vertical_contents[1])
+                        contents[0].append(get_bottom_results(
+                            dataset, tbl2_w, tbl2_h, grid_color
+                        ))
                     for i in range(len(contents)):
                         contents[i].append(FrameBreak())
-
                     if ini.merge and next_content == None:
                         next_content = vertical_contents
                     else:
                         next_content = None
                         virtual_page_counter += 1
-
-#                    # CSV
-#                    for column_idx in range(len(dataset)):
-#                        for row_idx in range(len(dataset[column_idx][0])):
-#                            csv_line = [page_index]
-#                            for element_idx in range(len(dataset[column_idx])):
-#                                csv_line.append(
-#                                    dataset[column_idx][element_idx][row_idx][0].rstrip(')')
-#                                )
-#                            data_csv_lines.append(csv_line)
-#            # Write CSV
-#            csv_file_name = ini.out_file.rstrip('.pdf') + '.csv'
-#            with open(csv_file_name, 'w') as f:
-#                writer = csv.writer(f)
-#                writer.writerows(data_csv_lines)
-
         else:
-            virtual_page_counter = 1
+#            virtual_page_counter = 1
+#            next_content = None
             for page_index in range(ini.page):
-                next_content = None
                 for _ in range(page_split):
                     for i in range(len(contents)):
                         contents[i].extend(headers)
@@ -1011,11 +1187,10 @@ def main(ini):
                         contents[0].append(FrameBreak())
                         contents[0].append(FrameBreak())
 
-#            # Write CSV
-#            csv_file_name = ini.out_file.rstrip('.pdf') + '.csv'
-#            with open(csv_file_name, 'w') as f:
-#                writer = csv.writer(f)
-#                writer.writerows(table_data)
+                    # for CSV
+                    if ini.csv or ini.debug:
+                        for i in range(len(table_data_ans)):
+                            csv_data.append(table_data_ans[i])
 
         # Build PDF
         if ini.merge is False:
@@ -1026,9 +1201,17 @@ def main(ini):
             docs[0].build(contents[0])
             print('export PDF')
 
+        # Write CSV
+        if ini.csv or ini.debug:
+            with open(OUTFILE_NAME_CSV, 'w') as f:
+                writer = csv.writer(f)
+                writer.writerows(csv_data)
+            print('export CSV')
+
         print("All done")
     except Exception as e:
-        print("Error:", e)
+        failure(e)
+#        print("Error:", e)
 
 
 if __name__ == "__main__":
