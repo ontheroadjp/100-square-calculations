@@ -2,3 +2,4 @@
 *.pdf
 !example_result.pdf
 *.txt
+*.csv

@@ -56,39 +56,46 @@ IS_FLAG_Z=false
 function _main() {
     DIST_DIR='dist'
     rm -rf ${DIST_DIR}
-    mkdir -p ${DIST_DIR}/{a4,b5}
-
+    mkdir -p ${DIST_DIR}/{a4l,a3}
 
     # --------------------------------------------------------------
 
-    # digits=(L1, L2, L3, L4, L5)
-    digits=( '-a 1 -b 1' '-a 2 -b 1' '-a 3 -b 1' '-a 2 -b 2' '-a 3 -b 2')
+#        print_ope=''
+#        if [ "${operator}" == "add" ]; then
+#            print_ope='tasu'
+#        elif [ "${operator}" == "sub" ]; then
+#            print_ope='hiku'
+#        elif [ "${operator}" == "mul" ]; then
+#            print_ope='kakeru'
+#        elif [ "${operator}" == "div" ]; then
+#            print_ope='waru'
+#        elif [ "${operator}" == "mix" ]; then
+#            print_ope='mix'
+#        fi
 
-    table=('-c 2 -r 10' '-c 3 -r 10' '-c 3 -r 15')
-    table_type=1
-
-    page='-p 3'
-
-    for operator in 'add' 'sub' 'mul' 'div' 'mix'; do
-        print_ope=''
-        if [ "${operator}" == "add" ]; then
-            print_ope='tasu'
-        elif [ "${operator}" == "sub" ]; then
-            print_ope='hiku'
-        elif [ "${operator}" == "mul" ]; then
-            print_ope='kakeru'
-        elif [ "${operator}" == "div" ]; then
-            print_ope='waru'
-        elif [ "${operator}" == "mix" ]; then
-            print_ope='mix'
-        fi
-
-        for level in 1 2 3 4 5; do
-            100masu.py b5 ope ${digits[${level} - 1]} \
-                ${table[${table_type}]} -o ${operator} ${page} \
-                -ww --out-file "${DIST_DIR}/b5-${print_ope}-level${level}-H.pdf"
-            echo "[${operator}] - Level ${level}"
-        done
+    params=(
+        "ope -a 1 -b 1 -o add -c 3 -r 10"
+        "ope -a 2 -b 1 -o add -c 3 -r 10"
+        "aBc -a 2 -b 1 -o add -c 3 -r 10"
+        "ope -a 2 -b 1 -o mul -c 3 -r 10"
+        "ope --a-min 10 --a-max 19 --b-min 10 --b-max 19 -o mul -c 3 -r 10"
+        "ope -a 2 --b-min 11 --b-max 11 -o mul -c 3 -r 10"
+    )
+    for size in a3 a4l; do
+        [ "${size}" == "a3" ] && page=5 || page=10
+        100masu.py ${size} ope -a 1 -b 1 -o add -c 3 -r 15 -p ${page} -w \
+            --out-file "${DIST_DIR}/${size}/step-01.pdf"
+        100masu.py ${size} ope -a 2 -b 1 -o add -c 3 -r 15 -p ${page} -w \
+            --out-file "${DIST_DIR}/${size}/step-02.pdf"
+        100masu.py ${size} aBc -a 2 -b 1 -o add -c 3 -r 15 -p ${page} -w \
+            --out-file "${DIST_DIR}/${size}/step-03.pdf"
+        100masu.py ${size} ope -a 2 -b 1 -o mul -c 3 -r 15 -p ${page} -w \
+            --out-file "${DIST_DIR}/${size}/step-04.pdf"
+        100masu.py ${size} ope --a-min 10 --a-max 19 --b-min 10 --b-max 19 -o mul -c 3 -r 15 -p ${page} -w \
+            --out-file "${DIST_DIR}/${size}/step-05.pdf"
+        100masu.py ${size} ope -a 2 --b-min 11 --b-max 11 -o mul -c 3 -r 15 -p ${page} -w \
+            --out-file "${DIST_DIR}/${size}/step-06.pdf"
+        echo "done ${size}"
     done
 }
 
