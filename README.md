@@ -18,29 +18,29 @@ This Python script generates math calculation practice printouts in PDF format u
 ## Usage
 
 1. Clone this repository:
-
+   
    ```bash
    git clone https://github.com/yourusername/math-practice-printouts.git
    ```
 
 2. Navigate to the project directory:
-
+   
    ```bash
    cd math-practice-printouts
    ```
 
 3. Install the required dependencies:
-
+   
    ```bash
    pip install reportlab
    ```
 
 4. Run the script:
-
+   
    ```bash
    python 100masu.py A4 operations
    ```
-
+   
    Replace `A4` with `B5` if you prefer B5 paper size. You can also replace `operations` with `complements` or `100` for different types of printouts.
 
 5. Find the generated PDF file named `result.pdf`.
@@ -69,4 +69,3 @@ Generate 100 square calculation practice printouts on B5 paper size:
 ```bash
 python 100masu.py B5 100
 ```
-

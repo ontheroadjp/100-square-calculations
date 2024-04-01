@@ -56,49 +56,104 @@ IS_FLAG_Z=false
 function _main() {
     DIST_DIR='dist'
     rm -rf ${DIST_DIR}
-    mkdir -p ${DIST_DIR}/{a4l,a3}
 
-    # --------------------------------------------------------------
+    mkdir -p ${DIST_DIR}/mental_arithmetic/{20,45}/{A3,A4}
 
-#        print_ope=''
-#        if [ "${operator}" == "add" ]; then
-#            print_ope='tasu'
-#        elif [ "${operator}" == "sub" ]; then
-#            print_ope='hiku'
-#        elif [ "${operator}" == "mul" ]; then
-#            print_ope='kakeru'
-#        elif [ "${operator}" == "div" ]; then
-#            print_ope='waru'
-#        elif [ "${operator}" == "mix" ]; then
-#            print_ope='mix'
-#        fi
+    for i in {1..9}; do
+        mkdir -p ${DIST_DIR}/99/{20,45}/{A3,A4}/0${i}
+        mkdir -p ${DIST_DIR}/99/{20,45}/{A3,A4}/{descend,random}/0${i}
+        mkdir -p ${DIST_DIR}/99/{20,45}/{A3,A4}/mix
+    done
 
-    params=(
-        "ope -a 1 -b 1 -o add -c 3 -r 10"
-        "ope -a 2 -b 1 -o add -c 3 -r 10"
-        "aBc -a 2 -b 1 -o add -c 3 -r 10"
-        "ope -a 2 -b 1 -o mul -c 3 -r 10"
-        "ope --a-min 10 --a-max 19 --b-min 10 --b-max 19 -o mul -c 3 -r 10"
-        "ope -a 2 --b-min 11 --b-max 11 -o mul -c 3 -r 10"
-    )
-    for size in a3 a4l; do
-        [ "${size}" == "a3" ] && page=5 || page=10
-        100masu.py ${size} ope -a 1 -b 1 -o add -c 3 -r 15 -p ${page} -w \
-            --out-file "${DIST_DIR}/${size}/step-01.pdf"
-        100masu.py ${size} ope -a 2 -b 1 -o add -c 3 -r 15 -p ${page} -w \
-            --out-file "${DIST_DIR}/${size}/step-02.pdf"
-        100masu.py ${size} aBc -a 2 -b 1 -o add -c 3 -r 15 -p ${page} -w \
-            --out-file "${DIST_DIR}/${size}/step-03.pdf"
-        100masu.py ${size} ope -a 2 -b 1 -o mul -c 3 -r 15 -p ${page} -w \
-            --out-file "${DIST_DIR}/${size}/step-04.pdf"
-        100masu.py ${size} ope --a-min 10 --a-max 19 --b-min 10 --b-max 19 -o mul -c 3 -r 15 -p ${page} -w \
-            --out-file "${DIST_DIR}/${size}/step-05.pdf"
-        100masu.py ${size} ope -a 2 --b-min 11 --b-max 11 -o mul -c 3 -r 15 -p ${page} -w \
-            --out-file "${DIST_DIR}/${size}/step-06.pdf"
-        echo "done ${size}"
+#    exit 0
+
+
+    _basic
+#    _kuku
+#    _kuku_descend
+#    _kuku_random
+#    _kuku_all_mix
+#
+}
+
+function _basic {
+    c=2
+    r=10
+    for long in 20 45; do
+        [ ${long} == 45 ] && {
+            c=3
+            r=15
+        }
+        for size in a3 a4; do
+            # Basic training
+            [ "${size}" == "a3" ] && page=5 || page=10
+            100masu.py ${size} ope -a 1 -b 1 -o add -c ${c} -r ${r} -p ${page} \
+                --out-file "${DIST_DIR}/mental_arithmetic/${long}/${size}/step-01.pdf"
+            100masu.py ${size} ope -a 2 -b 1 -o add -c ${c} -r ${r} -p ${page} \
+                --out-file "${DIST_DIR}/mental_arithmetic/${long}/${size}/step-02.pdf"
+            100masu.py ${size} ope -a 1 -b 1 -o mul -c ${c} -r ${r} -p ${page} --shuffle \
+                --out-file "${DIST_DIR}/mental_arithmetic/${long}/${size}/step-03.pdf"
+
+            # Mental althmatic training
+            100masu.py ${size} aBc -a 2 -b 1 -o add -c ${c} -r ${r} -p ${page} \
+                --out-file "${DIST_DIR}/mental_arithmetic/${long}/${size}/step-04.pdf"
+
+            # Practical training
+            100masu.py ${size} ope -a 2 -b 1 -o mul -c ${c} -r ${r} -p ${page} \
+                --out-file "${DIST_DIR}/mental_arithmetic/${long}/${size}/step-05.pdf"
+            100masu.py ${size} ope --a-min 10 --a-max 19 --b-min 10 --b-max 19 \
+                -o mul -c ${c} -r ${r} --shuffle -p ${page} \
+                --out-file "${DIST_DIR}/mental_arithmetic/${long}/${size}/step-06.pdf"
+            100masu.py ${size} squ -a 5 -o mul -c ${c} -r ${r} --shuffle -p ${page} \
+                --out-file "${DIST_DIR}/mental_arithmetic/${long}/${size}/step-07.pdf"
+            100masu.py ${size} ope -a 2 --b-min 11 --b-max 11 \
+                -o mul -c ${c} -r ${r} -p ${page} \
+                --out-file "${DIST_DIR}/mental_arithmetic/${long}/${size}/step-08.pdf"
+            echo "done ${size}"
+        done
     done
 }
 
+function _kuku() {
+    for size in a3 a4; do
+        [ "${size}" == "a3" ] && page=1 || page=1
+        [ "${size}" == "a3" ] && out=A3 || out=A4
+        for dan in 1 2 3 4 5 6 7 8 9; do
+            100masu.py ${size} 99 -a ${dan} -c 3 -r 9 -p ${page} \
+                --out-file "${DIST_DIR}/99/0${dan}/0${dan}-${size}.pdf"
+        done
+        echo "done ${size}"
+    done
+}
+function _kuku_descend() {
+    for size in a3 a4l; do
+        [ "${size}" == "a3" ] && page=1 || page=1
+        for dan in 1 2 3 4 5 6 7 8 9; do
+            100masu.py ${size} 99 -a ${dan} -c 3 -r 9 -p ${page} --reverse \
+                --out-file "${DIST_DIR}/99/0${dan}_descend/0${dan}-${size}-descend.pdf"
+        done
+        echo "done ${size}"
+    done
+}
+function _kuku_random() {
+    for size in a3 a4l; do
+        [ "${size}" == "a3" ] && page=1 || page=1
+        for dan in 1 2 3 4 5 6 7 8 9; do
+            100masu.py ${size} 99 -a ${dan} -c 3 -r 9 -p ${page} --shuffle \
+                --out-file "${DIST_DIR}/99/0${dan}_random/0${dan}-${size}-random.pdf"
+        done
+        echo "done ${size}"
+    done
+}
+function _kuku_all_mix() {
+    for size in a3 a4l; do
+        [ "${size}" == "a3" ] && page=5 || page=10
+        100masu.py ${size} ope --a-min 1 --a-max 9 --b-min 1 --b-max 9 \
+            -o mul -c 3 -r 15 -p ${page} --shuffle \
+            --out-file "${DIST_DIR}/99/mix/mix-${size}.pdf"
+        echo "done ${size}"
+    done
+}
 # -------------------------------------------------------------
 
 function _init() {
