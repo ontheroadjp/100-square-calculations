@@ -218,7 +218,7 @@ def _init():
         return [min_val, max_val]
 
 #    if args.command == 'ope' or args.command == 'mul-intermediate':
-    if args.command == 'ope' or ini.intermediate:
+    if args.command == 'ope' or args.intermediate:
         if args.a_value is not None:
             args.a_min, args.a_max = set_min_max_value(args.a_value)
         if args.b_value is not None:

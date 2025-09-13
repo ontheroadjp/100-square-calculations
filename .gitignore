@@ -28,7 +28,7 @@ dist/
 build/
 *.egg-info/
 
-# Generated files (from 100masu.py and LaTeX)
+# Generated files (from nuts_calc.py and LaTeX)
 *.pdf
 !example_result.pdf # Keep example_result.pdf
 *.tex
@@ -48,3 +48,7 @@ build/
 .idea/
 *.swp
 *~
+
+# Web Frontend
+web/frontend/node_modules/
+web/frontend/dist/
