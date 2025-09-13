@@ -25,12 +25,7 @@
     source venv/bin/activate
     ```
 
-3.  **プロジェクトをインストールする**:
-    ```bash
-    pip install .
-    ```
-
-4.  **LaTeX環境のインストール（オプション）**: `100masu.py`はReportLabを使用してPDFを生成しますが、問題が発生した場合や他のLaTeXベースのツールを使用する予定がある場合は、LaTeXディストリビューション（例: TeX Live, MiKTeX）と`platex`および`dvipdfmx`がインストールされていることを確認してください。
+3.  **LaTeX環境のインストール（オプション）**: `nuts_calc.py`はReportLabを使用してPDFを生成しますが、問題が発生した場合や他のLaTeXベースのツールを使用する予定がある場合は、LaTeXディストリビューション（例: TeX Live, MiKTeX）と`platex`および`dvipdfmx`がインストールされていることを確認してください。
 
     作業が完了したら、仮想環境を非アクティベートするには:
     ```bash
@@ -39,31 +34,31 @@
 
 ## 使用方法
 
-### `100masu.py`を使ったワークシートの生成
-`100masu.py`スクリプトは、主要なジェネレーターです。様々なオプションを付けて直接実行できます。
+### `nuts_calc.py`を使ったワークシートの生成
+`nuts_calc.py`スクリプトは、主要なジェネレーターです。様々なオプションを付けて直接実行できます。
 
 ```bash
-python 100masu.py <用紙サイズ> <コマンド> [オプション]
+python nuts_calc.py <用紙サイズ> <コマンド> [オプション]
 ```
 
 **例: A4サイズの足し算問題を5ページ生成する**
 ```bash
-python 100masu.py A4 ope -o add -p 5 --out-file addition_A4_5pages.pdf
+python nuts_calc.py A4 ope -o add -p 5 --out-file addition_A4_5pages.pdf
 ```
 
 **例: 100マス計算表を生成する（A3サイズ）**
 ```bash
-python 100masu.py A3 100 --out-file 100_square_A3.pdf
+python nuts_calc.py A3 100 --out-file 100_square_A3.pdf
 ```
 
 **例: 九九の「7の段」をランダムな順序で生成する（A4横向き）**
 ```bash
-python 100masu.py a4l 99 -a 7 --shuffle --out-file kuku_7_random_A4L.pdf
+python nuts_calc.py a4l 99 -a 7 --shuffle --out-file kuku_7_random_A4L.pdf
 ```
 
 すべてのオプションのリストを表示するには、以下を実行してください。
 ```bash
-python 100masu.py -h
+python nuts_calc.py -h
 ```
 
 ### `factory.sh`を使った一括生成
@@ -109,7 +104,6 @@ Webインターフェースを使用するには、FlaskバックエンドとRea
 
 ## 依存関係
 *   Python 3
-*   ReportLabライブラリ (`pip install reportlab`)
 *   Flask (`pip install Flask`)
 *   Flask-Cors (`pip install Flask-Cors`)
 *   Node.js と npm (Reactフロントエンド用)

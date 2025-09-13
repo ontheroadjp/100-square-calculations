@@ -25,12 +25,7 @@ To use this generator, you need Python 3. It is highly recommended to use a virt
     source venv/bin/activate
     ```
 
-3.  **Install the project**:
-    ```bash
-    pip install .
-    ```
-
-4.  **(Optional) Install LaTeX environment**: While `100masu.py` uses ReportLab for PDF generation, if you encounter issues or plan to use other LaTeX-based tools, ensure you have a LaTeX distribution (e.g., TeX Live, MiKTeX) with `platex` and `dvipdfmx` installed.
+3.  **(Optional) Install LaTeX environment**: While `nuts_calc.py` uses ReportLab for PDF generation, if you encounter issues or plan to use other LaTeX-based tools, ensure you have a LaTeX distribution (e.g., TeX Live, MiKTeX) with `platex` and `dvipdfmx` installed.
 
     To deactivate the virtual environment when you are done:
     ```bash
@@ -39,31 +34,31 @@ To use this generator, you need Python 3. It is highly recommended to use a virt
 
 ## Usage
 
-### Generating Worksheets with `100masu.py`
-The `100masu.py` script is the core generator. You can run it directly with various options.
+### Generating Worksheets with `nuts_calc.py`
+The `nuts_calc.py` script is the core generator. You can run it directly with various options.
 
 ```bash
-python 100masu.py <paper_size> <command> [options]
+python nuts_calc.py <paper_size> <command> [options]
 ```
 
 **Example: Generate 5 pages of A4 addition problems**
 ```bash
-python 100masu.py A4 ope -o add -p 5 --out-file addition_A4_5pages.pdf
+python nuts_calc.py A4 ope -o add -p 5 --out-file addition_A4_5pages.pdf
 ```
 
 **Example: Generate 100-square calculation table (A3 size)**
 ```bash
-python 100masu.py A3 100 --out-file 100_square_A3.pdf
+python nuts_calc.py A3 100 --out-file 100_square_A3.pdf
 ```
 
 **Example: Generate multiplication table (kuku) for '7' in random order (A4 landscape)**
 ```bash
-python 100masu.py a4l 99 -a 7 --shuffle --out-file kuku_7_random_A4L.pdf
+python nuts_calc.py a4l 99 -a 7 --shuffle --out-file kuku_7_random_A4L.pdf
 ```
 
 For a full list of options, run:
 ```bash
-python 100masu.py -h
+python nuts_calc.py -h
 ```
 
 ### Batch Generation with `factory.sh`
@@ -109,7 +104,6 @@ Once both are running, open your browser to the frontend's address (e.g., `http:
 
 ## Dependencies
 *   Python 3
-*   ReportLab library (`pip install reportlab`)
 *   Flask (`pip install Flask`)
 *   Flask-Cors (`pip install Flask-Cors`)
 *   Node.js and npm (for React frontend)

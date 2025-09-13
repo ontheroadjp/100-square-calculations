@@ -17,9 +17,9 @@ def generate_pdf():
     if not data:
         return jsonify({'error': 'No data provided'}), 400
 
-    # Construct command for 100masu.py
-    # Example: 100masu A4 ope -o add -p 1 --out-file output.pdf
-    command = ['100masu']
+    # Construct command for nuts_calc.py
+    # Example: python ../../nuts_calc.py A4 ope -o add -p 1 --out-file output.pdf
+    command = ['python', '../../nuts_calc.py']
 
     # Required arguments
     paper_size = data.get('paper_size')
@@ -59,21 +59,21 @@ def generate_pdf():
     command.extend(['--out-file', output_filepath])
 
     try:
-        # Execute 100masu.py
+        # Execute nuts_calc.py
         result = subprocess.run(command, capture_output=True, text=True, check=True)
-        app.logger.info(f"100masu.py stdout: {result.stdout}")
+        app.logger.info(f"nuts_calc.py stdout: {result.stdout}")
         if result.stderr:
-            app.logger.warning(f"100masu.py stderr: {result.stderr}")
+            app.logger.warning(f"nuts_calc.py stderr: {result.stderr}")
 
         # Return the generated PDF
         return send_file(output_filepath, as_attachment=True, download_name=output_filename)
 
     except subprocess.CalledProcessError as e:
-        app.logger.error(f"Error running 100masu.py: {e.stderr}")
+        app.logger.error(f"Error running nuts_calc.py: {e.stderr}")
         return jsonify({'error': f'PDF generation failed: {e.stderr}'}), 500
     except FileNotFoundError:
-        app.logger.error("100masu command not found. Is the project installed and virtual environment active?")
-        return jsonify({'error': '100masu command not found. Please ensure the project is installed and your virtual environment is active.'}), 500
+        app.logger.error("nuts_calc.py not found. Is the script in the correct path?")
+        return jsonify({'error': 'nuts_calc.py not found. Please ensure the script is in the correct path.'}), 500
     except Exception as e:
         app.logger.error(f"An unexpected error occurred: {e}")
         return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
