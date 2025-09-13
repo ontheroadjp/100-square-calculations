@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next';
+import './App.css'; // Import App.css
 
 function App() {
   const { t, i18n } = useTranslation();
@@ -94,20 +95,20 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center py-10 font-sans">
+    <div className="app-container">
       {/* Header */}
-      <header className="w-full max-w-4xl bg-white shadow-md rounded-lg p-6 mb-8 flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-800">{t('app_title')}</h1>
-        <div className="space-x-2">
+      <header className="app-header">
+        <h1>{t('app_title')}</h1>
+        <div className="lang-switcher">
           <button
             onClick={() => changeLanguage('en')}
-            className={`px-4 py-2 rounded-md text-sm font-medium ${i18n.language === 'en' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+            className={i18n.language === 'en' ? 'active' : ''}
           >
             English
           </button>
           <button
             onClick={() => changeLanguage('ja')}
-            className={`px-4 py-2 rounded-md text-sm font-medium ${i18n.language === 'ja' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+            className={i18n.language === 'ja' ? 'active' : ''}
           >
             日本語
           </button>
@@ -115,15 +116,14 @@ function App() {
       </header>
 
       {/* Main Content Area - Form */}
-      <main className="w-full max-w-4xl bg-white shadow-md rounded-lg p-8">
-        <h2 className="text-2xl font-semibold text-gray-700 mb-6">{t('generate_worksheet')}</h2>
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <main className="main-content">
+        <h2>{t('generate_worksheet')}</h2>
+        <form onSubmit={handleSubmit} className="form-layout">
           {/* Paper Size */}
-          <div>
-            <label htmlFor="paperSize" className="block text-sm font-medium text-gray-700">{t('paper_size')}</label>
+          <div className="form-group">
+            <label htmlFor="paperSize">{t('paper_size')}</label>
             <select
               id="paperSize"
-              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
               value={paperSize}
               onChange={(e) => setPaperSize(e.target.value)}
             >
@@ -135,11 +135,10 @@ function App() {
           </div>
 
           {/* Command Type */}
-          <div>
-            <label htmlFor="commandType" className="block text-sm font-medium text-gray-700">{t('command_type')}</label>
+          <div className="form-group">
+            <label htmlFor="commandType">{t('command_type')}</label>
             <select
               id="commandType"
-              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
               value={commandType}
               onChange={(e) => setCommandType(e.target.value)}
             >
@@ -154,47 +153,46 @@ function App() {
           </div>
 
           {/* Number Ranges / Values */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="aMin" className="block text-sm font-medium text-gray-700">{t('a_min')}</label>
-              <input type="number" id="aMin" className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" value={aMin} onChange={(e) => setAMin(e.target.value)} />
+          <div className="form-grid">
+            <div className="form-group">
+              <label htmlFor="aMin">{t('a_min')}</label>
+              <input type="number" id="aMin" value={aMin} onChange={(e) => setAMin(e.target.value)} />
             </div>
-            <div>
-              <label htmlFor="aMax" className="block text-sm font-medium text-gray-700">{t('a_max')}</label>
-              <input type="number" id="aMax" className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" value={aMax} onChange={(e) => setAMax(e.target.value)} />
+            <div className="form-group">
+              <label htmlFor="aMax">{t('a_max')}</label>
+              <input type="number" id="aMax" value={aMax} onChange={(e) => setAMax(e.target.value)} />
             </div>
-            <div>
-              <label htmlFor="bMin" className="block text-sm font-medium text-gray-700">{t('b_min')}</label>
-              <input type="number" id="bMin" className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" value={bMin} onChange={(e) => setBMin(e.target.value)} />
+            <div className="form-group">
+              <label htmlFor="bMin">{t('b_min')}</label>
+              <input type="number" id="bMin" value={bMin} onChange={(e) => setBMin(e.target.value)} />
             </div>
-            <div>
-              <label htmlFor="bMax" className="block text-sm font-medium text-gray-700">{t('b_max')}</label>
-              <input type="number" id="bMax" className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" value={bMax} onChange={(e) => setBMax(e.target.value)} />
+            <div className="form-group">
+              <label htmlFor="bMax">{t('b_max')}</label>
+              <input type="number" id="bMax" value={bMax} onChange={(e) => setBMax(e.target.value)} />
             </div>
-            <div>
-              <label htmlFor="aValue" className="block text-sm font-medium text-gray-700">{t('a_value')}</label>
-              <input type="number" id="aValue" className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" value={aValue} onChange={(e) => setAValue(e.target.value)} placeholder={t('optional')} />
+            <div className="form-group">
+              <label htmlFor="aValue">{t('a_value')}</label>
+              <input type="number" id="aValue" value={aValue} onChange={(e) => setAValue(e.target.value)} placeholder={t('optional')} />
             </div>
-            <div>
-              <label htmlFor="bValue" className="block text-sm font-medium text-gray-700">{t('b_value')}</label>
-              <input type="number" id="bValue" className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" value={bValue} onChange={(e) => setBValue(e.target.value)} placeholder={t('optional')} />
+            <div className="form-group">
+              <label htmlFor="bValue">{t('b_value')}</label>
+              <input type="number" id="bValue" value={bValue} onChange={(e) => setBValue(e.target.value)} placeholder={t('optional')} />
             </div>
           </div>
 
           {/* Operators */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">{t('operators')}</label>
-            <div className="mt-1 grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <div className="form-group">
+            <label>{t('operators')}</label>
+            <div className="checkbox-grid">
               {[ 'add', 'sub', 'mul', 'div', 'mix' ].map(op => (
-                <div key={op} className="flex items-center">
+                <div key={op} className="checkbox-group">
                   <input
                     id={`op-${op}`}
                     type="checkbox"
-                    className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
                     checked={operators.includes(op)}
                     onChange={() => handleOperatorChange(op)}
                   />
-                  <label htmlFor={`op-${op}`} className="ml-2 block text-sm text-gray-900">
+                  <label htmlFor={`op-${op}`}>
                     {t(`operator_${op}`)}
                   </label>
                 </div>
@@ -203,61 +201,61 @@ function App() {
           </div>
 
           {/* Other Options */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="rows" className="block text-sm font-medium text-gray-700">{t('rows_per_page')}</label>
-              <input type="number" id="rows" className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" value={rows} onChange={(e) => setRows(e.target.value)} />
+          <div className="form-grid">
+            <div className="form-group">
+              <label htmlFor="rows">{t('rows_per_page')}</label>
+              <input type="number" id="rows" value={rows} onChange={(e) => setRows(e.target.value)} />
             </div>
-            <div>
-              <label htmlFor="columns" className="block text-sm font-medium text-gray-700">{t('columns_per_page')}</label>
-              <input type="number" id="columns" className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" value={columns} onChange={(e) => setColumns(e.target.value)} />
+            <div className="form-group">
+              <label htmlFor="columns">{t('columns_per_page')}</label>
+              <input type="number" id="columns" value={columns} onChange={(e) => setColumns(e.target.value)} />
             </div>
-            <div>
-              <label htmlFor="page" className="block text-sm font-medium text-gray-700">{t('number_of_pages')}</label>
-              <input type="number" id="page" className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" value={page} onChange={(e) => setPage(e.target.value)} />
+            <div className="form-group">
+              <label htmlFor="page">{t('number_of_pages')}</label>
+              <input type="number" id="page" value={page} onChange={(e) => setPage(e.target.value)} />
             </div>
           </div>
 
           {/* Checkbox Options */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex items-center">
-              <input id="descend" type="checkbox" className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded" checked={descend} onChange={(e) => setDescend(e.target.checked)} />
-              <label htmlFor="descend" className="ml-2 block text-sm text-gray-900">{t('descending_order')}</label>
+          <div className="form-grid">
+            <div className="checkbox-group">
+              <input id="descend" type="checkbox" checked={descend} onChange={(e) => setDescend(e.target.checked)} />
+              <label htmlFor="descend">{t('descending_order')}</label>
             </div>
-            <div className="flex items-center">
-              <input id="reverse" type="checkbox" className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded" checked={reverse} onChange={(e) => setReverse(e.target.checked)} />
-              <label htmlFor="reverse" className="ml-2 block text-sm text-gray-900">{t('reverse_order')}</label>
+            <div className="checkbox-group">
+              <input id="reverse" type="checkbox" checked={reverse} onChange={(e) => setReverse(e.target.checked)} />
+              <label htmlFor="reverse">{t('reverse_order')}</label>
             </div>
-            <div className="flex items-center">
-              <input id="shuffle" type="checkbox" className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded" checked={shuffle} onChange={(e) => setShuffle(e.target.checked)} />
-              <label htmlFor="shuffle" className="ml-2 block text-sm text-gray-900">{t('random_order')}</label>
+            <div className="checkbox-group">
+              <input id="shuffle" type="checkbox" checked={shuffle} onChange={(e) => setShuffle(e.target.checked)} />
+              <label htmlFor="shuffle">{t('random_order')}</label>
             </div>
-            <div className="flex items-center">
-              <input id="intermediate" type="checkbox" className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded" checked={intermediate} onChange={(e) => setIntermediate(e.target.checked)} />
-              <label htmlFor="intermediate" className="ml-2 block text-sm text-gray-900">{t('show_intermediate_formula')}</label>
+            <div className="checkbox-group">
+              <input id="intermediate" type="checkbox" checked={intermediate} onChange={(e) => setIntermediate(e.target.checked)} />
+              <label htmlFor="intermediate">{t('show_intermediate_formula')}</label>
             </div>
-            <div className="flex items-center">
-              <input id="withBottomAnswer" type="checkbox" className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded" checked={withBottomAnswer} onChange={(e) => setWithBottomAnswer(e.target.checked)} />
-              <label htmlFor="withBottomAnswer" className="ml-2 block text-sm text-gray-900">{t('include_bottom_answer')}</label>
+            <div className="checkbox-group">
+              <input id="withBottomAnswer" type="checkbox" checked={withBottomAnswer} onChange={(e) => setWithBottomAnswer(e.target.checked)} />
+              <label htmlFor="withBottomAnswer">{t('include_bottom_answer')}</label>
             </div>
-            <div className="flex items-center">
-              <input id="merge" type="checkbox" className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded" checked={merge} onChange={(e) => setMerge(e.target.checked)} />
-              <label htmlFor="merge" className="ml-2 block text-sm text-gray-900">{t('merge_answer_file')}</label>
+            <div className="checkbox-group">
+              <input id="merge" type="checkbox" checked={merge} onChange={(e) => setMerge(e.target.checked)} />
+              <label htmlFor="merge">{t('merge_answer_file')}</label>
             </div>
-            <div className="flex items-center">
-              <input id="csv" type="checkbox" className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded" checked={csv} onChange={(e) => setCsv(e.target.checked)} />
-              <label htmlFor="csv" className="ml-2 block text-sm text-gray-900">{t('output_csv_raw_data')}</label>
+            <div className="checkbox-group">
+              <input id="csv" type="checkbox" checked={csv} onChange={(e) => setCsv(e.target.checked)} />
+              <label htmlFor="csv">{t('output_csv_raw_data')}</label>
             </div>
-            <div className="flex items-center">
-              <input id="debug" type="checkbox" className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded" checked={debug} onChange={(e) => setDebug(e.target.checked)} />
-              <label htmlFor="debug" className="ml-2 block text-sm text-gray-900">{t('debug_mode')}</label>
+            <div className="checkbox-group">
+              <input id="debug" type="checkbox" checked={debug} onChange={(e) => setDebug(e.target.checked)} />
+              <label htmlFor="debug">{t('debug_mode')}</label>
             </div>
           </div>
 
-          <div className="flex justify-center pt-6">
+          <div className="submit-button-container">
             <button
               type="submit"
-              className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              className="submit-button"
               disabled={loading}
             >
               {loading ? t('generating') : t('generate_pdf')}
@@ -267,23 +265,23 @@ function App() {
 
         {/* Result Display */}
         {error && (
-          <div className="mt-8 p-4 bg-red-100 text-red-700 rounded-md">
+          <div className="error-message">
             {t('error_prefix')} {error}
           </div>
         )}
 
         {pdfUrl && (
-          <div className="mt-8">
-            <h3 className="text-xl font-semibold text-gray-700 mb-4">{t('generated_pdf')}</h3>
+          <div className="result-display">
+            <h3>{t('generated_pdf')}</h3>
             <a
               href={pdfUrl}
               download="generated_worksheet.pdf"
-              className="inline-block px-6 py-3 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+              className="download-button"
             >
               {t('download_pdf')}
             </a>
-            <div className="mt-4 w-full h-96 border border-gray-300 rounded-md overflow-hidden">
-              <iframe src={pdfUrl} className="w-full h-full"></iframe>
+            <div className="pdf-iframe-container">
+              <iframe src={pdfUrl} className="pdf-iframe"></iframe>
             </div>
           </div>
         )}
