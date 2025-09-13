@@ -1,5 +1,42 @@
 #!/bin/bash
 
+#
+# Script: factory.sh
+# Description: This script automates the generation of various 100-square calculation
+#              worksheets in PDF format. It utilizes the '100masu.py' Python script
+#              to create different types of problems (addition, multiplication,
+#              mental arithmetic, multiplication tables) with varying configurations
+#              and organizes them into a structured 'dist' directory.
+#
+# Usage: ./factory.sh
+#        (No arguments are required for this script as it runs a predefined set of generations.)
+#
+# Processing Flow:
+# 1.  **Cleanup**: Removes the existing 'dist' directory to ensure a clean build.
+# 2.  **Directory Setup**: Creates a hierarchical directory structure within 'dist'
+#     to categorize the generated PDF files based on problem type, size (A3/A4),
+#     and other parameters.
+# 3.  **Problem Generation (Mental Arithmetic)**: Calls '100masu.py' multiple times
+#     to generate a series of mental arithmetic practice PDFs (steps 01-08)
+#     for different problem lengths (20, 45) and paper sizes (A3, A4).
+# 4.  **Problem Generation (Multiplication Tables - Kuku)**: (Currently commented out)
+#     If enabled, this section would generate multiplication table PDFs,
+#     including standard, descending, random order, and mixed problems.
+#
+# Dependencies:
+# -   '100masu.py': The Python script responsible for generating the PDF worksheets.
+#     Ensure '100masu.py' is executable and located in the same directory or
+#     accessible via the system's PATH.
+# -   Standard shell utilities (mkdir, rm, basename, dirname, etc.).
+#
+# Output:
+# -   A 'dist' directory containing various PDF files, organized by problem type
+#     and configuration.
+#
+# Version: 0.1.0
+# Last Updated: September 13, 2025
+#
+#
 set -Ceu
 
 SCRIPT_FILE_NAME=$(basename $0)
