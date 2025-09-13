@@ -75,9 +75,44 @@ python 100masu.py -h
 
 これにより、様々な暗算やその他の練習用シートが`dist/`ディレクトリに生成されます。生成されるワークシートの具体的な種類と設定を理解するには、`factory.sh`スクリプトを確認してください。
 
+### Webインターフェースの実行 (React + Flask)
+
+Webインターフェースを使用するには、FlaskバックエンドとReactフロントエンドの両方を起動する必要があります。
+
+1.  **Flaskバックエンドを起動する**:
+    *   ターミナルを開き、`web/backend`ディレクトリに移動します:
+        ```bash
+        cd web/backend
+        ```
+    *   仮想環境がアクティベートされていることを確認します（セットアップに従った場合）:
+        ```bash
+        source ../../venv/bin/activate # venvの場所が異なる場合はパスを調整してください
+        ```
+    *   Flaskアプリを実行します:
+        ```bash
+        python app.py
+        ```
+    *   バックエンドは通常 `http://127.0.0.1:5000` で実行されます。
+
+2.  **Reactフロントエンドを起動する**:
+    *   *新しいターミナルウィンドウ*を開き、`web/frontend`ディレクトリに移動します:
+        ```bash
+        cd web/frontend
+        ```
+    *   React開発サーバーを起動します:
+        ```bash
+        npm run dev
+        ```
+    *   フロントエンドは通常 `http://localhost:5173` で実行されます。
+
+両方が実行されたら、ブラウザでフロントエンドのアドレス（例: `http://localhost:5173`）を開いてWebインターフェースにアクセスしてください。
+
 ## 依存関係
 *   Python 3
 *   ReportLabライブラリ (`pip install reportlab`)
+*   Flask (`pip install Flask`)
+*   Flask-Cors (`pip install Flask-Cors`)
+*   Node.js と npm (Reactフロントエンド用)
 *   (オプション) LaTeX環境（他のツールや古いバージョンで使用する場合の`platex`、`dvipdfmx`用）
 
 ## ライセンス

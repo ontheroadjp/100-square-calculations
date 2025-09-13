@@ -75,9 +75,44 @@ The `factory.sh` script automates the generation of a predefined set of workshee
 
 This will generate a variety of mental arithmetic and other practice sheets into the `dist/` directory. Review the `factory.sh` script to understand the specific types and configurations of worksheets it generates.
 
+### Running the Web Interface (React + Flask)
+
+To use the web interface, you need to start both the Flask backend and the React frontend.
+
+1.  **Start the Flask Backend**:
+    *   Open a terminal and navigate to the `web/backend` directory:
+        ```bash
+        cd web/backend
+        ```
+    *   Ensure your virtual environment is activated (if you followed the setup):
+        ```bash
+        source ../../venv/bin/activate # Adjust path if your venv is elsewhere
+        ```
+    *   Run the Flask app:
+        ```bash
+        python app.py
+        ```
+    *   The backend will typically run on `http://127.0.0.1:5000`.
+
+2.  **Start the React Frontend**:
+    *   Open a *new terminal window* and navigate to the `web/frontend` directory:
+        ```bash
+        cd web/frontend
+        ```
+    *   Start the React development server:
+        ```bash
+        npm run dev
+        ```
+    *   The frontend will typically run on `http://localhost:5173`.
+
+Once both are running, open your browser to the frontend's address (e.g., `http://localhost:5173`) to access the web interface.
+
 ## Dependencies
 *   Python 3
 *   ReportLab library (`pip install reportlab`)
+*   Flask (`pip install Flask`)
+*   Flask-Cors (`pip install Flask-Cors`)
+*   Node.js and npm (for React frontend)
 *   (Optional) LaTeX environment (for `platex`, `dvipdfmx` if used by other tools or older versions)
 
 ## License
