@@ -1,71 +1,56 @@
-# 100 Square Calculations
+# 100-Square Calculation Generator
 
-This Python script generates math calculation practice printouts in PDF format using the ReportLab library. It provides various types of printouts such as arithmetic operations, complements, and a 100 square calculation table.
+## Overview
+This project is a tool that automatically generates 100-square calculation practice problems in PDF format.
+You can create a specified number of problems for addition, subtraction, or multiplication.
 
 ## Features
+*   Generates 100-square calculation problems for addition, subtraction, and multiplication
+*   Flexible specification of the number of problems to generate
+*   Outputs in high-quality PDF format
 
-- Generate arithmetic operation practice printouts.
-- Generate complement practice printouts.
-- Generate 100 square calculation practice printouts.
-- Command-line interface for easy usage.
-- Customizable paper size (A4 or B5).
+## How to Use
 
-## Requirements
+### 1. Running the Python script (`100masu.py`)
 
-- Python 3
-- ReportLab library
-
-## Usage
-
-1. Clone this repository:
-   
-   ```bash
-   git clone https://github.com/yourusername/math-practice-printouts.git
-   ```
-
-2. Navigate to the project directory:
-   
-   ```bash
-   cd math-practice-printouts
-   ```
-
-3. Install the required dependencies:
-   
-   ```bash
-   pip install reportlab
-   ```
-
-4. Run the script:
-   
-   ```bash
-   python 100masu.py A4 operations
-   ```
-   
-   Replace `A4` with `B5` if you prefer B5 paper size. You can also replace `operations` with `complements` or `100` for different types of printouts.
-
-5. Find the generated PDF file named `result.pdf`.
-
-## Command-line Arguments
-
-- `paper_size`: Choose the paper size (`A4` or `B5`).
-- `command`: Choose the type of printout (`operations`, `complements`, or `100`).
-
-## Examples
-
-Generate arithmetic operation practice printouts on A4 paper size:
+The `100masu.py` script generates TeX files for 100-square calculations.
 
 ```bash
-python 100masu.py A4 operations
+python 100masu.py [-n <number_of_problems>] [-o <output_directory>] [-t <calculation_type>]
 ```
 
-Generate complement practice printouts on B5 paper size:
+#### Options:
+*   `-n`, `--number`: Number of problems to generate (default: 10)
+*   `-o`, `--output`: Directory to output TeX files (default: `./`)
+*   `-t`, `--type`: Specifies the type of calculation.
+    *   `add`: Addition (default)
+    *   `sub`: Subtraction
+    *   `mul`: Multiplication
+
+#### Example:
+To generate 5 addition problems and output them to the `output` directory:
+```bash
+python 100masu.py -n 5 -o output -t add
+```
+
+### 2. Running the Shell script (`factory.sh`)
+
+The `factory.sh` script executes `100masu.py` to generate TeX files, then converts them to PDF using `platex` and `dvipdfmx`.
+The generated PDF will be named `result.pdf`.
 
 ```bash
-python 100masu.py B5 complements
+./factory.sh
 ```
 
-Generate 100 square calculation practice printouts on B5 paper size:
-
+#### Example:
 ```bash
-python 100masu.py B5 100
+./factory.sh
+# This will generate 10 addition 100-square calculation problems and output them as result.pdf.
 ```
+
+## Operating Environment
+*   Python 3
+*   LaTeX environment (platex, dvipdfmx)
+
+## License
+[Insert license information here]
