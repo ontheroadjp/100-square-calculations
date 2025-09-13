@@ -11,7 +11,7 @@ This project provides a set of tools to generate various types of mathematical p
 *   **Automated Batch Generation**: The `factory.sh` script provides an automated way to generate a wide variety of pre-configured worksheets.
 
 ## Setup
-To use this generator, you need Python 3. The project can be installed via pip, which will handle the `reportlab` dependency. A LaTeX environment is optional, primarily if you plan to use other LaTeX-based tools or older versions of this project that might have relied on it.
+To use this generator, you need Python 3. It is highly recommended to use a virtual environment to manage dependencies. The project can then be installed via pip, which will handle the `reportlab` dependency. A LaTeX environment is optional, primarily if you plan to use other LaTeX-based tools or older versions of this project that might have relied on it.
 
 1.  **Clone the repository**:
     ```bash
@@ -19,12 +19,23 @@ To use this generator, you need Python 3. The project can be installed via pip, 
     cd 100-square-calculations
     ```
 
-2.  **Install the project**:
+2.  **Create and activate a virtual environment**:
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate
+    ```
+
+3.  **Install the project**:
     ```bash
     pip install .
     ```
 
-3.  **(Optional) Install LaTeX environment**: While `100masu.py` uses ReportLab for PDF generation, if you encounter issues or plan to use other LaTeX-based tools, ensure you have a LaTeX distribution (e.g., TeX Live, MiKTeX) with `platex` and `dvipdfmx` installed.
+4.  **(Optional) Install LaTeX environment**: While `100masu.py` uses ReportLab for PDF generation, if you encounter issues or plan to use other LaTeX-based tools, ensure you have a LaTeX distribution (e.g., TeX Live, MiKTeX) with `platex` and `dvipdfmx` installed.
+
+    To deactivate the virtual environment when you are done:
+    ```bash
+    deactivate
+    ```
 
 ## Usage
 
