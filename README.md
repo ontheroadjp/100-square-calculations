@@ -11,7 +11,7 @@ This project provides a set of tools to generate various types of mathematical p
 *   **Automated Batch Generation**: The `factory.sh` script provides an automated way to generate a wide variety of pre-configured worksheets.
 
 ## Setup
-To use this generator, you need Python 3 and the ReportLab library, along with a LaTeX environment for PDF compilation (though `100masu.py` handles PDF generation directly using ReportLab, `factory.sh` might imply LaTeX for other purposes or older versions).
+To use this generator, you need Python 3. The project can be installed via pip, which will handle the `reportlab` dependency. A LaTeX environment is optional, primarily if you plan to use other LaTeX-based tools or older versions of this project that might have relied on it.
 
 1.  **Clone the repository**:
     ```bash
@@ -19,9 +19,9 @@ To use this generator, you need Python 3 and the ReportLab library, along with a
     cd 100-square-calculations
     ```
 
-2.  **Install Python dependencies**:
+2.  **Install the project**:
     ```bash
-    pip install reportlab
+    pip install .
     ```
 
 3.  **(Optional) Install LaTeX environment**: While `100masu.py` uses ReportLab for PDF generation, if you encounter issues or plan to use other LaTeX-based tools, ensure you have a LaTeX distribution (e.g., TeX Live, MiKTeX) with `platex` and `dvipdfmx` installed.
