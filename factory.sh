@@ -1,5 +1,42 @@
 #!/bin/bash
 
+#
+# Script: factory.sh
+# Description: This script automates the generation of various 100-square calculation
+#              worksheets in PDF format. It utilizes the 'python nuts_calc.py' Python script
+#              to create different types of problems (addition, multiplication,
+#              mental arithmetic, multiplication tables) with varying configurations
+#              and organizes them into a structured 'dist' directory.
+#
+# Usage: ./factory.sh
+#        (No arguments are required for this script as it runs a predefined set of generations.)
+#
+# Processing Flow:
+# 1.  **Cleanup**: Removes the existing 'dist' directory to ensure a clean build.
+# 2.  **Directory Setup**: Creates a hierarchical directory structure within 'dist'
+#     to categorize the generated PDF files based on problem type, size (A3/A4),
+#     and other parameters.
+# 3.  **Problem Generation (Mental Arithmetic)**: Calls 'python nuts_calc.py' multiple times
+#     to generate a series of mental arithmetic practice PDFs (steps 01-08)
+#     for different problem lengths (20, 45) and paper sizes (A3, A4).
+# 4.  **Problem Generation (Multiplication Tables - Kuku)**: (Currently commented out)
+#     If enabled, this section would generate multiplication table PDFs,
+#     including standard, descending, random order, and mixed problems.
+#
+# Dependencies:
+# -   'python nuts_calc.py': The Python script responsible for generating the PDF worksheets.
+#     Ensure 'python nuts_calc.py' is executable and located in the same directory or
+#     accessible via the system's PATH.
+# -   Standard shell utilities (mkdir, rm, basename, dirname, etc.).
+#
+# Output:
+# -   A 'dist' directory containing various PDF files, organized by problem type
+#     and configuration.
+#
+# Version: 0.1.0
+# Last Updated: September 13, 2025
+#
+#
 set -Ceu
 
 SCRIPT_FILE_NAME=$(basename $0)
@@ -87,26 +124,26 @@ function _basic {
         for size in a3 a4; do
             # Basic training
             [ "${size}" == "a3" ] && page=5 || page=10
-            100masu.py ${size} ope -a 1 -b 1 -o add -c ${c} -r ${r} -p ${page} \
+            python nuts_calc.py ${size} ope -a 1 -b 1 -o add -c ${c} -r ${r} -p ${page} \
                 --out-file "${DIST_DIR}/mental_arithmetic/${long}/${size}/step-01.pdf"
-            100masu.py ${size} ope -a 2 -b 1 -o add -c ${c} -r ${r} -p ${page} \
+            python nuts_calc.py ${size} ope -a 2 -b 1 -o add -c ${c} -r ${r} -p ${page} \
                 --out-file "${DIST_DIR}/mental_arithmetic/${long}/${size}/step-02.pdf"
-            100masu.py ${size} ope -a 1 -b 1 -o mul -c ${c} -r ${r} -p ${page} --shuffle \
+            python nuts_calc.py ${size} ope -a 1 -b 1 -o mul -c ${c} -r ${r} -p ${page} --shuffle \
                 --out-file "${DIST_DIR}/mental_arithmetic/${long}/${size}/step-03.pdf"
 
             # Mental althmatic training
-            100masu.py ${size} aBc -a 2 -b 1 -o add -c ${c} -r ${r} -p ${page} \
+            python nuts_calc.py ${size} aBc -a 2 -b 1 -o add -c ${c} -r ${r} -p ${page} \
                 --out-file "${DIST_DIR}/mental_arithmetic/${long}/${size}/step-04.pdf"
 
             # Practical training
-            100masu.py ${size} ope -a 2 -b 1 -o mul -c ${c} -r ${r} -p ${page} \
+            python nuts_calc.py ${size} ope -a 2 -b 1 -o mul -c ${c} -r ${r} -p ${page} \
                 --out-file "${DIST_DIR}/mental_arithmetic/${long}/${size}/step-05.pdf"
-            100masu.py ${size} ope --a-min 10 --a-max 19 --b-min 10 --b-max 19 \
+            python nuts_calc.py ${size} ope --a-min 10 --a-max 19 --b-min 10 --b-max 19 \
                 -o mul -c ${c} -r ${r} --shuffle -p ${page} \
                 --out-file "${DIST_DIR}/mental_arithmetic/${long}/${size}/step-06.pdf"
-            100masu.py ${size} squ -a 5 -o mul -c ${c} -r ${r} --shuffle -p ${page} \
+            python nuts_calc.py ${size} squ -a 5 -o mul -c ${c} -r ${r} --shuffle -p ${page} \
                 --out-file "${DIST_DIR}/mental_arithmetic/${long}/${size}/step-07.pdf"
-            100masu.py ${size} ope -a 2 --b-min 11 --b-max 11 \
+            python nuts_calc.py ${size} ope -a 2 --b-min 11 --b-max 11 \
                 -o mul -c ${c} -r ${r} -p ${page} \
                 --out-file "${DIST_DIR}/mental_arithmetic/${long}/${size}/step-08.pdf"
             echo "done ${size}"
@@ -119,7 +156,7 @@ function _kuku() {
         [ "${size}" == "a3" ] && page=1 || page=1
         [ "${size}" == "a3" ] && out=A3 || out=A4
         for dan in 1 2 3 4 5 6 7 8 9; do
-            100masu.py ${size} 99 -a ${dan} -c 3 -r 9 -p ${page} \
+            python nuts_calc.py ${size} 99 -a ${dan} -c 3 -r 9 -p ${page} \
                 --out-file "${DIST_DIR}/99/0${dan}/0${dan}-${size}.pdf"
         done
         echo "done ${size}"
@@ -129,7 +166,7 @@ function _kuku_descend() {
     for size in a3 a4l; do
         [ "${size}" == "a3" ] && page=1 || page=1
         for dan in 1 2 3 4 5 6 7 8 9; do
-            100masu.py ${size} 99 -a ${dan} -c 3 -r 9 -p ${page} --reverse \
+            python nuts_calc.py ${size} 99 -a ${dan} -c 3 -r 9 -p ${page} --reverse \
                 --out-file "${DIST_DIR}/99/0${dan}_descend/0${dan}-${size}-descend.pdf"
         done
         echo "done ${size}"
@@ -139,7 +176,7 @@ function _kuku_random() {
     for size in a3 a4l; do
         [ "${size}" == "a3" ] && page=1 || page=1
         for dan in 1 2 3 4 5 6 7 8 9; do
-            100masu.py ${size} 99 -a ${dan} -c 3 -r 9 -p ${page} --shuffle \
+            python nuts_calc.py ${size} 99 -a ${dan} -c 3 -r 9 -p ${page} --shuffle \
                 --out-file "${DIST_DIR}/99/0${dan}_random/0${dan}-${size}-random.pdf"
         done
         echo "done ${size}"
@@ -148,7 +185,7 @@ function _kuku_random() {
 function _kuku_all_mix() {
     for size in a3 a4l; do
         [ "${size}" == "a3" ] && page=5 || page=10
-        100masu.py ${size} ope --a-min 1 --a-max 9 --b-min 1 --b-max 9 \
+        python nuts_calc.py ${size} ope --a-min 1 --a-max 9 --b-min 1 --b-max 9 \
             -o mul -c 3 -r 15 -p ${page} --shuffle \
             --out-file "${DIST_DIR}/99/mix/mix-${size}.pdf"
         echo "done ${size}"
