@@ -1,0 +1,28 @@
+{
+  "repo_id": "ontheroadjp/100-square-calculations",
+  "package_manager": "pip",
+  "doc_roots": [
+    "docs/L0_concept",
+    "docs/L1_project",
+    "docs/L2_development",
+    "docs/L3_implementation"
+  ],
+  "commands": {
+    "install": "pip install reportlab",
+    "run": "python3 100masu.py <paper_size> <command> [options]",
+    "batch_generate": "./factory.sh"
+  },
+  "entrypoints": [
+    "100masu.py",
+    "factory.sh"
+  ],
+  "primary_docs": {
+    "investigation": "docs/L3_implementation/specification_summary.md",
+    "structure": "docs/L1_project/repository_structure.md"
+  },
+  "notes": {
+    "package_manager": "No lock file, requirements.txt, pyproject.toml, or setup.py exists (verified by directory listing of repo root). The sole dependency (reportlab) is installed ad hoc per README.md:35. package_manager reflects the installer used (pip), not a manifest-backed environment.",
+    "ci": "No .github/workflows directory or other CI definition exists in this repo (verified: find found no *.yml/*.yaml files). commands above are derived from README.md and factory.sh, not from CI.",
+    "tests": "No test files or test directory exist in this repo (verified: no path matching *test* other than this note)."
+  }
+}
