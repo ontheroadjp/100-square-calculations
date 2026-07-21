@@ -20,7 +20,7 @@ AI 運用の single source of truth。`AGENTS.md` はこのファイルへの sy
 Observed by /init-docs (2026-07-22):
 - gh: 2.96.0
 - gh auth: logged in to github.com as ontheroadjp (ssh protocol, scopes: admin:public_key, gist, read:org, repo)
-- node: v24.16.0 (via mise: `/home/diego/.local/share/mise/installs/node/24/bin/node`)
+- node: v24.16.0 (via mise: `~/.local/share/mise/installs/node/24/bin/node`)
 - npm: 11.13.0 (same mise install)
 - Node runtime manager hints: no repo-local `.nvmrc`/`.node-version`/`.tool-versions`/`mise.toml` found; node/npm resolved from the user's global mise install, not a repo-local pin. This repo is Python-only (no Node.js dependency); node/npm are not required to run `100masu.py` or `factory.sh`.
 
