@@ -118,5 +118,22 @@ Once both are running, open your browser to the frontend's address (e.g., `http:
 *   Node.js and npm (for React frontend)
 *   (Optional) LaTeX environment (for `platex`, `dvipdfmx` if used by other tools or older versions)
 
+## Architecture
+
+There are two independent ways to generate a worksheet, both ultimately driven by the same CLI:
+
+*   **CLI**: `nuts_calc.py` → ReportLab → PDF/CSV. No server, no database, no persisted state.
+*   **Web UI**: React frontend (`web/frontend`) → Flask backend (`web/backend/app.py`) → `subprocess` call to `nuts_calc.py` → generated PDF is streamed back to the browser. The backend holds no drill-generation logic of its own; it only translates form input into `nuts_calc.py` CLI arguments.
+
+`factory.sh` is a third, batch-oriented entry point that calls `nuts_calc.py` repeatedly to populate a `dist/` directory with a fixed set of worksheets.
+
+See `docs/L1_project/project_overview.md` and `docs/L0_concept/concept.md` for the full breakdown and file/line references.
+
+## Design Principles
+
+*   **Single source of drill logic.** The web backend does not reimplement worksheet generation — it always shells out to `nuts_calc.py`, so the CLI and the web UI can never drift into producing different problems for the same parameters.
+*   **No dependency pinning on the Python side.** There is no lock file, `requirements.txt`, or `pyproject.toml`; dependencies are installed ad hoc. This reflects the project's scope as a small personal/batch-generation tool rather than a deployed service.
+*   **No automated tests or CI.** Correctness is currently verified by manually running the CLI/web UI and inspecting the generated PDF/CSV output.
+
 ## License
 MIT License
