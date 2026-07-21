@@ -13,7 +13,7 @@ This project provides a set of tools to generate various types of mathematical p
 ## Installation
 To use this generator, you need Python 3. It is highly recommended to use a virtual environment to manage dependencies. A LaTeX environment is optional, primarily if you plan to use other LaTeX-based tools or older versions of this project that might have relied on it.
 
-> **Note:** there is no `requirements.txt`/`pyproject.toml`/`setup.py` in this repo, so `reportlab` (and, for the web backend, `Flask`/`Flask-Cors`) must be installed manually — see step 3 and the Dependencies section below.
+> **Note:** there is no `requirements.txt`/`pyproject.toml`/`setup.py` in this repo, so dependencies must be installed manually — see step 3 and the Dependencies section below.
 
 1.  **Clone the repository**:
     ```bash
@@ -27,7 +27,12 @@ To use this generator, you need Python 3. It is highly recommended to use a virt
     source venv/bin/activate
     ```
 
-3.  **(Optional) Install LaTeX environment**: While `nuts_calc.py` uses ReportLab for PDF generation, if you encounter issues or plan to use other LaTeX-based tools, ensure you have a LaTeX distribution (e.g., TeX Live, MiKTeX) with `platex` and `dvipdfmx` installed.
+3.  **Install the CLI dependency**:
+    ```bash
+    pip install reportlab
+    ```
+
+4.  **(Optional) Install LaTeX environment**: While `nuts_calc.py` uses ReportLab for PDF generation, if you encounter issues or plan to use other LaTeX-based tools, ensure you have a LaTeX distribution (e.g., TeX Live, MiKTeX) with `platex` and `dvipdfmx` installed.
 
     To deactivate the virtual environment when you are done:
     ```bash
