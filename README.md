@@ -3,6 +3,8 @@
 ## Overview
 This project provides a set of tools to generate various types of mathematical practice worksheets, primarily focusing on 100-square calculations, in PDF format. It's designed to help users create customized practice materials for mental arithmetic and basic math skills.
 
+For the pedagogical background behind the drills (the mental-arithmetic technique the worksheets are built around), see `memo.md` (Japanese).
+
 ## Features
 *   **Diverse Problem Types**: Generate worksheets for basic arithmetic operations (addition, subtraction, multiplication, division), complements, 100-square calculation tables, multiplication tables (kuku), square numbers, and specific mental arithmetic problems.
 *   **Customizable Generation**: Extensive command-line options allow users to specify paper size, number ranges, operators, problem counts, and output formats.
