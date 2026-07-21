@@ -109,6 +109,8 @@ To use the web interface, you need to start both the Flask backend and the React
 
 Once both are running, open your browser to the frontend's address (e.g., `http://localhost:5173`) to access the web interface.
 
+> **Known issue:** `web/frontend/package.json` is missing the `i18next`, `react-i18next`, `i18next-browser-languagedetector`, and `i18next-http-backend` packages that `src/i18n.js` and `src/App.jsx` import. `npm run build` currently fails with `Rollup failed to resolve import "i18next"`. As a workaround, run `npm install i18next react-i18next i18next-browser-languagedetector i18next-http-backend` in `web/frontend` before building. See `docs/L3_implementation/specification_summary.md` for details.
+
 ## Dependencies
 *   Python 3
 *   Flask (`pip install Flask`)
