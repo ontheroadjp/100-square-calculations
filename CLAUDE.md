@@ -19,12 +19,12 @@ AI 運用の single source of truth。`AGENTS.md` はこのファイルへの sy
 
 ## Local Tooling Environment
 
-Observed by /init-docs (2026-07-22):
+Observed by /init-docs (2026-07-22, re-run after the `dev` merge):
 - gh: 2.96.0
 - gh auth: logged in to github.com as ontheroadjp (ssh protocol, scopes: admin:public_key, gist, read:org, repo)
 - node: v24.16.0 (via mise: `~/.local/share/mise/installs/node/24/bin/node`)
 - npm: 11.13.0 (same mise install)
-- Node runtime manager hints: no repo-local `.nvmrc`/`.node-version`/`.tool-versions`/`mise.toml` found; node/npm resolved from the user's global mise install, not a repo-local pin. This repo is Python-only (no Node.js dependency); node/npm are not required to run `100masu.py` or `factory.sh`.
+- Node runtime manager hints: no repo-local `.nvmrc`/`.node-version`/`.tool-versions`/`mise.toml` found; node/npm resolved from the user's global mise install, not a repo-local pin. Since the `dev` merge, `web/frontend` now has a real Node.js dependency (React/Vite build) — node/npm ARE required there, unlike the CLI/`factory.sh` which remain Python-only.
 
 Notes:
 - If `gh` operations fail with API schema or compatibility errors, check `gh --version` first. Prefer upgrading `gh` when possible; if upgrading is impossible, use an equivalent `gh api` REST call or GitHub Web UI for the affected operation.
