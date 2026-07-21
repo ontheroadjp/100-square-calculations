@@ -1,83 +1,113 @@
-# 100 Square Calculations
+# 100-Square Calculation Generator
 
-This Python script generates math calculation practice printouts in PDF format using the ReportLab library. It provides various types of printouts such as arithmetic operations, complements, and a 100 square calculation table.
+## Overview
+This project provides a set of tools to generate various types of mathematical practice worksheets, primarily focusing on 100-square calculations, in PDF format. It's designed to help users create customized practice materials for mental arithmetic and basic math skills.
 
 ## Features
+*   **Diverse Problem Types**: Generate worksheets for basic arithmetic operations (addition, subtraction, multiplication, division), complements, 100-square calculation tables, multiplication tables (kuku), square numbers, and specific mental arithmetic problems.
+*   **Customizable Generation**: Extensive command-line options allow users to specify paper size, number ranges, operators, problem counts, and output formats.
+*   **PDF Output**: All worksheets are generated as high-quality PDF files, ready for printing.
+*   **Answer Options**: Include answers at the bottom of the page, merge answer files, or output raw problem data to CSV for further analysis.
+*   **Automated Batch Generation**: The `factory.sh` script provides an automated way to generate a wide variety of pre-configured worksheets.
 
-- Generate arithmetic operation practice printouts.
-- Generate complement practice printouts.
-- Generate 100 square calculation practice printouts.
-- Command-line interface for easy usage.
-- Customizable paper size (A4 or B5).
+## Setup
+To use this generator, you need Python 3. It is highly recommended to use a virtual environment to manage dependencies. The project can then be installed via pip, which will handle the `reportlab` dependency. A LaTeX environment is optional, primarily if you plan to use other LaTeX-based tools or older versions of this project that might have relied on it.
 
-## Requirements
+1.  **Clone the repository**:
+    ```bash
+    git clone https://github.com/ontheroadjp/100-square-calculations.git
+    cd 100-square-calculations
+    ```
 
-- Python 3
-- ReportLab library
+2.  **Create and activate a virtual environment**:
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate
+    ```
 
-## Installation
+3.  **(Optional) Install LaTeX environment**: While `nuts_calc.py` uses ReportLab for PDF generation, if you encounter issues or plan to use other LaTeX-based tools, ensure you have a LaTeX distribution (e.g., TeX Live, MiKTeX) with `platex` and `dvipdfmx` installed.
 
-1. Clone this repository:
-
-   ```bash
-   git clone https://github.com/ontheroadjp/100-square-calculations.git
-   ```
-
-2. Navigate to the project directory:
-
-   ```bash
-   cd 100-square-calculations
-   ```
-
-3. Install the required dependencies:
-
-   ```bash
-   pip install reportlab
-   ```
+    To deactivate the virtual environment when you are done:
+    ```bash
+    deactivate
+    ```
 
 ## Usage
 
-Run the script:
+### Generating Worksheets with `nuts_calc.py`
+The `nuts_calc.py` script is the core generator. You can run it directly with various options.
 
 ```bash
-python3 100masu.py A4 ope -a 1 -b 1
+python nuts_calc.py <paper_size> <command> [options]
 ```
 
-Replace `A4` with `A3`, `B5`, or `a4l` (A4 landscape) if you prefer a different paper size. Replace `ope` with `com`, `100`, `99`, `aBc`, `squ`, or `pi` for a different printout type (see Command-line Arguments below).
+**Example: Generate 5 pages of A4 addition problems**
+```bash
+python nuts_calc.py A4 ope -o add -p 5 --out-file addition_A4_5pages.pdf
+```
 
-Find the generated PDF file named `result.pdf` (and `result_read.pdf` for the answer sheet, unless `--merge` is passed).
+**Example: Generate 100-square calculation table (A3 size)**
+```bash
+python nuts_calc.py A3 100 --out-file 100_square_A3.pdf
+```
 
-For batch-generating a full set of printouts at once, run:
+**Example: Generate multiplication table (kuku) for '7' in random order (A4 landscape)**
+```bash
+python nuts_calc.py a4l 99 -a 7 --shuffle --out-file kuku_7_random_A4L.pdf
+```
+
+For a full list of options, run:
+```bash
+python nuts_calc.py -h
+```
+
+### Batch Generation with `factory.sh`
+The `factory.sh` script automates the generation of a predefined set of worksheets, creating a structured output directory (`dist/`).
 
 ```bash
 ./factory.sh
 ```
 
-## Command-line Arguments
+This will generate a variety of mental arithmetic and other practice sheets into the `dist/` directory. Review the `factory.sh` script to understand the specific types and configurations of worksheets it generates.
 
-- `paper_size`: Choose the paper size (`A3`, `A4`, `B5`, or `a4l` for A4 landscape).
-- `command`: Choose the type of printout (`ope` for arithmetic operations, `com` for complements, `100` for the 100-square table, `99` for the multiplication table, `aBc` for the 4-digit mental-math conversion drill, `squ` for square numbers, or `pi` for multiples of pi).
+### Running the Web Interface (React + Flask)
 
-See `python3 100masu.py -h` for the full list of options (digit ranges, operators, rows/columns, answer placement, CSV export, etc.).
+To use the web interface, you need to start both the Flask backend and the React frontend.
 
-> **Known issue:** as of the current `master`, only the `ope` command runs without error. The other commands (`com`, `100`, `99`, `aBc`, `squ`, `pi`) fail with `NameError: name 'ini' is not defined` at `100masu.py:158`. See `docs/L3_implementation/specification_summary.md` for details.
+1.  **Start the Flask Backend**:
+    *   Open a terminal and navigate to the `web/backend` directory:
+        ```bash
+        cd web/backend
+        ```
+    *   Ensure your virtual environment is activated (if you followed the setup):
+        ```bash
+        source ../../venv/bin/activate # Adjust path if your venv is elsewhere
+        ```
+    *   Run the Flask app:
+        ```bash
+        python app.py
+        ```
+    *   The backend will typically run on `http://127.0.0.1:5000`.
 
-## Examples
+2.  **Start the React Frontend**:
+    *   Open a *new terminal window* and navigate to the `web/frontend` directory:
+        ```bash
+        cd web/frontend
+        ```
+    *   Start the React development server:
+        ```bash
+        npm run dev
+        ```
+    *   The frontend will typically run on `http://localhost:5173`.
 
-Generate arithmetic operation practice printouts on A4 paper size:
+Once both are running, open your browser to the frontend's address (e.g., `http://localhost:5173`) to access the web interface.
 
-```bash
-python3 100masu.py A4 ope -a 1 -b 1 -o add
-```
+## Dependencies
+*   Python 3
+*   Flask (`pip install Flask`)
+*   Flask-Cors (`pip install Flask-Cors`)
+*   Node.js and npm (for React frontend)
+*   (Optional) LaTeX environment (for `platex`, `dvipdfmx` if used by other tools or older versions)
 
-Generate multiplication printouts with the mental-math intermediate step on B5 paper size:
-
-```bash
-python3 100masu.py B5 ope -a 2 -b 1 -o mul --intermediate
-```
-
-## Design Principles
-
-- **Single-purpose CLI, no server/DB.** The tool is a one-shot CLI → ReportLab → PDF/CSV pipeline; there is no network interface, database, or persisted state. See `docs/L0_concept/concept.md` and `docs/L0_concept/policy.md` for the full reasoning.
-- **No dependency pinning.** There is no lock file or `requirements.txt`; `reportlab` is installed ad hoc, reflecting this project's scope as a small personal/batch-generation script rather than a deployed service.
-- **No automated tests or CI.** Correctness is currently verified by manually running the script and inspecting the generated PDF/CSV output.
+## License
+MIT License

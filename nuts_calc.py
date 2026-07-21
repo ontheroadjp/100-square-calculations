@@ -1,6 +1,69 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+#
+# Script: 100masu.py
+# Description: This Python script generates various types of mathematical
+#              practice worksheets (e.g., 100-square calculations, basic
+#              arithmetic operations, complements, multiplication tables)
+#              and outputs them as PDF files. It provides extensive
+#              customization options via command-line arguments for problem
+#              types, number ranges, paper sizes, and output formats.
+#
+# Usage: python 100masu.py <paper_size> <command> [options]
+#
+# Arguments:
+#   <paper_size>: Specifies the paper size for the output PDF (e.g., A3, A4, B5, a4l).
+#   <command>: Defines the type of mathematical problem to generate.
+#              Supported commands include:
+#              - 'ope': Basic arithmetic operations (add, sub, mul, div, mix).
+#              - 'com': Complements (e.g., numbers that add up to 100).
+#              - '100': 100-square calculation tables.
+#              - '99': Multiplication tables (kuku).
+#              - 'aBc': Specific mental arithmetic problems (e.g., a*1000 + b*100 + c*10 + d).
+#              - 'squ': Square numbers.
+#              - 'pi': Multiplication by Pi (e.g., a * 3.14).
+#
+# Options:
+#   -a, --a-value: Number of digits in the first term.
+#   -b, --b-value: Number of digits in the second term.
+#   --a-min, --a-max: Minimum/maximum value for the first term.
+#   --b-min, --b-max: Minimum/maximum value for the second term.
+#   -o, --operator: Types of operations to include (add, sub, mul, div, mix).
+#   --descend, --reverse, --shuffle: Ordering options for multiplication tables.
+#   --intermediate: Write an intermediate formula (for multiplication).
+#   -r, --rows: Number of question rows per page.
+#   -c, --columns: Number of question columns per page.
+#   -ww, --with-bottom-answer: Flag to include answers at the bottom of the page.
+#   -p, --page: Number of pages to generate.
+#   -m, --merge: Flag to merge answer files.
+#   --csv: Flag to output raw data to CSV.
+#   --out-file: Output PDF file path (default: 'result.pdf').
+#   --debug: Enable debug mode (shows frame boundaries, etc.).
+#
+# Processing Flow:
+# 1.  **Argument Parsing**: Command-line arguments are parsed to configure the generation process.
+# 2.  **PDF Document Setup**: Initializes PDF document templates, page sizes, margins, and frames using ReportLab.
+# 3.  **Problem Data Generation**: Based on the specified 'command' and options,
+#     functions like `get_operation_data`, `get_complement_data`, `get_fixed_format_data`,
+#     and `get_aBc_data` generate the mathematical problems.
+# 4.  **Layout and Styling**: The generated problem data is formatted into tables
+#     and styled according to the specified paper size and other display options.
+# 5.  **PDF Generation**: The formatted content is built into one or more PDF files.
+#     Optional CSV output is also handled.
+#
+# Dependencies:
+# -   Python 3
+# -   ReportLab library (`reportlab`)
+#
+# Output:
+# -   PDF files containing the generated worksheets.
+# -   Optionally, CSV files with raw problem data.
+#
+# Version: 0.1.0 (based on factory.sh, actual version might differ)
+# Last Updated: September 13, 2025
+#
+#
 import sys
 import os
 import argparse
@@ -155,7 +218,7 @@ def _init():
         return [min_val, max_val]
 
 #    if args.command == 'ope' or args.command == 'mul-intermediate':
-    if args.command == 'ope' or ini.intermediate:
+    if args.command == 'ope' or args.intermediate:
         if args.a_value is not None:
             args.a_min, args.a_max = set_min_max_value(args.a_value)
         if args.b_value is not None:

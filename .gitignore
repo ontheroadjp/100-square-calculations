@@ -1,5 +1,54 @@
+# Operating System Files
 .DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyd
+*.pyo
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.egg
+*.egg-info/
+.pytest_cache/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Generated files (from nuts_calc.py and LaTeX)
 *.pdf
-!example_result.pdf
-*.txt
+!example_result.pdf # Keep example_result.pdf
+*.tex
+*.aux
+*.log
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.toc
+*.out
+*.dvi
 *.csv
+*.txt
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*~
+
+# Web Frontend
+web/frontend/node_modules/
+web/frontend/dist/
