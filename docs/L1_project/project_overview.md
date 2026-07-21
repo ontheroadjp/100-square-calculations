@@ -2,48 +2,60 @@
 
 ## 目的
 
-計算ドリル（四則演算・補数・100マス計算・九九・aBc変換・平方数・円周率倍）の練習用 PDF を、パラメータ指定で生成する Python 製 CLI ツール。設計意図は [[concept]] を参照。
+計算ドリル(四則演算・補数・100マス計算・九九・aBc変換・平方数・円周率倍)の練習用 PDF を、CLI(`nuts_calc.py`)または Web UI(`web/`)から生成するツール群。設計意図は [[concept]] を参照。
 
 ## 技術スタック
 
-根拠の優先順位（CI定義 > パッケージ定義 > 設定ファイル）に従って確認したが、本リポジトリには CI 定義もパッケージ定義（`requirements.txt` 等）も存在しない。以下は実装コードと README から直接確認した事実。
+CI 定義・パッケージ定義(lock file 等)は Python 側に存在しないため、実装コードと README から直接確認した事実を記載する。
 
 | 項目 | 内容 | 根拠 |
 |---|---|---|
-| 言語 | Python 3 | `100masu.py:1` shebang `#!/usr/bin/env python`、`README.md:15` "Python 3" |
-| 実行時に確認した Python | 3.12.3 (`python3 --version`) | ローカル環境観測。リポジトリが特定バージョンを要求する記述はなし（未確認） |
-| 主要ライブラリ | ReportLab | `100masu.py:12-18` の import、`README.md:16,35` |
-| 標準ライブラリ利用 | `argparse`, `random`, `csv`, `os`, `sys` | `100masu.py:4-8` |
-| シェル | Bash (`set -Ceu`) | `factory.sh:1,3` |
-| パッケージマネージャ | pip（バージョン固定なし） | `README.md:35` `pip install reportlab` のみ。lock file 不在を確認済み |
+| CLI 言語 | Python 3 | `nuts_calc.py:1` shebang、`README.md:106` |
+| 主要ライブラリ(CLI) | ReportLab | `nuts_calc.py` の import 群 |
+| Web バックエンド | Flask + Flask-Cors | `web/backend/app.py:1-2,7-8`、`README.md:107-108` |
+| Web フロントエンド | React 19 + Vite 7 + Tailwind CSS 4 | `web/frontend/package.json:12-29` |
+| 国際化 | react-i18next(英語/日本語) | `web/frontend/src/i18n.js:1-4`。**ただし `package.json` に依存関係が無く、ビルドが壊れている(下記参照)** |
+| バッチ生成 | Bash(`set -Ceu`) | `factory.sh:1,38` |
+| パッケージマネージャ(Python) | pip(lock file なし。旧 `setup.py` は削除済み、`git log` のコミット `d9fc0a3` で確認) | `README.md:13-14` は pip インストールを謳うが検証すると裏付けとなるパッケージ定義ファイルは存在しない |
+| パッケージマネージャ(Web) | npm(`package-lock.json` あり) | `web/frontend/package-lock.json` |
+| ライセンス | MIT | `LICENSE:1-21` |
 
-## 主要機能（実装から確認）
+## 主要機能(実装から確認)
 
-`100masu.py` の `command` 引数（`100masu.py:51-56`）で切り替わる7種類の生成モード:
+`nuts_calc.py` の `command` 引数で切り替わる7種類の生成モード(旧 `100masu.py` から機能・行番号ともに概ね踏襲、リネームはコミット `d9fc0a3`):
 
-1. `ope` — 四則演算（加減乗除、`--operator` で `add`/`sub`/`mul`/`div`/`mix` を指定、`--intermediate` で4桁変換法の中間式付き掛け算を出力）。実装: `get_operation_data()` (`100masu.py:222-339`)。**唯一、実行時エラーなく動作することを実機確認済み。**
-2. `com` — 補数（目標値からの差を問う）。実装: `get_complement_data()` (`100masu.py:342-374`)。
-3. `100` — 100マス計算（10×10の足し算マス）。実装: `main()` 内の `ini.command == '100'` 分岐 (`100masu.py:1114-1193`)。
-4. `99` — 九九。実装: `get_fixed_format_data()` (`100masu.py:377-442`, mode=='99')。
-5. `aBc` — 4桁の数値を3桁に変換する暗算トレーニング（`memo.md` の STEP1/STEP2 に対応）。実装: `get_aBc_data()` (`100masu.py:445-484`)。
-6. `squ` — 平方数。実装: `get_fixed_format_data()` (mode=='squ')。
-7. `pi` — 円周率(3.14)倍。実装: `get_fixed_format_data()` (mode=='pi')。
+1. `ope` — 四則演算(加減乗除、`--operator`、`--intermediate` で4桁変換法の中間式表示)
+2. `com` — 補数
+3. `100` — 100マス計算
+4. `99` — 九九
+5. `aBc` — 4桁→3桁変換の暗算トレーニング
+6. `squ` — 平方数
+7. `pi` — 円周率(3.14)倍
 
-**既知の欠陥（実機確認済み）**: `com`/`100`/`99`/`aBc`/`squ`/`pi` の6モードは、現在の HEAD (`ac4167f`) で `python3 100masu.py A4 <command> ...` を実行すると `100masu.py:158` の `NameError: name 'ini' is not defined` で必ず失敗する。詳細は [[specification_summary]]。
+**実機確認**: 上記7コマンドすべてが `python3 nuts_calc.py A4 <command> ...` で正常に完了し、PDF/CSV を生成することを確認済み。旧 `100masu.py:158` にあった `ini.intermediate` 未定義参照バグ([[../L0_concept/policy]] 参照)は解消されている。
+
+### Web UI(`web/`、新規)
+
+- `web/backend/app.py`: Flask アプリ。単一エンドポイント `POST /generate-pdf`(`web/backend/app.py:14`)がリクエストボディの JSON を `nuts_calc.py` の CLI 引数へ変換し `subprocess.run` で実行、生成された PDF をそのままレスポンスとして返す(`web/backend/app.py:61-69`)。
+- `web/frontend/src/App.jsx`: 7種類の `command` すべてに対応するフォーム(用紙サイズ・数値範囲・演算子・行列数・オプション)を提供し、`activeTab` state でタブ切り替え(計算内容/用紙/オプション/PDFプレビュー)を実装(`web/frontend/src/App.jsx:33,174-368`)。英語/日本語の言語切り替えを実装(`web/frontend/src/App.jsx:39-41,120-133`)。
+- **既知の欠陥(実機確認済み)**: `web/frontend` は `npm install && npm run build`(または `npm run dev`)を実行すると、`src/i18n.js` が import する `i18next`/`react-i18next`/`i18next-browser-languagedetector`/`i18next-http-backend` が `package.json` の依存関係に含まれておらず、ビルドに失敗する。詳細は [[../L3_implementation/specification_summary]]。
 
 ## 補助機能
 
-- 用紙サイズ4種（A3/A4/A4横/B5）とそれぞれの仮想ページ分割（A3=4分割、A4横=2分割）: `100masu.py:702-796`。
-- 解答を別紙にする/同じ紙に赤字で載せる/末尾にまとめて載せるの切り替え（`--merge`, `--with-bottom-answer`）: `100masu.py:749-762, 853-854, 1103-1106`。
-- 生成データを CSV としても出力するオプション (`--csv`, `--debug`): `100masu.py:1047-1056, 1204-1209`。
-- `factory.sh` によるバッチ生成（用紙サイズ・分量違いの複数 PDF を `dist/` 配下にまとめて生成）: `factory.sh:56-156`。
+- 用紙サイズ4種(A3/A4/A4横/B5)とページ分割: `nuts_calc.py`(旧 `100masu.py` から踏襲)。
+- 解答を別紙/同一紙に赤字/末尾にまとめての切り替え(`--merge`, `--with-bottom-answer`)。
+- CSV 出力オプション(`--csv`, `--debug`)。
+- `factory.sh` によるバッチ生成。`python nuts_calc.py` という呼び出しに変更され(旧: 裸の `100masu.py`)、`PATH` 解決の曖昧さが軽減されている(`factory.sh:127` 等)。
 
 ## エントリポイント
 
-- `100masu.py`（実行可能、`chmod +x` 済み） — 単体実行: `python3 100masu.py <paper_size> <command> [options]`
-- `factory.sh`（実行可能） — バッチ実行。内部で `100masu.py` をコマンドとして直接呼び出しており（`factory.sh:90` など）、`100masu.py` が実行可能かつ `PATH` 上にあることを前提にしている（未確認: 実行時に `PATH` 解決に失敗する可能性があるが、`factory.sh` 内に `PATH` 設定や `./100masu.py` 呼び出しの記述はない）。
+- `nuts_calc.py` — CLI 単体実行: `python3 nuts_calc.py <paper_size> <command> [options]`
+- `factory.sh` — バッチ実行(`python nuts_calc.py` を内部で呼び出す。リポジトリルートでの実行を前提)
+- `web/backend/app.py` — Flask サーバー起動: `python app.py`(`web/backend` ディレクトリ内で実行、`http://127.0.0.1:5000`)
+- `web/frontend/src/main.jsx` — React アプリのエントリ。`npm run dev`(`http://localhost:5173`)または `npm run build` で起動/ビルド
 
 ## 未確認事項
 
-- 自動テストの有無: リポジトリ内に test ファイルは存在しない（`find` で確認済み）。品質保証プロセスは不明。
+- 自動テストの有無: リポジトリ内に test ファイルは存在しない。
 - CI/CD: `.github/workflows` 等の定義は存在しない。
+- Web UI の実運用(本番デプロイ)構成: README には開発サーバーの起動手順のみが記載されており、本番ビルド・デプロイ手順の記述はない。
