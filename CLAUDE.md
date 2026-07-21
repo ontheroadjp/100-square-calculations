@@ -33,5 +33,9 @@ Notes:
 
 ## Python Environment
 
-- No lock file, `requirements.txt`, or `pyproject.toml` exists. Only dependency is `reportlab`, installed via `pip install reportlab` (see `README.md`).
-- Before running `100masu.py`, confirm `python3 -c "import reportlab"` succeeds; if not, ask before installing.
+- No lock file, `requirements.txt`, or `pyproject.toml` exists. CLI dependency is `reportlab`; the web backend additionally needs `Flask`/`Flask-Cors`. Install via `pip install reportlab flask flask-cors` (see `README.md`).
+- Before running `nuts_calc.py`, confirm `python3 -c "import reportlab"` succeeds; if not, ask before installing.
+
+## Web Frontend Environment (`web/frontend`)
+
+- Before running `npm install`/`npm run dev`/`npm run build`, be aware `package.json` is missing `i18next`-family packages (see known defect above). `npm install` alone will NOT fix the build; ask the user before adding packages.
