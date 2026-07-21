@@ -1,30 +1,44 @@
 # Repository Structure
 
-モノレポ構成ではない。単一ディレクトリにスクリプトとドキュメントが並ぶフラットな構成（`apps/`, `packages/` 等のサブパッケージ分割なし。ディレクトリ一覧で確認済み）。
+単一リポジトリだが、`web/` 以下は `backend`/`frontend` に分かれたミニ・モノレポ構成(それぞれ独立した実行環境: Python venv / npm)。ディレクトリ一覧で確認済み。
 
 ```
 100-square-calculations/
-├── 100masu.py          # PDF生成CLI本体（実行可能）
-├── factory.sh          # バッチ生成シェルスクリプト（実行可能）
-├── memo.md             # 暗算指導法の解説（教育コンテンツ、非コード）
-├── example_result.pdf  # 生成物のサンプル
-├── README.md           # 利用者向け説明（一部が実装と乖離、詳細は policy.md）
-├── .gitignore          # *.pdf(example_result.pdf除く)/*.txt/*.csv/.DS_Store を除外
-└── docs/                # 本コマンドで追加した設計ドキュメント
+├── nuts_calc.py         # PDF生成CLI本体(実行可能。旧 100masu.py)
+├── factory.sh           # バッチ生成シェルスクリプト(実行可能)
+├── memo.md              # 暗算指導法の解説(教育コンテンツ、非コード)
+├── LICENSE              # MIT License
+├── README.md            # 利用者向け説明(英語)
+├── README_ja.md         # 利用者向け説明(日本語、README.md と同内容の対訳)
+├── .gitignore
+├── web/
+│   ├── backend/
+│   │   └── app.py       # Flask API(nuts_calc.pyをsubprocessで呼び出すラッパー)
+│   └── frontend/        # React + Vite + Tailwind の SPA
+│       ├── src/
+│       │   ├── main.jsx     # エントリポイント
+│       │   ├── App.jsx      # フォームUI本体
+│       │   ├── App.css
+│       │   └── i18n.js      # react-i18next 設定(依存関係が package.json に不足)
+│       ├── public/locales/{en,ja}/translation.json  # 翻訳文言
+│       ├── package.json
+│       └── package-lock.json
+└── docs/                 # /init-docs で生成した設計ドキュメント
 ```
 
-## 各ファイルの責務（実装から確認）
+`example_result.pdf` は `dev` ブランチのマージで削除されている(`.gitignore` には依然 `!example_result.pdf` という除外例外が残っているが、対象ファイルが存在しないため実質無効。[[../L2_development/consistency_checks]] 参照)。
 
-- `100masu.py`: CLI エントリポイント兼ロジック全体。以下の内部構成を持つ（行番号は `ac4167f` 時点）。
-  - `_init()` (`100masu.py:29-181`): `argparse` によるコマンドライン引数定義とバリデーション。**既知バグ**: `100masu.py:158` で未定義の `ini` を参照 (`ini.intermediate`)。
-  - データ生成関数群: `get_operation_data()` (`222`), `get_complement_data()` (`342`), `get_fixed_format_data()` (`377`), `get_aBc_data()` (`445`) — 各 `command` モードに対応する問題データを作る。
-  - レイアウト関数群: `add_vertical_frame_set()` (`184`), `get_vertical_contents_raw_dataset()` (`519`), `get_vertical_contents()` (`579`), `get_bottom_results()` (`610`), `add_header_index()` (`487`), `addPageNumber()` (`642`) — ReportLab の `Frame`/`Table` を組み立てる。
-  - `main(ini)` (`678-1219`): 用紙サイズ・余白・フォントサイズの決定、`BaseDocTemplate` の構築、ページ内容の流し込み、PDF/CSV 書き出し。
-- `factory.sh`: `_basic`（`100masu.py:79-115` 相当、実際は `factory.sh:79-115`）や `_kuku` 系関数で、用紙サイズ・分量違いの複数パターンを `dist/` 以下に一括生成する。汎用シェルボイラープレート（`_usage`, `_log`, `_err` 等、`factory.sh:12-45`）を土台にしている。
-- `memo.md`: コードではなく、暗算指導法・学習ステップ・受験算数における計算力の重要性を説明する日本語の教育コンテンツ。`100masu.py` が生成する問題形式（`aBc` 等）の教育的な意味づけの一次資料。
-- `example_result.pdf`: `.gitignore` で `*.pdf` は除外されているが `!example_result.pdf` で明示的に追跡対象にしている生成物サンプル (`.gitignore:2-3`)。
-- `README.md`: セットアップ・使い方の説明。ただし `command` の例（`operations`/`complements`）が実装の `choices`（`ope`/`com`）と一致していない（[[policy]] 参照）。
+## 各ファイル/ディレクトリの責務(実装から確認)
+
+- `nuts_calc.py`: CLI エントリポイント兼ロジック全体。ファイル冒頭のヘッダーコメント(`nuts_calc.py:4-13`)は "Script: 100masu.py" のままリネーム前の名称を残しており、実際のファイル名(`nuts_calc.py`)と食い違っている(ドキュメンテーションの取り残し、実害はない)。内部構成(引数パース、7種のデータ生成関数、ReportLab レイアウト構築、`main()`)は旧 `100masu.py` から機能的に踏襲。
+- `factory.sh`: `_basic`/`_kuku`系関数で用紙サイズ・分量違いの複数パターンを `dist/` 以下に一括生成。呼び出し方法が `100masu.py ...`(裸のコマンド名)から `python nuts_calc.py ...` に変更され(`factory.sh:127` 等)、`nuts_calc.py` がリポジトリルートにあり `python`(`python3` ではない)が `PATH` 上にあることを前提にしている。
+- `memo.md`: コードではなく、暗算指導法・学習ステップ・受験算数における計算力の重要性を説明する日本語の教育コンテンツ。`dev` ブランチのマージで一度削除されたが、ユーザーの指示によりマージ後に `main` の内容から復元済み(2026-07-22)。
+- `LICENSE`: MIT License(`LICENSE:1-21`、Copyright (c) 2025 ontheroadjp)。`dev` ブランチのマージで新規追加。
+- `README.md` / `README_ja.md`: 英語/日本語で内容が対応した利用者向け説明。CLI・`factory.sh`・Web UI(バックエンド/フロントエンド起動手順)をカバーしている。
+- `web/backend/app.py`: Flask アプリ。`/generate-pdf` の単一エンドポイントで `nuts_calc.py` を `subprocess` 実行するラッパー(詳細は [[../L1_project/project_overview]])。
+- `web/frontend/`: Vite ベースの React SPA。`node_modules/` と `dist/` は `.gitignore` で除外済み(`.gitignore:53-54`)。
 
 ## 未確認事項
 
-- `docs/` 以外に、リポジトリ外で管理されているドキュメント（Notion、Google Docs等）があるかどうかは本リポジトリから確認できない。
+- `docs/` 以外に、リポジトリ外で管理されているドキュメント(Notion、Google Docs等)があるかどうかは本リポジトリから確認できない。
+- `web/backend/generated_pdfs/`(実行時に自動作成されるディレクトリ、`web/backend/app.py:11-12`)が `.gitignore` の対象になっていない点は [[../L0_concept/policy]] に記録済み。
