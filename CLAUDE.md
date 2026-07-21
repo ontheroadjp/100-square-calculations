@@ -4,9 +4,11 @@ AI 運用の single source of truth。`AGENTS.md` はこのファイルへの sy
 
 ## プロジェクト概要
 
-計算ドリル PDF 生成 CLI（Python + ReportLab）。詳細は `docs/L0_concept/`, `docs/L1_project/`, `docs/L2_development/`, `docs/L3_implementation/` を参照。`docs/.ai/repo.profile.json` に主要コマンドと primary_docs へのポインタがある。
+計算ドリル PDF 生成ツール群。CLI(`nuts_calc.py`、Python + ReportLab、旧名 `100masu.py`)と、それをラップする Web UI(`web/backend` Flask + `web/frontend` React/Vite)の2経路がある。詳細は `docs/L0_concept/`, `docs/L1_project/`, `docs/L2_development/`, `docs/L3_implementation/` を参照。`docs/.ai/repo.profile.json` に主要コマンドと primary_docs へのポインタがある。
 
-**既知の重大な既存バグ**: `100masu.py:158` の `ini.intermediate` が未定義変数を参照しており、`command` 引数が `ope` 以外（`com`/`100`/`99`/`aBc`/`squ`/`pi`）の場合は必ず `NameError` で失敗する（実機確認済み）。詳細: `docs/L3_implementation/specification_summary.md`。
+**既知の欠陥(実機確認済み・未修正)**: `web/frontend/package.json` に `i18next`/`react-i18next`/`i18next-browser-languagedetector`/`i18next-http-backend` が不足しており、`npm run build` が `Rollup failed to resolve import "i18next"` で失敗する。詳細: `docs/L3_implementation/specification_summary.md`。
+
+**解消済みバグ**: 旧 `100masu.py:158` の `ini.intermediate` 未定義参照バグ(`ope` 以外の全コマンドが `NameError` で失敗)は、`nuts_calc.py` への移行時に `args.intermediate` へ修正済み。7コマンドすべての正常動作を実機確認済み。
 
 ## Custom / Command の使い分け（AI向けルール）
 
