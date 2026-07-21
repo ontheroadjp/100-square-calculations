@@ -16,6 +16,10 @@
     "100masu.py",
     "factory.sh"
   ],
+  "primary_docs": {
+    "investigation": "docs/L3_implementation/specification_summary.md",
+    "structure": "docs/L1_project/repository_structure.md"
+  },
   "notes": {
     "package_manager": "No lock file, requirements.txt, pyproject.toml, or setup.py exists (verified by directory listing of repo root). The sole dependency (reportlab) is installed ad hoc per README.md:35. package_manager reflects the installer used (pip), not a manifest-backed environment.",
     "ci": "No .github/workflows directory or other CI definition exists in this repo (verified: find found no *.yml/*.yaml files). commands above are derived from README.md and factory.sh, not from CI.",
