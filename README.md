@@ -11,7 +11,9 @@ This project provides a set of tools to generate various types of mathematical p
 *   **Automated Batch Generation**: The `factory.sh` script provides an automated way to generate a wide variety of pre-configured worksheets.
 
 ## Installation
-To use this generator, you need Python 3. It is highly recommended to use a virtual environment to manage dependencies. The project can then be installed via pip, which will handle the `reportlab` dependency. A LaTeX environment is optional, primarily if you plan to use other LaTeX-based tools or older versions of this project that might have relied on it.
+To use this generator, you need Python 3. It is highly recommended to use a virtual environment to manage dependencies. A LaTeX environment is optional, primarily if you plan to use other LaTeX-based tools or older versions of this project that might have relied on it.
+
+> **Note:** there is no `requirements.txt`/`pyproject.toml`/`setup.py` in this repo, so `reportlab` (and, for the web backend, `Flask`/`Flask-Cors`) must be installed manually — see step 3 and the Dependencies section below.
 
 1.  **Clone the repository**:
     ```bash
