@@ -1,6 +1,6 @@
 {
   "repo_id": "ontheroadjp/100-square-calculations",
-  "package_manager": "pip",
+  "package_manager": "pip (python) + npm (web/frontend)",
   "doc_roots": [
     "docs/L0_concept",
     "docs/L1_project",
@@ -8,21 +8,28 @@
     "docs/L3_implementation"
   ],
   "commands": {
-    "install": "pip install reportlab",
-    "run": "python3 100masu.py <paper_size> <command> [options]",
-    "batch_generate": "./factory.sh"
+    "install_python": "python3 -m venv venv && source venv/bin/activate && pip install reportlab flask flask-cors",
+    "run_cli": "python3 nuts_calc.py <paper_size> <command> [options]",
+    "batch_generate": "./factory.sh",
+    "run_backend": "cd web/backend && python app.py",
+    "install_frontend": "cd web/frontend && npm install",
+    "run_frontend_dev": "cd web/frontend && npm run dev",
+    "build_frontend": "cd web/frontend && npm run build"
   },
   "entrypoints": [
-    "100masu.py",
-    "factory.sh"
+    "nuts_calc.py",
+    "factory.sh",
+    "web/backend/app.py",
+    "web/frontend/src/main.jsx"
   ],
   "primary_docs": {
     "investigation": "docs/L3_implementation/specification_summary.md",
     "structure": "docs/L1_project/repository_structure.md"
   },
   "notes": {
-    "package_manager": "No lock file, requirements.txt, pyproject.toml, or setup.py exists (verified by directory listing of repo root). The sole dependency (reportlab) is installed ad hoc per README.md:35. package_manager reflects the installer used (pip), not a manifest-backed environment.",
-    "ci": "No .github/workflows directory or other CI definition exists in this repo (verified: find found no *.yml/*.yaml files). commands above are derived from README.md and factory.sh, not from CI.",
-    "tests": "No test files or test directory exist in this repo (verified: no path matching *test* other than this note)."
+    "package_manager": "No requirements.txt/pyproject.toml/setup.py exists for the Python side (a prior setup.py was removed per commit d9fc0a3, verified: 'git log -- nuts_calc.py'). README.md's Setup/Dependencies sections describe installing Flask/Flask-Cors/reportlab manually via pip, and web/frontend has its own package.json/package-lock.json for npm.",
+    "ci": "No .github/workflows directory or other CI definition exists in this repo (verified: no *.yml/*.yaml files found).",
+    "tests": "No test files or test directory exist in this repo (verified: no path matching *test*).",
+    "known_defects": "web/frontend fails to build/run: package.json is missing the i18next/react-i18next/i18next-browser-languagedetector/i18next-http-backend dependencies that src/i18n.js and src/App.jsx import. Reproduced: 'npm install && npm run build' in web/frontend fails with \"Rollup failed to resolve import \\\"i18next\\\"\". See docs/L3_implementation/specification_summary.md."
   }
 }

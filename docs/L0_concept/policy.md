@@ -2,25 +2,29 @@
 
 ## 技術選定ポリシー
 
-- PDF 生成には ReportLab を採用している（根拠: `100masu.py:12-18` の import 群、`README.md:15-16,35`）。他の PDF ライブラリへの切り替えを示唆する記述はリポジトリ内に存在しない。
-- 依存関係の固定（lock file, `requirements.txt`, `pyproject.toml` など）は行われていない。README はバージョン指定なしの `pip install reportlab` のみを案内している（`README.md:35`）。これはツールが単一開発者による個人/小規模利用のスクリプトであり、再現可能なビルド環境の構築を目的としていないためと推測される（未確認: 意図的な選択かどうかは記述なし）。
-- シェルスクリプト `factory.sh` は `set -Ceu`（`factory.sh:3`）でエラー時即停止・未定義変数禁止・上書きリダイレクト禁止を有効にしている。これは一括生成中に一部のコマンドが失敗した場合に気づかず不完全な PDF セットを出力してしまうことを防ぐためと考えられる。
+- PDF 生成には ReportLab を採用している(根拠: `nuts_calc.py` の import 群、`README.md:105-110`)。
+- Web UI は React 19 + Vite 7 + Tailwind CSS(フロントエンド、`web/frontend/package.json:12-29`)と Flask + Flask-Cors(バックエンド、`web/backend/app.py:1-2`)という構成。バックエンドは独自のドリル生成ロジックを持たず、既存の CLI(`nuts_calc.py`)を `subprocess.run` で呼び出すラッパーに徹している(根拠: `web/backend/app.py:20-63`)。これは CLI とロジックを二重実装しない設計判断と考えられる(未確認: 明示的な設計意図の記述はコード内にないが、実装から読み取れる一貫した方針)。
+- Python 側は依存関係の固定(lock file, `requirements.txt`, `pyproject.toml` など)を行っていない。以前存在した `setup.py` はコミット `d9fc0a3`("Rename 100masu.py to nuts_calc.py and remove setup.py")で削除されており、`pip install` によるパッケージインストールの導線は現状ない。README.md の Setup セクション(`README.md:13-14`)は「pip 経由でインストールでき、reportlab の依存関係も処理される」と書いてあるが、これを裏付けるパッケージ定義ファイルは存在しない(README と実装の乖離。[[consistency_checks]] 参照)。
+- npm 側は `web/frontend/package-lock.json` でバージョン固定されているが、`package.json` の `dependencies` に実際に import されている `i18next` 系パッケージが欠落しており、`npm install` 後の `npm run build`/`npm run dev` が失敗する(実機確認済み、詳細は [[specification_summary]])。
 
 ## セキュリティ方針
 
-- 外部入力を受け取るインターフェースは CLI 引数のみであり、ネットワーク待受・認証・ユーザーデータ永続化は存在しない（根拠: `100masu.py` 全体に `socket`/`http`/DB 関連の import なし）。
-- 出力ファイルパス (`--out-file`) はユーザー指定の文字列をそのまま `os.remove` / `open` に渡している（`100masu.py:730-767, 1206`）。CLI ツールとして実行者本人が渡す前提であり、Web 経由の入力は想定されていない。外部公開サービスとして転用する場合はパス検証が必要になる点に注意（未確認: 転用予定の有無）。
+- CLI 単体の利用では外部入力は CLI 引数のみで、ネットワーク待受はない。
+- Web UI 経路では Flask バックエンドが `CORS(app)` を制限なしで有効化しており(`web/backend/app.py:8`)、オリジン制限が存在しない。ローカル開発(`http://127.0.0.1:5000` ⇄ `http://localhost:5173`)を想定した設定と考えられるが、そのまま公開環境にデプロイした場合は任意のオリジンからの PDF 生成リクエストを許可してしまう(根拠: `CORS(app)` はオプション引数なしのグローバル許可)。
+- Flask バックエンドは受け取ったフォーム値をそのまま `subprocess.run` の引数リストに連結して `nuts_calc.py` を起動している(`web/backend/app.py:20-59`)。`shell=True` は使っておらず引数はリストで渡されているため、シェルインジェクションの経路は確認できないが、`data.get(...)` の値をそのまま整数変換や文字列結合しているだけで、`paper_size`/`command_type` の値を許可リストで検証していない(`web/backend/app.py:25-32`)。`nuts_calc.py` 側の `argparse` の `choices` で最終的に弾かれるため実害は限定的と考えられるが、バックエンド単体では入力検証をしていない点は留意事項として記録する(未確認: 実際に不正な値を送って `argparse` のエラーがどう返るかは未検証)。
+- 生成された PDF は `web/backend/generated_pdfs/` に UUID 付きファイル名で保存され続ける(`web/backend/app.py:11-12,56-58`)。このディレクトリの自動クリーンアップ処理は見当たらず、リクエストのたびにディスクへ蓄積される(未確認: 運用上のクリーンアップ手順があるかは記述なし)。また `.gitignore` にこのディレクトリ用のエントリがなく、誤ってコミットされるリスクがある。
 
 ## パフォーマンス要件
 
-- 明示的なパフォーマンス要件の記述はリポジトリ内に存在しない（未確認）。`factory.sh` のループ量（`_basic` で 2 用紙サイズ × 2 分量 × 8ステップ、`_kuku` 系で九九 1〜9段 × 用紙サイズ）から、バッチ実行時間は数秒〜数十秒程度になると推測されるが、実測記録はない。
+- 明示的なパフォーマンス要件の記述はリポジトリ内に存在しない(未確認)。
 
 ## 禁止事項・既知の制約
 
-- `100masu.py` の `command` 引数のうち `ope` 以外（`com`, `100`, `99`, `aBc`, `squ`, `pi`）は、現在の HEAD (`ac4167f`) の状態では実行時に必ず `NameError: name 'ini' is not defined` で異常終了することを実機確認済み（`100masu.py:158` の `ini.intermediate` が `_init()` 関数内で定義されていない変数を参照しているため）。この不具合はコミット `39cdf62 [NEW] --intermediate option` で持ち込まれたことをその diff で確認済み（旧コードは `if args.command == 'ope':` のみだった）。
-  - 詳細と再現手順は [[specification_summary]] を参照。
-- README.md の Usage セクション（`README.md:41,58,64,70`）は `operations` / `complements` / `100` というコマンド名を案内しているが、実装の `choices`（`100masu.py:54`）は `ope` / `com` / `100` / `99` / `aBc` / `squ` / `pi` であり、`operations` と `complements` という文字列は存在しない。README の記載通りに実行すると argparse のエラーで失敗する。README と実装が乖離している。
+- **(解消済み)** 旧 `100masu.py:158` の `ini.intermediate` 未定義変数バグ(`ope` 以外の全コマンドが `NameError` で失敗する不具合)は、`dev` ブランチのマージ(`nuts_calc.py`)で `args.intermediate` に修正されており、CLI の7コマンドすべてが実機で正常終了することを確認済み。
+- **(新規・実機確認済み)** `web/frontend` は `npm install && npm run build` を実行すると `i18next` の解決失敗でビルドに失敗する。`package.json` の依存関係が `src/i18n.js`/`src/App.jsx` の実際の import と一致していないため。詳細と再現手順は [[specification_summary]]。
+- README.md(`README.md:13-14`)が pip 経由のインストールに言及しているが、パッケージ定義ファイル(`setup.py`/`pyproject.toml`)は存在しない。実際には `pip install reportlab flask flask-cors` のような個別インストールが必要。
 
 ## AI が変更判断前に確認すべきこと
 
-- `100masu.py` の `command` 分岐を触る際は、上記の `ini.intermediate` 未定義バグ（`100masu.py:158`）が既知の未修正課題であることを前提にする。修正する場合は `ini.intermediate` を `args.intermediate` に置き換えることで解消できると推測されるが、これはコード修正作業であり本ドキュメント整備の範囲外のため実施していない（未確認: 修正の要否はユーザー判断が必要）。
+- `web/frontend` に手を入れる際は、まず `package.json` に `i18next`/`react-i18next`/`i18next-browser-languagedetector`/`i18next-http-backend` を追加してビルドが通る状態にする必要がある(既知の未修正課題)。
+- `web/backend/app.py` を触る際は、`CORS(app)` がオリジン無制限である点、および入力値の許可リスト検証がない点を認識した上で変更すること。

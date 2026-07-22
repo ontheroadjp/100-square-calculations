@@ -3,6 +3,8 @@
 ## Overview
 This project provides a set of tools to generate various types of mathematical practice worksheets, primarily focusing on 100-square calculations, in PDF format. It's designed to help users create customized practice materials for mental arithmetic and basic math skills.
 
+For the pedagogical background behind the drills (the mental-arithmetic technique the worksheets are built around), see `memo.md` (Japanese).
+
 ## Features
 *   **Diverse Problem Types**: Generate worksheets for basic arithmetic operations (addition, subtraction, multiplication, division), complements, 100-square calculation tables, multiplication tables (kuku), square numbers, and specific mental arithmetic problems.
 *   **Customizable Generation**: Extensive command-line options allow users to specify paper size, number ranges, operators, problem counts, and output formats.
@@ -10,8 +12,10 @@ This project provides a set of tools to generate various types of mathematical p
 *   **Answer Options**: Include answers at the bottom of the page, merge answer files, or output raw problem data to CSV for further analysis.
 *   **Automated Batch Generation**: The `factory.sh` script provides an automated way to generate a wide variety of pre-configured worksheets.
 
-## Setup
-To use this generator, you need Python 3. It is highly recommended to use a virtual environment to manage dependencies. The project can then be installed via pip, which will handle the `reportlab` dependency. A LaTeX environment is optional, primarily if you plan to use other LaTeX-based tools or older versions of this project that might have relied on it.
+## Installation
+To use this generator, you need Python 3. It is highly recommended to use a virtual environment to manage dependencies. A LaTeX environment is optional, primarily if you plan to use other LaTeX-based tools or older versions of this project that might have relied on it.
+
+> **Note:** there is no `requirements.txt`/`pyproject.toml`/`setup.py` in this repo, so dependencies must be installed manually — see step 3 and the Dependencies section below.
 
 1.  **Clone the repository**:
     ```bash
@@ -25,7 +29,12 @@ To use this generator, you need Python 3. It is highly recommended to use a virt
     source venv/bin/activate
     ```
 
-3.  **(Optional) Install LaTeX environment**: While `nuts_calc.py` uses ReportLab for PDF generation, if you encounter issues or plan to use other LaTeX-based tools, ensure you have a LaTeX distribution (e.g., TeX Live, MiKTeX) with `platex` and `dvipdfmx` installed.
+3.  **Install the CLI dependency**:
+    ```bash
+    pip install reportlab
+    ```
+
+4.  **(Optional) Install LaTeX environment**: While `nuts_calc.py` uses ReportLab for PDF generation, if you encounter issues or plan to use other LaTeX-based tools, ensure you have a LaTeX distribution (e.g., TeX Live, MiKTeX) with `platex` and `dvipdfmx` installed.
 
     To deactivate the virtual environment when you are done:
     ```bash
@@ -102,12 +111,31 @@ To use the web interface, you need to start both the Flask backend and the React
 
 Once both are running, open your browser to the frontend's address (e.g., `http://localhost:5173`) to access the web interface.
 
+> **Known issue:** `web/frontend/package.json` is missing the `i18next`, `react-i18next`, `i18next-browser-languagedetector`, and `i18next-http-backend` packages that `src/i18n.js` and `src/App.jsx` import. `npm run build` currently fails with `Rollup failed to resolve import "i18next"`. As a workaround, run `npm install i18next react-i18next i18next-browser-languagedetector i18next-http-backend` in `web/frontend` before building. See `docs/L3_implementation/specification_summary.md` for details.
+
 ## Dependencies
 *   Python 3
 *   Flask (`pip install Flask`)
 *   Flask-Cors (`pip install Flask-Cors`)
 *   Node.js and npm (for React frontend)
 *   (Optional) LaTeX environment (for `platex`, `dvipdfmx` if used by other tools or older versions)
+
+## Architecture
+
+There are two independent ways to generate a worksheet, both ultimately driven by the same CLI:
+
+*   **CLI**: `nuts_calc.py` → ReportLab → PDF/CSV. No server, no database, no persisted state.
+*   **Web UI**: React frontend (`web/frontend`) → Flask backend (`web/backend/app.py`) → `subprocess` call to `nuts_calc.py` → generated PDF is streamed back to the browser. The backend holds no drill-generation logic of its own; it only translates form input into `nuts_calc.py` CLI arguments.
+
+`factory.sh` is a third, batch-oriented entry point that calls `nuts_calc.py` repeatedly to populate a `dist/` directory with a fixed set of worksheets.
+
+See `docs/L1_project/project_overview.md` and `docs/L0_concept/concept.md` for the full breakdown and file/line references.
+
+## Design Principles
+
+*   **Single source of drill logic.** The web backend does not reimplement worksheet generation — it always shells out to `nuts_calc.py`, so the CLI and the web UI can never drift into producing different problems for the same parameters.
+*   **No dependency pinning on the Python side.** There is no lock file, `requirements.txt`, or `pyproject.toml`; dependencies are installed ad hoc. This reflects the project's scope as a small personal/batch-generation tool rather than a deployed service.
+*   **No automated tests or CI.** Correctness is currently verified by manually running the CLI/web UI and inspecting the generated PDF/CSV output.
 
 ## License
 MIT License
