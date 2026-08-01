@@ -5,11 +5,8 @@ exercise the CLI the same way a user (or web/backend/app.py) would, and check
 that PDF/CSV output is actually produced -- not just that functions return
 without raising.
 
-Where nuts_calc.py has a known, currently-unfixed bug (issue #15's
-output-filename derivation), tests pin the CURRENT (buggy) behavior rather
-than the intended/correct one, so an unrelated refactor doesn't silently
-change it without the change showing up as a failing test. Issue #4's 9
-phases have been fixed; those tests now verify the corrected behavior.
+Issue #4's 9 phases and issue #15 (output-filename derivation) have all
+been fixed; the corresponding tests verify the corrected behavior.
 """
 
 import pytest
@@ -215,8 +212,7 @@ def test_cli_rejects_zero_rows_or_columns(run_cli, tmp_path, flag):
 
 
 # ---------------------------------------------------------------------------
-# Known open bugs (issue #15): pin current behavior so an unrelated refactor
-# can't silently change it.
+# Fixed bug (issue #15): output-filename derivation.
 # ---------------------------------------------------------------------------
 
 
@@ -232,17 +228,18 @@ def test_cli_ope_equal_a_min_max_outside_small_int_cache_succeeds(run_cli, tmp_p
     _assert_is_pdf(tmp_path / "result.pdf")
 
 
-def test_cli_out_file_name_derivation_pins_current_buggy_stripping(run_cli, tmp_path):
-    # issue #15: OUTFILE_NAME_READ/OUTFILE_NAME_CSV are derived via
-    # `ini.out_file.rstrip('.pdf')`, a character-class strip rather than a
-    # suffix strip. "output_add.pdf" loses its trailing "d" (also in the
-    # strip set '.','p','d','f'), producing "output_a_read.pdf"/"output_a.csv"
-    # instead of the expected "output_add_read.pdf"/"output_add.csv".
+def test_cli_out_file_name_derivation_handles_names_ending_in_pdf_chars(run_cli, tmp_path):
+    # issue #15 (fixed): OUTFILE_NAME_READ/OUTFILE_NAME_CSV used to be derived
+    # via `ini.out_file.rstrip('.pdf')`, a character-class strip rather than a
+    # suffix strip. "output_add.pdf" used to lose its trailing "d" (also in
+    # the strip set '.','p','d','f'), producing "output_a_read.pdf"/
+    # "output_a.csv" instead of "output_add_read.pdf"/"output_add.csv". Now
+    # uses os.path.splitext, which only removes the actual extension.
     result = run_cli("A4", "ope", "-r", "2", "-c", "1", "--csv", "--out-file", "output_add.pdf")
     assert result.returncode == 0, result.stderr
 
     assert (tmp_path / "output_add.pdf").exists()
-    assert (tmp_path / "output_a_read.pdf").exists()
-    assert (tmp_path / "output_a.csv").exists()
-    assert not (tmp_path / "output_add_read.pdf").exists()
-    assert not (tmp_path / "output_add.csv").exists()
+    assert (tmp_path / "output_add_read.pdf").exists()
+    assert (tmp_path / "output_add.csv").exists()
+    assert not (tmp_path / "output_a_read.pdf").exists()
+    assert not (tmp_path / "output_a.csv").exists()
