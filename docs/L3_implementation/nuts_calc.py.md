@@ -57,7 +57,7 @@
 
 ## 変更履歴(git log より自動生成)
 
-- (未コミット) fix(#4): fix 9 logic bugs found in CLI, web backend, and frontend
+- cfea9ed fix(#4): fix 9 logic bugs found in CLI, web backend, and frontend
 - 0a11eaf feat(#9): add vertical (written-calculation) output format for ope command
 - 5466cdb refactor: Clean up old script and apply flat design to frontend
 - d9fc0a3 refactor: Rename 100masu.py to nuts_calc.py and remove setup.py
