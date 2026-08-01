@@ -31,5 +31,5 @@
 
 ## 変更履歴(git log より自動生成)
 
+- f0201d6 feat(#13): add grade-based written-calculation (hissan) drill menu
 - 0631cf9 feat(#5): add grade-based drill PDF picker to web/frontend
-- (このコミット) feat(#13): add grade-based written-calculation (hissan) written presets
