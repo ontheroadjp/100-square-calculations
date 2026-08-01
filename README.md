@@ -133,7 +133,7 @@ See `docs/L1_project/project_overview.md` and `docs/L0_concept/concept.md` for t
 
 *   **Single source of drill logic.** The web backend does not reimplement worksheet generation — it always shells out to `nuts_calc.py`, so the CLI and the web UI can never drift into producing different problems for the same parameters.
 *   **No dependency pinning on the Python side.** There is no lock file, `requirements.txt`, or `pyproject.toml`; dependencies are installed ad hoc. This reflects the project's scope as a small personal/batch-generation tool rather than a deployed service.
-*   **No automated tests or CI.** Correctness is currently verified by manually running the CLI/web UI and inspecting the generated PDF/CSV output.
+*   **`nuts_calc.py` has an automated pytest regression suite (no CI yet).** Unit tests cover the problem-data generation functions and `_init()` argument validation; end-to-end tests run the CLI as a subprocess and check the generated PDF/CSV output. Run with `pip install pytest && pytest` after installing the CLI dependency. The web frontend/backend are not yet covered.
 
 ## License
 MIT License
