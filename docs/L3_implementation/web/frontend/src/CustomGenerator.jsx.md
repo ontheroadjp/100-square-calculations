@@ -9,7 +9,7 @@
 - `commandType`(`ope`/`com`/`100`/`99`/`aBc`/`squ`/`pi`)ごとにタブ(計算設定・用紙設定・オプション・PDF)内の表示項目を出し分ける。
 - `handleSubmit` が `formData` を組み立てて `POST http://127.0.0.1:5000/generate-pdf` を呼び、成功時は `blob` から `URL.createObjectURL` で `pdfUrl` を作り、PDFタブに切り替えてプレビュー(`<iframe>`)と `<a href={pdfUrl} download>` を表示する(`web/frontend/src/CustomGenerator.jsx:39-104`)。
 - `a_value`/`b_value` は `commandType` ごとに送信要否が分岐する(`formData` 組み立て内、`CustomGenerator.jsx:45-52`)。入力欄自体は `ope`/`100` で `a_value`/`b_value` の両方、`com`/`99`/`squ`/`pi` で `a_value` のみ表示する(`CustomGenerator.jsx:181,193`)のに対し、`formData` 側の分岐もこれと1対1で対応している必要がある(以前は `100` の分岐が漏れており、入力しても送信されなかった。issue #4 Phase 4 で修正済み)。
-- `commandType === 'ope'` のとき、「オプション」タブに `vertical`(筆算形式で出力)チェックボックスがある。チェック時のみ `formData.vertical = true` を送信し、`web/backend/app.py` 経由で `nuts_calc.py --vertical` を呼び出す([[../../../../nuts_calc.py]] 参照)。対応演算(add/sub/掛ける数が1桁の mul)以外を選んだ場合のバリデーションはフロントエンドでは行わず、`nuts_calc.py` 側のエラーに委ねている。
+- `commandType === 'ope'` のとき、「オプション」タブに `vertical`(筆算形式で出力)チェックボックスがある。チェック時のみ `formData.vertical = true` を送信し、`web/backend/app.py` 経由で `nuts_calc.py --vertical` を呼び出す([[../../../../nuts_calc.py]] 参照)。対応演算(add/sub/mul。mul は掛ける数の桁数を問わず対応、issue #10)以外(div/mix)を選んだ場合のバリデーションはフロントエンドでは行わず、`nuts_calc.py` 側のエラーに委ねている。
 
 ## 重要な設計判断
 

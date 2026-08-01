@@ -59,6 +59,7 @@
 
 ## 変更履歴(git log より自動生成)
 
+- 2a7cd15 feat(#10): support multi-digit multiplier in vertical mul output
 - 4aaf251 fix(#15): fix output filename derivation to use os.path.splitext
 - cfea9ed fix(#4): fix 9 logic bugs found in CLI, web backend, and frontend
 - 0a11eaf feat(#9): add vertical (written-calculation) output format for ope command
