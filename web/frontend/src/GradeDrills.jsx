@@ -12,6 +12,12 @@ const DENSITY_OPTIONS = [
 ];
 const DEFAULT_DENSITY = 'standard';
 
+const FORMAT_CATEGORIES = [
+  { value: 'normal', labelKey: 'format_normal' },
+  { value: 'written', labelKey: 'format_written' },
+];
+const DEFAULT_FORMAT_CATEGORY = 'normal';
+
 const buildFileName = (grade, preset) => `drill_grade${grade}_${preset.id}.pdf`;
 
 function PresetDetail({ grade, preset, onBack }) {
@@ -188,12 +194,14 @@ function GradeDrills() {
   const { t } = useTranslation();
   const [selectedGrade, setSelectedGrade] = useState(1);
   const [openPreset, setOpenPreset] = useState(null);
+  const [formatCategory, setFormatCategory] = useState(DEFAULT_FORMAT_CATEGORY);
 
   const isCustom = selectedGrade === CUSTOM_GRADE;
 
   const handleSelectGrade = (grade) => {
     setSelectedGrade(grade);
     setOpenPreset(null);
+    setFormatCategory(DEFAULT_FORMAT_CATEGORY);
   };
 
   if (openPreset) {
@@ -232,11 +240,25 @@ function GradeDrills() {
       {isCustom ? (
         <CustomGenerator />
       ) : (
-        <div className="preset-card-grid">
-          {presetsByGrade[selectedGrade].map((preset) => (
-            <PresetCard key={preset.id} preset={preset} onOpen={setOpenPreset} />
-          ))}
-        </div>
+        <>
+          <nav className="grade-nav format-nav" aria-label={t('format_select_label')}>
+            {FORMAT_CATEGORIES.map((category) => (
+              <button
+                key={category.value}
+                type="button"
+                className={`grade-link ${formatCategory === category.value ? 'active' : ''}`}
+                onClick={() => setFormatCategory(category.value)}
+              >
+                {t(category.labelKey)}
+              </button>
+            ))}
+          </nav>
+          <div className="preset-card-grid">
+            {presetsByGrade[selectedGrade][formatCategory].map((preset) => (
+              <PresetCard key={preset.id} preset={preset} onOpen={setOpenPreset} />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
