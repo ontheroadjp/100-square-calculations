@@ -103,5 +103,22 @@
   "density_few": "少なめ",
   "density_standard": "標準",
   "density_many": "多め",
-  "back": "戻る"
+  "back": "戻る",
+  "format_select_label": "表示形式を選択",
+  "format_normal": "通常形式",
+  "format_written": "筆算形式",
+  "preset_g1_addsub_written_title": "たしざん・ひきざんの筆算(1けた)",
+  "preset_g1_addsub_written_desc": "1桁どうしのたし算・ひき算を筆算(縦書き)形式で練習します。",
+  "preset_g2_addsub_written_title": "たしざん・ひきざんの筆算(2けた)",
+  "preset_g2_addsub_written_desc": "2桁の数と1桁の数のたし算・ひき算を筆算形式で練習します。",
+  "preset_g3_addsub_written_title": "たしざん・ひきざんの筆算(3けた)",
+  "preset_g3_addsub_written_desc": "3桁どうしのたし算・ひき算を筆算形式で練習します。",
+  "preset_g3_mul_written_title": "かけ算の筆算(2桁×1桁)",
+  "preset_g3_mul_written_desc": "2桁×1桁のかけ算を筆算形式で練習します。",
+  "preset_g4_addsub_written_title": "たしざん・ひきざんの筆算(4けた)",
+  "preset_g4_addsub_written_desc": "4桁どうしのたし算・ひき算を筆算形式で練習します。",
+  "preset_g5_addsub_written_title": "たしざん・ひきざんの筆算(5けた)",
+  "preset_g5_addsub_written_desc": "5桁どうしのたし算・ひき算を筆算形式で練習します。",
+  "preset_g6_addsub_written_title": "けた数の異なるたし算・ひき算の筆算",
+  "preset_g6_addsub_written_desc": "5桁と3桁など、桁数の異なる数どうしのたし算・ひき算を筆算形式で練習します。"
 }
