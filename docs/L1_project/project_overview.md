@@ -14,7 +14,7 @@ CI 定義・パッケージ定義(lock file 等)は Python 側に存在しない
 | 主要ライブラリ(CLI) | ReportLab | `nuts_calc.py` の import 群 |
 | Web バックエンド | Flask + Flask-Cors | `web/backend/app.py:1-2,7-8`、`README.md:107-108` |
 | Web フロントエンド | React 19 + Vite 7 + Tailwind CSS 4 | `web/frontend/package.json:12-29` |
-| 国際化 | react-i18next(英語/日本語) | `web/frontend/src/i18n.js:1-4`。**ただし `package.json` に依存関係が無く、ビルドが壊れている(下記参照)** |
+| 国際化 | react-i18next(英語/日本語) | `web/frontend/src/i18n.js:1-4` |
 | バッチ生成 | Bash(`set -Ceu`) | `factory.sh:1,38` |
 | パッケージマネージャ(Python) | pip(lock file なし。旧 `setup.py` は削除済み、`git log` のコミット `d9fc0a3` で確認) | `README.md:13-14` は pip インストールを謳うが検証すると裏付けとなるパッケージ定義ファイルは存在しない |
 | パッケージマネージャ(Web) | npm(`package-lock.json` あり) | `web/frontend/package-lock.json` |
@@ -37,8 +37,9 @@ CI 定義・パッケージ定義(lock file 等)は Python 側に存在しない
 ### Web UI(`web/`、新規)
 
 - `web/backend/app.py`: Flask アプリ。単一エンドポイント `POST /generate-pdf`(`web/backend/app.py:14`)がリクエストボディの JSON を `nuts_calc.py` の CLI 引数へ変換し `subprocess.run` で実行、生成された PDF をそのままレスポンスとして返す(`web/backend/app.py:61-69`)。
-- `web/frontend/src/App.jsx`: 7種類の `command` すべてに対応するフォーム(用紙サイズ・数値範囲・演算子・行列数・オプション)を提供し、`activeTab` state でタブ切り替え(計算内容/用紙/オプション/PDFプレビュー)を実装(`web/frontend/src/App.jsx:33,174-368`)。英語/日本語の言語切り替えを実装(`web/frontend/src/App.jsx:39-41,120-133`)。
-- **既知の欠陥(実機確認済み)**: `web/frontend` は `npm install && npm run build`(または `npm run dev`)を実行すると、`src/i18n.js` が import する `i18next`/`react-i18next`/`i18next-browser-languagedetector`/`i18next-http-backend` が `package.json` の依存関係に含まれておらず、ビルドに失敗する。詳細は [[../L3_implementation/specification_summary]]。
+- `web/frontend/src/App.jsx`: ヘッダー(タイトル・英語/日本語の言語切り替え)を描画し、本体は `GradeDrills.jsx` に委譲するシェル(`web/frontend/src/App.jsx`)。
+- `web/frontend/src/GradeDrills.jsx`: トップ画面。学年(1〜6年生)+「カスタム」をリンク風ボタンで並べ、選択中の学年に応じて `drillPresets.js` のプリセット(3件/学年)をカード表示する。各カードは「生成→実リンクをクリックしてダウンロード」の2段階でPDFを取得する。
+- `web/frontend/src/CustomGenerator.jsx`: 「カスタム」選択時に表示される、7種類の `command` すべてに対応する詳細パラメータフォーム(用紙サイズ・数値範囲・演算子・行列数・オプション)。`activeTab` state でタブ切り替え(計算内容/用紙/オプション/PDFプレビュー)を実装。
 
 ## 補助機能
 
