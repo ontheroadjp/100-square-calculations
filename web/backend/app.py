@@ -39,8 +39,7 @@ def generate_pdf():
     if 'b_min' in data: command.extend(['--b-min', str(data['b_min'])])
     if 'b_max' in data: command.extend(['--b-max', str(data['b_max'])])
     if 'operator' in data and data['operator']:
-        for op in data['operator']:
-            command.extend(['--operator', op])
+        command.extend(['--operator', *data['operator']])
     if data.get('descend'): command.append('--descend')
     if data.get('reverse'): command.append('--reverse')
     if data.get('shuffle'): command.append('--shuffle')

@@ -44,6 +44,8 @@ function CustomGenerator() {
       // Conditional a_value/b_value based on commandType
       ...(commandType === 'ope' && aValue && { a_value: parseInt(aValue) }),
       ...(commandType === 'ope' && bValue && { b_value: parseInt(bValue) }),
+      ...(commandType === '100' && aValue && { a_value: parseInt(aValue) }),
+      ...(commandType === '100' && bValue && { b_value: parseInt(bValue) }),
       ...(commandType === 'com' && aValue && { a_value: parseInt(aValue) }),
       ...(commandType === '99' && aValue && { a_value: parseInt(aValue) }),
       ...(commandType === 'squ' && aValue && { a_value: parseInt(aValue) }),

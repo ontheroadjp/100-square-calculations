@@ -6,8 +6,10 @@
 
 ## 動作の概要
 
-- `_init()` が引数を検証・正規化して `argparse.Namespace` を返す。`command` ごとに `-a`/`-b`(桁数指定)から `a_min`/`a_max`/`b_min`/`b_max`(実際の数値範囲)を導出する(`nuts_calc.py:215-244,272`)。
+- `_init()` が引数を検証・正規化して `argparse.Namespace` を返す。`command` ごとに `-a`/`-b`(桁数指定)から `a_min`/`a_max`/`b_min`/`b_max`(実際の数値範囲)を導出する(`nuts_calc.py:232-245`)。`ope` 以外の `command` では `--intermediate` を渡してもこの導出は行われない(`command == 'ope'` のみが対象、issue #4 Phase 1)。
+- `_init()` は他に以下をバリデーションする: `com`/`99`/`squ`/`pi` の `-a` 必須(未指定時は `exit()`、終了コード0の既知の挙動)、`100` の `-a`/`-b` は3桁まで、`--intermediate` は第2引数(`b`)が1桁の場合のみ許可(`args.b_max > SINGLE_DIGIT_MAX` なら `exit(1)`、issue #4 Phase 3)、`--vertical` 関連の制約群(下記)、`-r`/`-c` は `MIN_ROWS_OR_COLUMNS`(=1)以上必須(`exit(1)`)。
 - `main(ini)` は用紙サイズ・コマンドに応じて `Frame` レイアウトを組み立て、`get_vertical_contents_raw_dataset` で問題データを生成し、`command` ごとの描画ロジックで PDF 2種(通常版・解答版 `_read.pdf`)を作る。`ini.merge` が真の場合は1ファイルに問題ページ→解答ページを交互に収める(`next_content` による1ページ遅延の仕組み)。
+- `nums_a`/`nums_b`(問題の種となる数値集合)は `ini.a_min`/`ini.a_max` などから `range(min, max + 1)`(上限含む)で構築する。`min == max` の場合は `random.sample` を経由せず単一要素リストにする分岐があり、この等価判定は `!=`(恒等比較 `is not` ではない)を使う(issue #4 Phase 2, 6)。同様の `range(min, max + 1)` 構築は `100` コマンド側にも独立して存在する。
 
 ## `ope` コマンドの出力形式(横書き / 筆算)
 
@@ -31,6 +33,13 @@
 - **バリデーション失敗時は `exit(1)` を使う**: ファイル内の他の既存バリデーション(例: `-a option must be set.`)は引数なし `exit()` を使っており、実際には終了コード0を返すため、`web/backend/app.py` の `subprocess.run(..., check=True)` はこれを「成功」とみなしてしまう(既知の制限、下記参照)。今回追加したバリデーションはこの罠を避けるため明示的に `exit(1)` にしている。
 - **ReportLab の `TableStyle` はコマンドの順序に依存する**: `get_vertical_calc_block` の `LINEBELOW`(答えとの区切り線)は `GRID`(通常は透明なデバッグ用グリッド)より**後**に追加しなければならない。逆順にすると `GRID` の `width=0` 指定が同じセル境界の `LINEBELOW` を上書きして線が消える(実装中に実機で発見)。
 - **筆算ブロックの高さは `slot_height * VERTICAL_BLOCK_HEIGHT_RATIO`(0.85)で計算し、外側の `Table` は `VALIGN: TOP`**: ブロックの3行がスロットの100%を占めると隣接する問題同士が隙間なく密着して読みにくいため、上詰めにして下に余白を残している。
+- **`calc_sub`/`calc_div` は無限リトライしない**: `nums_a`/`nums_b` の組み合わせに解(`a - b > 0` あるいは `a % b == 0`)が存在しない場合、`while True` のままだと永久にハングする。`MAX_OPERAND_RETRY_ATTEMPTS`(1000)回で打ち切り、`ValueError` を送出して `main()` の `try/except`(`failure()`)経由で明確に失敗させる(issue #4 Phase 5)。
+
+## `ope` コマンドの `--intermediate`(途中式表示)
+
+2桁×1桁の掛け算暗算法(`memo.md` 参照)を実装している。`get_operation_data` の `mul` 分岐で、`a`(2桁)の十の位・一の位それぞれに `b`(1桁)を掛けた値(2桁ゼロ埋め)を連結して4桁の数値(`aabb`)を作り、「`a × b => aabb => c`」の形で表示する(`nuts_calc.py:390-405`)。この4桁の数値を「最初の2桁+3桁目、それに4桁目を付け加える」という手順(STEP2、暗算する側が頭の中で行う)で3桁に変換すると、常に元の `a × b` と一致する(`10*A+B` の恒等式より)。
+
+この技法は `b` が1桁であることが前提(`single_c` = `b` の十の位は使われず、常に0という前提)。`_init()` は `--intermediate` 指定時に `b_max` が1桁を超えると `exit(1)` で拒否する(issue #4 Phase 3)。
 
 ## 統合ポイント
 
@@ -40,10 +49,15 @@
 ## 注意事項・既知の制限
 
 - `--vertical` は `ope` コマンドの `add`/`sub`/`mul`(掛ける数が1桁)のみ対応。`div`/`mix`/複数桁 `mul`/`--intermediate` との併用は非対応(上記参照)。
-- 自動テストはリポジトリ内に存在しない(`docs/.ai/repo.profile.json` の `notes.tests` 参照)。実機での CLI 実行と生成 PDF の目視確認が検証手段。
+- `--intermediate` は `b` が1桁の場合のみ対応(上記参照)。
+- `--a-min`/`--a-max`(または `--b-min`/`--b-max`)を同値で直接指定した場合、`ope` の乱数生成は単一値リストにフォールバックするため問題なく動作する(issue #4 Phase 6 で修正済み。以前は CPython の small-int キャッシュ範囲外の値で `IndexError` になっていた)。
+- `-r`/`-c` は1以上必須(`_init()` でバリデーション、issue #4 Phase 9 関連で追加)。
+- 出力ファイル名の導出(`OUTFILE_NAME_READ`/`OUTFILE_NAME_CSV`)が `str.rstrip('.pdf')`(接尾辞除去ではなく文字クラス除去)を使っているため、`.pdf` の直前が `.`/`p`/`d`/`f` のいずれかで終わるファイル名だと壊れる(未修正、issue #15)。
+- `tests/`(pytest)に単体テスト・CLI 経由の end-to-end テストが存在する。実機での CLI 実行と生成 PDF の目視確認も引き続き検証手段として有効。
 
 ## 変更履歴(git log より自動生成)
 
+- (未コミット) fix(#4): fix 9 logic bugs found in CLI, web backend, and frontend
 - 0a11eaf feat(#9): add vertical (written-calculation) output format for ope command
 - 5466cdb refactor: Clean up old script and apply flat design to frontend
 - d9fc0a3 refactor: Rename 100masu.py to nuts_calc.py and remove setup.py
