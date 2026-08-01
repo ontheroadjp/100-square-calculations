@@ -40,6 +40,7 @@
   "reverse_order": "Reverse Order",
   "random_order": "Random Order",
   "show_intermediate_formula": "Show Intermediate Formula",
+  "vertical_format": "Vertical (Written-Calculation) Format",
   "include_bottom_answer": "Include Bottom Answer",
   "merge_answer_file": "Merge Answer File",
   "output_csv_raw_data": "Output CSV Raw Data",

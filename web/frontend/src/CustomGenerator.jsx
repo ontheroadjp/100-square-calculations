@@ -21,6 +21,7 @@ function CustomGenerator() {
   const [reverse, setReverse] = useState(false);
   const [shuffle, setShuffle] = useState(false);
   const [intermediate, setIntermediate] = useState(false);
+  const [vertical, setVertical] = useState(false);
   const [rows, setRows] = useState(10);
   const [columns, setColumns] = useState(2);
   const [withBottomAnswer, setWithBottomAnswer] = useState(false);
@@ -56,6 +57,7 @@ function CustomGenerator() {
 
       // Conditional flags
       ...(commandType === 'ope' && intermediate && { intermediate: intermediate }),
+      ...(commandType === 'ope' && vertical && { vertical: vertical }),
       ...( (commandType === '99' || commandType === 'squ' || commandType === 'pi') && descend && { descend: descend }),
       ...( (commandType === '99' || commandType === 'squ' || commandType === 'pi') && reverse && { reverse: reverse }),
       ...( (commandType === '99' || commandType === 'squ' || commandType === 'pi') && shuffle && { shuffle: shuffle }),
@@ -284,6 +286,13 @@ function CustomGenerator() {
                   <div className="checkbox-group">
                     <input id="intermediate" type="checkbox" checked={intermediate} onChange={(e) => setIntermediate(e.target.checked)} />
                     <label htmlFor="intermediate">{t('show_intermediate_formula')}</label>
+                  </div>
+                )}
+                {/* Vertical (written-calculation / hissan) format for ope */}
+                {commandType === 'ope' && (
+                  <div className="checkbox-group">
+                    <input id="vertical" type="checkbox" checked={vertical} onChange={(e) => setVertical(e.target.checked)} />
+                    <label htmlFor="vertical">{t('vertical_format')}</label>
                   </div>
                 )}
                 {/* Checkbox Options (moved from main form) */}
