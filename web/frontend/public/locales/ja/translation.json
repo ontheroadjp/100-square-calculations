@@ -40,6 +40,7 @@
   "reverse_order": "逆順",
   "random_order": "ランダム順",
   "show_intermediate_formula": "途中式を表示",
+  "vertical_format": "筆算形式で出力",
   "include_bottom_answer": "下部に解答を含める",
   "merge_answer_file": "解答ファイルを結合",
   "output_csv_raw_data": "CSV生データを出力",

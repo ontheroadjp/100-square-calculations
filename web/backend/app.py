@@ -45,6 +45,7 @@ def generate_pdf():
     if data.get('reverse'): command.append('--reverse')
     if data.get('shuffle'): command.append('--shuffle')
     if data.get('intermediate'): command.append('--intermediate')
+    if data.get('vertical'): command.append('--vertical')
     if 'rows' in data: command.extend(['--rows', str(data['rows'])])
     if 'columns' in data: command.extend(['--columns', str(data['columns'])])
     if data.get('with_bottom_answer'): command.append('--with-bottom-answer')
