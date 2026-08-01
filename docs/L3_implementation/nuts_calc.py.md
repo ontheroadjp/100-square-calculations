@@ -52,11 +52,12 @@
 - `--intermediate` は `b` が1桁の場合のみ対応(上記参照)。
 - `--a-min`/`--a-max`(または `--b-min`/`--b-max`)を同値で直接指定した場合、`ope` の乱数生成は単一値リストにフォールバックするため問題なく動作する(issue #4 Phase 6 で修正済み。以前は CPython の small-int キャッシュ範囲外の値で `IndexError` になっていた)。
 - `-r`/`-c` は1以上必須(`_init()` でバリデーション、issue #4 Phase 9 関連で追加)。
-- 出力ファイル名の導出(`OUTFILE_NAME_READ`/`OUTFILE_NAME_CSV`)が `str.rstrip('.pdf')`(接尾辞除去ではなく文字クラス除去)を使っているため、`.pdf` の直前が `.`/`p`/`d`/`f` のいずれかで終わるファイル名だと壊れる(未修正、issue #15)。
+- 出力ファイル名の導出(`OUTFILE_NAME_READ`/`OUTFILE_NAME_CSV`)は `os.path.splitext(ini.out_file)` でベース名と拡張子を分離し、ベース名に `_read.pdf`/`.csv` を付け足す。以前は `str.rstrip('.pdf')`(接尾辞除去ではなく文字クラス除去)を使っており、`.pdf` の直前が `.`/`p`/`d`/`f` のいずれかで終わるファイル名(例: `output_add.pdf`)だと壊れていた(issue #15 で修正済み)。
 - `tests/`(pytest)に単体テスト・CLI 経由の end-to-end テストが存在する。実機での CLI 実行と生成 PDF の目視確認も引き続き検証手段として有効。
 
 ## 変更履歴(git log より自動生成)
 
+- 4aaf251 fix(#15): fix output filename derivation to use os.path.splitext
 - cfea9ed fix(#4): fix 9 logic bugs found in CLI, web backend, and frontend
 - 0a11eaf feat(#9): add vertical (written-calculation) output format for ope command
 - 5466cdb refactor: Clean up old script and apply flat design to frontend

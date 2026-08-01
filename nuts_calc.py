@@ -951,8 +951,9 @@ def main(ini):
     try:
         # Create Document (PDF)
         OUTFILE_NAME = ini.out_file
-        OUTFILE_NAME_READ = ini.out_file.rstrip('.pdf') + '_read.pdf'
-        OUTFILE_NAME_CSV = ini.out_file.rstrip('.pdf') + '.csv'
+        OUTFILE_BASENAME, _ = os.path.splitext(ini.out_file)
+        OUTFILE_NAME_READ = OUTFILE_BASENAME + '_read.pdf'
+        OUTFILE_NAME_CSV = OUTFILE_BASENAME + '.csv'
 
         docs = [
             BaseDocTemplate(
