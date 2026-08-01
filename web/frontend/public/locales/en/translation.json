@@ -96,5 +96,11 @@
   "preset_g6_pi_title": "Multiplying by Pi (3.14, Advanced)",
   "preset_g6_pi_desc": "Practice multiplying numbers by 3.14.",
   "preset_g6_mix_title": "Mixed Operations (Applied)",
-  "preset_g6_mix_desc": "A mix of addition, subtraction, multiplication and division, up to 3 digits by 3 digits."
+  "preset_g6_mix_desc": "A mix of addition, subtraction, multiplication and division, up to 3 digits by 3 digits.",
+  "regenerate_pdf": "Regenerate PDF",
+  "problem_density": "Number of Problems",
+  "density_few": "Fewer",
+  "density_standard": "Standard",
+  "density_many": "More",
+  "back": "Back"
 }

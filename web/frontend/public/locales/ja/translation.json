@@ -96,5 +96,11 @@
   "preset_g6_pi_title": "円周率(3.14)を使った計算(応用)",
   "preset_g6_pi_desc": "数に3.14をかける計算を練習します。",
   "preset_g6_mix_title": "四則混合(応用)",
-  "preset_g6_mix_desc": "3桁どうしを中心に、たし算・ひき算・かけ算・わり算を混ぜて出題します。"
+  "preset_g6_mix_desc": "3桁どうしを中心に、たし算・ひき算・かけ算・わり算を混ぜて出題します。",
+  "regenerate_pdf": "PDF再生成",
+  "problem_density": "問題数",
+  "density_few": "少なめ",
+  "density_standard": "標準",
+  "density_many": "多め",
+  "back": "戻る"
 }

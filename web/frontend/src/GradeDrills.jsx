@@ -1,34 +1,46 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next';
 import { GRADES, CUSTOM_GRADE, presetsByGrade } from './drillPresets';
 import CustomGenerator from './CustomGenerator';
 
-const DEFAULT_ROWS = 10;
-const DEFAULT_COLUMNS = 2;
+// Maps the simplified "problem density" choice to nuts_calc.py's rows/columns.
+// 'standard' matches the previous hardcoded default (10 rows x 2 columns).
+const DENSITY_OPTIONS = [
+  { value: 'few', labelKey: 'density_few', rows: 5, columns: 2 },
+  { value: 'standard', labelKey: 'density_standard', rows: 10, columns: 2 },
+  { value: 'many', labelKey: 'density_many', rows: 10, columns: 4 },
+];
+const DEFAULT_DENSITY = 'standard';
 
 const buildFileName = (grade, preset) => `drill_grade${grade}_${preset.id}.pdf`;
 
-function PresetCard({ grade, preset, paperSize, pageCount }) {
+function PresetDetail({ grade, preset, onBack }) {
   const { t } = useTranslation();
+  // The 100-square preset renders a fixed 10x10 grid; nuts_calc.py ignores
+  // rows/columns for that command type, so the density choice has no effect.
+  const supportsDensity = preset.params.command_type !== '100';
+
   const [numberValue, setNumberValue] = useState(preset.numberInput?.default ?? null);
+  const [paperSize, setPaperSize] = useState('A4');
+  const [pageCount, setPageCount] = useState(1);
+  const [density, setDensity] = useState(DEFAULT_DENSITY);
   const [status, setStatus] = useState('idle'); // idle | loading | ready | error
   const [pdfUrl, setPdfUrl] = useState(null);
   const [error, setError] = useState(null);
+  // Snapshot of the settings the current pdfUrl was generated with, so
+  // "Regenerate PDF" can stay disabled until the user actually changes one.
+  const [lastGenerated, setLastGenerated] = useState(null);
 
-  // A synthetic anchor.click() fired after an `await` is not always treated
-  // as a direct user gesture, and Chrome silently drops later automatic
-  // downloads triggered that way. Generating first and letting the user
-  // click a real <a download> link (same pattern as CustomGenerator) avoids
-  // that failure mode.
-  const handleGenerate = async () => {
+  const generatePdf = async () => {
+    const densityOption = DENSITY_OPTIONS.find((option) => option.value === density) ?? DENSITY_OPTIONS[1];
+
     setStatus('loading');
     setError(null);
-    setPdfUrl(null);
 
     const requestBody = {
       paper_size: paperSize,
-      rows: DEFAULT_ROWS,
-      columns: DEFAULT_COLUMNS,
+      rows: densityOption.rows,
+      columns: densityOption.columns,
       page: pageCount,
       ...preset.params,
       ...(preset.numberInput && { [preset.numberInput.param]: numberValue }),
@@ -49,54 +61,125 @@ function PresetCard({ grade, preset, paperSize, pageCount }) {
       const blob = await response.blob();
       setPdfUrl(URL.createObjectURL(blob));
       setStatus('ready');
+      setLastGenerated({ paperSize, pageCount, density, numberValue });
     } catch (err) {
       setError(err.message);
       setStatus('error');
     }
   };
 
+  useEffect(() => {
+    // Auto-generate a preview once when the detail page opens, using the
+    // default settings above.
+    generatePdf();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const isDirty = !lastGenerated
+    || lastGenerated.paperSize !== paperSize
+    || lastGenerated.pageCount !== pageCount
+    || lastGenerated.density !== density
+    || lastGenerated.numberValue !== numberValue;
+
+  return (
+    <div className="preset-detail">
+      <button type="button" className="back-button" onClick={onBack}>
+        {t('back')}
+      </button>
+
+      <h3 className="preset-detail-title">{t(preset.titleKey)}</h3>
+
+      {status === 'loading' && <p className="preset-detail-status">{t('generating')}</p>}
+      {status === 'error' && <p className="preset-card-error">{t('error_prefix')} {error}</p>}
+      {pdfUrl && (
+        <div className="pdf-iframe-container">
+          <iframe src={pdfUrl} className="pdf-iframe" title="pdf-preview"></iframe>
+        </div>
+      )}
+
+      <div className="preset-detail-settings">
+        {preset.numberInput && (
+          <div className="form-group">
+            <label htmlFor="detailNumberInput">{t(preset.numberInput.labelKey)}</label>
+            <input
+              id="detailNumberInput"
+              type="number"
+              min={preset.numberInput.min}
+              max={preset.numberInput.max}
+              value={numberValue}
+              onChange={(e) => setNumberValue(parseInt(e.target.value, 10))}
+            />
+          </div>
+        )}
+        <div className="form-group">
+          <label htmlFor="detailPaperSize">{t('paper_size')}</label>
+          <select id="detailPaperSize" value={paperSize} onChange={(e) => setPaperSize(e.target.value)}>
+            <option value="A4">{t('paper_size_a4')}</option>
+            <option value="A3">{t('paper_size_a3')}</option>
+            <option value="B5">{t('paper_size_b5')}</option>
+            <option value="a4l">{t('paper_size_a4l')}</option>
+          </select>
+        </div>
+        <div className="form-group">
+          <label htmlFor="detailPageCount">{t('number_of_pages')}</label>
+          <input
+            id="detailPageCount"
+            type="number"
+            min="1"
+            max="10"
+            value={pageCount}
+            onChange={(e) => setPageCount(parseInt(e.target.value, 10))}
+          />
+        </div>
+        {supportsDensity && (
+          <div className="form-group">
+            <label htmlFor="detailDensity">{t('problem_density')}</label>
+            <select id="detailDensity" value={density} onChange={(e) => setDensity(e.target.value)}>
+              {DENSITY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{t(option.labelKey)}</option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
+      <div className="preset-detail-actions">
+        <button
+          type="button"
+          className="regenerate-button"
+          onClick={generatePdf}
+          disabled={status === 'loading' || !isDirty}
+        >
+          {status === 'loading' ? t('generating') : t('regenerate_pdf')}
+        </button>
+        {status === 'ready' && pdfUrl ? (
+          <a
+            href={pdfUrl}
+            download={buildFileName(grade, preset)}
+            className="preset-download-button"
+          >
+            {t('download_pdf')}
+          </a>
+        ) : (
+          <button type="button" className="preset-download-button" disabled>
+            {t('download_pdf')}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PresetCard({ preset, onOpen }) {
+  const { t } = useTranslation();
+
   return (
     <div className="preset-card">
       <h3 className="preset-card-title">{t(preset.titleKey)}</h3>
       <p className="preset-card-desc">{t(preset.descKey)}</p>
-
-      {preset.numberInput && (
-        <div className="preset-card-number-input">
-          <label htmlFor={`${preset.id}-number`}>{t(preset.numberInput.labelKey)}</label>
-          <input
-            id={`${preset.id}-number`}
-            type="number"
-            min={preset.numberInput.min}
-            max={preset.numberInput.max}
-            value={numberValue}
-            onChange={(e) => setNumberValue(parseInt(e.target.value, 10))}
-          />
-        </div>
-      )}
-
-      {status === 'ready' && pdfUrl ? (
-        <a
-          href={pdfUrl}
-          download={buildFileName(grade, preset)}
-          className="preset-download-button"
-          onClick={() => setStatus('idle')}
-        >
-          {t('download_pdf')}
-        </a>
-      ) : (
-        <button
-          type="button"
-          className="preset-download-button"
-          onClick={handleGenerate}
-          disabled={status === 'loading'}
-        >
-          {status === 'loading' ? t('generating') : t('generate_pdf')}
-        </button>
-      )}
-
-      {status === 'error' && (
-        <p className="preset-card-error">{t('error_prefix')} {error}</p>
-      )}
+      <button type="button" className="preset-download-button" onClick={() => onOpen(preset)}>
+        {t('generate_pdf')}
+      </button>
     </div>
   );
 }
@@ -104,10 +187,22 @@ function PresetCard({ grade, preset, paperSize, pageCount }) {
 function GradeDrills() {
   const { t } = useTranslation();
   const [selectedGrade, setSelectedGrade] = useState(1);
-  const [paperSize, setPaperSize] = useState('A4');
-  const [pageCount, setPageCount] = useState(1);
+  const [openPreset, setOpenPreset] = useState(null);
 
   const isCustom = selectedGrade === CUSTOM_GRADE;
+
+  const handleSelectGrade = (grade) => {
+    setSelectedGrade(grade);
+    setOpenPreset(null);
+  };
+
+  if (openPreset) {
+    return (
+      <div className="grade-drills">
+        <PresetDetail grade={selectedGrade} preset={openPreset} onBack={() => setOpenPreset(null)} />
+      </div>
+    );
+  }
 
   return (
     <div className="grade-drills">
@@ -120,7 +215,7 @@ function GradeDrills() {
             key={grade}
             type="button"
             className={`grade-link ${selectedGrade === grade ? 'active' : ''}`}
-            onClick={() => setSelectedGrade(grade)}
+            onClick={() => handleSelectGrade(grade)}
           >
             {t(`grade_${grade}`)}
           </button>
@@ -128,7 +223,7 @@ function GradeDrills() {
         <button
           type="button"
           className={`grade-link ${isCustom ? 'active' : ''}`}
-          onClick={() => setSelectedGrade(CUSTOM_GRADE)}
+          onClick={() => handleSelectGrade(CUSTOM_GRADE)}
         >
           {t('nav_custom')}
         </button>
@@ -137,42 +232,11 @@ function GradeDrills() {
       {isCustom ? (
         <CustomGenerator />
       ) : (
-        <>
-          <div className="grade-shared-settings">
-            <div className="form-group">
-              <label htmlFor="sharedPaperSize">{t('paper_size')}</label>
-              <select id="sharedPaperSize" value={paperSize} onChange={(e) => setPaperSize(e.target.value)}>
-                <option value="A4">{t('paper_size_a4')}</option>
-                <option value="A3">{t('paper_size_a3')}</option>
-                <option value="B5">{t('paper_size_b5')}</option>
-                <option value="a4l">{t('paper_size_a4l')}</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label htmlFor="sharedPageCount">{t('number_of_pages')}</label>
-              <input
-                id="sharedPageCount"
-                type="number"
-                min="1"
-                max="10"
-                value={pageCount}
-                onChange={(e) => setPageCount(parseInt(e.target.value, 10))}
-              />
-            </div>
-          </div>
-
-          <div className="preset-card-grid">
-            {presetsByGrade[selectedGrade].map((preset) => (
-              <PresetCard
-                key={preset.id}
-                grade={selectedGrade}
-                preset={preset}
-                paperSize={paperSize}
-                pageCount={pageCount}
-              />
-            ))}
-          </div>
-        </>
+        <div className="preset-card-grid">
+          {presetsByGrade[selectedGrade].map((preset) => (
+            <PresetCard key={preset.id} preset={preset} onOpen={setOpenPreset} />
+          ))}
+        </div>
       )}
     </div>
   );
