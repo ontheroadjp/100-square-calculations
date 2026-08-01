@@ -1,0 +1,231 @@
+"""Unit tests for nuts_calc.py's problem-data generation functions.
+
+These exercise the pure(ish) data-generation helpers directly (no PDF
+rendering, no subprocess), so they run fast and pin exact arithmetic.
+Where nuts_calc.py has a known, currently-unfixed logic bug (tracked in
+GitHub issue #4), the test asserts the CURRENT (buggy) output rather than
+the mathematically-correct one -- these are characterization tests for a
+pre-refactor safety net, not correctness tests. Each such case is marked
+with a comment referencing the relevant issue #4 phase.
+"""
+
+import nuts_calc as nc
+
+
+# ---------------------------------------------------------------------------
+# pad_digits_to_width / get_vertical_digit_width
+# ---------------------------------------------------------------------------
+
+
+def test_pad_digits_to_width_right_aligns_and_blanks_leading_cells():
+    assert nc.pad_digits_to_width("45", 4) == ["", "", "4", "5"]
+
+
+def test_pad_digits_to_width_exact_width_has_no_blanks():
+    assert nc.pad_digits_to_width("7", 1) == ["7"]
+
+
+def test_get_vertical_digit_width_for_add_uses_sum_of_max_operands():
+    assert nc.get_vertical_digit_width(9, 9, ["add"]) == 2  # 9+9=18
+
+
+def test_get_vertical_digit_width_for_sub_uses_max_operand():
+    assert nc.get_vertical_digit_width(9, 9, ["sub"]) == 1
+
+
+def test_get_vertical_digit_width_for_mul_uses_product_of_max_operands():
+    assert nc.get_vertical_digit_width(9, 9, ["mul"]) == 2  # 9*9=81
+
+
+def test_get_vertical_digit_width_takes_max_across_operators():
+    assert nc.get_vertical_digit_width(9, 9, ["add", "mul"]) == 2
+
+
+# ---------------------------------------------------------------------------
+# get_operation_data
+# ---------------------------------------------------------------------------
+
+
+def test_get_operation_data_add_returns_correct_sums_and_indices():
+    order = 20
+    data = nc.get_operation_data([2, 3, 4], [5, 6], operators=["add"], order=order, print_index=1)
+    data_index, vals_a, operator_mark, vals_b, equal_marks, vals_c = data
+
+    assert len(data_index) == order
+    for i in range(order):
+        a, b, c = int(vals_a[i][0]), int(vals_b[i][0]), int(vals_c[i][0])
+        assert a + b == c
+        assert operator_mark[i][0] == "+"
+        assert equal_marks[i][0] == "="
+        assert data_index[i][0] == f"{i + 1})"
+
+
+def test_get_operation_data_sub_never_negative():
+    # nums_a all larger than any nums_b, so a - b > 0 always holds immediately
+    # (no retry loop needed, avoiding the infinite-loop risk in calc_sub --
+    # see issue #4 Phase 5).
+    data = nc.get_operation_data([10, 20, 30], [1, 2, 3], operators=["sub"], order=15, print_index=1)
+    _, vals_a, operator_mark, vals_b, _, vals_c = data
+    for i in range(15):
+        a, b, c = int(vals_a[i][0]), int(vals_b[i][0]), int(vals_c[i][0])
+        assert a - b == c
+        assert c > 0
+        assert operator_mark[i][0] == "-"
+
+
+def test_get_operation_data_mul_returns_correct_products():
+    data = nc.get_operation_data([2, 3, 4], [5, 6, 7], operators=["mul"], order=10, print_index=1)
+    _, vals_a, operator_mark, vals_b, _, vals_c = data
+    for i in range(10):
+        a, b, c = int(vals_a[i][0]), int(vals_b[i][0]), int(vals_c[i][0])
+        assert a * b == c
+        assert operator_mark[i][0] == "×"
+
+
+def test_get_operation_data_div_always_exact():
+    # nums_a all even, nums_b=[2] so every pair divides exactly on the first
+    # try (no retry loop needed -- see issue #4 Phase 5).
+    data = nc.get_operation_data([6, 8, 10], [2], operators=["div"], order=10, print_index=1)
+    _, vals_a, operator_mark, vals_b, _, vals_c = data
+    for i in range(10):
+        a, b, c = int(vals_a[i][0]), int(vals_b[i][0]), int(vals_c[i][0])
+        assert a % b == 0
+        assert a // b == c
+        assert operator_mark[i][0] == "÷"
+
+
+def test_get_operation_data_mix_only_uses_the_four_base_operators():
+    # a=8 fixed, b in {1,2,4}: sub (8-b>0) and div (8%b==0) always succeed
+    # immediately for every operator drawn from the mix expansion, so no
+    # operator can hit the calc_sub/calc_div retry loop (issue #4 Phase 5).
+    data = nc.get_operation_data([8], [1, 2, 4], operators=["mix"], order=30, print_index=1)
+    _, _, operator_mark, _, _, _ = data
+    seen = {row[0] for row in operator_mark}
+    assert seen <= {"+", "-", "×", "÷"}
+
+
+def test_get_operation_data_intermediate_pins_current_partial_product_formula():
+    # Single-element nums_a/nums_b make the draw deterministic (no randomness
+    # to control). a=23, b=45:
+    #   single_a, single_b = 2, 3 (tens/ones of a)
+    #   single_d = 5 (ones of b; single_c, the tens of b, is computed but
+    #   unused -- see issue #4 Phase 3)
+    #   aa = '00' + str(2*5) -> '0010' -> '10'
+    #   bb = '00' + str(3*5) -> '0015' -> '15'
+    #   aabb = '1015'
+    # This is NOT the mathematically-correct partial product for 23*45; it is
+    # the value nuts_calc.py currently computes (issue #4 Phase 3, unfixed).
+    data = nc.get_operation_data([23], [45], operators=["mul"], order=1, print_index=1, intermediate=True)
+    data_index, vals_a, operator_mark, vals_b, arrow1, vals_aabb, arrow2, vals_c = data
+
+    assert vals_a[0][0] == "23"
+    assert vals_b[0][0] == "45"
+    assert vals_aabb[0][0] == "1015"
+    assert vals_c[0][0] == "1035"
+    assert arrow1[0][0] == "=>"
+    assert arrow2[0][0] == "=>"
+
+
+# ---------------------------------------------------------------------------
+# get_complement_data
+# ---------------------------------------------------------------------------
+
+
+def test_get_complement_data_sums_to_target():
+    target = 100
+    order = 12
+    data = nc.get_complement_data([10, 20, 30], target=target, order=order, print_index=1)
+    data_index, vals_a, equal_marks, vals_c = data
+
+    assert len(data_index) == order
+    for i in range(order):
+        # get_complement_data stores raw ints, unlike get_operation_data's strings.
+        assert vals_a[i][0] + vals_c[i][0] == target
+        assert equal_marks[i][0] == "=>"
+        assert data_index[i][0] == f"{i + 1})"
+
+
+# ---------------------------------------------------------------------------
+# get_fixed_format_data
+# ---------------------------------------------------------------------------
+
+
+def test_get_fixed_format_data_99_multiplies_fixed_a_by_increasing_b():
+    order = 9
+    data = nc.get_fixed_format_data("99", start_num=3, order=order, print_index=1)
+    data_index, vals_a, operator_marks, vals_b, equal_marks, vals_c = data
+
+    for i in range(order):
+        assert vals_a[i][0] == 3
+        assert vals_b[i][0] == i + 1
+        assert vals_c[i][0] == 3 * (i + 1)
+        assert operator_marks[i][0] == "×"
+        assert equal_marks[i][0] == "="
+
+
+def test_get_fixed_format_data_squ_squares_sequential_numbers():
+    data = nc.get_fixed_format_data("squ", start_num=1, order=5, print_index=1)
+    _, vals_a, _, vals_b, _, vals_c = data
+    for i in range(5):
+        a = i + 1
+        assert vals_a[i][0] == a
+        assert vals_b[i][0] == a
+        assert vals_c[i][0] == a * a
+
+
+def test_get_fixed_format_data_pi_multiplies_by_314():
+    data = nc.get_fixed_format_data("pi", start_num=1, order=3, print_index=1)
+    _, vals_a, _, vals_b, _, vals_c = data
+    for i in range(3):
+        a = i + 1
+        assert vals_b[i][0] == 3.14
+        assert vals_c[i][0] == a * 3.14
+
+
+def test_get_fixed_format_data_descend_reverses_sequence_order():
+    normal = nc.get_fixed_format_data("squ", start_num=1, order=5, print_index=1)
+    descend = nc.get_fixed_format_data("squ", start_num=1, order=5, print_index=1, descend=True)
+    normal_a = [row[0] for row in normal[1]]
+    descend_a = [row[0] for row in descend[1]]
+    assert descend_a == list(reversed(normal_a))
+
+
+def test_get_fixed_format_data_shuffle_keeps_same_value_set():
+    data = nc.get_fixed_format_data("squ", start_num=1, order=10, print_index=1, is_shuffle=True)
+    vals_a = sorted(row[0] for row in data[1])
+    assert vals_a == list(range(1, 11))
+
+
+def test_get_fixed_format_data_reverse_flag_swaps_operand_and_result_columns():
+    normal = nc.get_fixed_format_data("squ", start_num=1, order=5, print_index=1)
+    reversed_ = nc.get_fixed_format_data("squ", start_num=1, order=5, print_index=1, is_reverse=True)
+    # normal   = (data_index, vals_a, operator_marks, vals_b, equal_marks, vals_c)
+    # reversed = (data_index, vals_c, equal_marks, vals_a, operator_marks, vals_b)
+    assert reversed_[1] == normal[5]
+    assert reversed_[3] == normal[1]
+
+
+# ---------------------------------------------------------------------------
+# get_aBc_data
+# ---------------------------------------------------------------------------
+
+
+def test_get_aBc_data_a_d_matches_recomputed_value_from_digits():
+    # get_aBc_data only zero-pads its stored abcd string when the value is
+    # exactly 3 digits (a==0, b>=1); for a==0 and b==0 the stored string can
+    # be shorter than 4 characters. To avoid a flaky test tied to that
+    # separate quirk, digits are recovered from the *value* (zero-filled to
+    # 4 here in the test), not from the stored string's own length.
+    order = 30
+    data = nc.get_aBc_data(order=order, print_index=1)
+    data_index, vals_a, equal_marks, vals_c = data
+
+    assert len(data_index) == order
+    for i in range(order):
+        value = int(vals_a[i][0])
+        a, b, c, d = (int(ch) for ch in str(value).zfill(4))
+        ab = (a * 10 + b) * 10
+        cd = c * 10 + d
+        assert int(vals_c[i][0]) == ab + cd
+        assert equal_marks[i][0] == "=>"
+        assert data_index[i][0] == f"{i + 1})"
