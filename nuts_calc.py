@@ -82,6 +82,8 @@ from reportlab.lib import colors
 
 
 SINGLE_DIGIT_MAX = 9
+MAX_OPERAND_RETRY_ATTEMPTS = 1000
+MIN_ROWS_OR_COLUMNS = 1
 VERTICAL_UNSUPPORTED_OPERATORS = {'div', 'mix'}
 VERTICAL_BLOCK_ROWS = 3
 VERTICAL_INDEX_COLUMN_RATIO = 0.28
@@ -229,8 +231,7 @@ def _init():
         min_val, max_val = digits_list[value - 1]
         return [min_val, max_val]
 
-#    if args.command == 'ope' or args.command == 'mul-intermediate':
-    if args.command == 'ope' or args.intermediate:
+    if args.command == 'ope':
         if args.a_value is not None:
             args.a_min, args.a_max = set_min_max_value(args.a_value)
         if args.b_value is not None:
@@ -254,6 +255,10 @@ def _init():
             print('They must be less than 3.')
             exit()
 
+    if args.intermediate and args.b_max > SINGLE_DIGIT_MAX:
+        print("--intermediate only supports a single-digit second operand (use -b 1 or --b-max <= 9).")
+        exit(1)
+
     if args.vertical:
         if args.command != 'ope':
             print("--vertical is only supported for the 'ope' command.")
@@ -268,6 +273,10 @@ def _init():
         if 'mul' in args.operator and args.b_max > SINGLE_DIGIT_MAX:
             print("--vertical only supports 'mul' when the second operand is a single digit (use -b 1 or --b-max <= 9).")
             exit(1)
+
+    if args.rows < MIN_ROWS_OR_COLUMNS or args.columns < MIN_ROWS_OR_COLUMNS:
+        print(f"-r/--rows and -c/--columns must be at least {MIN_ROWS_OR_COLUMNS}.")
+        exit(1)
 
     return args
 
@@ -349,26 +358,33 @@ def get_operation_data(
         return (a, b, c)
 
     def calc_sub(a, b):
-        while True:
+        for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
             # Make sure the answer is not a negative number.
             if a - b > 0:
                 c = a - b
                 return (a, b, c)
             a = random.choice(nums_a)
             b = random.choice(nums_b)
+        raise ValueError(
+            "No subtraction pair with a positive result (a - b > 0) "
+            "found in the given number ranges."
+        )
 
     def calc_mul(a, b):
         c = a * b
         return (a, b, c)
 
     def calc_div(a, b):
-        while True:
+        for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
             # Only if not divisible by zero and divisible by
             if b != 0 and a % b == 0:
                 c = a // b
                 return (a, b, c)
             a = random.choice(nums_a)
             b = random.choice(nums_b)
+        raise ValueError(
+            "No exact-division pair (a % b == 0, b != 0) found in the given number ranges."
+        )
 
     for _ in range(order):
         a = random.choice(nums_a)
@@ -824,7 +840,8 @@ def get_bottom_results(dataset, tbl2_w, tbl2_h, grid_color):
     if len(bottom_result_line):
         bottom_results.append(bottom_result_line)
 
-    row_heights = [tbl2_h / len(bottom_results)] * len(bottom_results)
+    row_count = len(bottom_results)
+    row_heights = [tbl2_h / row_count] * row_count if row_count else []
     col_widths = [tbl2_w / 20] * 20
     table = Table(bottom_results
         , rowHeights = row_heights
@@ -1230,13 +1247,13 @@ def main(ini):
                         )
 #                    elif ini.command == 'ope' or ini.command == 'mul-intermediate':
                     elif ini.command == 'ope':
-                        if ini.a_min is not ini.a_max:
-                            seed = [i for i in range(ini.a_min, ini.a_max)]
+                        if ini.a_min != ini.a_max:
+                            seed = [i for i in range(ini.a_min, ini.a_max + 1)]
                             nums_a = random.sample(seed, len(seed))
                         else:
                             nums_a = [ini.a_min]
-                        if ini.b_min is not ini.b_max:
-                            seed = [i for i in range(ini.b_min, ini.b_max)]
+                        if ini.b_min != ini.b_max:
+                            seed = [i for i in range(ini.b_min, ini.b_max + 1)]
                             nums_b = random.sample(seed, len(seed))
                         else:
                             nums_b = [ini.b_min]
@@ -1251,7 +1268,7 @@ def main(ini):
                     elif ini.command == 'com':
                         # Data elements
                         target = ini.a_value
-                        seed = [i for i in range(1, target - 1)]
+                        seed = [i for i in range(1, target)]
                         random_nums = random.sample(seed, len(seed))
                         data_elements = (target, random_nums)
                     elif ini.command == 'aBc':
@@ -1404,11 +1421,11 @@ def main(ini):
                         )
 
                     # Data elements
-                    seed = [i for i in range(ini.a_min, ini.a_max)]
-                    seed.extend([i for i in range(ini.a_min, ini.a_max)])
+                    seed = [i for i in range(ini.a_min, ini.a_max + 1)]
+                    seed.extend([i for i in range(ini.a_min, ini.a_max + 1)])
                     left_column_nums = random.sample(seed, 10)
-                    seed = [i for i in range(ini.b_min, ini.b_max)]
-                    seed.extend([i for i in range(ini.b_min, ini.b_max)])
+                    seed = [i for i in range(ini.b_min, ini.b_max + 1)]
+                    seed.extend([i for i in range(ini.b_min, ini.b_max + 1)])
                     top_row_nums = random.sample(seed, 10)
 
                     # Create data

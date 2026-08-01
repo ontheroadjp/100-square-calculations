@@ -54,6 +54,16 @@ def test_init_requires_a_value_and_exits_with_code_none(monkeypatch, command, ex
     assert exc_info.value.code is None
 
 
+@pytest.mark.parametrize("command", ["com", "99", "squ", "pi"])
+def test_init_intermediate_does_not_bypass_a_value_requirement(monkeypatch, command):
+    # issue #4 Phase 1 (fixed): `if args.command == 'ope' or args.intermediate:`
+    # used to let --intermediate skip the required -a check entirely for
+    # com/99/squ/pi. Now only 'ope' takes that branch, so -a is still required.
+    with pytest.raises(SystemExit) as exc_info:
+        _init_with(monkeypatch, "A4", command, "--intermediate")
+    assert exc_info.value.code is None
+
+
 # ---------------------------------------------------------------------------
 # 100 command defaults and digit-count ceiling
 # ---------------------------------------------------------------------------
@@ -107,3 +117,38 @@ def test_init_vertical_rejects_multi_digit_mul_second_operand(monkeypatch):
 def test_init_vertical_allows_supported_operators(monkeypatch, operator):
     args = _init_with(monkeypatch, "A4", "ope", "--vertical", "-o", operator)
     assert args.vertical is True
+
+
+# ---------------------------------------------------------------------------
+# --intermediate validation (issue #4 Phase 3)
+# ---------------------------------------------------------------------------
+
+
+def test_init_intermediate_rejects_multi_digit_second_operand(monkeypatch):
+    # nuts_calc.py's "aabb" intermediate value implements the 2-digit x
+    # 1-digit mental-arithmetic technique from memo.md, which only holds when
+    # b is single-digit (see tests/test_nuts_calc_data.py). A 2-digit b
+    # silently drops its tens digit from the calculation, so it's rejected.
+    with pytest.raises(SystemExit) as exc_info:
+        _init_with(monkeypatch, "A4", "ope", "--intermediate", "-b", "2")
+    assert exc_info.value.code == 1
+
+
+def test_init_intermediate_allows_single_digit_second_operand(monkeypatch):
+    args = _init_with(monkeypatch, "A4", "ope", "--intermediate")
+    assert args.intermediate is True
+
+
+# ---------------------------------------------------------------------------
+# rows/columns lower bound (issue #4 Phase 9 follow-up)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("flag", ["-r", "-c"])
+def test_init_rejects_zero_rows_or_columns(monkeypatch, flag):
+    # -r 0 / -c 0 used to reach main() and crash with ZeroDivisionError in
+    # different spots (row_heights and frame-width calculations) rather than
+    # failing with a clear message at argument-validation time.
+    with pytest.raises(SystemExit) as exc_info:
+        _init_with(monkeypatch, "A4", "ope", flag, "0")
+    assert exc_info.value.code == 1

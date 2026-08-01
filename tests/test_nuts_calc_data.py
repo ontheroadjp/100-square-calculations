@@ -2,11 +2,9 @@
 
 These exercise the pure(ish) data-generation helpers directly (no PDF
 rendering, no subprocess), so they run fast and pin exact arithmetic.
-Where nuts_calc.py has a known, currently-unfixed logic bug (tracked in
-GitHub issue #4), the test asserts the CURRENT (buggy) output rather than
-the mathematically-correct one -- these are characterization tests for a
-pre-refactor safety net, not correctness tests. Each such case is marked
-with a comment referencing the relevant issue #4 phase.
+Comments reference GitHub issue #4 where a test's inputs are specifically
+chosen to avoid a since-fixed logic bug (e.g. picking operand ranges that
+can't hit the calc_sub/calc_div retry-loop bug from Phase 5).
 """
 
 import nuts_calc as nc
@@ -104,26 +102,31 @@ def test_get_operation_data_mix_only_uses_the_four_base_operators():
     assert seen <= {"+", "-", "×", "÷"}
 
 
-def test_get_operation_data_intermediate_pins_current_partial_product_formula():
-    # Single-element nums_a/nums_b make the draw deterministic (no randomness
-    # to control). a=23, b=45:
-    #   single_a, single_b = 2, 3 (tens/ones of a)
-    #   single_d = 5 (ones of b; single_c, the tens of b, is computed but
-    #   unused -- see issue #4 Phase 3)
-    #   aa = '00' + str(2*5) -> '0010' -> '10'
-    #   bb = '00' + str(3*5) -> '0015' -> '15'
-    #   aabb = '1015'
-    # This is NOT the mathematically-correct partial product for 23*45; it is
-    # the value nuts_calc.py currently computes (issue #4 Phase 3, unfixed).
-    data = nc.get_operation_data([23], [45], operators=["mul"], order=1, print_index=1, intermediate=True)
+def test_get_operation_data_intermediate_matches_memo_mental_arithmetic_technique():
+    # get_operation_data's "aabb" intermediate implements the 2-digit x 1-digit
+    # mental-arithmetic technique documented in memo.md (STEP 1: build a 4-digit
+    # number from tens(a)*b and ones(a)*b, zero-padded to 2 digits each and
+    # concatenated). This is only valid for a single-digit b (issue #4 Phase 3:
+    # nuts_calc.py's _init() now rejects --intermediate with a 2-digit b at the
+    # CLI level -- see tests/test_nuts_calc_init.py).
+    #
+    # Single-element nums_a/nums_b make the draw deterministic. memo.md's own
+    # worked example: 32 x 6 -> 1812 -> 192.
+    data = nc.get_operation_data([32], [6], operators=["mul"], order=1, print_index=1, intermediate=True)
     data_index, vals_a, operator_mark, vals_b, arrow1, vals_aabb, arrow2, vals_c = data
 
-    assert vals_a[0][0] == "23"
-    assert vals_b[0][0] == "45"
-    assert vals_aabb[0][0] == "1015"
-    assert vals_c[0][0] == "1035"
+    assert vals_a[0][0] == "32"
+    assert vals_b[0][0] == "6"
+    assert vals_aabb[0][0] == "1812"
+    assert vals_c[0][0] == "192"
     assert arrow1[0][0] == "=>"
     assert arrow2[0][0] == "=>"
+
+    # STEP 2 (done mentally by the student): first two digits + third digit,
+    # then append the fourth digit. This must always reproduce a * b exactly.
+    d1, d2, d3, d4 = (int(ch) for ch in vals_aabb[0][0])
+    step2_result = (d1 * 10 + d2 + d3) * 10 + d4
+    assert step2_result == int(vals_c[0][0])
 
 
 # ---------------------------------------------------------------------------

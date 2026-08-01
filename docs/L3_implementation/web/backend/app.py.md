@@ -7,6 +7,7 @@
 ## 動作の概要
 
 - リクエスト JSON のキーを `nuts_calc.py` の CLI 引数に変換し(`app.py:34-54`)、サーバー側で生成した UUID ファイル名を `--out-file` に指定して `subprocess.run(..., check=True)` で実行する(`app.py:56-63`)。
+- `operator`(配列)は `--operator` を1回だけ呼び出し、全要素を続けて渡す(`command.extend(['--operator', *data['operator']])`, `app.py:41-42`)。`nuts_calc.py` 側の `argparse` は `nargs='*'` なので、`--operator` を複数回呼ぶと最後の呼び出しで上書きされる(issue #4 Phase 7 で修正済み)。
 - 成功時は生成された PDF をそのまま `send_file` で返す。失敗時(`CalledProcessError`/`FileNotFoundError`/その他)は `{'error': ...}` を HTTP 500 で返す(`ope`/`command_type` 必須チェックのみ 400)。
 
 ## 統合ポイント
@@ -22,6 +23,7 @@
 
 ## 変更履歴(git log より自動生成)
 
+- cfea9ed fix(#4): fix 9 logic bugs found in CLI, web backend, and frontend
 - 0a11eaf feat(#9): add vertical (written-calculation) output format for ope command
 - d9fc0a3 refactor: Rename 100masu.py to nuts_calc.py and remove setup.py
 - 68daa78 feat: Implement web interface (React + Tailwind + Flask)

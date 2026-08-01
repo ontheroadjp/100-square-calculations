@@ -5,10 +5,11 @@ exercise the CLI the same way a user (or web/backend/app.py) would, and check
 that PDF/CSV output is actually produced -- not just that functions return
 without raising.
 
-Where nuts_calc.py has a known, currently-unfixed bug (issue #4's 9 phases,
-or issue #15's output-filename derivation), tests pin the CURRENT (buggy)
-behavior rather than the intended/correct one, so an unrelated refactor
-doesn't silently change it without the change showing up as a failing test.
+Where nuts_calc.py has a known, currently-unfixed bug (issue #15's
+output-filename derivation), tests pin the CURRENT (buggy) behavior rather
+than the intended/correct one, so an unrelated refactor doesn't silently
+change it without the change showing up as a failing test. Issue #4's 9
+phases have been fixed; those tests now verify the corrected behavior.
 """
 
 import pytest
@@ -159,20 +160,76 @@ def test_cli_100_csv_flag_writes_eleven_rows_per_page(run_cli, tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Known open bugs (issue #4 / issue #15): pin current behavior so an
-# unrelated refactor can't silently change it.
+# Fixed bugs (issue #4): verify the corrected behavior via the CSV data
+# actually generated, not just a successful exit code.
 # ---------------------------------------------------------------------------
 
 
-def test_cli_ope_equal_a_min_max_outside_small_int_cache_crashes(run_cli, tmp_path):
-    # issue #4 Phase 6: `ini.a_min is not ini.a_max` uses identity comparison.
-    # For values outside CPython's small-int cache (-5..256) where min==max,
-    # this takes the wrong branch, builds an empty range, and later crashes
-    # with IndexError on random.choice([]) -- caught by failure() -> exit(-1)
-    # (255 on this platform).
-    result = run_cli("A4", "ope", "--a-min", "300", "--a-max", "300", "--out-file", "result.pdf")
-    assert result.returncode == 255
+def test_cli_ope_add_default_range_can_reach_upper_bound(run_cli, tmp_path):
+    # issue #4 Phase 2 (fixed): range(ini.a_min, ini.a_max) used to exclude
+    # a_max, so the default a-range's upper bound (9) could never appear.
+    # Statistical check: with 200 independent draws from {1..9}, the chance
+    # 9 never appears if the range were still exclusive of a differently
+    # sized set is negligible; if the fix regresses, this reliably fails.
+    result = run_cli("A4", "ope", "-o", "add", "-r", "200", "-c", "1", "--csv", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+
+    csv_lines = (tmp_path / "result.csv").read_text().strip().splitlines()
+    a_values = {int(line.split(",")[3]) for line in csv_lines}
+    assert a_values == set(range(1, 10))
+
+
+def test_cli_com_seed_can_reach_target_minus_one(run_cli, tmp_path):
+    # issue #4 Phase 8 (fixed): range(1, target - 1) used to exclude
+    # a = target - 1 (the boundary that yields the valid answer c = 1).
+    target = 5
+    result = run_cli("A4", "com", "-a", str(target), "-r", "200", "-c", "1", "--csv", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+
+    csv_lines = (tmp_path / "result.csv").read_text().strip().splitlines()
+    a_values = {int(line.split(",")[3]) for line in csv_lines}
+    assert (target - 1) in a_values
+
+
+def test_cli_ope_unsatisfiable_sub_fails_fast_instead_of_hanging(run_cli, tmp_path):
+    # issue #4 Phase 5 (fixed): calc_sub retried forever when no (a, b) pair
+    # satisfies a - b > 0. a is fixed at 1, b at 5, so a - b is always -4.
+    # Before the fix this would have hung until conftest's CLI_TIMEOUT_SECONDS
+    # killed the subprocess; now it should fail quickly with a clear error.
+    result = run_cli(
+        "A4", "ope", "--a-min", "1", "--a-max", "1", "--b-min", "5", "--b-max", "5",
+        "-o", "sub", "--out-file", "result.pdf",
+    )
+    assert result.returncode != 0
     assert not (tmp_path / "result.pdf").exists()
+
+
+@pytest.mark.parametrize("flag", ["-r", "-c"])
+def test_cli_rejects_zero_rows_or_columns(run_cli, tmp_path, flag):
+    # issue #4 Phase 9 follow-up: -r 0 / -c 0 used to crash with
+    # ZeroDivisionError (in two different spots) instead of failing with a
+    # clear validation message.
+    result = run_cli("A4", "ope", flag, "0", "--out-file", "result.pdf")
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+# ---------------------------------------------------------------------------
+# Known open bugs (issue #15): pin current behavior so an unrelated refactor
+# can't silently change it.
+# ---------------------------------------------------------------------------
+
+
+def test_cli_ope_equal_a_min_max_outside_small_int_cache_succeeds(run_cli, tmp_path):
+    # issue #4 Phase 6 (fixed): `ini.a_min is not ini.a_max` was an identity
+    # comparison. For values outside CPython's small-int cache (-5..256) where
+    # min==max, it used to take the wrong branch, build an empty range, and
+    # crash with IndexError on random.choice([]). Now uses `!=`, so the equal
+    # case correctly falls back to a single-value list regardless of int
+    # identity.
+    result = run_cli("A4", "ope", "--a-min", "300", "--a-max", "300", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
 
 
 def test_cli_out_file_name_derivation_pins_current_buggy_stripping(run_cli, tmp_path):
