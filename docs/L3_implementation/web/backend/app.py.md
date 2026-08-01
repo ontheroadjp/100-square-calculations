@@ -19,3 +19,9 @@
 - `data.get(...)` で真偽値フラグを CLI フラグに変換する行(`descend`/`reverse`/`shuffle`/`intermediate`/`vertical`/`with_bottom_answer`/`merge`/`csv`/`debug`)は同じパターンの繰り返しで、`vertical`(`--vertical`、筆算形式出力、[[../../../nuts_calc.py]] 参照)もこの並びに追加してある(`app.py:47-48`)。
 - `nuts_calc.py` 側のバリデーション失敗メッセージは `print()`(stdout)に出力されるが、このファイルは `subprocess.CalledProcessError` 発生時に `e.stderr` のみをエラーメッセージとして返すため、バリデーションエラーの具体的な理由がフロントエンドのエラー表示には渡らない(HTTP 500 は返るが `error` は空文字になる)。既存の全バリデーション(`-a option must be set.` 等)に共通する既知の制限であり、今回のスコープでは変更していない。
 - backend の URL がフロントエンド側にハードコードされている(`web/frontend/src/CustomGenerator.jsx` 側の既知の制約、[[../../frontend/src/CustomGenerator.jsx]] 参照)。
+
+## 変更履歴(git log より自動生成)
+
+- 0a11eaf feat(#9): add vertical (written-calculation) output format for ope command
+- d9fc0a3 refactor: Rename 100masu.py to nuts_calc.py and remove setup.py
+- 68daa78 feat: Implement web interface (React + Tailwind + Flask)

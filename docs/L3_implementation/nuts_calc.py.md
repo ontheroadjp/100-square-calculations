@@ -41,3 +41,9 @@
 
 - `--vertical` は `ope` コマンドの `add`/`sub`/`mul`(掛ける数が1桁)のみ対応。`div`/`mix`/複数桁 `mul`/`--intermediate` との併用は非対応(上記参照)。
 - 自動テストはリポジトリ内に存在しない(`docs/.ai/repo.profile.json` の `notes.tests` 参照)。実機での CLI 実行と生成 PDF の目視確認が検証手段。
+
+## 変更履歴(git log より自動生成)
+
+- 0a11eaf feat(#9): add vertical (written-calculation) output format for ope command
+- 5466cdb refactor: Clean up old script and apply flat design to frontend
+- d9fc0a3 refactor: Rename 100masu.py to nuts_calc.py and remove setup.py
