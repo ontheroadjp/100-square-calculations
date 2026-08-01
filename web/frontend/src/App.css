@@ -373,13 +373,6 @@ body {
   text-decoration-thickness: 2px;
 }
 
-.grade-shared-settings {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
 .preset-card-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -459,14 +452,92 @@ body {
   .preset-card-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-
-  .grade-shared-settings {
-    grid-template-columns: repeat(2, minmax(160px, 240px));
-  }
 }
 
 @media (min-width: 900px) {
   .preset-card-grid {
     grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Preset Detail page (replaces the grid in-place; mobile-first single
+   column, single page-level scroll — no nested modal/iframe scroll areas) */
+
+.preset-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.back-button {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  min-height: 44px; /* touch target */
+  padding: 8px 0;
+  font-size: 1rem;
+  color: #2563eb;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.back-button:hover {
+  color: #1d4ed8;
+}
+
+.preset-detail-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.preset-detail-status {
+  text-align: center;
+  color: #6b7280;
+  padding: 24px 0;
+}
+
+.preset-detail-settings {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.preset-detail-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.regenerate-button {
+  width: 100%;
+  min-height: 44px; /* touch target */
+  padding: 10px 16px;
+  background-color: #2563eb;
+  color: #fff;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+}
+
+.regenerate-button:hover:not(:disabled) {
+  background-color: #1d4ed8;
+}
+
+.regenerate-button:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+@media (min-width: 640px) {
+  .preset-detail-settings {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+
+  .preset-detail-actions {
+    grid-template-columns: 1fr 1fr;
+    max-width: 480px;
   }
 }
