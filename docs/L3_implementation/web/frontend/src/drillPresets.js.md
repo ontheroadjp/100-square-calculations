@@ -25,3 +25,7 @@
 ## 注意事項・既知の制限
 
 - `nuts_calc.py`/`web/backend/app.py` 側にパラメータの許可リストバリデーションが薄いため(`docs/L3_implementation/specification_summary.md` 既知の制約)、ここで不正な組み合わせを作らないよう注意する。
+
+## 変更履歴(git log より自動生成)
+
+- 0631cf9 feat(#5): add grade-based drill PDF picker to web/frontend

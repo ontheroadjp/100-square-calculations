@@ -25,3 +25,7 @@
 - backend の URL はハードコード(`CustomGenerator.jsx` と同様、既存の制約を踏襲)。
 - ダウンロード後に `URL.revokeObjectURL` は呼んでいない(`CustomGenerator.jsx` の既存挙動に合わせた)。SPA として長時間・多数のプリセットを生成し続けるとメモリ上に objectURL が残り続けるが、通常の利用(数枚のPDFを生成してページを離脱)では実用上問題にならない。
 - モバイルファーストのCSSは `web/frontend/src/App.css` の `.grade-nav`/`.preset-card-grid` などのセクションに実装している(基準はモバイル幅、`min-width: 600px`/`900px` で段階的に拡張)。
+
+## 変更履歴(git log より自動生成)
+
+- 0631cf9 feat(#5): add grade-based drill PDF picker to web/frontend

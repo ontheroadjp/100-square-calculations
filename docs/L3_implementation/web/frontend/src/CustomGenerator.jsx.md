@@ -23,3 +23,7 @@
 
 - backend の URL がハードコードされている(`http://127.0.0.1:5000`)。これは移設前から存在した既存の制約で、今回のスコープでは変更していない。
 - CSS クラス名(`form-group`/`tab-nav`/`checkbox-grid` 等)は `web/frontend/src/App.css` のグローバルセレクタに依存する(スコープされていない)。
+
+## 変更履歴(git log より自動生成)
+
+- 0631cf9 feat(#5): add grade-based drill PDF picker to web/frontend

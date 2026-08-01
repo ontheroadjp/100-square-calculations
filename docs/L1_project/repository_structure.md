@@ -16,10 +16,13 @@
 │   │   └── app.py       # Flask API(nuts_calc.pyをsubprocessで呼び出すラッパー)
 │   └── frontend/        # React + Vite + Tailwind の SPA
 │       ├── src/
-│       │   ├── main.jsx     # エントリポイント
-│       │   ├── App.jsx      # フォームUI本体
+│       │   ├── main.jsx           # エントリポイント
+│       │   ├── App.jsx            # ヘッダー(タイトル・言語切替)+ GradeDrills を描画するシェル
+│       │   ├── GradeDrills.jsx    # 学年別(1-6+カスタム)ドリルPDF選択画面(メインUI)
+│       │   ├── CustomGenerator.jsx # 詳細パラメータ指定フォーム(「カスタム」選択時)
+│       │   ├── drillPresets.js    # 学年→/generate-pdf パラメータのプリセット定義
 │       │   ├── App.css
-│       │   └── i18n.js      # react-i18next 設定(依存関係が package.json に不足)
+│       │   └── i18n.js            # react-i18next 設定
 │       ├── public/locales/{en,ja}/translation.json  # 翻訳文言
 │       ├── package.json
 │       └── package-lock.json
@@ -36,7 +39,7 @@
 - `LICENSE`: MIT License(`LICENSE:1-21`、Copyright (c) 2025 ontheroadjp)。`dev` ブランチのマージで新規追加。
 - `README.md` / `README_ja.md`: 英語/日本語で内容が対応した利用者向け説明。CLI・`factory.sh`・Web UI(バックエンド/フロントエンド起動手順)をカバーしている。
 - `web/backend/app.py`: Flask アプリ。`/generate-pdf` の単一エンドポイントで `nuts_calc.py` を `subprocess` 実行するラッパー(詳細は [[../L1_project/project_overview]])。
-- `web/frontend/`: Vite ベースの React SPA。`node_modules/` と `dist/` は `.gitignore` で除外済み(`.gitignore:53-54`)。
+- `web/frontend/`: Vite ベースの React SPA。`node_modules/` と `dist/` は `.gitignore` で除外済み(`.gitignore:53-54`)。トップ画面は学年別ドリル選択(`GradeDrills.jsx`)で、そこから「カスタム」を選ぶと詳細パラメータ指定フォーム(`CustomGenerator.jsx`)に切り替わる。
 
 ## 未確認事項
 
