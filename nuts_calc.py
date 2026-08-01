@@ -85,7 +85,6 @@ SINGLE_DIGIT_MAX = 9
 MAX_OPERAND_RETRY_ATTEMPTS = 1000
 MIN_ROWS_OR_COLUMNS = 1
 VERTICAL_UNSUPPORTED_OPERATORS = {'div', 'mix'}
-VERTICAL_BLOCK_ROWS = 3
 VERTICAL_INDEX_COLUMN_RATIO = 0.28
 VERTICAL_BLOCK_HEIGHT_RATIO = 0.85
 
@@ -269,9 +268,6 @@ def _init():
         unsupported = VERTICAL_UNSUPPORTED_OPERATORS.intersection(args.operator)
         if unsupported:
             print(f"--vertical does not support operator(s): {', '.join(sorted(unsupported))}.")
-            exit(1)
-        if 'mul' in args.operator and args.b_max > SINGLE_DIGIT_MAX:
-            print("--vertical only supports 'mul' when the second operand is a single digit (use -b 1 or --b-max <= 9).")
             exit(1)
 
     if args.rows < MIN_ROWS_OR_COLUMNS or args.columns < MIN_ROWS_OR_COLUMNS:
@@ -759,6 +755,28 @@ def get_vertical_digit_width(a_max: int, b_max: int, operators: list[str]) -> in
     return len(str(max(candidates)))
 
 
+def get_mul_partial_products(a_str: str, b_str: str) -> list[str]:
+    """
+    Compute one partial product per digit of the multiplier, for written
+    (hissan) multiplication with a multi-digit multiplier.
+
+    Args:
+        a_str: str
+            Multiplicand (first operand) as a string.
+        b_str: str
+            Multiplier (second operand) as a string.
+
+    Returns:
+        partials: list[str]
+            One partial product per digit of `b_str`, ordered from the
+            ones digit to the most significant digit (top-to-bottom row
+            order in written multiplication). `partials[i]` is the value
+            to be shifted `i` columns to the left.
+    """
+    a_val = int(a_str)
+    return [str(a_val * int(digit)) for digit in reversed(b_str)]
+
+
 def get_vertical_calc_block(
         index_str: str, a_str: str, operator_symbol: str, b_str: str, c_str: str,
         digit_width: int, index_col_width: float, digit_col_width: float,
@@ -767,10 +785,16 @@ def get_vertical_calc_block(
     """
     Build one vertical (written-calculation / hissan) problem block.
 
-    Layout is 3 rows x (1 + digit_width) columns:
+    Base layout is 3 rows x (1 + digit_width) columns:
         row 0: [index]     [digits of a, right-aligned]
         row 1: [operator]  [digits of b, right-aligned]   (a line is drawn below this row)
         row 2: [blank]     [digits of c, right-aligned]   (c_str == '' leaves the answer blank)
+
+    When `operator_symbol` is the multiplication glyph and `b_str` has 2+
+    digits, one partial-product row per digit of `b_str` is inserted
+    between rows 1 and 2 (each shifted left by its digit position, with a
+    second line drawn below the last partial-product row), so the block
+    grows to `3 + len(b_str)` rows.
 
     Args:
         index_str: str
@@ -790,7 +814,7 @@ def get_vertical_calc_block(
         digit_col_width: float
             Width of each digit column.
         slot_height: float
-            Total height available for the 3-row block.
+            Total height available for the block.
         font_size: int
             Font size for the block's text.
         grid_color:
@@ -799,16 +823,30 @@ def get_vertical_calc_block(
     Returns:
         table: reportlab.platypus.Table
     """
+    MUL_OPERATOR_SYMBOL = '×'
+
     data = [
         [index_str] + pad_digits_to_width(a_str, digit_width),
         [operator_symbol] + pad_digits_to_width(b_str, digit_width),
-        [''] + (pad_digits_to_width(c_str, digit_width) if c_str else [''] * digit_width),
     ]
+    line_below_rows = [1]
+
+    is_multi_digit_mul = operator_symbol == MUL_OPERATOR_SYMBOL and len(b_str) > 1
+    if is_multi_digit_mul:
+        for shift, partial in enumerate(get_mul_partial_products(a_str, b_str)):
+            left_cells = pad_digits_to_width(partial, digit_width - shift)
+            right_cells = [''] * shift
+            data.append([''] + left_cells + right_cells)
+        line_below_rows.append(len(data) - 1)
+
+    data.append([''] + (pad_digits_to_width(c_str, digit_width) if c_str else [''] * digit_width))
+
+    row_count = len(data)
     col_widths = [index_col_width] + [digit_col_width] * digit_width
-    row_heights = [(slot_height * VERTICAL_BLOCK_HEIGHT_RATIO) / VERTICAL_BLOCK_ROWS] * VERTICAL_BLOCK_ROWS
+    row_heights = [(slot_height * VERTICAL_BLOCK_HEIGHT_RATIO) / row_count] * row_count
 
     table = Table(data, colWidths=col_widths, rowHeights=row_heights)
-    table.setStyle([
+    style = [
         ('ALIGN', (0, 0), (0, 0), 'LEFT'),
         ('ALIGN', (0, 1), (0, 1), 'CENTER'),
         ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
@@ -816,10 +854,16 @@ def get_vertical_calc_block(
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
         ('FONTSIZE', (0, 0), (-1, -1), font_size),
         ('GRID', (0, 0), (-1, -1), 0, grid_color),
-        ('LINEBELOW', (0, 1), (-1, 1), 1, colors.black),
+    ]
+    # LINEBELOW must be added after GRID: GRID's width=0 would otherwise
+    # overwrite LINEBELOW on the same cell border and hide the line.
+    for row_idx in line_below_rows:
+        style.append(('LINEBELOW', (0, row_idx), (-1, row_idx), 1, colors.black))
+    style += [
         ('TOPPADDING', (0, 0), (-1, -1), 0),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-    ])
+    ]
+    table.setStyle(style)
     return table
 
 
