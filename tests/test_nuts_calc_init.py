@@ -107,10 +107,9 @@ def test_init_vertical_rejects_unsupported_operators(monkeypatch, operator):
     assert exc_info.value.code == 1
 
 
-def test_init_vertical_rejects_multi_digit_mul_second_operand(monkeypatch):
-    with pytest.raises(SystemExit) as exc_info:
-        _init_with(monkeypatch, "A4", "ope", "--vertical", "-o", "mul", "-b", "2")
-    assert exc_info.value.code == 1
+def test_init_vertical_allows_multi_digit_mul_second_operand(monkeypatch):
+    args = _init_with(monkeypatch, "A4", "ope", "--vertical", "-o", "mul", "-b", "2")
+    assert args.vertical is True
 
 
 @pytest.mark.parametrize("operator", ["add", "sub", "mul"])

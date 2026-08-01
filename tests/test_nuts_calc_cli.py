@@ -98,6 +98,17 @@ def test_cli_vertical_merge_produces_single_pdf_without_read_file(run_cli, tmp_p
     assert not (tmp_path / "result_read.pdf").exists()
 
 
+def test_cli_vertical_mul_supports_multi_digit_multiplier(run_cli, tmp_path):
+    # 3-digit x 2-digit, matching the web frontend's `g4-mul` preset.
+    result = run_cli(
+        "A4", "ope", "--vertical", "-o", "mul", "-a", "3", "-b", "2",
+        "-r", "2", "-c", "1", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
 # ---------------------------------------------------------------------------
 # --merge for the '100' command (separate next_content logic from 'ope')
 # ---------------------------------------------------------------------------

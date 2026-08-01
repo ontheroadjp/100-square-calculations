@@ -39,6 +39,28 @@ def test_get_vertical_digit_width_takes_max_across_operators():
     assert nc.get_vertical_digit_width(9, 9, ["add", "mul"]) == 2
 
 
+def test_get_vertical_digit_width_for_multi_digit_mul_uses_product_of_max_operands():
+    assert nc.get_vertical_digit_width(999, 99, ["mul"]) == 5  # 999*99=98901
+
+
+# ---------------------------------------------------------------------------
+# get_mul_partial_products (multi-digit multiplier, written multiplication)
+# ---------------------------------------------------------------------------
+
+
+def test_get_mul_partial_products_single_digit_multiplier_returns_one_value():
+    assert nc.get_mul_partial_products("7", "3") == ["21"]
+
+
+def test_get_mul_partial_products_multi_digit_multiplier_orders_ones_digit_first():
+    # 123 x 45: ones-digit partial (123*5) first, then tens-digit partial (123*4).
+    assert nc.get_mul_partial_products("123", "45") == ["615", "492"]
+
+
+def test_get_mul_partial_products_returns_one_partial_per_digit_of_multiplier():
+    assert nc.get_mul_partial_products("7", "234") == ["28", "21", "14"]
+
+
 # ---------------------------------------------------------------------------
 # get_operation_data
 # ---------------------------------------------------------------------------
