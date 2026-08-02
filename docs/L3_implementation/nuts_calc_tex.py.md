@@ -139,6 +139,7 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 
 ## 変更履歴(git log より自動生成)
 
+- fa73c50 feat(#26): add nuts_calc_tex.py Phase 7 squ command (square numbers)
 - be25ae8 feat(#25): add nuts_calc_tex.py Phase 6 aBc command (mental arithmetic statements)
 - 1e14347 feat(#24): add nuts_calc_tex.py Phase 5 99 command (times-table / kuku)
 - 51dcb6a fix(#23): validate 100 command digit count before range conversion
