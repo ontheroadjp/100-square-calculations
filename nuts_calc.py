@@ -84,9 +84,10 @@ from reportlab.lib import colors
 SINGLE_DIGIT_MAX = 9
 MAX_OPERAND_RETRY_ATTEMPTS = 1000
 MIN_ROWS_OR_COLUMNS = 1
-VERTICAL_UNSUPPORTED_OPERATORS = {'div', 'mix'}
+VERTICAL_UNSUPPORTED_OPERATORS = {'mix'}
 VERTICAL_INDEX_COLUMN_RATIO = 0.28
 VERTICAL_BLOCK_HEIGHT_RATIO = 0.85
+DIV_OPERATOR_SYMBOL = '÷'
 
 
 def failure(e):
@@ -777,6 +778,65 @@ def get_mul_partial_products(a_str: str, b_str: str) -> list[str]:
     return [str(a_val * int(digit)) for digit in reversed(b_str)]
 
 
+def compute_long_division_layout(a: int, b: int) -> tuple[list[str], list[tuple[str, int, str]]]:
+    """
+    Compute the long-division (長除法) layout for `a // b`.
+
+    Standard digit-by-digit written-division algorithm: process each digit
+    of `a` left to right, folding it into a running remainder. Once the
+    remainder divided by `b` is nonzero (or the last digit is reached), the
+    quotient digit is fixed and a step is emitted. Leading positions where
+    the quotient hasn't started yet are left blank (leading-zero
+    suppression), matching how long division is taught.
+
+    Args:
+        a: int
+            Dividend.
+        b: int
+            Divisor (non-zero).
+
+    Returns:
+        (quotient_cells, rows): tuple[list[str], list[tuple[str, int, str]]]
+            quotient_cells: one entry per digit of `str(a)`, either the
+                quotient digit at that column or '' before the quotient has
+                started.
+            rows: ordered top-to-bottom list of (kind, end_col, text) to
+                render below the dividend:
+                - 'partial': a "bring-down" row (the previous remainder
+                  folded with the next dividend digit). Omitted for the
+                  very first emitted step, since those digits are already
+                  visible in the dividend row itself.
+                - 'product': the value subtracted at this step (quotient
+                  digit * b); a line should be drawn below this row.
+                - 'remainder': the final row (always '0' in practice, since
+                  nuts_calc.py's calc_div only pairs evenly-divisible
+                  operands).
+                `end_col` is the 0-indexed column within `len(str(a))` that
+                the row's rightmost character aligns under.
+    """
+    a_str = str(a)
+    quotient_cells: list[str] = []
+    rows: list[tuple[str, int, str]] = []
+    remainder = 0
+    started = False
+    for index, digit_char in enumerate(a_str):
+        remainder = remainder * 10 + int(digit_char)
+        quotient_digit = remainder // b
+        is_last_digit = index == len(a_str) - 1
+        if quotient_digit == 0 and not started and not is_last_digit:
+            quotient_cells.append('')
+            continue
+        if started:
+            rows.append(('partial', index, str(remainder)))
+        started = True
+        quotient_cells.append(str(quotient_digit))
+        product = quotient_digit * b
+        remainder -= product
+        rows.append(('product', index, str(product)))
+    rows.append(('remainder', len(a_str) - 1, str(remainder)))
+    return quotient_cells, rows
+
+
 def get_vertical_calc_block(
         index_str: str, a_str: str, operator_symbol: str, b_str: str, c_str: str,
         digit_width: int, index_col_width: float, digit_col_width: float,
@@ -854,6 +914,107 @@ def get_vertical_calc_block(
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
         ('FONTSIZE', (0, 0), (-1, -1), font_size),
         ('GRID', (0, 0), (-1, -1), 0, grid_color),
+    ]
+    # LINEBELOW must be added after GRID: GRID's width=0 would otherwise
+    # overwrite LINEBELOW on the same cell border and hide the line.
+    for row_idx in line_below_rows:
+        style.append(('LINEBELOW', (0, row_idx), (-1, row_idx), 1, colors.black))
+    style += [
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ]
+    table.setStyle(style)
+    return table
+
+
+def get_vertical_div_block(
+        index_str: str, a_str: str, b_str: str, c_str: str,
+        digit_width: int, index_col_width: float, digit_col_width: float,
+        slot_height: float, font_size: int, grid_color
+    ):
+    """
+    Build one vertical long-division (筆算, 長除法) problem block.
+
+    Layout is (2 + step count) rows x (1 + digit_width) columns:
+        row 0: [index]    [quotient digits, right-aligned]  (blank when
+            c_str == '', i.e. the practice variant -- no worked quotient)
+        row 1: [divisor]  [digits of dividend, right-aligned]  (the
+            "bracket": LINEAFTER on column 0 marks the vertical bar,
+            LINEABOVE on the dividend's columns marks the horizontal cap
+            separating quotient from dividend)
+        row 2+: one row per compute_long_division_layout() step (filled
+            variant only) -- "bring-down" rows and the values subtracted
+            (with a line drawn below each), ending in the final remainder.
+
+    `c_str == ''` renders the blank (practice) variant: divisor and
+    dividend only, matching nuts_calc_tex.py's `stage=0` blank behavior for
+    `div` (issue #21) -- no quotient row content and no step rows.
+
+    Args:
+        index_str: str
+            Problem number label (e.g. "3)").
+        a_str: str
+            Dividend as a string.
+        b_str: str
+            Divisor as a string.
+        c_str: str
+            Quotient as a string, or '' to render the blank variant.
+        digit_width: int
+            Number of digit columns (shared across all blocks on the page for alignment).
+        index_col_width: float
+            Width of the leading index/divisor column.
+        digit_col_width: float
+            Width of each digit column.
+        slot_height: float
+            Total height available for the block.
+        font_size: int
+            Font size for the block's text.
+        grid_color:
+            reportlab color used for the (usually invisible) debug grid.
+
+    Returns:
+        table: reportlab.platypus.Table
+    """
+    offset = digit_width - len(a_str)
+
+    def positioned_row(prefix_cell: str, value: str, end_col: int) -> list[str]:
+        cells = [''] * digit_width
+        start_col = offset + end_col - len(value) + 1
+        for i, char in enumerate(value):
+            cells[start_col + i] = char
+        return [prefix_cell] + cells
+
+    steps: list[tuple[str, int, str]] = []
+    if c_str:
+        quotient_cells, steps = compute_long_division_layout(int(a_str), int(b_str))
+    else:
+        quotient_cells = [''] * len(a_str)
+
+    data = [
+        [index_str] + ([''] * offset) + quotient_cells,
+        positioned_row(b_str, a_str, len(a_str) - 1),
+    ]
+    line_below_rows = []
+    for kind, end_col, text in steps:
+        prefix = '-' if kind == 'product' else ''
+        data.append(positioned_row(prefix, text, end_col))
+        if kind == 'product':
+            line_below_rows.append(len(data) - 1)
+
+    row_count = len(data)
+    col_widths = [index_col_width] + [digit_col_width] * digit_width
+    row_heights = [(slot_height * VERTICAL_BLOCK_HEIGHT_RATIO) / row_count] * row_count
+
+    table = Table(data, colWidths=col_widths, rowHeights=row_heights)
+    style = [
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+        ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), font_size),
+        ('GRID', (0, 0), (-1, -1), 0, grid_color),
+        ('LINEAFTER', (0, 1), (0, row_count - 1), 1, colors.black),
+        ('LINEABOVE', (1, 1), (-1, 1), 1, colors.black),
     ]
     # LINEBELOW must be added after GRID: GRID's width=0 would otherwise
     # overwrite LINEBELOW on the same cell border and hide the line.
@@ -1348,20 +1509,33 @@ def main(ini):
                             blank_rows = []
                             filled_rows = []
                             for row_idx in range(ini.rows):
-                                block_args = (
-                                    data_index[row_idx][0], vals_a[row_idx][0],
-                                    operator_mark[row_idx][0], vals_b[row_idx][0]
-                                )
-                                blank_rows.append([get_vertical_calc_block(
-                                    *block_args, '', vertical_digit_width,
-                                    index_col_width, digit_col_width, slot_height,
-                                    vertical_font_size, grid_color
-                                )])
-                                filled_rows.append([get_vertical_calc_block(
-                                    *block_args, vals_c[row_idx][0], vertical_digit_width,
-                                    index_col_width, digit_col_width, slot_height,
-                                    vertical_font_size, grid_color
-                                )])
+                                index_str = data_index[row_idx][0]
+                                a_str = vals_a[row_idx][0]
+                                b_str = vals_b[row_idx][0]
+                                c_str = vals_c[row_idx][0]
+                                if operator_mark[row_idx][0] == DIV_OPERATOR_SYMBOL:
+                                    blank_rows.append([get_vertical_div_block(
+                                        index_str, a_str, b_str, '', vertical_digit_width,
+                                        index_col_width, digit_col_width, slot_height,
+                                        vertical_font_size, grid_color
+                                    )])
+                                    filled_rows.append([get_vertical_div_block(
+                                        index_str, a_str, b_str, c_str, vertical_digit_width,
+                                        index_col_width, digit_col_width, slot_height,
+                                        vertical_font_size, grid_color
+                                    )])
+                                else:
+                                    operator_symbol = operator_mark[row_idx][0]
+                                    blank_rows.append([get_vertical_calc_block(
+                                        index_str, a_str, operator_symbol, b_str, '', vertical_digit_width,
+                                        index_col_width, digit_col_width, slot_height,
+                                        vertical_font_size, grid_color
+                                    )])
+                                    filled_rows.append([get_vertical_calc_block(
+                                        index_str, a_str, operator_symbol, b_str, c_str, vertical_digit_width,
+                                        index_col_width, digit_col_width, slot_height,
+                                        vertical_font_size, grid_color
+                                    )])
                             blank_column_table = Table(blank_rows, colWidths=[frame_col_width], rowHeights=row_heights)
                             filled_column_table = Table(filled_rows, colWidths=[frame_col_width], rowHeights=row_heights)
                             for column_table in (blank_column_table, filled_column_table):

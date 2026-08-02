@@ -62,6 +62,58 @@ def test_get_mul_partial_products_returns_one_partial_per_digit_of_multiplier():
 
 
 # ---------------------------------------------------------------------------
+# compute_long_division_layout (vertical long division, issue #11)
+# ---------------------------------------------------------------------------
+
+
+def test_compute_long_division_layout_single_digit_divisor():
+    # 84 / 7 = 12: each dividend digit starts its own step (no leading-zero skip).
+    quotient_cells, rows = nc.compute_long_division_layout(84, 7)
+    assert quotient_cells == ["1", "2"]
+    assert rows == [
+        ("product", 0, "7"),
+        ("partial", 1, "14"),
+        ("product", 1, "14"),
+        ("remainder", 1, "0"),
+    ]
+
+
+def test_compute_long_division_layout_leading_zero_skip():
+    # 120 / 30 = 4: first two digits (1, 2) fold into the remainder with a
+    # zero quotient digit each (suppressed/blank) before the first nonzero
+    # quotient digit appears at the last position, consuming all 3 digits
+    # at once -- so no 'partial' row is emitted (the dividend row already
+    # shows all 3 digits).
+    quotient_cells, rows = nc.compute_long_division_layout(120, 30)
+    assert quotient_cells == ["", "", "4"]
+    assert rows == [
+        ("product", 2, "120"),
+        ("remainder", 2, "0"),
+    ]
+
+
+def test_compute_long_division_layout_multi_digit_divisor():
+    # 875 / 25 = 35, matching the g4-div preset's digit range (3-digit
+    # dividend / 2-digit divisor).
+    quotient_cells, rows = nc.compute_long_division_layout(875, 25)
+    assert quotient_cells == ["", "3", "5"]
+    assert rows == [
+        ("product", 1, "75"),
+        ("partial", 2, "125"),
+        ("product", 2, "125"),
+        ("remainder", 2, "0"),
+    ]
+
+
+def test_compute_long_division_layout_remainder_is_always_zero_for_exact_division():
+    # calc_div only pairs evenly-divisible operands, so the final remainder
+    # row is always "0" for any exact-division input.
+    _, rows = nc.compute_long_division_layout(144, 12)
+    assert rows[-1][0] == "remainder"
+    assert rows[-1][2] == "0"
+
+
+# ---------------------------------------------------------------------------
 # get_operation_data
 # ---------------------------------------------------------------------------
 
