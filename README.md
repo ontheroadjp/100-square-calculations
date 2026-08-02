@@ -97,6 +97,7 @@ To use the web interface, you need to start both the Flask backend and the React
         python app.py
         ```
     *   The backend will typically run on `http://127.0.0.1:5000`.
+    *   (Optional) Set `NUTS_CALC_RENDERER=latex` before starting the app to generate PDFs via `nuts_calc_tex.py` instead of the default `nuts_calc.py` (`reportlab`); this requires `pdflatex` to be installed (see Dependencies below).
 
 2.  **Start the React Frontend**:
     *   Open a *new terminal window* and navigate to the `web/frontend` directory:
@@ -124,7 +125,7 @@ Once both are running, open your browser to the frontend's address (e.g., `http:
 There are two independent ways to generate a worksheet, both ultimately driven by the same CLI:
 
 *   **CLI**: `nuts_calc.py` → ReportLab → PDF/CSV. No server, no database, no persisted state.
-*   **Web UI**: React frontend (`web/frontend`) → Flask backend (`web/backend/app.py`) → `subprocess` call to `nuts_calc.py` → generated PDF is streamed back to the browser. The backend holds no drill-generation logic of its own; it only translates form input into `nuts_calc.py` CLI arguments.
+*   **Web UI**: React frontend (`web/frontend`) → Flask backend (`web/backend/app.py`) → `web/backend/renderers.py` → `subprocess` call to `nuts_calc.py` (default) or `nuts_calc_tex.py` (via `NUTS_CALC_RENDERER=latex`) → generated PDF is streamed back to the browser. The backend holds no drill-generation logic of its own; it only translates form input into CLI arguments shared by both renderers.
 
 `factory.sh` is a third, batch-oriented entry point that calls `nuts_calc.py` repeatedly to populate a `dist/` directory with a fixed set of worksheets.
 
