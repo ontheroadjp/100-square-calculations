@@ -242,6 +242,62 @@ def test_cli_com_csv_rows_contain_real_problem_data(run_tex_cli, tmp_path):
     assert int(a) + int(c) == int(target)
 
 
+def test_cli_hundred_square_produces_blank_and_filled_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "100", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+def test_cli_hundred_square_with_digit_options_produces_pdf(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "100", "-a", "2", "-b", "2", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
+def test_cli_hundred_square_multi_page_produces_pdf(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "100", "-p", "2", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
+def test_cli_hundred_square_rejects_digit_above_three(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "100", "-a", "4", "--out-file", "result.pdf")
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+@pytest.mark.parametrize("digit_value", ["6", "0", "-1"])
+def test_cli_hundred_square_rejects_out_of_range_digit_cleanly(run_tex_cli, tmp_path, digit_value):
+    # Regression test: digit values that fall outside set_min_max_value()'s
+    # supported 1-5 range (>5 raises IndexError; <=0 silently wraps to the
+    # wrong range via negative indexing) must be rejected with a clean CLI
+    # error before that conversion runs, not an unhandled traceback.
+    result = run_tex_cli("A4", "100", "-a", digit_value, "--out-file", "result.pdf")
+    assert result.returncode == 1
+    assert "Traceback" not in result.stderr
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_hundred_square_csv_rows_contain_real_answer_data(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "100", "--csv", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+
+    csv_path = tmp_path / "result.csv"
+    lines = csv_path.read_text().strip().splitlines()
+    assert len(lines) == 11  # 1 header row + 10 data rows
+
+    header = lines[0].split(",")
+    assert header[0] == "1"
+    assert header[1] == ""
+    top_values = [int(v) for v in header[2:]]
+
+    first_data_row = lines[1].split(",")
+    left_value = int(first_data_row[1])
+    answers = [int(v) for v in first_data_row[2:]]
+    assert answers == [left_value + top for top in top_values]
+
+
 def test_cli_fails_clearly_when_pdflatex_missing(run_tex_cli, tmp_path, monkeypatch):
     # Simulate a PATH with no pdflatex, matching the environment-detection
     # error path (rather than the argparse validation path above).

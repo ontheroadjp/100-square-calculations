@@ -2,7 +2,7 @@
 
 ## 目的・役割
 
-`nuts_calc.py`(ReportLab ベース)とは**完全に独立した**、LaTeX(TeX)でレンダリングする計算ドリル PDF 生成 CLI のプロトタイプ。issue #19(親トラッキング issue)で計画されている全7コマンド再実装のうち、Phase 1(issue #20)で CLI 引数・ページ/PDF レイアウト・TeX ビルドパイプライン・CSV 出力という共通基盤を実装し、Phase 2(issue #21)で `ope` コマンド(四則演算 add/sub/mul/div/mix、横書き・`--vertical`・`--intermediate`)、Phase 3(issue #22)で `com` コマンド(補数: `a + __ = target`)を実装した。`ope`/`com` 以外の5コマンド(`100`/`99`/`aBc`/`squ`/`pi`)は引数として受理されるものの、依然として Phase 1 時点のプレースホルダーコンテンツを出力する(issues #23-#27 で順次実装予定)。
+`nuts_calc.py`(ReportLab ベース)とは**完全に独立した**、LaTeX(TeX)でレンダリングする計算ドリル PDF 生成 CLI のプロトタイプ。issue #19(親トラッキング issue)で計画されている全7コマンド再実装のうち、Phase 1(issue #20)で CLI 引数・ページ/PDF レイアウト・TeX ビルドパイプライン・CSV 出力という共通基盤を実装し、Phase 2(issue #21)で `ope` コマンド(四則演算 add/sub/mul/div/mix、横書き・`--vertical`・`--intermediate`)、Phase 3(issue #22)で `com` コマンド(補数: `a + __ = target`)、Phase 4(issue #23)で `100` コマンド(100マス計算: 11×11 の加算表)を実装した。`ope`/`com`/`100` 以外の4コマンド(`99`/`aBc`/`squ`/`pi`)は引数として受理されるものの、依然として Phase 1 時点のプレースホルダーコンテンツを出力する(issues #24-#27 で順次実装予定)。
 
 `nuts_calc.py` とは import 等のコード共有を一切行わない(`nuts_calc.py` 側も変更しない)。将来的に両者を同じ CLI 契約で切り替えられるラッパーを作る前提のため、引数体系は `nuts_calc.py` の `_init()` に似せているが、実装は完全に別物。問題生成ロジック(`calc_add`/`calc_sub`/`calc_mul`/`calc_div`/`generate_ope_problems`)も `nuts_calc.py` の `get_operation_data` 等とは独立に再実装している(意味論は似せているが、コードは共有しない)。
 
@@ -10,12 +10,12 @@
 
 ### 共通基盤(Phase 1)
 
-- `_init()`(`nuts_calc_tex.py:67-226`): `nuts_calc.py` と同じ引数(`paper_size`/`command`/`-a`/`-b`/`--a-min`/`--a-max`/`--b-min`/`--b-max`/`-o`/`--rows`/`--columns`/`--page`/`--merge`/`--csv`/`--out-file`/`--with-bottom-answer`/`--vertical`/`--intermediate`/`--debug` 等)を独立に定義・パースする。`-r`/`-c`/`-p` は1以上を要求する。`-a`/`-b` の桁数レンジ変換(`set_min_max_value`)は `command == 'ope'` の場合のみ行う(後述)。`command == 'com'` の場合は `-a/--a-value`(補数ターゲット)が必須かつ2以上であることを検証する。`command == 'ope'` の場合のみ `--intermediate` のバリデーションを行う(後述)。
+- `_init()`(`nuts_calc_tex.py:74-250`): `nuts_calc.py` と同じ引数(`paper_size`/`command`/`-a`/`-b`/`--a-min`/`--a-max`/`--b-min`/`--b-max`/`-o`/`--rows`/`--columns`/`--page`/`--merge`/`--csv`/`--out-file`/`--with-bottom-answer`/`--vertical`/`--intermediate`/`--debug` 等)を独立に定義・パースする。`-r`/`-c`/`-p` は1以上を要求する。`command == '100'` の場合、`-a`/`-b`(桁数)が指定されていれば1〜3の範囲であることを、`-a`/`-b` の桁数レンジ変換(`set_min_max_value`)より**前**に検証する(範囲外だと `set_min_max_value` 内で `IndexError` になる、または負のインデックスで誤ったレンジになるため。詳細は後述)。`-a`/`-b` の桁数レンジ変換自体は `command in ('ope', '100')` の場合のみ行う。`command == 'com'` の場合は `-a/--a-value`(補数ターゲット)が必須かつ2以上であることを検証する。`command == 'ope'` の場合のみ `--intermediate` のバリデーションを行う(後述)。
 - `Page` データクラス(`blocks: list[str]`, `columns: int`, `bottom_answer_tex: str | None`, `layout: str`): 1ページ分の LaTeX コンテンツを表す最小単位。`layout='inline'`(横書き・プレースホルダー用、`\hspace` でブロックをテキスト行として結合)と `layout='tabular'`(`--vertical` 用、後述)の2種類。
-- `build_preamble_tex`/`build_page_header_tex`/`build_page_tex`/`build_document_tex`: LaTeX ソースを文字列として組み立てる。用紙サイズは `geometry` パッケージのオプション(`a3paper`/`a4paper`/`b5paper`/`a4paper,landscape`)にマッピングし、ヘッダー(タイトル・日付欄)・フッター(ページ番号・著作権、`fancyhdr`)・行×列グリッドを構築する。プリアンブルは `longdivision`/`xlop`/`array`/`fancyhdr` を読み込む。
+- `build_preamble_tex`/`build_page_header_tex`/`build_page_tex`/`build_document_tex`: LaTeX ソースを文字列として組み立てる。用紙サイズは `geometry` パッケージのオプション(`a3paper`/`a4paper`/`b5paper`/`a4paper,landscape`)にマッピングし、ヘッダー(タイトル・日付欄)・フッター(ページ番号・著作権、`fancyhdr`)・行×列グリッドを構築する。プリアンブルは `longdivision`/`xlop`/`array`/`fancyhdr`/`xcolor`(`table` オプション、`100` コマンドのヘッダー網掛けに使用)を読み込む。
 - `compile_tex`: `pdflatex -interaction=nonstopmode -halt-on-error` を一時ディレクトリで subprocess 実行し、生成された PDF を指定パスへコピーする。失敗時は `pdflatex` の出力末尾を含めて `exit(1)` する。
 - 出力ファイル名の導出は `nuts_calc.py`(issue #15 修正後)と同様に `os.path.splitext(ini.out_file)` を使う(`_read.pdf`/`.csv` の付与)。
-- `main(ini)`(`nuts_calc_tex.py:733-769`): `ini.command == 'ope'` なら `build_ope_pages`、`'com'` なら `build_com_pages` で実データを、それ以外なら `build_placeholder_pages` で仮コンテンツを生成し、`--merge` の有無に応じて blank/filled/merge の3モードでドキュメントをビルドする。`--csv` 指定時は、`ope`/`com` ならそれぞれの実問題データ、それ以外はプレースホルダー相当の行を CSV に書き出す。
+- `main(ini)`(`nuts_calc_tex.py:733-769`): `ini.command == 'ope'` なら `build_ope_pages`、`'com'` なら `build_com_pages`、`'100'` なら `build_hundred_square_pages` で実データを、それ以外なら `build_placeholder_pages` で仮コンテンツを生成し、`--merge` の有無に応じて blank/filled/merge の3モードでドキュメントをビルドする。`--csv` 指定時は、`ope`/`com`/`100` ならそれぞれの実問題データ、それ以外はプレースホルダー相当の行を CSV に書き出す。
 
 ### `ope` コマンド(Phase 2)
 
@@ -39,7 +39,22 @@
 - `build_com_page_pair`/`build_com_pages`(`nuts_calc_tex.py:629-673`): `ope` の同名関数群と同じ構造。`--vertical`(筆算)には未対応(issue #22 のスコープ外、`Page.layout` は常に `'inline'`)。`--with-bottom-answer` 指定時は `build_com_bottom_answer_tex` で `(index) c` の一覧を blank ページ末尾に追加する。
 - `build_com_csv_rows`(`nuts_calc_tex.py:645-650`): 1問1行、`[page_number, index, a, target, c]` の列で CSV を書き出す。
 
+### `100` コマンド(Phase 4)
+
+- `HundredSquareTable` データクラス(`left_values`/`top_values`、`answers` プロパティで `left_values[r] + top_values[c]` の10×10行列を計算)が1枚の加算表を表す。
+- `sample_hundred_square_values`(`nuts_calc_tex.py` の `100` セクション): 候補範囲のリストを `HUNDRED_SQUARE_SAMPLE_REPEAT_FACTOR`(2)倍に複製してから `random.sample` で10個抽出する。既定の桁数1レンジ(1-9、9個の値)は10枠に対して1個不足するため、複製しないと `random.sample` が母集団不足で失敗する。`nuts_calc.py:1469-1474` の `seed.extend(...)` パターンと同じ意味論を再実装している(コード共有なし)。
+- `generate_hundred_square`: 左列・上段それぞれに `sample_hundred_square_values` を適用して `HundredSquareTable` を作る。
+- `build_hundred_square_block_tex`: 11×11の LaTeX `tabular` を1枚組み立てる。左上角は空欄、ヘッダー行(`top_values`)・ヘッダー列(`left_values`)は `colortbl`(`xcolor[table]` 経由)の `\rowcolor`/`\columncolor` で網掛けする。blank 版はデータセルを空文字列、filled 版は `left + top` の和を表示する。
+- `build_hundred_square_pages`: `ini.page` 枚分、1ページ1表(`Page(blocks=[...], columns=1)`)の blank/filled ペアを生成する。`ini.rows`/`ini.columns`/`ini.with_bottom_answer` は `nuts_calc.py` の元実装同様に未使用(固定サイズの表1枚のみ、下部解答欄なし)。
+- `build_hundred_square_csv_rows`: ページごとに、ヘッダー行(`[page_number, '', *top_values]`)と10本のデータ行(`[page_number, left, *answer_row]`)を書き出す。
+
 ## 重要な設計判断とその理由
+
+### `100` の `-a`/`-b` 桁数変換を `nuts_calc.py` の挙動から意図的に修正した理由
+
+`nuts_calc.py` の元実装は、`100` コマンドで `-a`/`-b` が**省略された場合のみ** `set_min_max_value` で桁数1のレンジに変換し、明示的に `-a 2` 等を指定した場合は `a_value` が保存されるだけでレンジには反映されない(桁数3超のガードのみ効く)、という一貫性のないバグが `nuts_calc.py:245-255` に存在する。`nuts_calc_tex.py` ではこれを再現せず、`_init()` の桁数レンジ変換を `command in ('ope', '100')` の場合に常に適用するよう統一した(`-a`/`-b` が `None` でなければ常に変換)。Phase 3(`com`)で `nuts_calc.py` 側の冗長な前処理を踏襲しなかったのと同じ方針。
+
+なお、この桁数レンジ変換を先に実装した際、`100` の桁数バリデーション(1〜3の範囲チェック)を変換の**後**に置いてしまい、`-a 6` 以上で `set_min_max_value` 内の `digits_list[value - 1]` が `IndexError` を送出する(`digits_list` は5要素)、`-a 0` 以下で負のインデックスにより誤った(意図しない5桁の)レンジが黙って採用される、という2つの実バグが生じていた(PR #31 の codex レビューで指摘、修正済み)。現在は `_init()` 内でこのバリデーションを `set_min_max_value` 呼び出しより前に移動している。
 
 ### `-a`/`-b` の桁数レンジ変換を `ope` 限定にゲートしている理由
 
@@ -82,7 +97,8 @@
 
 ## 注意事項・既知の制限
 
-- **`ope`/`com` 以外の5コマンドは未実装**: `100`/`99`/`aBc`/`squ`/`pi` は Phase 1 時点のプレースホルダーコンテンツ(`n) ___` / `n) ___ = n`)のままで、issues #23-#27 で順次実装される。
+- **`ope`/`com`/`100` 以外の4コマンドは未実装**: `99`/`aBc`/`squ`/`pi` は Phase 1 時点のプレースホルダーコンテンツ(`n) ___` / `n) ___ = n`)のままで、issues #24-#27 で順次実装される。
+- **`100` は `--a-min`/`--a-max` を極端に狭めると `ValueError` になりうる**: `sample_hundred_square_values` は候補範囲を2倍に複製してから10個抽出するため、範囲の要素数が5未満(例: `--a-min 5 --a-max 5`)だと母集団不足で `random.sample` が例外を送出する。`nuts_calc.py` 側の元実装にも同型の潜在バグがあり、本 Phase のスコープ外として未対応。
 - **`pdflatex` が必須**: `shutil.which('pdflatex')` が `None` の場合は明確なエラーメッセージで `exit(1)` する。CI やローカル環境に LaTeX が無い場合、`tests/test_nuts_calc_tex.py` は `pytest.mark.skipif` で自動的にスキップされる(`tests/test_nuts_calc_tex_ope_generation.py`/`tests/test_nuts_calc_tex_com_generation.py` の純 Python ユニットテストは pdflatex なしでも実行される)。
 - **`--descend`/`--reverse`/`--shuffle`/`--debug` は `ope`/`com` でも引数として受理されるが未使用**: これらは `99` 等の将来実装で使われる予定。
 - **`com` は `--vertical`/`--intermediate` 未対応**: 指定しても無視され、常に横書き(`n) $a + __ = target$`)で出力される(issue #22 のスコープ外)。
@@ -90,6 +106,8 @@
 
 ## 変更履歴(git log より自動生成)
 
+- 51dcb6a fix(#23): validate 100 command digit count before range conversion
+- 7393885 feat(#23): add nuts_calc_tex.py Phase 4 100 command (addition table)
 - d45bc98 feat(#22): add nuts_calc_tex.py Phase 3 com command (complements)
 - 82c0b6f fix(#21): guarantee calc_sub/calc_div succeed whenever a valid pair exists
 - 44a3c18 feat(#21): add nuts_calc_tex.py Phase 2 ope command (horizontal/vertical/mix/intermediate)
