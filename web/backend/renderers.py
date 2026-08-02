@@ -1,0 +1,141 @@
+import os
+import subprocess
+import uuid
+from pathlib import Path
+from typing import TypedDict
+
+
+class RendererRequest(TypedDict, total=False):
+    paper_size: str
+    command_type: str
+    a_value: int
+    b_value: int
+    a_min: int
+    a_max: int
+    b_min: int
+    b_max: int
+    operator: list[str]
+    descend: bool
+    reverse: bool
+    shuffle: bool
+    intermediate: bool
+    vertical: bool
+    rows: int
+    columns: int
+    with_bottom_answer: bool
+    page: int
+    merge: bool
+    csv: bool
+    debug: bool
+
+
+BACKEND_DIR = Path(__file__).resolve().parent
+REPO_ROOT = BACKEND_DIR.parent.parent
+
+RENDERER_ENV_VAR = "NUTS_CALC_RENDERER"
+DEFAULT_RENDERER = "reportlab"
+
+RENDERER_SCRIPTS: dict[str, Path] = {
+    "reportlab": REPO_ROOT / "nuts_calc.py",
+    "latex": REPO_ROOT / "nuts_calc_tex.py",
+}
+
+
+def get_renderer_name() -> str:
+    """
+    Resolve which renderer to use from the `NUTS_CALC_RENDERER` environment
+    variable, defaulting to `reportlab` (nuts_calc.py) to preserve existing
+    behavior when the variable is unset.
+    """
+    name = os.environ.get(RENDERER_ENV_VAR, DEFAULT_RENDERER)
+    if name not in RENDERER_SCRIPTS:
+        allowed = ", ".join(sorted(RENDERER_SCRIPTS))
+        raise ValueError(
+            f"Unknown {RENDERER_ENV_VAR} value {name!r}. Must be one of: {allowed}."
+        )
+    return name
+
+
+def build_command(renderer_name: str, params: RendererRequest, out_file: str) -> list[str]:
+    """
+    Translate a request's params into CLI arguments for the given renderer.
+
+    Both nuts_calc.py and nuts_calc_tex.py expose the same CLI argument
+    surface (paper_size/command/-a/-b/--rows/--descend/etc.), so this
+    command-building logic is shared across renderers; only the script path
+    differs.
+    """
+    script_path = RENDERER_SCRIPTS[renderer_name]
+    command = ["python3", str(script_path)]
+
+    paper_size = params.get("paper_size")
+    command_type = params.get("command_type")
+    if not paper_size or not command_type:
+        raise ValueError("Missing required parameters: paper_size or command_type")
+
+    command.append(paper_size)
+    command.append(command_type)
+
+    if "a_value" in params:
+        command.extend(["--a-value", str(params["a_value"])])
+    if "b_value" in params:
+        command.extend(["--b-value", str(params["b_value"])])
+    if "a_min" in params:
+        command.extend(["--a-min", str(params["a_min"])])
+    if "a_max" in params:
+        command.extend(["--a-max", str(params["a_max"])])
+    if "b_min" in params:
+        command.extend(["--b-min", str(params["b_min"])])
+    if "b_max" in params:
+        command.extend(["--b-max", str(params["b_max"])])
+    if params.get("operator"):
+        command.extend(["--operator", *params["operator"]])
+    if params.get("descend"):
+        command.append("--descend")
+    if params.get("reverse"):
+        command.append("--reverse")
+    if params.get("shuffle"):
+        command.append("--shuffle")
+    if params.get("intermediate"):
+        command.append("--intermediate")
+    if params.get("vertical"):
+        command.append("--vertical")
+    if "rows" in params:
+        command.extend(["--rows", str(params["rows"])])
+    if "columns" in params:
+        command.extend(["--columns", str(params["columns"])])
+    if params.get("with_bottom_answer"):
+        command.append("--with-bottom-answer")
+    if "page" in params:
+        command.extend(["--page", str(params["page"])])
+    if params.get("merge"):
+        command.append("--merge")
+    if params.get("csv"):
+        command.append("--csv")
+    if params.get("debug"):
+        command.append("--debug")
+
+    command.extend(["--out-file", out_file])
+    return command
+
+
+def run(
+    params: RendererRequest, output_dir: str, renderer_name: str | None = None
+) -> tuple[str, str, subprocess.CompletedProcess[str]]:
+    """
+    Generate a PDF via the selected renderer and return
+    (filepath, filename, completed_process); the caller can inspect
+    `completed_process.stdout`/`.stderr` for logging.
+
+    Raises subprocess.CalledProcessError, FileNotFoundError, or ValueError
+    on failure; the caller is responsible for translating those into an HTTP
+    response.
+    """
+    renderer_name = renderer_name or get_renderer_name()
+    output_filename = f"worksheet_{uuid.uuid4()}.pdf"
+    output_filepath = os.path.join(output_dir, output_filename)
+
+    command = build_command(renderer_name, params, output_filepath)
+    result = subprocess.run(command, capture_output=True, text=True, check=True)
+
+    return output_filepath, output_filename, result
