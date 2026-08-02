@@ -5,7 +5,8 @@
 nuts_calc_tex.py -- Phase 1 CLI/PDF foundation (issue #20) + Phase 2 `ope`
 command (issue #21) + Phase 3 `com` command (issue #22) + Phase 4 `100`
 command (issue #23) + Phase 5 `99` command (issue #24) + Phase 6 `aBc`
-command (issue #25) + Phase 7 `squ` command (issue #26).
+command (issue #25) + Phase 7 `squ` command (issue #26) + Phase 8 `pi`
+command (issue #27).
 
 A 100%-LaTeX-rendered, fully independent reimplementation of nuts_calc.py's
 CLI surface (see the tracking issue #19). This file has zero code
@@ -15,10 +16,9 @@ meant to run side by side, each self-contained.
 `ope` (horizontal and --vertical, all operators plus mix, --intermediate),
 `com` (complement-to-target), `100` (100-square addition table), `99`
 (times-table / kuku, with --descend/--reverse/--shuffle ordering), `aBc`
-(mental-arithmetic digit-pair conversion), and `squ` (square numbers, with
---descend/--reverse/--shuffle ordering) are fully implemented. The
-remaining command (`pi`) still renders Phase-1 placeholder content pending
-a later phase (issue #27).
+(mental-arithmetic digit-pair conversion), `squ` (square numbers, with
+--descend/--reverse/--shuffle ordering), and `pi` (multiplication by pi,
+with the same --descend/--reverse/--shuffle ordering) are all implemented.
 
 Requires a LaTeX distribution (`pdflatex`) on PATH. The `longdivision`
 CTAN package (used by `ope --vertical -o div`) is vendored into this repo
@@ -50,6 +50,7 @@ MAX_HUNDRED_SQUARE_DIGITS = 3
 HUNDRED_SQUARE_SIZE = 10
 HUNDRED_SQUARE_SAMPLE_REPEAT_FACTOR = 2
 HUNDRED_SQUARE_HEADER_COLOR = 'lightgray'
+PI_MULTIPLIER = 3.14
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 VENDOR_TEXMF_DIR = os.path.join(SCRIPT_DIR, 'vendor', 'texmf')
@@ -82,9 +83,8 @@ def _init() -> argparse.Namespace:
 
     Defined independently of nuts_calc.py's `_init()` (no shared code), but
     mirrors its flag surface for a familiar CLI. `command`/`operator` are
-    fully dispatched on for `ope`, `com`, `100`, `99`, `aBc`, and `squ`; the
-    remaining command still accepts but ignores them pending a later phase
-    (issue #27).
+    fully dispatched on for `ope`, `com`, `100`, `99`, `aBc`, `squ`, and
+    `pi`.
     """
     parser = argparse.ArgumentParser(
         usage="%(prog)s A4 | B5",
@@ -103,7 +103,7 @@ def _init() -> argparse.Namespace:
     parser.add_argument('command'
         , type = str
         , choices = ['ope', 'com', '100', '99', 'aBc', 'squ', 'pi']
-        , help = 'Type of formula to output ("ope", "com", "100", "99", "aBc", and "squ" are implemented; "pi" renders placeholder content)'
+        , help = 'Type of formula to output ("ope", "com", "100", "99", "aBc", "squ", and "pi" are implemented)'
     )
     parser.add_argument('-a', '--a-value'
         , type = int
@@ -248,6 +248,10 @@ def _init() -> argparse.Namespace:
     if args.command == 'squ':
         if args.a_value is None:
             failure("-a/--a-value (starting square number) is required for the 'squ' command.")
+
+    if args.command == 'pi':
+        if args.a_value is None:
+            failure("-a/--a-value (starting multiplicand) is required for the 'pi' command.")
 
     if args.intermediate:
         if args.command != 'ope':
@@ -1090,22 +1094,6 @@ def build_squ_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], li
     return blank_pages, filled_pages, pages_problems
 
 
-def build_placeholder_page(rows: int, columns: int, page_number: int, show_work: bool) -> Page:
-    """
-    Phase-1 placeholder content, still used for the one command not yet
-    implemented (`pi` -- issue #27). `ope` (Phase 2, issue #21), `com`
-    (Phase 3, issue #22), `100` (Phase 4, issue #23), `99` (Phase 5, issue
-    #24), `aBc` (Phase 6, issue #25), and `squ` (Phase 7, issue #26) use
-    real problem data.
-    """
-    start_index = (page_number - 1) * rows * columns + 1
-    blocks = []
-    for offset in range(rows * columns):
-        index = start_index + offset
-        blocks.append(f"{index}) \\_\\_\\_ = {index}" if show_work else f"{index}) \\_\\_\\_")
-    return Page(blocks=blocks, columns=columns)
-
-
 def build_ope_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], list[list[OpeProblem]]]:
     """Generate real `ope` problems and their blank/filled Page pairs for every page."""
     nums_a = list(range(ini.a_min, ini.a_max + 1))
@@ -1130,24 +1118,104 @@ def build_ope_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], li
     return blank_pages, filled_pages, pages_problems
 
 
-def build_placeholder_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page]]:
-    """Phase-1 placeholder content for the command not yet implemented (`pi`, issue #27)."""
-    blank_pages = [
-        build_placeholder_page(ini.rows, ini.columns, page_number, show_work=False)
-        for page_number in range(1, ini.page + 1)
+@dataclass
+class PiProblem:
+    """One generated `pi` (multiplication by pi) problem: a x PI_MULTIPLIER = c."""
+    index: int
+    a: int
+    c: float
+
+
+def generate_pi_problems(start_num: int, order: int, start_index: int, descend: bool, shuffle: bool) -> list[PiProblem]:
+    """
+    Generate `order` pi-multiplication problems starting from `start_num`, with problem numbering starting at `start_index`.
+
+    An independent reimplementation of nuts_calc.py's `get_fixed_format_data`
+    `mode == 'pi'` branch (`nuts_calc.py:508-522,527-530,541-542`): the base
+    sequence `start_num..start_num+order-1` is multiplied by `PI_MULTIPLIER`
+    (`a = a`, `c = a * PI_MULTIPLIER` -- `b` is always `PI_MULTIPLIER`, so it
+    is not stored separately). `descend` reverses that sequence
+    (`start_num+order-1..start_num`); `shuffle` randomizes it after any
+    `descend` reversal, matching nuts_calc.py's `num_list.reverse()` then
+    `random.shuffle()` ordering (same as `generate_squ_problems`).
+
+    `c` is rounded to 2 decimal places: `PI_MULTIPLIER` (3.14) has 2 decimal
+    digits, so `a * PI_MULTIPLIER` is mathematically always exact to 2
+    decimals, but IEEE 754 float multiplication produces artifacts for some
+    `a` (e.g. `5 * 3.14 == 15.700000000000001`) that nuts_calc.py renders
+    verbatim; rounding avoids surfacing that artifact in the printed drill.
+    """
+    sequence = list(range(start_num, start_num + order))
+    if descend:
+        sequence.reverse()
+    if shuffle:
+        random.shuffle(sequence)
+    return [
+        PiProblem(index=start_index + offset, a=a, c=round(a * PI_MULTIPLIER, 2))
+        for offset, a in enumerate(sequence)
     ]
-    filled_pages = [
-        build_placeholder_page(ini.rows, ini.columns, page_number, show_work=True)
-        for page_number in range(1, ini.page + 1)
-    ]
+
+
+def build_pi_block_tex(problem: PiProblem, show_answer: bool, reverse: bool) -> str:
+    """
+    Render one `pi` problem: `n) $a \\times 3.14 = c$` (blank hides `c`).
+
+    `reverse` swaps the equation side order to `n) $c = a \\times 3.14$`,
+    mirroring `build_squ_block_tex`'s handling of nuts_calc.py's
+    `is_reverse` branch (`nuts_calc.py:543-545`); the blanked value is
+    always `c` regardless of which side it renders on.
+    """
+    result_tex = str(problem.c) if show_answer else '\\underline{\\hspace{1.5em}}'
+    if reverse:
+        return f"{problem.index}) ${result_tex} = {problem.a} \\times {PI_MULTIPLIER}$"
+    return f"{problem.index}) ${problem.a} \\times {PI_MULTIPLIER} = {result_tex}$"
+
+
+def build_pi_page_pair(problems: list[PiProblem], columns: int, reverse: bool) -> tuple[Page, Page]:
+    """Build the (blank, filled) Page pair for one page's worth of `pi` problems."""
+    blank_page = Page(
+        blocks=[build_pi_block_tex(problem, show_answer=False, reverse=reverse) for problem in problems],
+        columns=columns,
+    )
+    filled_page = Page(
+        blocks=[build_pi_block_tex(problem, show_answer=True, reverse=reverse) for problem in problems],
+        columns=columns,
+    )
+    return blank_page, filled_page
+
+
+def build_pi_bottom_answer_tex(problems: list[PiProblem]) -> str:
+    return ' \\quad '.join(f"({problem.index}) {problem.c}" for problem in problems)
+
+
+def build_pi_csv_rows(pages_problems: list[list[PiProblem]]) -> list[list[object]]:
+    rows: list[list[object]] = []
+    for page_number, problems in enumerate(pages_problems, start=1):
+        for problem in problems:
+            rows.append([page_number, problem.index, problem.a, problem.c])
+    return rows
+
+
+def build_pi_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], list[list[PiProblem]]]:
+    """Generate real `pi` problems and their blank/filled Page pairs for every page."""
+    order = ini.rows * ini.columns
+
+    blank_pages = []
+    filled_pages = []
+    pages_problems = []
+    for page_number in range(1, ini.page + 1):
+        start_index = (page_number - 1) * order + 1
+        problems = generate_pi_problems(ini.a_value, order, start_index, ini.descend, ini.shuffle)
+        blank_page, filled_page = build_pi_page_pair(problems, ini.columns, ini.reverse)
+        pages_problems.append(problems)
+        blank_pages.append(blank_page)
+        filled_pages.append(filled_page)
+
     if ini.with_bottom_answer:
-        for page_number, blank_page in enumerate(blank_pages, start=1):
-            start_index = (page_number - 1) * ini.rows * ini.columns + 1
-            entries = " \\quad ".join(
-                f"({i}) {i}" for i in range(start_index, start_index + ini.rows * ini.columns)
-            )
-            blank_page.bottom_answer_tex = entries
-    return blank_pages, filled_pages
+        for problems, blank_page in zip(pages_problems, blank_pages):
+            blank_page.bottom_answer_tex = build_pi_bottom_answer_tex(problems)
+
+    return blank_pages, filled_pages, pages_problems
 
 
 def main(ini: argparse.Namespace) -> None:
@@ -1163,6 +1231,7 @@ def main(ini: argparse.Namespace) -> None:
     kuku_pages_problems: list[list[KukuProblem]] | None = None
     abc_pages_problems: list[list[AbcProblem]] | None = None
     squ_pages_problems: list[list[SquProblem]] | None = None
+    pi_pages_problems: list[list[PiProblem]] | None = None
     if ini.command == 'ope':
         blank_pages, filled_pages, ope_pages_problems = build_ope_pages(ini)
     elif ini.command == 'com':
@@ -1176,7 +1245,7 @@ def main(ini: argparse.Namespace) -> None:
     elif ini.command == 'squ':
         blank_pages, filled_pages, squ_pages_problems = build_squ_pages(ini)
     else:
-        blank_pages, filled_pages = build_placeholder_pages(ini)
+        blank_pages, filled_pages, pi_pages_problems = build_pi_pages(ini)
 
     outfile_basename, _ = os.path.splitext(ini.out_file)
     outfile_read = outfile_basename + '_read.pdf'
@@ -1203,11 +1272,7 @@ def main(ini: argparse.Namespace) -> None:
         elif squ_pages_problems is not None:
             rows = build_squ_csv_rows(squ_pages_problems)
         else:
-            rows = [
-                [page_number, index]
-                for page_number, page in enumerate(blank_pages, start=1)
-                for index in range(1, len(page.blocks) + 1)
-            ]
+            rows = build_pi_csv_rows(pi_pages_problems)
         write_csv(rows, outfile_csv)
 
     print("export PDF")
