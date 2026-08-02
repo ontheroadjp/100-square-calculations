@@ -100,7 +100,7 @@ def test_init_vertical_rejects_intermediate_combination(monkeypatch):
     assert exc_info.value.code == 1
 
 
-@pytest.mark.parametrize("operator", ["div", "mix"])
+@pytest.mark.parametrize("operator", ["mix"])
 def test_init_vertical_rejects_unsupported_operators(monkeypatch, operator):
     with pytest.raises(SystemExit) as exc_info:
         _init_with(monkeypatch, "A4", "ope", "--vertical", "-o", operator)
@@ -112,7 +112,7 @@ def test_init_vertical_allows_multi_digit_mul_second_operand(monkeypatch):
     assert args.vertical is True
 
 
-@pytest.mark.parametrize("operator", ["add", "sub", "mul"])
+@pytest.mark.parametrize("operator", ["add", "sub", "mul", "div"])
 def test_init_vertical_allows_supported_operators(monkeypatch, operator):
     args = _init_with(monkeypatch, "A4", "ope", "--vertical", "-o", operator)
     assert args.vertical is True
