@@ -8,7 +8,7 @@ DB は存在しないため `database.md` は生成していない(永続化層�
 
 ## `nuts_calc_tex.py`(実験的プロトタイプ)
 
-`nuts_calc.py` とは import 等のコード共有を一切行わない、完全独立の LaTeX(`pdflatex`)レンダリング版プロトタイプ。issue #19(親トラッキング issue)配下の8フェーズで段階的に実装中で、現時点(Phase 1, issue #20)では CLI 引数・ページ/PDF レイアウト・TeX ビルドパイプラインという共通基盤のみが存在し、コマンドごとの実際の問題生成はまだ実装されていない。詳細は [[nuts_calc_tex.py]] を参照。
+`nuts_calc.py` とは import 等のコード共有を一切行わない、完全独立の LaTeX(`pdflatex`)レンダリング版プロトタイプ。issue #19(親トラッキング issue)配下の8フェーズで段階的に実装中。CLI 引数・ページ/PDF レイアウト・TeX ビルドパイプラインという共通基盤(Phase 1, issue #20)に加え、`ope` コマンド(四則演算 add/sub/mul/div/mix、横書き・`--vertical` 筆算・`--intermediate`)が実装済み(Phase 2, issue #21)。`--vertical` は add/sub/mul を `xlop`、div を `longdivision` でレンダリングする。`ope` 以外の6コマンド(`com`/`100`/`99`/`aBc`/`squ`/`pi`)は依然プレースホルダーのまま(issues #22-#27)。詳細は [[nuts_calc_tex.py]] を参照。
 
 ## Web API 仕様(`web/backend/app.py`)
 

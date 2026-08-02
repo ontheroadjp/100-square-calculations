@@ -77,5 +77,5 @@
 
 ## 変更履歴(git log より自動生成)
 
+- 44a3c18 feat(#21): add nuts_calc_tex.py Phase 2 ope command (horizontal/vertical/mix/intermediate)
 - acb1e84 feat(#20): add nuts_calc_tex.py Phase 1 (LaTeX CLI/PDF foundation)
-- (このコミット) feat(#21): add nuts_calc_tex.py Phase 2 `ope` command (horizontal/vertical/mix/intermediate)
