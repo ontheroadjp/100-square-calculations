@@ -43,6 +43,16 @@ def test_build_command_selects_script_path_per_renderer() -> None:
     assert latex_command[1].endswith("nuts_calc_tex.py")
 
 
+def test_build_command_invokes_the_running_interpreter() -> None:
+    # Must match sys.executable (the interpreter running this backend
+    # process), not a hardcoded 'python'/'python3': a mismatched interpreter
+    # could lack the renderer's dependencies (e.g. reportlab) or not exist
+    # at all in the target environment.
+    params = {"paper_size": "A4", "command_type": "ope"}
+    command = renderers.build_command("reportlab", params, "out.pdf")
+    assert command[0] == sys.executable
+
+
 def test_build_command_requires_paper_size_and_command_type() -> None:
     with pytest.raises(ValueError, match="Missing required parameters"):
         renderers.build_command("reportlab", {}, "out.pdf")

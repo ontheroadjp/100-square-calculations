@@ -1,5 +1,6 @@
 import os
 import subprocess
+import sys
 import uuid
 from pathlib import Path
 from typing import TypedDict
@@ -66,7 +67,7 @@ def build_command(renderer_name: str, params: RendererRequest, out_file: str) ->
     differs.
     """
     script_path = RENDERER_SCRIPTS[renderer_name]
-    command = ["python3", str(script_path)]
+    command = [sys.executable, str(script_path)]
 
     paper_size = params.get("paper_size")
     command_type = params.get("command_type")
