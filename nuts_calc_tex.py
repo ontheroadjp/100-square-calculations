@@ -5,7 +5,7 @@
 nuts_calc_tex.py -- Phase 1 CLI/PDF foundation (issue #20) + Phase 2 `ope`
 command (issue #21) + Phase 3 `com` command (issue #22) + Phase 4 `100`
 command (issue #23) + Phase 5 `99` command (issue #24) + Phase 6 `aBc`
-command (issue #25).
+command (issue #25) + Phase 7 `squ` command (issue #26).
 
 A 100%-LaTeX-rendered, fully independent reimplementation of nuts_calc.py's
 CLI surface (see the tracking issue #19). This file has zero code
@@ -14,10 +14,11 @@ meant to run side by side, each self-contained.
 
 `ope` (horizontal and --vertical, all operators plus mix, --intermediate),
 `com` (complement-to-target), `100` (100-square addition table), `99`
-(times-table / kuku, with --descend/--reverse/--shuffle ordering), and
-`aBc` (mental-arithmetic digit-pair conversion) are fully implemented. The
-other two commands (squ/pi) still render Phase-1 placeholder content
-pending later phases (issues #26-#27).
+(times-table / kuku, with --descend/--reverse/--shuffle ordering), `aBc`
+(mental-arithmetic digit-pair conversion), and `squ` (square numbers, with
+--descend/--reverse/--shuffle ordering) are fully implemented. The
+remaining command (`pi`) still renders Phase-1 placeholder content pending
+a later phase (issue #27).
 
 Requires a LaTeX distribution (`pdflatex`) on PATH. The `longdivision`
 CTAN package (used by `ope --vertical -o div`) is vendored into this repo
@@ -81,9 +82,9 @@ def _init() -> argparse.Namespace:
 
     Defined independently of nuts_calc.py's `_init()` (no shared code), but
     mirrors its flag surface for a familiar CLI. `command`/`operator` are
-    fully dispatched on for `ope`, `com`, `100`, `99`, and `aBc`; the other
-    two commands still accept but ignore them pending later phases (issues
-    #26-#27).
+    fully dispatched on for `ope`, `com`, `100`, `99`, `aBc`, and `squ`; the
+    remaining command still accepts but ignores them pending a later phase
+    (issue #27).
     """
     parser = argparse.ArgumentParser(
         usage="%(prog)s A4 | B5",
@@ -102,7 +103,7 @@ def _init() -> argparse.Namespace:
     parser.add_argument('command'
         , type = str
         , choices = ['ope', 'com', '100', '99', 'aBc', 'squ', 'pi']
-        , help = 'Type of formula to output ("ope", "com", "100", "99", and "aBc" are implemented; others render placeholder content)'
+        , help = 'Type of formula to output ("ope", "com", "100", "99", "aBc", and "squ" are implemented; "pi" renders placeholder content)'
     )
     parser.add_argument('-a', '--a-value'
         , type = int
@@ -243,6 +244,10 @@ def _init() -> argparse.Namespace:
     if args.command == '99':
         if args.a_value is None:
             failure("-a/--a-value (times-table row) is required for the '99' command.")
+
+    if args.command == 'squ':
+        if args.a_value is None:
+            failure("-a/--a-value (starting square number) is required for the 'squ' command.")
 
     if args.intermediate:
         if args.command != 'ope':
@@ -992,12 +997,106 @@ def build_abc_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], li
     return blank_pages, filled_pages, pages_problems
 
 
+@dataclass
+class SquProblem:
+    """One generated `squ` (square numbers) problem: a x a = c."""
+    index: int
+    a: int
+    c: int
+
+
+def generate_squ_problems(start_num: int, order: int, start_index: int, descend: bool, shuffle: bool) -> list[SquProblem]:
+    """
+    Generate `order` square-number problems starting from `start_num`, with problem numbering starting at `start_index`.
+
+    An independent reimplementation of nuts_calc.py's `get_fixed_format_data`
+    `mode == 'squ'` branch (`nuts_calc.py:508-526,541-542`): the base
+    sequence `start_num..start_num+order-1` is squared (`a = a`, `c = a * a`
+    -- `b` is always equal to `a`, so it is not stored separately).
+    `descend` reverses that sequence (`start_num+order-1..start_num`);
+    `shuffle` randomizes it after any `descend` reversal, matching
+    nuts_calc.py's `num_list.reverse()` then `random.shuffle()` ordering.
+    """
+    sequence = list(range(start_num, start_num + order))
+    if descend:
+        sequence.reverse()
+    if shuffle:
+        random.shuffle(sequence)
+    return [
+        SquProblem(index=start_index + offset, a=a, c=a * a)
+        for offset, a in enumerate(sequence)
+    ]
+
+
+def build_squ_block_tex(problem: SquProblem, show_answer: bool, reverse: bool) -> str:
+    """
+    Render one `squ` problem: `n) $a \\times a = c$` (blank hides `c`).
+
+    `reverse` swaps the equation side order to `n) $c = a \\times a$`,
+    mirroring `build_kuku_block_tex`'s handling of nuts_calc.py's
+    `is_reverse` branch (`nuts_calc.py:543-545`); the blanked value is
+    always `c` regardless of which side it renders on.
+    """
+    result_tex = str(problem.c) if show_answer else '\\underline{\\hspace{1.5em}}'
+    if reverse:
+        return f"{problem.index}) ${result_tex} = {problem.a} \\times {problem.a}$"
+    return f"{problem.index}) ${problem.a} \\times {problem.a} = {result_tex}$"
+
+
+def build_squ_page_pair(problems: list[SquProblem], columns: int, reverse: bool) -> tuple[Page, Page]:
+    """Build the (blank, filled) Page pair for one page's worth of `squ` problems."""
+    blank_page = Page(
+        blocks=[build_squ_block_tex(problem, show_answer=False, reverse=reverse) for problem in problems],
+        columns=columns,
+    )
+    filled_page = Page(
+        blocks=[build_squ_block_tex(problem, show_answer=True, reverse=reverse) for problem in problems],
+        columns=columns,
+    )
+    return blank_page, filled_page
+
+
+def build_squ_bottom_answer_tex(problems: list[SquProblem]) -> str:
+    return ' \\quad '.join(f"({problem.index}) {problem.c}" for problem in problems)
+
+
+def build_squ_csv_rows(pages_problems: list[list[SquProblem]]) -> list[list[object]]:
+    rows: list[list[object]] = []
+    for page_number, problems in enumerate(pages_problems, start=1):
+        for problem in problems:
+            rows.append([page_number, problem.index, problem.a, problem.c])
+    return rows
+
+
+def build_squ_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], list[list[SquProblem]]]:
+    """Generate real `squ` problems and their blank/filled Page pairs for every page."""
+    order = ini.rows * ini.columns
+
+    blank_pages = []
+    filled_pages = []
+    pages_problems = []
+    for page_number in range(1, ini.page + 1):
+        start_index = (page_number - 1) * order + 1
+        problems = generate_squ_problems(ini.a_value, order, start_index, ini.descend, ini.shuffle)
+        blank_page, filled_page = build_squ_page_pair(problems, ini.columns, ini.reverse)
+        pages_problems.append(problems)
+        blank_pages.append(blank_page)
+        filled_pages.append(filled_page)
+
+    if ini.with_bottom_answer:
+        for problems, blank_page in zip(pages_problems, blank_pages):
+            blank_page.bottom_answer_tex = build_squ_bottom_answer_tex(problems)
+
+    return blank_pages, filled_pages, pages_problems
+
+
 def build_placeholder_page(rows: int, columns: int, page_number: int, show_work: bool) -> Page:
     """
-    Phase-1 placeholder content, still used for the two commands not yet
-    implemented (squ/pi -- issues #26-#27). `ope` (Phase 2, issue #21),
-    `com` (Phase 3, issue #22), `100` (Phase 4, issue #23), `99` (Phase 5,
-    issue #24), and `aBc` (Phase 6, issue #25) use real problem data.
+    Phase-1 placeholder content, still used for the one command not yet
+    implemented (`pi` -- issue #27). `ope` (Phase 2, issue #21), `com`
+    (Phase 3, issue #22), `100` (Phase 4, issue #23), `99` (Phase 5, issue
+    #24), `aBc` (Phase 6, issue #25), and `squ` (Phase 7, issue #26) use
+    real problem data.
     """
     start_index = (page_number - 1) * rows * columns + 1
     blocks = []
@@ -1032,7 +1131,7 @@ def build_ope_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], li
 
 
 def build_placeholder_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page]]:
-    """Phase-1 placeholder content for commands not yet implemented (issues #25-#27)."""
+    """Phase-1 placeholder content for the command not yet implemented (`pi`, issue #27)."""
     blank_pages = [
         build_placeholder_page(ini.rows, ini.columns, page_number, show_work=False)
         for page_number in range(1, ini.page + 1)
@@ -1063,6 +1162,7 @@ def main(ini: argparse.Namespace) -> None:
     hundred_square_pages_tables: list[HundredSquareTable] | None = None
     kuku_pages_problems: list[list[KukuProblem]] | None = None
     abc_pages_problems: list[list[AbcProblem]] | None = None
+    squ_pages_problems: list[list[SquProblem]] | None = None
     if ini.command == 'ope':
         blank_pages, filled_pages, ope_pages_problems = build_ope_pages(ini)
     elif ini.command == 'com':
@@ -1073,6 +1173,8 @@ def main(ini: argparse.Namespace) -> None:
         blank_pages, filled_pages, kuku_pages_problems = build_kuku_pages(ini)
     elif ini.command == 'aBc':
         blank_pages, filled_pages, abc_pages_problems = build_abc_pages(ini)
+    elif ini.command == 'squ':
+        blank_pages, filled_pages, squ_pages_problems = build_squ_pages(ini)
     else:
         blank_pages, filled_pages = build_placeholder_pages(ini)
 
@@ -1098,6 +1200,8 @@ def main(ini: argparse.Namespace) -> None:
             rows = build_kuku_csv_rows(kuku_pages_problems)
         elif abc_pages_problems is not None:
             rows = build_abc_csv_rows(abc_pages_problems)
+        elif squ_pages_problems is not None:
+            rows = build_squ_csv_rows(squ_pages_problems)
         else:
             rows = [
                 [page_number, index]

@@ -2,7 +2,7 @@
 
 ## 目的・役割
 
-`nuts_calc.py`(ReportLab ベース)とは**完全に独立した**、LaTeX(TeX)でレンダリングする計算ドリル PDF 生成 CLI のプロトタイプ。issue #19(親トラッキング issue)で計画されている全7コマンド再実装のうち、Phase 1(issue #20)で CLI 引数・ページ/PDF レイアウト・TeX ビルドパイプライン・CSV 出力という共通基盤を実装し、Phase 2(issue #21)で `ope` コマンド(四則演算 add/sub/mul/div/mix、横書き・`--vertical`・`--intermediate`)、Phase 3(issue #22)で `com` コマンド(補数: `a + __ = target`)、Phase 4(issue #23)で `100` コマンド(100マス計算: 11×11 の加算表)、Phase 5(issue #24)で `99` コマンド(九九: 固定の1段 × `--rows`×`--columns` 問、`--descend`/`--reverse`/`--shuffle` の並び替え)、Phase 6(issue #25)で `aBc` コマンド(暗算: 4桁の数字列 `abcd` を2桁ずつのペア `ab`/`cd` に分けて変換する暗算ステートメント)を実装した。`ope`/`com`/`100`/`99`/`aBc` 以外の2コマンド(`squ`/`pi`)は引数として受理されるものの、依然として Phase 1 時点のプレースホルダーコンテンツを出力する(issues #26-#27 で順次実装予定)。
+`nuts_calc.py`(ReportLab ベース)とは**完全に独立した**、LaTeX(TeX)でレンダリングする計算ドリル PDF 生成 CLI のプロトタイプ。issue #19(親トラッキング issue)で計画されている全7コマンド再実装のうち、Phase 1(issue #20)で CLI 引数・ページ/PDF レイアウト・TeX ビルドパイプライン・CSV 出力という共通基盤を実装し、Phase 2(issue #21)で `ope` コマンド(四則演算 add/sub/mul/div/mix、横書き・`--vertical`・`--intermediate`)、Phase 3(issue #22)で `com` コマンド(補数: `a + __ = target`)、Phase 4(issue #23)で `100` コマンド(100マス計算: 11×11 の加算表)、Phase 5(issue #24)で `99` コマンド(九九: 固定の1段 × `--rows`×`--columns` 問、`--descend`/`--reverse`/`--shuffle` の並び替え)、Phase 6(issue #25)で `aBc` コマンド(暗算: 4桁の数字列 `abcd` を2桁ずつのペア `ab`/`cd` に分けて変換する暗算ステートメント)、Phase 7(issue #26)で `squ` コマンド(二乗数: `-a` から始まる整数列を `a × a` の形で出題、`--descend`/`--reverse`/`--shuffle` の並び替えは `99` と共通)を実装した。`ope`/`com`/`100`/`99`/`aBc`/`squ` 以外の1コマンド(`pi`)は引数として受理されるものの、依然として Phase 1 時点のプレースホルダーコンテンツを出力する(issue #27 で実装予定)。
 
 `nuts_calc.py` とは import 等のコード共有を一切行わない(`nuts_calc.py` 側も変更しない)。将来的に両者を同じ CLI 契約で切り替えられるラッパーを作る前提のため、引数体系は `nuts_calc.py` の `_init()` に似せているが、実装は完全に別物。問題生成ロジック(`calc_add`/`calc_sub`/`calc_mul`/`calc_div`/`generate_ope_problems`)も `nuts_calc.py` の `get_operation_data` 等とは独立に再実装している(意味論は似せているが、コードは共有しない)。
 
@@ -10,12 +10,12 @@
 
 ### 共通基盤(Phase 1)
 
-- `_init()`(`nuts_calc_tex.py:74-250`): `nuts_calc.py` と同じ引数(`paper_size`/`command`/`-a`/`-b`/`--a-min`/`--a-max`/`--b-min`/`--b-max`/`-o`/`--rows`/`--columns`/`--page`/`--merge`/`--csv`/`--out-file`/`--with-bottom-answer`/`--vertical`/`--intermediate`/`--debug` 等)を独立に定義・パースする。`-r`/`-c`/`-p` は1以上を要求する。`command == '100'` の場合、`-a`/`-b`(桁数)が指定されていれば1〜3の範囲であることを、`-a`/`-b` の桁数レンジ変換(`set_min_max_value`)より**前**に検証する(範囲外だと `set_min_max_value` 内で `IndexError` になる、または負のインデックスで誤ったレンジになるため。詳細は後述)。`-a`/`-b` の桁数レンジ変換自体は `command in ('ope', '100')` の場合のみ行う。`command == 'com'` の場合は `-a/--a-value`(補数ターゲット)が必須かつ2以上であることを検証する。`command == '99'` の場合は `-a/--a-value`(九九の段)が必須であることを検証する(値域は `nuts_calc.py` と同じく未検証)。`command == 'aBc'` の場合は `-a`/`-b` を一切使用しない(`com`/`99` と異なり検証も不要)。`command == 'ope'` の場合のみ `--intermediate` のバリデーションを行う(後述)。
+- `_init()`(`nuts_calc_tex.py:74-250`): `nuts_calc.py` と同じ引数(`paper_size`/`command`/`-a`/`-b`/`--a-min`/`--a-max`/`--b-min`/`--b-max`/`-o`/`--rows`/`--columns`/`--page`/`--merge`/`--csv`/`--out-file`/`--with-bottom-answer`/`--vertical`/`--intermediate`/`--debug` 等)を独立に定義・パースする。`-r`/`-c`/`-p` は1以上を要求する。`command == '100'` の場合、`-a`/`-b`(桁数)が指定されていれば1〜3の範囲であることを、`-a`/`-b` の桁数レンジ変換(`set_min_max_value`)より**前**に検証する(範囲外だと `set_min_max_value` 内で `IndexError` になる、または負のインデックスで誤ったレンジになるため。詳細は後述)。`-a`/`-b` の桁数レンジ変換自体は `command in ('ope', '100')` の場合のみ行う。`command == 'com'` の場合は `-a/--a-value`(補数ターゲット)が必須かつ2以上であることを検証する。`command == '99'` の場合は `-a/--a-value`(九九の段)が必須であることを検証する(値域は `nuts_calc.py` と同じく未検証)。`command == 'squ'` の場合は `-a/--a-value`(開始する二乗数の起点)が必須であることを検証する(`99` と同じ形、値域は同じく未検証)。`command == 'aBc'` の場合は `-a`/`-b` を一切使用しない(`com`/`99`/`squ` と異なり検証も不要)。`command == 'ope'` の場合のみ `--intermediate` のバリデーションを行う(後述)。
 - `Page` データクラス(`blocks: list[str]`, `columns: int`, `bottom_answer_tex: str | None`, `layout: str`): 1ページ分の LaTeX コンテンツを表す最小単位。`layout='inline'`(横書き・プレースホルダー用、`\hspace` でブロックをテキスト行として結合)と `layout='tabular'`(`--vertical` 用、後述)の2種類。
 - `build_preamble_tex`/`build_page_header_tex`/`build_page_tex`/`build_document_tex`: LaTeX ソースを文字列として組み立てる。用紙サイズは `geometry` パッケージのオプション(`a3paper`/`a4paper`/`b5paper`/`a4paper,landscape`)にマッピングし、ヘッダー(タイトル・日付欄)・フッター(ページ番号・著作権、`fancyhdr`)・行×列グリッドを構築する。プリアンブルは `longdivision`/`xlop`/`array`/`fancyhdr`/`xcolor`(`table` オプション、`100` コマンドのヘッダー網掛けに使用)を読み込む。
 - `compile_tex`: `pdflatex -interaction=nonstopmode -halt-on-error` を一時ディレクトリで subprocess 実行し、生成された PDF を指定パスへコピーする。失敗時は `pdflatex` の出力末尾を含めて `exit(1)` する。
 - 出力ファイル名の導出は `nuts_calc.py`(issue #15 修正後)と同様に `os.path.splitext(ini.out_file)` を使う(`_read.pdf`/`.csv` の付与)。
-- `main(ini)`(`nuts_calc_tex.py:733-769`): `ini.command == 'ope'` なら `build_ope_pages`、`'com'` なら `build_com_pages`、`'100'` なら `build_hundred_square_pages`、`'99'` なら `build_kuku_pages`、`'aBc'` なら `build_abc_pages` で実データを、それ以外なら `build_placeholder_pages` で仮コンテンツを生成し、`--merge` の有無に応じて blank/filled/merge の3モードでドキュメントをビルドする。`--csv` 指定時は、`ope`/`com`/`100`/`99`/`aBc` ならそれぞれの実問題データ、それ以外はプレースホルダー相当の行を CSV に書き出す。
+- `main(ini)`(`nuts_calc_tex.py:733-769`): `ini.command == 'ope'` なら `build_ope_pages`、`'com'` なら `build_com_pages`、`'100'` なら `build_hundred_square_pages`、`'99'` なら `build_kuku_pages`、`'aBc'` なら `build_abc_pages`、`'squ'` なら `build_squ_pages` で実データを、それ以外(`pi`)なら `build_placeholder_pages` で仮コンテンツを生成し、`--merge` の有無に応じて blank/filled/merge の3モードでドキュメントをビルドする。`--csv` 指定時は、`ope`/`com`/`100`/`99`/`aBc`/`squ` ならそれぞれの実問題データ、それ以外はプレースホルダー相当の行を CSV に書き出す。
 
 ### `ope` コマンド(Phase 2)
 
@@ -63,6 +63,14 @@
 - `build_abc_block_tex`: `n) $abcd \Rightarrow answer$`(blank 版は `answer` の代わりに `\underline{\hspace{1.5em}}`)を生成する。
 - `build_abc_page_pair`/`build_abc_pages`: `com`/`99` と同じ構造。`order = ini.rows * ini.columns`。`Page.layout` は常に `'inline'`(`--vertical` 未対応)、`-a`/`-b` は不使用。`--with-bottom-answer` 指定時は `build_abc_bottom_answer_tex` で `(index) answer` の一覧を blank ページ末尾に追加する。
 - `build_abc_csv_rows`: 1問1行、`[page_number, index, a, b, c, d, answer]` の列で CSV を書き出す。
+
+### `squ` コマンド(Phase 7)
+
+- `SquProblem` データクラス(`index`/`a`/`c`)が1問を表す。`99`(kuku)の `KukuProblem` と異なり `a` はページ内で問題ごとに変化する側、`b` は常に `a` と同値のため専用フィールドを持たない。
+- `generate_squ_problems`(数列 `a` の生成): `order = ini.rows * ini.columns` 問を1ページ分生成する。`a` は `-a/--a-value`(`start_num`)を起点とする `start_num..start_num+order-1` の連番で、`c = a * a`。`--descend` で `start_num+order-1..start_num` の降順に反転し、`--shuffle` で(`--descend` 反転後の並びを)`random.shuffle` する。`nuts_calc.py` の `get_fixed_format_data`(`mode == 'squ'`、`nuts_calc.py:508-526,541-542`)と同じ意味論(`num_list = [start_num+i for i in range(order)]`)だが、`order` を `99` と同じく `rows*columns` に連動させている(`nuts_calc.py` 側は `order = rows` で列ごとに `start_num` がリセットされる設計だが、`nuts_calc_tex.py` は `99`/`aBc` で確立済みの「1ページ分をフラットな `rows*columns` 件の列とみなす」方針をそのまま踏襲した)。`start_num` はページをまたいでも変化しない(`nuts_calc.py` 側で `ini.a_value` が書き換えられる箇所がないことを踏襲し、各ページで同じ起点から独立して数列を生成し直す)。`nuts_calc.py` と同じくコード共有はせず独立に再実装している。
+- `build_squ_block_tex`: 通常は `n) $a \times a = c$`(blank 版は `c` の代わりに `\underline{\hspace{1.5em}}`)を生成する。`--reverse` 指定時は式の左右を入れ替えて `n) $c = a \times a$` にする(blank でも隠すのは常に `c`)。`build_kuku_block_tex` の `reverse` 処理と同じ構造。
+- `build_squ_page_pair`/`build_squ_pages`: `99` と同じ構造。`Page.layout` は常に `'inline'`(`--vertical` 未対応)。`--with-bottom-answer` 指定時は `build_squ_bottom_answer_tex` で `(index) c` の一覧を blank ページ末尾に追加する。
+- `build_squ_csv_rows`: 1問1行、`[page_number, index, a, c]` の列で CSV を書き出す(`b` は常に `a` と同値のため冗長な列を持たない、`99` の `[..., a, b, c]` との差異)。
 
 ## 重要な設計判断とその理由
 
@@ -121,12 +129,12 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 
 ## 注意事項・既知の制限
 
-- **`ope`/`com`/`100`/`99`/`aBc` 以外の2コマンドは未実装**: `squ`/`pi` は Phase 1 時点のプレースホルダーコンテンツ(`n) ___` / `n) ___ = n`)のままで、issues #26-#27 で順次実装される。
+- **`ope`/`com`/`100`/`99`/`aBc`/`squ` 以外の1コマンドは未実装**: `pi` は Phase 1 時点のプレースホルダーコンテンツ(`n) ___` / `n) ___ = n`)のままで、issue #27 で実装予定。
 - **`100` は `--a-min`/`--a-max` を極端に狭めると `ValueError` になりうる**: `sample_hundred_square_values` は候補範囲を2倍に複製してから10個抽出するため、範囲の要素数が5未満(例: `--a-min 5 --a-max 5`)だと母集団不足で `random.sample` が例外を送出する。`nuts_calc.py` 側の元実装にも同型の潜在バグがあり、本 Phase のスコープ外として未対応。
-- **`pdflatex` が必須**: `shutil.which('pdflatex')` が `None` の場合は明確なエラーメッセージで `exit(1)` する。CI やローカル環境に LaTeX が無い場合、`tests/test_nuts_calc_tex.py` は `pytest.mark.skipif` で自動的にスキップされる(`tests/test_nuts_calc_tex_ope_generation.py`/`tests/test_nuts_calc_tex_com_generation.py`/`tests/test_nuts_calc_tex_kuku_generation.py` の純 Python ユニットテストは pdflatex なしでも実行される)。
-- **`--descend`/`--reverse`/`--shuffle` は `ope`/`com`/`100` でも引数として受理されるが未使用**: `99` コマンドでのみ意味を持つ。`--debug` はどのコマンドでも未使用のまま。
-- **`com`/`99`/`aBc` は `--vertical`/`--intermediate` 未対応、ただし挙動が異なる**: `--vertical` は指定しても静かに無視され(`build_com_pages`/`build_kuku_pages`/`build_abc_pages` は `Page.layout` を常に `'inline'` にする)、`com` は常に横書き(`n) $a + __ = target$`)、`99` は常に横書き(`n) $a \times b = c$`、`--reverse` 指定時は式の左右が入れ替わる)、`aBc` は常に横書き(`n) $abcd \Rightarrow answer$`)で出力される。一方 `--intermediate` は無視されず、`_init()`(`nuts_calc_tex.py:247-249`)が `command != 'ope'` を検知した時点で `"--intermediate is only supported for the 'ope' command."` として `exit(1)` する(`com`/`99`/`aBc` いずれでも同様、`--vertical` の有無に関わらない)。それぞれ issue #22/#24/#25 のスコープ外。
-- **`99` の乗数(b)は9で頭打ちにならない**: `order = ini.rows * ini.columns` が9を超えると乗数もそれに応じて9を超える(`nuts_calc.py` の元実装を踏襲した意図的な設計、詳細は上記の設計判断を参照)。
+- **`pdflatex` が必須**: `shutil.which('pdflatex')` が `None` の場合は明確なエラーメッセージで `exit(1)` する。CI やローカル環境に LaTeX が無い場合、`tests/test_nuts_calc_tex.py` は `pytest.mark.skipif` で自動的にスキップされる(`tests/test_nuts_calc_tex_ope_generation.py`/`tests/test_nuts_calc_tex_com_generation.py`/`tests/test_nuts_calc_tex_kuku_generation.py`/`tests/test_nuts_calc_tex_squ_generation.py` の純 Python ユニットテストは pdflatex なしでも実行される)。
+- **`--descend`/`--reverse`/`--shuffle` は `ope`/`com`/`100` でも引数として受理されるが未使用**: `99`/`squ` コマンドでのみ意味を持つ。`--debug` はどのコマンドでも未使用のまま。
+- **`com`/`99`/`aBc`/`squ` は `--vertical`/`--intermediate` 未対応、ただし挙動が異なる**: `--vertical` は指定しても静かに無視され(`build_com_pages`/`build_kuku_pages`/`build_abc_pages`/`build_squ_pages` は `Page.layout` を常に `'inline'` にする)、`com` は常に横書き(`n) $a + __ = target$`)、`99` は常に横書き(`n) $a \times b = c$`、`--reverse` 指定時は式の左右が入れ替わる)、`aBc` は常に横書き(`n) $abcd \Rightarrow answer$`)、`squ` は常に横書き(`n) $a \times a = c$`、`--reverse` 指定時は式の左右が入れ替わる)で出力される。一方 `--intermediate` は無視されず、`_init()`(`nuts_calc_tex.py:247-249`)が `command != 'ope'` を検知した時点で `"--intermediate is only supported for the 'ope' command."` として `exit(1)` する(`com`/`99`/`aBc`/`squ` いずれでも同様、`--vertical` の有無に関わらない)。それぞれ issue #22/#24/#25/#26 のスコープ外。
+- **`99` の乗数(b)・`squ` の数列(a)は9で頭打ちにならない**: `order = ini.rows * ini.columns` が9を超えると `99` の乗数、`squ` の数列いずれもそれに応じて9を超える(`nuts_calc.py` の元実装を踏襲した意図的な設計、詳細は上記の設計判断を参照)。
 - **`--vertical` 指定時の CSV/bottom-answer の桁**: 特別な整形はしておらず、`build_ope_csv_rows`/`build_ope_bottom_answer_tex` は横書き・縦書きで共通(問題データそのものは表示形式に関わらず同一)。
 
 ## 変更履歴(git log より自動生成)
