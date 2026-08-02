@@ -38,4 +38,4 @@ issue #19 のトラッキング issue にある「将来 `nuts_calc.py`/`nuts_ca
 
 ## 変更履歴(git log より自動生成)
 
-- (未コミット: issue #36 で新規作成)
+- 155caf8 feat(#36): switch web/backend renderer between nuts_calc.py and nuts_calc_tex.py via env var

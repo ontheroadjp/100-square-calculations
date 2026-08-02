@@ -23,6 +23,7 @@
 
 ## 変更履歴(git log より自動生成)
 
+- 155caf8 feat(#36): switch web/backend renderer between nuts_calc.py and nuts_calc_tex.py via env var
 - cfea9ed fix(#4): fix 9 logic bugs found in CLI, web backend, and frontend
 - 0a11eaf feat(#9): add vertical (written-calculation) output format for ope command
 - d9fc0a3 refactor: Rename 100masu.py to nuts_calc.py and remove setup.py
