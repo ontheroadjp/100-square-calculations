@@ -117,6 +117,7 @@ Once both are running, open your browser to the frontend's address (e.g., `http:
 *   Flask-Cors (`pip install Flask-Cors`)
 *   Node.js and npm (for React frontend)
 *   (Optional) LaTeX environment (for `platex`, `dvipdfmx` if used by other tools or older versions)
+*   (Optional) `pdflatex` -- required only for `nuts_calc_tex.py`, an experimental, fully independent LaTeX-rendered prototype (see Architecture below)
 
 ## Architecture
 
@@ -126,6 +127,8 @@ There are two independent ways to generate a worksheet, both ultimately driven b
 *   **Web UI**: React frontend (`web/frontend`) → Flask backend (`web/backend/app.py`) → `subprocess` call to `nuts_calc.py` → generated PDF is streamed back to the browser. The backend holds no drill-generation logic of its own; it only translates form input into `nuts_calc.py` CLI arguments.
 
 `factory.sh` is a third, batch-oriented entry point that calls `nuts_calc.py` repeatedly to populate a `dist/` directory with a fixed set of worksheets.
+
+**Experimental**: `nuts_calc_tex.py` is a separate, fully independent prototype that renders worksheets via LaTeX (`pdflatex`) instead of ReportLab, with zero code sharing with `nuts_calc.py`. As of this writing it only implements the common CLI/PDF foundation (Phase 1); per-command problem generation is not yet implemented. See `docs/L3_implementation/nuts_calc_tex.py.md` and tracking issue #19.
 
 See `docs/L1_project/project_overview.md` and `docs/L0_concept/concept.md` for the full breakdown and file/line references.
 

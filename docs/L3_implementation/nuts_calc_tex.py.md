@@ -37,4 +37,4 @@
 
 ## 変更履歴(git log より自動生成)
 
-(初回実装のため、次回コミット以降に記録される)
+- acb1e84 feat(#20): add nuts_calc_tex.py Phase 1 (LaTeX CLI/PDF foundation)
