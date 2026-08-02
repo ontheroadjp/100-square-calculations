@@ -3,7 +3,7 @@
 
 """
 nuts_calc_tex.py -- Phase 1 CLI/PDF foundation (issue #20) + Phase 2 `ope`
-command (issue #21).
+command (issue #21) + Phase 3 `com` command (issue #22).
 
 A 100%-LaTeX-rendered, fully independent reimplementation of nuts_calc.py's
 CLI surface (see the tracking issue #19). This file has zero code
@@ -11,8 +11,9 @@ dependency on nuts_calc.py: no imports, no shared modules -- the two are
 meant to run side by side, each self-contained.
 
 `ope` (horizontal and --vertical, all operators plus mix, --intermediate)
-is fully implemented. The other six commands (com/100/99/aBc/squ/pi) still
-render Phase-1 placeholder content pending later phases (issues #22-#27).
+and `com` (complement-to-target) are fully implemented. The other five
+commands (100/99/aBc/squ/pi) still render Phase-1 placeholder content
+pending later phases (issues #23-#27).
 
 Requires a LaTeX distribution (`pdflatex`) on PATH. The `longdivision`
 CTAN package (used by `ope --vertical -o div`) is vendored into this repo
@@ -37,6 +38,7 @@ BLOCK_GUTTER_CM = 1.0
 ROW_VSPACE_EM = 2.0
 MAX_OPERAND_RETRY_ATTEMPTS = 1000
 INTERMEDIATE_SINGLE_DIGIT_MAX = 9
+MIN_COMPLEMENT_TARGET = 2
 TABCOLSEP_COUNT_PER_COLUMN = 2
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -70,8 +72,8 @@ def _init() -> argparse.Namespace:
 
     Defined independently of nuts_calc.py's `_init()` (no shared code), but
     mirrors its flag surface for a familiar CLI. `command`/`operator` are
-    fully dispatched on for `ope`; the other six commands still accept but
-    ignore them pending later phases (issues #22-#27).
+    fully dispatched on for `ope` and `com`; the other five commands still
+    accept but ignore them pending later phases (issues #23-#27).
     """
     parser = argparse.ArgumentParser(
         usage="%(prog)s A4 | B5",
@@ -90,7 +92,7 @@ def _init() -> argparse.Namespace:
     parser.add_argument('command'
         , type = str
         , choices = ['ope', 'com', '100', '99', 'aBc', 'squ', 'pi']
-        , help = 'Type of formula to output (only "ope" is implemented; others render placeholder content)'
+        , help = 'Type of formula to output ("ope" and "com" are implemented; others render placeholder content)'
     )
     parser.add_argument('-a', '--a-value'
         , type = int
@@ -197,16 +199,23 @@ def _init() -> argparse.Namespace:
         min_val, max_val = digits_list[value - 1]
         return [min_val, max_val]
 
-    if args.a_value is not None:
-        args.a_min, args.a_max = set_min_max_value(args.a_value)
-    if args.b_value is not None:
-        args.b_min, args.b_max = set_min_max_value(args.b_value)
+    if args.command == 'ope':
+        if args.a_value is not None:
+            args.a_min, args.a_max = set_min_max_value(args.a_value)
+        if args.b_value is not None:
+            args.b_min, args.b_max = set_min_max_value(args.b_value)
 
     if args.rows < MIN_ROWS_OR_COLUMNS or args.columns < MIN_ROWS_OR_COLUMNS:
         failure(f"-r/--rows and -c/--columns must be at least {MIN_ROWS_OR_COLUMNS}.")
 
     if args.page < 1:
         failure("-p/--page must be at least 1.")
+
+    if args.command == 'com':
+        if args.a_value is None:
+            failure("-a/--a-value (complement target) is required for the 'com' command.")
+        if args.a_value < MIN_COMPLEMENT_TARGET:
+            failure(f"-a/--a-value (complement target) must be at least {MIN_COMPLEMENT_TARGET} for the 'com' command.")
 
     if args.intermediate:
         if args.command != 'ope':
@@ -586,11 +595,88 @@ def build_ope_csv_rows(pages_problems: list[list[OpeProblem]]) -> list[list[obje
     return rows
 
 
+@dataclass
+class ComProblem:
+    """One generated `com` (complement-to-target) problem: a + c = target."""
+    index: int
+    a: int
+    target: int
+    c: int
+
+
+def generate_com_problems(target: int, order: int, start_index: int) -> list[ComProblem]:
+    """
+    Generate `order` complement problems starting at `start_index`.
+
+    `a` is drawn from 1..target-1 (inclusive) so the complement `c = target
+    - a` is always a positive integer strictly less than `target`.
+    """
+    seed = list(range(1, target))
+    problems = []
+    for offset in range(order):
+        a = random.choice(seed)
+        problems.append(ComProblem(index=start_index + offset, a=a, target=target, c=target - a))
+    return problems
+
+
+def build_com_block_tex(problem: ComProblem, show_answer: bool) -> str:
+    """Render one `com` problem: `n) $a + __ = target$`, filled with `c` when show_answer."""
+    result_tex = str(problem.c) if show_answer else '\\underline{\\hspace{1.5em}}'
+    return f"{problem.index}) ${problem.a} + {result_tex} = {problem.target}$"
+
+
+def build_com_page_pair(problems: list[ComProblem], columns: int) -> tuple[Page, Page]:
+    """Build the (blank, filled) Page pair for one page's worth of `com` problems."""
+    blank_page = Page(
+        blocks=[build_com_block_tex(problem, show_answer=False) for problem in problems],
+        columns=columns,
+    )
+    filled_page = Page(
+        blocks=[build_com_block_tex(problem, show_answer=True) for problem in problems],
+        columns=columns,
+    )
+    return blank_page, filled_page
+
+
+def build_com_bottom_answer_tex(problems: list[ComProblem]) -> str:
+    return ' \\quad '.join(f"({problem.index}) {problem.c}" for problem in problems)
+
+
+def build_com_csv_rows(pages_problems: list[list[ComProblem]]) -> list[list[object]]:
+    rows: list[list[object]] = []
+    for page_number, problems in enumerate(pages_problems, start=1):
+        for problem in problems:
+            rows.append([page_number, problem.index, problem.a, problem.target, problem.c])
+    return rows
+
+
+def build_com_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], list[list[ComProblem]]]:
+    """Generate real `com` problems and their blank/filled Page pairs for every page."""
+    order = ini.rows * ini.columns
+
+    blank_pages = []
+    filled_pages = []
+    pages_problems = []
+    for page_number in range(1, ini.page + 1):
+        start_index = (page_number - 1) * order + 1
+        problems = generate_com_problems(ini.a_value, order, start_index)
+        blank_page, filled_page = build_com_page_pair(problems, ini.columns)
+        pages_problems.append(problems)
+        blank_pages.append(blank_page)
+        filled_pages.append(filled_page)
+
+    if ini.with_bottom_answer:
+        for problems, blank_page in zip(pages_problems, blank_pages):
+            blank_page.bottom_answer_tex = build_com_bottom_answer_tex(problems)
+
+    return blank_pages, filled_pages, pages_problems
+
+
 def build_placeholder_page(rows: int, columns: int, page_number: int, show_work: bool) -> Page:
     """
-    Phase-1 placeholder content, still used for the six commands not yet
-    implemented (com/100/99/aBc/squ/pi -- issues #22-#27). `ope` uses real
-    problem data (build_ope_pages) since Phase 2 (issue #21).
+    Phase-1 placeholder content, still used for the five commands not yet
+    implemented (100/99/aBc/squ/pi -- issues #23-#27). `ope` (Phase 2,
+    issue #21) and `com` (Phase 3, issue #22) use real problem data.
     """
     start_index = (page_number - 1) * rows * columns + 1
     blocks = []
@@ -625,7 +711,7 @@ def build_ope_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], li
 
 
 def build_placeholder_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page]]:
-    """Phase-1 placeholder content for commands not yet implemented (issues #22-#27)."""
+    """Phase-1 placeholder content for commands not yet implemented (issues #23-#27)."""
     blank_pages = [
         build_placeholder_page(ini.rows, ini.columns, page_number, show_work=False)
         for page_number in range(1, ini.page + 1)
@@ -651,9 +737,12 @@ def main(ini: argparse.Namespace) -> None:
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    pages_problems: list[list[OpeProblem]] | None = None
+    ope_pages_problems: list[list[OpeProblem]] | None = None
+    com_pages_problems: list[list[ComProblem]] | None = None
     if ini.command == 'ope':
-        blank_pages, filled_pages, pages_problems = build_ope_pages(ini)
+        blank_pages, filled_pages, ope_pages_problems = build_ope_pages(ini)
+    elif ini.command == 'com':
+        blank_pages, filled_pages, com_pages_problems = build_com_pages(ini)
     else:
         blank_pages, filled_pages = build_placeholder_pages(ini)
 
@@ -669,8 +758,10 @@ def main(ini: argparse.Namespace) -> None:
         compile_tex(build_document_tex(ini.paper_size, blank_pages, filled_pages, mode='filled'), outfile_read)
 
     if ini.csv:
-        if pages_problems is not None:
-            rows = build_ope_csv_rows(pages_problems)
+        if ope_pages_problems is not None:
+            rows = build_ope_csv_rows(ope_pages_problems)
+        elif com_pages_problems is not None:
+            rows = build_com_csv_rows(com_pages_problems)
         else:
             rows = [
                 [page_number, index]

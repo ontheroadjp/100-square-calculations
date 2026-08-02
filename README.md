@@ -128,7 +128,7 @@ There are two independent ways to generate a worksheet, both ultimately driven b
 
 `factory.sh` is a third, batch-oriented entry point that calls `nuts_calc.py` repeatedly to populate a `dist/` directory with a fixed set of worksheets.
 
-**Experimental**: `nuts_calc_tex.py` is a separate, fully independent prototype that renders worksheets via LaTeX (`pdflatex`) instead of ReportLab, with zero code sharing with `nuts_calc.py`. It implements the common CLI/PDF foundation (Phase 1) and the `ope` command -- four arithmetic operations plus `mix`, horizontal and `--vertical` (hissan, via `xlop`/`longdivision`) format, and `--intermediate` (Phase 2). The other six commands (`com`/`100`/`99`/`aBc`/`squ`/`pi`) are not yet implemented. See `docs/L3_implementation/nuts_calc_tex.py.md` and tracking issue #19.
+**Experimental**: `nuts_calc_tex.py` is a separate, fully independent prototype that renders worksheets via LaTeX (`pdflatex`) instead of ReportLab, with zero code sharing with `nuts_calc.py`. It implements the common CLI/PDF foundation (Phase 1), the `ope` command -- four arithmetic operations plus `mix`, horizontal and `--vertical` (hissan, via `xlop`/`longdivision`) format, and `--intermediate` (Phase 2) -- and the `com` command -- complement-to-target problems (`a + __ = target`), horizontal only (Phase 3). The other five commands (`100`/`99`/`aBc`/`squ`/`pi`) are not yet implemented. See `docs/L3_implementation/nuts_calc_tex.py.md` and tracking issue #19.
 
 See `docs/L1_project/project_overview.md` and `docs/L0_concept/concept.md` for the full breakdown and file/line references.
 
