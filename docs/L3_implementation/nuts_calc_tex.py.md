@@ -90,6 +90,7 @@
 
 ## 変更履歴(git log より自動生成)
 
-- (このコミット) feat(#22): add nuts_calc_tex.py Phase 3 com command (complements)
+- d45bc98 feat(#22): add nuts_calc_tex.py Phase 3 com command (complements)
+- 82c0b6f fix(#21): guarantee calc_sub/calc_div succeed whenever a valid pair exists
 - 44a3c18 feat(#21): add nuts_calc_tex.py Phase 2 ope command (horizontal/vertical/mix/intermediate)
 - acb1e84 feat(#20): add nuts_calc_tex.py Phase 1 (LaTeX CLI/PDF foundation)
