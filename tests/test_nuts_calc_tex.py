@@ -267,6 +267,18 @@ def test_cli_hundred_square_rejects_digit_above_three(run_tex_cli, tmp_path):
     assert not (tmp_path / "result.pdf").exists()
 
 
+@pytest.mark.parametrize("digit_value", ["6", "0", "-1"])
+def test_cli_hundred_square_rejects_out_of_range_digit_cleanly(run_tex_cli, tmp_path, digit_value):
+    # Regression test: digit values that fall outside set_min_max_value()'s
+    # supported 1-5 range (>5 raises IndexError; <=0 silently wraps to the
+    # wrong range via negative indexing) must be rejected with a clean CLI
+    # error before that conversion runs, not an unhandled traceback.
+    result = run_tex_cli("A4", "100", "-a", digit_value, "--out-file", "result.pdf")
+    assert result.returncode == 1
+    assert "Traceback" not in result.stderr
+    assert not (tmp_path / "result.pdf").exists()
+
+
 def test_cli_hundred_square_csv_rows_contain_real_answer_data(run_tex_cli, tmp_path):
     result = run_tex_cli("A4", "100", "--csv", "--out-file", "result.pdf")
     assert result.returncode == 0, result.stderr

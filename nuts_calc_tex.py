@@ -204,6 +204,19 @@ def _init() -> argparse.Namespace:
         min_val, max_val = digits_list[value - 1]
         return [min_val, max_val]
 
+    if args.command == '100':
+        # Validated before set_min_max_value() is called below: that function
+        # indexes digits_list with value - 1 and raises an unhandled
+        # IndexError for value > 5, and silently wraps around to the wrong
+        # (5-digit) range for value <= 0 (negative indexing) -- both must be
+        # rejected with a clean CLI error first.
+        if (args.a_value is not None and not 1 <= args.a_value <= MAX_HUNDRED_SQUARE_DIGITS) \
+                or (args.b_value is not None and not 1 <= args.b_value <= MAX_HUNDRED_SQUARE_DIGITS):
+            failure(
+                f"-a/--a-value and -b/--b-value must be between 1 and "
+                f"{MAX_HUNDRED_SQUARE_DIGITS} digits for the '100' command."
+            )
+
     if args.command in ('ope', '100'):
         if args.a_value is not None:
             args.a_min, args.a_max = set_min_max_value(args.a_value)
@@ -221,14 +234,6 @@ def _init() -> argparse.Namespace:
             failure("-a/--a-value (complement target) is required for the 'com' command.")
         if args.a_value < MIN_COMPLEMENT_TARGET:
             failure(f"-a/--a-value (complement target) must be at least {MIN_COMPLEMENT_TARGET} for the 'com' command.")
-
-    if args.command == '100':
-        if (args.a_value is not None and args.a_value > MAX_HUNDRED_SQUARE_DIGITS) \
-                or (args.b_value is not None and args.b_value > MAX_HUNDRED_SQUARE_DIGITS):
-            failure(
-                f"-a/--a-value and -b/--b-value must be at most "
-                f"{MAX_HUNDRED_SQUARE_DIGITS} digits for the '100' command."
-            )
 
     if args.intermediate:
         if args.command != 'ope':
