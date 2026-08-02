@@ -4,7 +4,8 @@
 """
 nuts_calc_tex.py -- Phase 1 CLI/PDF foundation (issue #20) + Phase 2 `ope`
 command (issue #21) + Phase 3 `com` command (issue #22) + Phase 4 `100`
-command (issue #23) + Phase 5 `99` command (issue #24).
+command (issue #23) + Phase 5 `99` command (issue #24) + Phase 6 `aBc`
+command (issue #25).
 
 A 100%-LaTeX-rendered, fully independent reimplementation of nuts_calc.py's
 CLI surface (see the tracking issue #19). This file has zero code
@@ -12,10 +13,11 @@ dependency on nuts_calc.py: no imports, no shared modules -- the two are
 meant to run side by side, each self-contained.
 
 `ope` (horizontal and --vertical, all operators plus mix, --intermediate),
-`com` (complement-to-target), `100` (100-square addition table), and `99`
-(times-table / kuku, with --descend/--reverse/--shuffle ordering) are fully
-implemented. The other three commands (aBc/squ/pi) still render Phase-1
-placeholder content pending later phases (issues #25-#27).
+`com` (complement-to-target), `100` (100-square addition table), `99`
+(times-table / kuku, with --descend/--reverse/--shuffle ordering), and
+`aBc` (mental-arithmetic digit-pair conversion) are fully implemented. The
+other two commands (squ/pi) still render Phase-1 placeholder content
+pending later phases (issues #26-#27).
 
 Requires a LaTeX distribution (`pdflatex`) on PATH. The `longdivision`
 CTAN package (used by `ope --vertical -o div`) is vendored into this repo
@@ -41,6 +43,7 @@ ROW_VSPACE_EM = 2.0
 MAX_OPERAND_RETRY_ATTEMPTS = 1000
 INTERMEDIATE_SINGLE_DIGIT_MAX = 9
 MIN_COMPLEMENT_TARGET = 2
+ABC_DIGIT_MAX = 9
 TABCOLSEP_COUNT_PER_COLUMN = 2
 MAX_HUNDRED_SQUARE_DIGITS = 3
 HUNDRED_SQUARE_SIZE = 10
@@ -78,9 +81,9 @@ def _init() -> argparse.Namespace:
 
     Defined independently of nuts_calc.py's `_init()` (no shared code), but
     mirrors its flag surface for a familiar CLI. `command`/`operator` are
-    fully dispatched on for `ope`, `com`, `100`, and `99`; the other three
-    commands still accept but ignore them pending later phases (issues
-    #25-#27).
+    fully dispatched on for `ope`, `com`, `100`, `99`, and `aBc`; the other
+    two commands still accept but ignore them pending later phases (issues
+    #26-#27).
     """
     parser = argparse.ArgumentParser(
         usage="%(prog)s A4 | B5",
@@ -99,7 +102,7 @@ def _init() -> argparse.Namespace:
     parser.add_argument('command'
         , type = str
         , choices = ['ope', 'com', '100', '99', 'aBc', 'squ', 'pi']
-        , help = 'Type of formula to output ("ope", "com", "100", and "99" are implemented; others render placeholder content)'
+        , help = 'Type of formula to output ("ope", "com", "100", "99", and "aBc" are implemented; others render placeholder content)'
     )
     parser.add_argument('-a', '--a-value'
         , type = int
@@ -884,12 +887,117 @@ def build_kuku_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], l
     return blank_pages, filled_pages, pages_problems
 
 
+@dataclass
+class AbcProblem:
+    """
+    One generated `aBc` problem: a random 4-digit sequence a/b/c/d (each
+    0-9, displayed as `abcd`) converted to its value by adding the two
+    digit-pairs `ab` (shifted one place, i.e. `x10`) and `cd`. This is the
+    same digit-pair decomposition used by `ope --intermediate`'s
+    mental-multiplication memo (`build_intermediate_memo`), drilled here on
+    its own as a standalone conversion step (memo.md section 3: converting
+    a 4-digit figure into its 3-digit result via digit-pair addition).
+    """
+    index: int
+    a: int
+    b: int
+    c: int
+    d: int
+
+    @property
+    def abcd_display(self) -> str:
+        return f"{self.a}{self.b}{self.c}{self.d}"
+
+    @property
+    def answer(self) -> int:
+        return (self.a * 10 + self.b) * 10 + (self.c * 10 + self.d)
+
+
+def generate_abc_problems(order: int, start_index: int) -> list[AbcProblem]:
+    """
+    Generate `order` aBc problems starting at `start_index`.
+
+    Each of a/b/c/d is drawn independently from 0..ABC_DIGIT_MAX -- an
+    independent reimplementation of nuts_calc.py's `get_aBc_data`
+    (`nuts_calc.py:548-587`), which draws the same four digits from the
+    same range. Unlike that implementation, `AbcProblem.abcd_display`
+    always renders all four digits (`f"{a}{b}{c}{d}"`) instead of only
+    zero-padding the single 3-character case (`nuts_calc.py:577-578` only
+    handles `len(str(abcd)) == 3`, leaving shorter results un-padded).
+    """
+    seed = list(range(ABC_DIGIT_MAX + 1))
+    problems = []
+    for offset in range(order):
+        a = random.choice(seed)
+        b = random.choice(seed)
+        c = random.choice(seed)
+        d = random.choice(seed)
+        problems.append(AbcProblem(index=start_index + offset, a=a, b=b, c=c, d=d))
+    return problems
+
+
+def build_abc_block_tex(problem: AbcProblem, show_answer: bool) -> str:
+    """Render one `aBc` problem: `n) $abcd \\Rightarrow ____$`, filled with the converted answer when show_answer."""
+    result_tex = str(problem.answer) if show_answer else '\\underline{\\hspace{1.5em}}'
+    return f"{problem.index}) ${problem.abcd_display} \\Rightarrow {result_tex}$"
+
+
+def build_abc_page_pair(problems: list[AbcProblem], columns: int) -> tuple[Page, Page]:
+    """Build the (blank, filled) Page pair for one page's worth of `aBc` problems."""
+    blank_page = Page(
+        blocks=[build_abc_block_tex(problem, show_answer=False) for problem in problems],
+        columns=columns,
+    )
+    filled_page = Page(
+        blocks=[build_abc_block_tex(problem, show_answer=True) for problem in problems],
+        columns=columns,
+    )
+    return blank_page, filled_page
+
+
+def build_abc_bottom_answer_tex(problems: list[AbcProblem]) -> str:
+    return ' \\quad '.join(f"({problem.index}) {problem.answer}" for problem in problems)
+
+
+def build_abc_csv_rows(pages_problems: list[list[AbcProblem]]) -> list[list[object]]:
+    rows: list[list[object]] = []
+    for page_number, problems in enumerate(pages_problems, start=1):
+        for problem in problems:
+            rows.append([
+                page_number, problem.index,
+                problem.a, problem.b, problem.c, problem.d, problem.answer,
+            ])
+    return rows
+
+
+def build_abc_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], list[list[AbcProblem]]]:
+    """Generate real `aBc` problems and their blank/filled Page pairs for every page."""
+    order = ini.rows * ini.columns
+
+    blank_pages = []
+    filled_pages = []
+    pages_problems = []
+    for page_number in range(1, ini.page + 1):
+        start_index = (page_number - 1) * order + 1
+        problems = generate_abc_problems(order, start_index)
+        blank_page, filled_page = build_abc_page_pair(problems, ini.columns)
+        pages_problems.append(problems)
+        blank_pages.append(blank_page)
+        filled_pages.append(filled_page)
+
+    if ini.with_bottom_answer:
+        for problems, blank_page in zip(pages_problems, blank_pages):
+            blank_page.bottom_answer_tex = build_abc_bottom_answer_tex(problems)
+
+    return blank_pages, filled_pages, pages_problems
+
+
 def build_placeholder_page(rows: int, columns: int, page_number: int, show_work: bool) -> Page:
     """
-    Phase-1 placeholder content, still used for the three commands not yet
-    implemented (aBc/squ/pi -- issues #25-#27). `ope` (Phase 2, issue #21),
-    `com` (Phase 3, issue #22), `100` (Phase 4, issue #23), and `99` (Phase
-    5, issue #24) use real problem data.
+    Phase-1 placeholder content, still used for the two commands not yet
+    implemented (squ/pi -- issues #26-#27). `ope` (Phase 2, issue #21),
+    `com` (Phase 3, issue #22), `100` (Phase 4, issue #23), `99` (Phase 5,
+    issue #24), and `aBc` (Phase 6, issue #25) use real problem data.
     """
     start_index = (page_number - 1) * rows * columns + 1
     blocks = []
@@ -954,6 +1062,7 @@ def main(ini: argparse.Namespace) -> None:
     com_pages_problems: list[list[ComProblem]] | None = None
     hundred_square_pages_tables: list[HundredSquareTable] | None = None
     kuku_pages_problems: list[list[KukuProblem]] | None = None
+    abc_pages_problems: list[list[AbcProblem]] | None = None
     if ini.command == 'ope':
         blank_pages, filled_pages, ope_pages_problems = build_ope_pages(ini)
     elif ini.command == 'com':
@@ -962,6 +1071,8 @@ def main(ini: argparse.Namespace) -> None:
         blank_pages, filled_pages, hundred_square_pages_tables = build_hundred_square_pages(ini)
     elif ini.command == '99':
         blank_pages, filled_pages, kuku_pages_problems = build_kuku_pages(ini)
+    elif ini.command == 'aBc':
+        blank_pages, filled_pages, abc_pages_problems = build_abc_pages(ini)
     else:
         blank_pages, filled_pages = build_placeholder_pages(ini)
 
@@ -985,6 +1096,8 @@ def main(ini: argparse.Namespace) -> None:
             rows = build_hundred_square_csv_rows(hundred_square_pages_tables)
         elif kuku_pages_problems is not None:
             rows = build_kuku_csv_rows(kuku_pages_problems)
+        elif abc_pages_problems is not None:
+            rows = build_abc_csv_rows(abc_pages_problems)
         else:
             rows = [
                 [page_number, index]
