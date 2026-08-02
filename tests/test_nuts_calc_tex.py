@@ -1,9 +1,12 @@
-"""End-to-end regression tests for nuts_calc_tex.py (Phase 1 foundation, issue #20).
+"""End-to-end regression tests for nuts_calc_tex.py (Phase 1 foundation #20;
+`ope` command Phase 2 #21).
 
 nuts_calc_tex.py has zero code dependency on nuts_calc.py, so these tests
 run it as a real subprocess, independent of tests/test_nuts_calc_cli.py.
 All tests are skipped when `pdflatex` is not on PATH, since this module
-requires a LaTeX distribution.
+requires a LaTeX distribution. Pure-Python `ope` generation logic that
+doesn't need pdflatex is covered separately in
+test_nuts_calc_tex_ope_generation.py.
 """
 
 import shutil
@@ -92,6 +95,113 @@ def test_cli_rejects_rows_below_minimum(run_tex_cli, tmp_path):
     result = run_tex_cli("A4", "ope", "-r", "0", "--out-file", "result.pdf")
     assert result.returncode == 1
     assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_horizontal_all_operators_produces_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "sub", "mul", "div", "mix",
+        "-r", "3", "-c", "3", "-p", "1", "-ww", "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+    assert (tmp_path / "result.csv").exists()
+
+
+def test_cli_ope_vertical_add_sub_mul_produces_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "sub", "mul", "--vertical",
+        "-r", "2", "-c", "2", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+def test_cli_ope_vertical_multi_digit_multiplier_produces_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "mul", "--a-value", "3", "--b-value", "2", "--vertical",
+        "-r", "2", "-c", "2", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+def test_cli_ope_vertical_div_produces_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "div", "--a-value", "3", "--b-value", "2", "--vertical",
+        "-r", "2", "-c", "2", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+def test_cli_ope_vertical_mix_produces_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "mix", "--a-min", "100", "--a-max", "999",
+        "--b-min", "10", "--b-max", "99", "--vertical",
+        "-r", "3", "-c", "3", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+def test_cli_ope_vertical_default_rows_does_not_drop_content(run_tex_cli, tmp_path):
+    # Regression test: a plain (non-page-breaking) LaTeX tabular spanning
+    # the whole page would get pushed as one unbreakable block once its
+    # rows no longer fit a single page, leaving page 1 blank and
+    # overflowing page 2 instead of flowing row by row (see
+    # docs/L3_implementation/nuts_calc_tex.py.md).
+    result = run_tex_cli(
+        "A4", "ope", "-o", "div", "--a-value", "3", "--b-value", "2", "--vertical",
+        "--out-file", "result.pdf",  # default -r 10 -c 2
+    )
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+def test_cli_ope_intermediate_produces_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "mul", "--a-value", "2", "--b-value", "1", "--intermediate",
+        "-r", "2", "-c", "2", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+def test_cli_ope_intermediate_rejects_vertical_combo(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "ope", "-o", "mul", "--intermediate", "--vertical", "--out-file", "result.pdf")
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_intermediate_rejects_non_mul_operator(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "ope", "-o", "add", "--intermediate", "--out-file", "result.pdf")
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_intermediate_rejects_multi_digit_b(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "ope", "-o", "mul", "--intermediate", "--b-max", "15", "--out-file", "result.pdf")
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_csv_rows_contain_real_problem_data(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "ope", "-o", "add", "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+
+    csv_path = tmp_path / "result.csv"
+    lines = csv_path.read_text().strip().splitlines()
+    assert len(lines) == 4
+    page_number, index, a, operator, b, c = lines[0].split(",")
+    assert (page_number, index, operator) == ("1", "1", "add")
+    assert int(a) + int(b) == int(c)
 
 
 def test_cli_fails_clearly_when_pdflatex_missing(run_tex_cli, tmp_path, monkeypatch):

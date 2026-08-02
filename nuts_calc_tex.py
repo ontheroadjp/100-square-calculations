@@ -2,41 +2,49 @@
 # -*- coding: utf-8 -*-
 
 """
-nuts_calc_tex.py -- Phase 1: common CLI/PDF foundation (issue #20).
+nuts_calc_tex.py -- Phase 1 CLI/PDF foundation (issue #20) + Phase 2 `ope`
+command (issue #21).
 
 A 100%-LaTeX-rendered, fully independent reimplementation of nuts_calc.py's
 CLI surface (see the tracking issue #19). This file has zero code
 dependency on nuts_calc.py: no imports, no shared modules -- the two are
 meant to run side by side, each self-contained.
 
-This phase builds the shared plumbing only: CLI argument parsing, page/PDF
-layout in LaTeX, the pdflatex build pipeline, and CSV output. Per-command
-problem generation and rendering (ope/com/100/99/aBc/squ/pi) is added in
-later phases (issues #21-#27); until then, `main()` renders placeholder
-content just to exercise the full pipeline end-to-end.
+`ope` (horizontal and --vertical, all operators plus mix, --intermediate)
+is fully implemented. The other six commands (com/100/99/aBc/squ/pi) still
+render Phase-1 placeholder content pending later phases (issues #22-#27).
 
 Requires a LaTeX distribution (`pdflatex`) on PATH. The `longdivision`
-CTAN package (needed starting in Phase 2 for `ope --vertical -o div`) is
-vendored into this repo under `vendor/texmf/` and located via TEXINPUTS,
-so no manual TeX package installation is required beyond a base LaTeX
-distribution (e.g. `texlive-latex-base`).
+CTAN package (used by `ope --vertical -o div`) is vendored into this repo
+under `vendor/texmf/` and located via TEXINPUTS, so no manual TeX package
+installation is required beyond a base LaTeX distribution that also
+includes `xlop` (e.g. `texlive-latex-base` + `texlive-latex-extra`).
 """
 
 import argparse
 import csv
 import os
+import random
 import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
+from typing import Callable
 
 
 MIN_ROWS_OR_COLUMNS = 1
 BLOCK_GUTTER_CM = 1.0
 ROW_VSPACE_EM = 2.0
+MAX_OPERAND_RETRY_ATTEMPTS = 1000
+INTERMEDIATE_SINGLE_DIGIT_MAX = 9
+TABCOLSEP_COUNT_PER_COLUMN = 2
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 VENDOR_TEXMF_DIR = os.path.join(SCRIPT_DIR, 'vendor', 'texmf')
+
+OPERATOR_TEX_SYMBOLS = {'add': '+', 'sub': '-', 'mul': '\\times', 'div': '\\div'}
+MIX_OPERATORS = ['add', 'sub', 'mul', 'div']
+XLOP_VERTICAL_COMMANDS = {'add': 'opadd', 'sub': 'opsub', 'mul': 'opmul'}
 
 PAPER_SIZE_TO_GEOMETRY_OPTION = {
     'a3': 'a3paper',
@@ -62,7 +70,8 @@ def _init() -> argparse.Namespace:
 
     Defined independently of nuts_calc.py's `_init()` (no shared code), but
     mirrors its flag surface for a familiar CLI. `command`/`operator` are
-    accepted here but not yet dispatched on -- that lands in later phases.
+    fully dispatched on for `ope`; the other six commands still accept but
+    ignore them pending later phases (issues #22-#27).
     """
     parser = argparse.ArgumentParser(
         usage="%(prog)s A4 | B5",
@@ -81,7 +90,7 @@ def _init() -> argparse.Namespace:
     parser.add_argument('command'
         , type = str
         , choices = ['ope', 'com', '100', '99', 'aBc', 'squ', 'pi']
-        , help = 'Type of formula to output (not yet dispatched on in Phase 1)'
+        , help = 'Type of formula to output (only "ope" is implemented; others render placeholder content)'
     )
     parser.add_argument('-a', '--a-value'
         , type = int
@@ -199,6 +208,16 @@ def _init() -> argparse.Namespace:
     if args.page < 1:
         failure("-p/--page must be at least 1.")
 
+    if args.intermediate:
+        if args.command != 'ope':
+            failure("--intermediate is only supported for the 'ope' command.")
+        if args.vertical:
+            failure("--intermediate cannot be combined with --vertical.")
+        if args.operator != ['mul']:
+            failure("--intermediate only supports a single 'mul' operator (use -o mul).")
+        if args.b_max > INTERMEDIATE_SINGLE_DIGIT_MAX:
+            failure("--intermediate only supports a single-digit second operand (use -b 1 or --b-max <= 9).")
+
     return args
 
 
@@ -212,10 +231,16 @@ class Page:
         columns: Number of columns to arrange `blocks` into.
         bottom_answer_tex: Optional LaTeX snippet appended near the page
             bottom (e.g. a compact answer-key line); `None` to omit it.
+        layout: 'inline' (blocks joined with \\hspace on a single text line
+            per row, used by horizontal-format problems) or 'tabular' (a
+            LaTeX tabular grid with one block per cell, used by --vertical
+            hissan blocks so multi-row blocks like xlop/longdivision output
+            stay column-aligned).
     """
     blocks: list[str] = field(default_factory=list)
     columns: int = 1
     bottom_answer_tex: str | None = None
+    layout: str = 'inline'
 
 
 def build_preamble_tex(paper_size: str) -> str:
@@ -225,6 +250,7 @@ def build_preamble_tex(paper_size: str) -> str:
         f"\\usepackage[{geometry_option},margin=15mm,top=20mm,bottom=20mm]{{geometry}}\n"
         "\\usepackage{longdivision}\n"
         "\\usepackage{xlop}\n"
+        "\\usepackage{array}\n"
         "\\usepackage{fancyhdr}\n"
         "\\pagestyle{fancy}\n"
         "\\fancyhf{}\n"
@@ -246,13 +272,54 @@ def build_page_header_tex() -> str:
     )
 
 
+def build_inline_grid_tex(blocks: list[str], columns: int) -> str:
+    """Join blocks into text rows separated by \\hspace, one row per line."""
+    row_lines = []
+    for row_start in range(0, len(blocks), columns):
+        row_blocks = blocks[row_start:row_start + columns]
+        row_lines.append((f"\\hspace{{{BLOCK_GUTTER_CM}cm}}").join(row_blocks))
+    return f"\\par\\vspace{{{ROW_VSPACE_EM}em}}\n".join(row_lines)
+
+
+def build_tabular_grid_tex(blocks: list[str], columns: int) -> str:
+    """
+    Arrange blocks into rows of a LaTeX tabular, one block per cell.
+
+    Used for --vertical blocks (xlop/longdivision output), which are
+    multi-row LaTeX content that would break \\hspace-based inline joining
+    (build_inline_grid_tex); a tabular cell keeps each block's rows
+    self-contained and column-aligned regardless of its neighbors' height.
+    Column width is computed from \\textwidth so the grid adapts to the
+    page's paper size and column count, with \\tabcolsep padding
+    subtracted to avoid an overfull row.
+
+    Each row is emitted as its own single-row tabular, joined by the same
+    \\par\\vspace break build_inline_grid_tex uses between rows, rather
+    than one tabular spanning every row: a plain `tabular` cannot break
+    across a page boundary, so a tall multi-row grid (e.g. the default
+    10 rows) would otherwise be pushed as one unbreakable block, leaving
+    the current page blank and overflowing past the next page's bottom
+    margin instead of just flowing onto it row by row.
+    """
+    column_width_tex = (
+        f"\\dimexpr(\\textwidth-{TABCOLSEP_COUNT_PER_COLUMN * columns}\\tabcolsep)/{columns}\\relax"
+    )
+    column_spec = f">{{\\centering\\arraybackslash}}p{{{column_width_tex}}}" * columns
+    row_tabulars = []
+    for row_start in range(0, len(blocks), columns):
+        row_blocks = blocks[row_start:row_start + columns]
+        row_blocks += [''] * (columns - len(row_blocks))
+        row_tex = ' & '.join(row_blocks)
+        row_tabulars.append(f"\\begin{{tabular}}{{{column_spec}}}\n{row_tex}\n\\end{{tabular}}")
+    return f"\\par\\vspace{{{ROW_VSPACE_EM}em}}\n".join(row_tabulars)
+
+
 def build_page_tex(page: Page) -> str:
     """Render one Page's grid of blocks, plus header and optional bottom answer."""
-    row_lines = []
-    for row_start in range(0, len(page.blocks), page.columns):
-        row_blocks = page.blocks[row_start:row_start + page.columns]
-        row_lines.append((f"\\hspace{{{BLOCK_GUTTER_CM}cm}}").join(row_blocks))
-    grid_tex = f"\\par\\vspace{{{ROW_VSPACE_EM}em}}\n".join(row_lines)
+    if page.layout == 'tabular':
+        grid_tex = build_tabular_grid_tex(page.blocks, page.columns)
+    else:
+        grid_tex = build_inline_grid_tex(page.blocks, page.columns)
 
     parts = [build_page_header_tex(), grid_tex]
     if page.bottom_answer_tex:
@@ -312,12 +379,218 @@ def write_csv(rows: list[list[object]], csv_path: str) -> None:
         writer.writerows(rows)
 
 
+@dataclass
+class OpeProblem:
+    """One generated `ope` (add/sub/mul/div) arithmetic problem."""
+    index: int
+    a: int
+    b: int
+    operator: str
+    c: int
+
+
+def calc_add(a: int, b: int, nums_a: list[int], nums_b: list[int]) -> tuple[int, int, int]:
+    return a, b, a + b
+
+
+def calc_sub(a: int, b: int, nums_a: list[int], nums_b: list[int]) -> tuple[int, int, int]:
+    """
+    Retry with freshly-sampled operands until the result is positive.
+
+    Random sampling alone can fail within MAX_OPERAND_RETRY_ATTEMPTS even
+    when a valid pair exists, if the valid-pair space is a small fraction
+    of nums_a x nums_b (e.g. nums_a=[1..1000], nums_b=[999, 1000] has only
+    one positive-result pair). Falling back to the extreme pair
+    (max(nums_a), min(nums_b)) -- the easiest positive-result pair to
+    construct -- guarantees success whenever any solution exists, while
+    keeping the random attempts for the common case's variety.
+    """
+    for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
+        if a - b > 0:
+            return a, b, a - b
+        a = random.choice(nums_a)
+        b = random.choice(nums_b)
+    a, b = max(nums_a), min(nums_b)
+    if a - b > 0:
+        return a, b, a - b
+    raise ValueError(
+        "No subtraction pair with a positive result (a - b > 0) "
+        "found in the given number ranges."
+    )
+
+
+def calc_mul(a: int, b: int, nums_a: list[int], nums_b: list[int]) -> tuple[int, int, int]:
+    return a, b, a * b
+
+
+def find_exact_division_pair(nums_a: list[int], nums_b: list[int]) -> tuple[int, int] | None:
+    """
+    Deterministically find one (a, b) pair with b != 0 and a % b == 0.
+
+    Used as calc_div's fallback when MAX_OPERAND_RETRY_ATTEMPTS of random
+    sampling doesn't find a solution (possible when the valid-pair space
+    is a small fraction of nums_a x nums_b). For each candidate divisor,
+    only its multiples within the nums_a range are probed (not every
+    nums_a element), so this stays cheap even for large ranges.
+    """
+    if not nums_a:
+        return None
+    nums_a_set = set(nums_a)
+    a_min, a_max = min(nums_a_set), max(nums_a_set)
+    for b in nums_b:
+        if b == 0:
+            continue
+        first_multiple = -(-a_min // b) * b  # ceiling division
+        for candidate in range(first_multiple, a_max + 1, abs(b)):
+            if candidate in nums_a_set:
+                return candidate, b
+    return None
+
+
+def calc_div(a: int, b: int, nums_a: list[int], nums_b: list[int]) -> tuple[int, int, int]:
+    """
+    Retry with freshly-sampled operands until the division is exact.
+
+    Falls back to find_exact_division_pair (see its docstring) if random
+    sampling exhausts MAX_OPERAND_RETRY_ATTEMPTS without success.
+    """
+    for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
+        if b != 0 and a % b == 0:
+            return a, b, a // b
+        a = random.choice(nums_a)
+        b = random.choice(nums_b)
+    fallback = find_exact_division_pair(nums_a, nums_b)
+    if fallback is not None:
+        a, b = fallback
+        return a, b, a // b
+    raise ValueError(
+        "No exact-division pair (a % b == 0, b != 0) found in the given number ranges."
+    )
+
+
+CALC_FUNCTIONS: dict[str, Callable[[int, int, list[int], list[int]], tuple[int, int, int]]] = {
+    'add': calc_add,
+    'sub': calc_sub,
+    'mul': calc_mul,
+    'div': calc_div,
+}
+
+
+def generate_ope_problems(
+        nums_a: list[int], nums_b: list[int], operators: list[str],
+        order: int, start_index: int
+    ) -> list[OpeProblem]:
+    """
+    Generate `order` arithmetic problems starting at `start_index`.
+
+    `operators=['mix']` picks a random operator (add/sub/mul/div) per
+    problem; otherwise one operator is picked per problem from `operators`.
+    """
+    effective_operators = MIX_OPERATORS if 'mix' in operators else operators
+    problems = []
+    for offset in range(order):
+        a = random.choice(nums_a)
+        b = random.choice(nums_b)
+        operator = random.choice(effective_operators)
+        a, b, c = CALC_FUNCTIONS[operator](a, b, nums_a, nums_b)
+        problems.append(OpeProblem(index=start_index + offset, a=a, b=b, operator=operator, c=c))
+    return problems
+
+
+def build_horizontal_block_tex(problem: OpeProblem, show_answer: bool) -> str:
+    """Render one `ope` problem in horizontal format: `n) $a op b = c$`."""
+    symbol = OPERATOR_TEX_SYMBOLS[problem.operator]
+    result_tex = str(problem.c) if show_answer else '\\underline{\\hspace{1.5em}}'
+    return f"{problem.index}) ${problem.a} {symbol} {problem.b} = {result_tex}$"
+
+
+def build_intermediate_memo(a: int, b: int) -> str:
+    """
+    2-digit x 1-digit mental-math memo technique (see memo.md STEP 1):
+    concatenate (tens digit of a) x b and (ones digit of a) x b, each
+    zero-padded to 2 digits.
+    """
+    tens_digit, ones_digit = divmod(a, 10)
+    return f"{tens_digit * b:02d}{ones_digit * b:02d}"
+
+
+def build_horizontal_intermediate_block_tex(problem: OpeProblem, show_answer: bool) -> str:
+    """Render one `ope --intermediate` problem: `n) $a * b => memo => c$`."""
+    memo = build_intermediate_memo(problem.a, problem.b)
+    result_tex = str(problem.c) if show_answer else '\\underline{\\hspace{1.5em}}'
+    return f"{problem.index}) ${problem.a} \\times {problem.b} \\Rightarrow {memo} \\Rightarrow {result_tex}$"
+
+
+def build_vertical_block_tex(problem: OpeProblem, show_answer: bool) -> str:
+    """
+    Render one `ope --vertical` (hissan) problem as a tabular-cell block:
+    index label, then the LaTeX-rendered written-calculation layout.
+
+    add/sub/mul use the `xlop` package (auto-rendering carries and, for a
+    multi-digit multiplier, one partial-product row per digit). div uses
+    `longdivision`. For the blank (practice) variant, xlop's per-digit
+    style hooks (resultstyle/carrystyle/intermediarystyle) are overridden
+    to `\\phantom`, which reserves the digits' layout space without
+    printing them; longdivision has an equivalent built-in via its
+    `stage=0` option (only the bracket/divisor/dividend are shown).
+    """
+    index_line = f"{problem.index})\\newline "
+    if problem.operator == 'div':
+        stage_option = '' if show_answer else '[stage=0]'
+        return f"{index_line}\\[\\intlongdivision{stage_option}{{{problem.a}}}{{{problem.b}}}\\]"
+
+    command = XLOP_VERTICAL_COMMANDS[problem.operator]
+    op_call_tex = f"\\[\\{command}{{{problem.a}}}{{{problem.b}}}\\]"
+    if show_answer:
+        return index_line + op_call_tex
+    return (
+        index_line
+        + "\\begingroup\\opset{resultstyle=\\phantom,carrystyle=\\phantom,intermediarystyle=\\phantom}"
+        + op_call_tex
+        + "\\endgroup"
+    )
+
+
+def build_ope_page_pair(problems: list[OpeProblem], columns: int, vertical: bool, intermediate: bool) -> tuple[Page, Page]:
+    """Build the (blank, filled) Page pair for one page's worth of `ope` problems."""
+    if vertical:
+        block_builder: Callable[[OpeProblem, bool], str] = build_vertical_block_tex
+        layout = 'tabular'
+    elif intermediate:
+        block_builder = build_horizontal_intermediate_block_tex
+        layout = 'inline'
+    else:
+        block_builder = build_horizontal_block_tex
+        layout = 'inline'
+
+    blank_page = Page(
+        blocks=[block_builder(problem, show_answer=False) for problem in problems],
+        columns=columns, layout=layout,
+    )
+    filled_page = Page(
+        blocks=[block_builder(problem, show_answer=True) for problem in problems],
+        columns=columns, layout=layout,
+    )
+    return blank_page, filled_page
+
+
+def build_ope_bottom_answer_tex(problems: list[OpeProblem]) -> str:
+    return ' \\quad '.join(f"({problem.index}) {problem.c}" for problem in problems)
+
+
+def build_ope_csv_rows(pages_problems: list[list[OpeProblem]]) -> list[list[object]]:
+    rows: list[list[object]] = []
+    for page_number, problems in enumerate(pages_problems, start=1):
+        for problem in problems:
+            rows.append([page_number, problem.index, problem.a, problem.operator, problem.b, problem.c])
+    return rows
+
+
 def build_placeholder_page(rows: int, columns: int, page_number: int, show_work: bool) -> Page:
     """
-    Phase-1 placeholder content, to be replaced by real per-command
-    rendering starting in Phase 2 (issue #21 onward). Exercises the full
-    pipeline (grid layout, blank/filled/merge, CSV) without any real
-    problem data.
+    Phase-1 placeholder content, still used for the six commands not yet
+    implemented (com/100/99/aBc/squ/pi -- issues #22-#27). `ope` uses real
+    problem data (build_ope_pages) since Phase 2 (issue #21).
     """
     start_index = (page_number - 1) * rows * columns + 1
     blocks = []
@@ -327,13 +600,32 @@ def build_placeholder_page(rows: int, columns: int, page_number: int, show_work:
     return Page(blocks=blocks, columns=columns)
 
 
-def main(ini: argparse.Namespace) -> None:
-    if shutil.which('pdflatex') is None:
-        failure(
-            "pdflatex not found. Install a LaTeX distribution first "
-            "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
-        )
+def build_ope_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], list[list[OpeProblem]]]:
+    """Generate real `ope` problems and their blank/filled Page pairs for every page."""
+    nums_a = list(range(ini.a_min, ini.a_max + 1))
+    nums_b = list(range(ini.b_min, ini.b_max + 1))
+    order = ini.rows * ini.columns
 
+    blank_pages = []
+    filled_pages = []
+    pages_problems = []
+    for page_number in range(1, ini.page + 1):
+        start_index = (page_number - 1) * order + 1
+        problems = generate_ope_problems(nums_a, nums_b, ini.operator, order, start_index)
+        blank_page, filled_page = build_ope_page_pair(problems, ini.columns, ini.vertical, ini.intermediate)
+        pages_problems.append(problems)
+        blank_pages.append(blank_page)
+        filled_pages.append(filled_page)
+
+    if ini.with_bottom_answer:
+        for problems, blank_page in zip(pages_problems, blank_pages):
+            blank_page.bottom_answer_tex = build_ope_bottom_answer_tex(problems)
+
+    return blank_pages, filled_pages, pages_problems
+
+
+def build_placeholder_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page]]:
+    """Phase-1 placeholder content for commands not yet implemented (issues #22-#27)."""
     blank_pages = [
         build_placeholder_page(ini.rows, ini.columns, page_number, show_work=False)
         for page_number in range(1, ini.page + 1)
@@ -349,6 +641,21 @@ def main(ini: argparse.Namespace) -> None:
                 f"({i}) {i}" for i in range(start_index, start_index + ini.rows * ini.columns)
             )
             blank_page.bottom_answer_tex = entries
+    return blank_pages, filled_pages
+
+
+def main(ini: argparse.Namespace) -> None:
+    if shutil.which('pdflatex') is None:
+        failure(
+            "pdflatex not found. Install a LaTeX distribution first "
+            "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
+        )
+
+    pages_problems: list[list[OpeProblem]] | None = None
+    if ini.command == 'ope':
+        blank_pages, filled_pages, pages_problems = build_ope_pages(ini)
+    else:
+        blank_pages, filled_pages = build_placeholder_pages(ini)
 
     outfile_basename, _ = os.path.splitext(ini.out_file)
     outfile_read = outfile_basename + '_read.pdf'
@@ -362,11 +669,14 @@ def main(ini: argparse.Namespace) -> None:
         compile_tex(build_document_tex(ini.paper_size, blank_pages, filled_pages, mode='filled'), outfile_read)
 
     if ini.csv:
-        rows = [
-            [page_number, index]
-            for page_number, page in enumerate(blank_pages, start=1)
-            for index in range(1, len(page.blocks) + 1)
-        ]
+        if pages_problems is not None:
+            rows = build_ope_csv_rows(pages_problems)
+        else:
+            rows = [
+                [page_number, index]
+                for page_number, page in enumerate(blank_pages, start=1)
+                for index in range(1, len(page.blocks) + 1)
+            ]
         write_csv(rows, outfile_csv)
 
     print("export PDF")
