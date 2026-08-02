@@ -8,6 +8,8 @@ test_nuts_calc_tex.py.
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
@@ -29,6 +31,22 @@ def test_calc_sub_result_is_always_positive() -> None:
         assert c > 0
 
 
+def test_calc_sub_succeeds_when_valid_pair_space_is_narrow() -> None:
+    # Regression test (codex review, PR #29): nums_a x nums_b has 2000
+    # candidate pairs but only one, (1000, 999), has a positive result.
+    # Pure random resampling can exhaust MAX_OPERAND_RETRY_ATTEMPTS (1000)
+    # without ever drawing it; calc_sub must still succeed deterministically.
+    nums_a = list(range(1, 1001))
+    nums_b = [999, 1000]
+    a, b, c = tex_module.calc_sub(1, 1000, nums_a, nums_b)
+    assert a - b == c > 0
+
+
+def test_calc_sub_raises_when_no_positive_result_is_possible() -> None:
+    with pytest.raises(ValueError):
+        tex_module.calc_sub(1, 9, [1, 2, 3], [5, 6, 7])
+
+
 def test_calc_mul_returns_product() -> None:
     assert tex_module.calc_mul(6, 7, [6], [7]) == (6, 7, 42)
 
@@ -41,6 +59,27 @@ def test_calc_div_result_is_always_exact() -> None:
         assert b != 0
         assert a % b == 0
         assert c == a // b
+
+
+def test_calc_div_succeeds_when_valid_pair_space_is_narrow() -> None:
+    # Regression test (codex review, PR #29): nums_a x nums_b has a large
+    # search space but only a handful of exact-division pairs. calc_div
+    # must still succeed deterministically via find_exact_division_pair.
+    nums_a = list(range(1, 1001))
+    nums_b = [997]  # prime; only 997 itself divides evenly within nums_a
+    a, b, c = tex_module.calc_div(1, 997, nums_a, nums_b)
+    assert b != 0
+    assert a % b == 0
+    assert c == a // b
+
+
+def test_calc_div_raises_when_no_exact_pair_is_possible() -> None:
+    with pytest.raises(ValueError):
+        tex_module.calc_div(1, 2, [1], [2])
+
+
+def test_find_exact_division_pair_returns_none_when_impossible() -> None:
+    assert tex_module.find_exact_division_pair([1], [2]) is None
 
 
 def test_generate_ope_problems_assigns_sequential_indices() -> None:

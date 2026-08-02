@@ -394,12 +394,25 @@ def calc_add(a: int, b: int, nums_a: list[int], nums_b: list[int]) -> tuple[int,
 
 
 def calc_sub(a: int, b: int, nums_a: list[int], nums_b: list[int]) -> tuple[int, int, int]:
-    """Retry with freshly-sampled operands until the result is positive."""
+    """
+    Retry with freshly-sampled operands until the result is positive.
+
+    Random sampling alone can fail within MAX_OPERAND_RETRY_ATTEMPTS even
+    when a valid pair exists, if the valid-pair space is a small fraction
+    of nums_a x nums_b (e.g. nums_a=[1..1000], nums_b=[999, 1000] has only
+    one positive-result pair). Falling back to the extreme pair
+    (max(nums_a), min(nums_b)) -- the easiest positive-result pair to
+    construct -- guarantees success whenever any solution exists, while
+    keeping the random attempts for the common case's variety.
+    """
     for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
         if a - b > 0:
             return a, b, a - b
         a = random.choice(nums_a)
         b = random.choice(nums_b)
+    a, b = max(nums_a), min(nums_b)
+    if a - b > 0:
+        return a, b, a - b
     raise ValueError(
         "No subtraction pair with a positive result (a - b > 0) "
         "found in the given number ranges."
@@ -410,13 +423,46 @@ def calc_mul(a: int, b: int, nums_a: list[int], nums_b: list[int]) -> tuple[int,
     return a, b, a * b
 
 
+def find_exact_division_pair(nums_a: list[int], nums_b: list[int]) -> tuple[int, int] | None:
+    """
+    Deterministically find one (a, b) pair with b != 0 and a % b == 0.
+
+    Used as calc_div's fallback when MAX_OPERAND_RETRY_ATTEMPTS of random
+    sampling doesn't find a solution (possible when the valid-pair space
+    is a small fraction of nums_a x nums_b). For each candidate divisor,
+    only its multiples within the nums_a range are probed (not every
+    nums_a element), so this stays cheap even for large ranges.
+    """
+    if not nums_a:
+        return None
+    nums_a_set = set(nums_a)
+    a_min, a_max = min(nums_a_set), max(nums_a_set)
+    for b in nums_b:
+        if b == 0:
+            continue
+        first_multiple = -(-a_min // b) * b  # ceiling division
+        for candidate in range(first_multiple, a_max + 1, abs(b)):
+            if candidate in nums_a_set:
+                return candidate, b
+    return None
+
+
 def calc_div(a: int, b: int, nums_a: list[int], nums_b: list[int]) -> tuple[int, int, int]:
-    """Retry with freshly-sampled operands until the division is exact."""
+    """
+    Retry with freshly-sampled operands until the division is exact.
+
+    Falls back to find_exact_division_pair (see its docstring) if random
+    sampling exhausts MAX_OPERAND_RETRY_ATTEMPTS without success.
+    """
     for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
         if b != 0 and a % b == 0:
             return a, b, a // b
         a = random.choice(nums_a)
         b = random.choice(nums_b)
+    fallback = find_exact_division_pair(nums_a, nums_b)
+    if fallback is not None:
+        a, b = fallback
+        return a, b, a // b
     raise ValueError(
         "No exact-division pair (a % b == 0, b != 0) found in the given number ranges."
     )
