@@ -3,17 +3,18 @@
 
 """
 nuts_calc_tex.py -- Phase 1 CLI/PDF foundation (issue #20) + Phase 2 `ope`
-command (issue #21) + Phase 3 `com` command (issue #22).
+command (issue #21) + Phase 3 `com` command (issue #22) + Phase 4 `100`
+command (issue #23).
 
 A 100%-LaTeX-rendered, fully independent reimplementation of nuts_calc.py's
 CLI surface (see the tracking issue #19). This file has zero code
 dependency on nuts_calc.py: no imports, no shared modules -- the two are
 meant to run side by side, each self-contained.
 
-`ope` (horizontal and --vertical, all operators plus mix, --intermediate)
-and `com` (complement-to-target) are fully implemented. The other five
-commands (100/99/aBc/squ/pi) still render Phase-1 placeholder content
-pending later phases (issues #23-#27).
+`ope` (horizontal and --vertical, all operators plus mix, --intermediate),
+`com` (complement-to-target), and `100` (100-square addition table) are
+fully implemented. The other four commands (99/aBc/squ/pi) still render
+Phase-1 placeholder content pending later phases (issues #24-#27).
 
 Requires a LaTeX distribution (`pdflatex`) on PATH. The `longdivision`
 CTAN package (used by `ope --vertical -o div`) is vendored into this repo
@@ -40,6 +41,10 @@ MAX_OPERAND_RETRY_ATTEMPTS = 1000
 INTERMEDIATE_SINGLE_DIGIT_MAX = 9
 MIN_COMPLEMENT_TARGET = 2
 TABCOLSEP_COUNT_PER_COLUMN = 2
+MAX_HUNDRED_SQUARE_DIGITS = 3
+HUNDRED_SQUARE_SIZE = 10
+HUNDRED_SQUARE_SAMPLE_REPEAT_FACTOR = 2
+HUNDRED_SQUARE_HEADER_COLOR = 'lightgray'
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 VENDOR_TEXMF_DIR = os.path.join(SCRIPT_DIR, 'vendor', 'texmf')
@@ -92,7 +97,7 @@ def _init() -> argparse.Namespace:
     parser.add_argument('command'
         , type = str
         , choices = ['ope', 'com', '100', '99', 'aBc', 'squ', 'pi']
-        , help = 'Type of formula to output ("ope" and "com" are implemented; others render placeholder content)'
+        , help = 'Type of formula to output ("ope", "com", and "100" are implemented; others render placeholder content)'
     )
     parser.add_argument('-a', '--a-value'
         , type = int
@@ -199,7 +204,7 @@ def _init() -> argparse.Namespace:
         min_val, max_val = digits_list[value - 1]
         return [min_val, max_val]
 
-    if args.command == 'ope':
+    if args.command in ('ope', '100'):
         if args.a_value is not None:
             args.a_min, args.a_max = set_min_max_value(args.a_value)
         if args.b_value is not None:
@@ -216,6 +221,14 @@ def _init() -> argparse.Namespace:
             failure("-a/--a-value (complement target) is required for the 'com' command.")
         if args.a_value < MIN_COMPLEMENT_TARGET:
             failure(f"-a/--a-value (complement target) must be at least {MIN_COMPLEMENT_TARGET} for the 'com' command.")
+
+    if args.command == '100':
+        if (args.a_value is not None and args.a_value > MAX_HUNDRED_SQUARE_DIGITS) \
+                or (args.b_value is not None and args.b_value > MAX_HUNDRED_SQUARE_DIGITS):
+            failure(
+                f"-a/--a-value and -b/--b-value must be at most "
+                f"{MAX_HUNDRED_SQUARE_DIGITS} digits for the '100' command."
+            )
 
     if args.intermediate:
         if args.command != 'ope':
@@ -260,6 +273,7 @@ def build_preamble_tex(paper_size: str) -> str:
         "\\usepackage{longdivision}\n"
         "\\usepackage{xlop}\n"
         "\\usepackage{array}\n"
+        "\\usepackage[table]{xcolor}\n"
         "\\usepackage{fancyhdr}\n"
         "\\pagestyle{fancy}\n"
         "\\fancyhf{}\n"
@@ -672,11 +686,104 @@ def build_com_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], li
     return blank_pages, filled_pages, pages_problems
 
 
+@dataclass
+class HundredSquareTable:
+    """One generated `100` addition table: left_values[r] + top_values[c] = the (r, c) cell."""
+    left_values: list[int]
+    top_values: list[int]
+
+    @property
+    def answers(self) -> list[list[int]]:
+        return [[left + top for top in self.top_values] for left in self.left_values]
+
+
+def sample_hundred_square_values(nums: list[int]) -> list[int]:
+    """
+    Sample HUNDRED_SQUARE_SIZE values for one axis of the addition table.
+
+    The candidate list is duplicated HUNDRED_SQUARE_SAMPLE_REPEAT_FACTOR
+    times before sampling without replacement, so a value can appear at
+    most twice: needed because the default digit-1 range (1-9, nine
+    distinct values) is smaller than the ten slots the table requires
+    (mirrors nuts_calc.py's `100` square generation).
+    """
+    seed = nums * HUNDRED_SQUARE_SAMPLE_REPEAT_FACTOR
+    return random.sample(seed, HUNDRED_SQUARE_SIZE)
+
+
+def generate_hundred_square(nums_left: list[int], nums_top: list[int]) -> HundredSquareTable:
+    return HundredSquareTable(
+        left_values=sample_hundred_square_values(nums_left),
+        top_values=sample_hundred_square_values(nums_top),
+    )
+
+
+def build_hundred_square_block_tex(table: HundredSquareTable, show_answer: bool) -> str:
+    """
+    Render one addition table as an (HUNDRED_SQUARE_SIZE+1)-square LaTeX
+    tabular: a blank top-left corner, a shaded header row (table.top_values)
+    and header column (table.left_values), and a HUNDRED_SQUARE_SIZE x
+    HUNDRED_SQUARE_SIZE grid of data cells (left+top sums when show_answer,
+    otherwise blank for the student to fill in).
+    """
+    column_spec = f">{{\\columncolor{{{HUNDRED_SQUARE_HEADER_COLOR}}}}}c|" + "c" * HUNDRED_SQUARE_SIZE
+    header_cells = [''] + [str(value) for value in table.top_values]
+    lines = [
+        "\\begin{center}",
+        f"\\begin{{tabular}}{{|{column_spec}|}}",
+        "\\hline",
+        f"\\rowcolor{{{HUNDRED_SQUARE_HEADER_COLOR}}} {' & '.join(header_cells)} \\\\",
+        "\\hline",
+    ]
+    for left, answer_row in zip(table.left_values, table.answers):
+        data_cells = [str(value) for value in answer_row] if show_answer else [''] * HUNDRED_SQUARE_SIZE
+        lines.append(' & '.join([str(left)] + data_cells) + " \\\\")
+        lines.append("\\hline")
+    lines.append("\\end{tabular}")
+    lines.append("\\end{center}")
+    return "\n".join(lines)
+
+
+def build_hundred_square_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], list[HundredSquareTable]]:
+    """
+    Generate real `100` addition tables and their blank/filled Page pairs.
+
+    One table per page (`ini.page` controls the page count); `ini.rows`/
+    `ini.columns`/`ini.with_bottom_answer` are accepted but unused for this
+    command, matching nuts_calc.py's original `100` behavior (a single
+    fixed-size 100-square table per page, no bottom answer strip).
+    """
+    nums_left = list(range(ini.a_min, ini.a_max + 1))
+    nums_top = list(range(ini.b_min, ini.b_max + 1))
+
+    blank_pages = []
+    filled_pages = []
+    pages_tables = []
+    for _ in range(ini.page):
+        table = generate_hundred_square(nums_left, nums_top)
+        pages_tables.append(table)
+        blank_pages.append(Page(blocks=[build_hundred_square_block_tex(table, show_answer=False)], columns=1))
+        filled_pages.append(Page(blocks=[build_hundred_square_block_tex(table, show_answer=True)], columns=1))
+
+    return blank_pages, filled_pages, pages_tables
+
+
+def build_hundred_square_csv_rows(pages_tables: list[HundredSquareTable]) -> list[list[object]]:
+    """One header row (`top_values`) plus one row per left value per page, each prefixed with the page number."""
+    rows: list[list[object]] = []
+    for page_number, table in enumerate(pages_tables, start=1):
+        rows.append([page_number, ''] + table.top_values)
+        for left, answer_row in zip(table.left_values, table.answers):
+            rows.append([page_number, left] + answer_row)
+    return rows
+
+
 def build_placeholder_page(rows: int, columns: int, page_number: int, show_work: bool) -> Page:
     """
-    Phase-1 placeholder content, still used for the five commands not yet
-    implemented (100/99/aBc/squ/pi -- issues #23-#27). `ope` (Phase 2,
-    issue #21) and `com` (Phase 3, issue #22) use real problem data.
+    Phase-1 placeholder content, still used for the four commands not yet
+    implemented (99/aBc/squ/pi -- issues #24-#27). `ope` (Phase 2, issue
+    #21), `com` (Phase 3, issue #22), and `100` (Phase 4, issue #23) use
+    real problem data.
     """
     start_index = (page_number - 1) * rows * columns + 1
     blocks = []
@@ -711,7 +818,7 @@ def build_ope_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], li
 
 
 def build_placeholder_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page]]:
-    """Phase-1 placeholder content for commands not yet implemented (issues #23-#27)."""
+    """Phase-1 placeholder content for commands not yet implemented (issues #24-#27)."""
     blank_pages = [
         build_placeholder_page(ini.rows, ini.columns, page_number, show_work=False)
         for page_number in range(1, ini.page + 1)
@@ -739,10 +846,13 @@ def main(ini: argparse.Namespace) -> None:
 
     ope_pages_problems: list[list[OpeProblem]] | None = None
     com_pages_problems: list[list[ComProblem]] | None = None
+    hundred_square_pages_tables: list[HundredSquareTable] | None = None
     if ini.command == 'ope':
         blank_pages, filled_pages, ope_pages_problems = build_ope_pages(ini)
     elif ini.command == 'com':
         blank_pages, filled_pages, com_pages_problems = build_com_pages(ini)
+    elif ini.command == '100':
+        blank_pages, filled_pages, hundred_square_pages_tables = build_hundred_square_pages(ini)
     else:
         blank_pages, filled_pages = build_placeholder_pages(ini)
 
@@ -762,6 +872,8 @@ def main(ini: argparse.Namespace) -> None:
             rows = build_ope_csv_rows(ope_pages_problems)
         elif com_pages_problems is not None:
             rows = build_com_csv_rows(com_pages_problems)
+        elif hundred_square_pages_tables is not None:
+            rows = build_hundred_square_csv_rows(hundred_square_pages_tables)
         else:
             rows = [
                 [page_number, index]
