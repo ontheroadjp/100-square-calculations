@@ -68,6 +68,7 @@
 
 ## 変更履歴(git log より自動生成)
 
+- 5d05c55 feat(#11): add vertical long-division (長除法) written-calculation format for div
 - 2a7cd15 feat(#10): support multi-digit multiplier in vertical mul output
 - 4aaf251 fix(#15): fix output filename derivation to use os.path.splitext
 - cfea9ed fix(#4): fix 9 logic bugs found in CLI, web backend, and frontend

@@ -4,7 +4,7 @@ DB は存在しないため `database.md` は生成していない(永続化層�
 
 ## CLI 仕様(`nuts_calc.py`)
 
-引数・出力仕様は旧 `100masu.py` から機能的に踏襲されている。詳細は [[../L2_development/operation_model]] を参照。実機で7種類の `command` すべての正常終了を確認済み。`ope` コマンドには `--vertical` フラグがあり、`add`/`sub`/`mul`(掛ける数は何桁でも対応。2桁以上は部分積の複数段表示、issue #10)を筆算(縦書き)形式で出力できる。詳細は [[nuts_calc.py]] を参照。
+引数・出力仕様は旧 `100masu.py` から機能的に踏襲されている。詳細は [[../L2_development/operation_model]] を参照。実機で7種類の `command` すべての正常終了を確認済み。`ope` コマンドには `--vertical` フラグがあり、`add`/`sub`/`mul`(掛ける数は何桁でも対応。2桁以上は部分積の複数段表示、issue #10)/`div`(長除法、issue #11)を筆算(縦書き)形式で出力できる。詳細は [[nuts_calc.py]] を参照。
 
 ## `nuts_calc_tex.py`(実験的プロトタイプ)
 
