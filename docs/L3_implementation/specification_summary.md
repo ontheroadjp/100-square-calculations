@@ -8,7 +8,7 @@ DB は存在しないため `database.md` は生成していない(永続化層�
 
 ## `nuts_calc_tex.py`(実験的プロトタイプ)
 
-`nuts_calc.py` とは import 等のコード共有を一切行わない、完全独立の LaTeX(`pdflatex`)レンダリング版プロトタイプ。issue #19(親トラッキング issue)配下の8フェーズで段階的に実装中。CLI 引数・ページ/PDF レイアウト・TeX ビルドパイプラインという共通基盤(Phase 1, issue #20)に加え、`ope` コマンド(四則演算 add/sub/mul/div/mix、横書き・`--vertical` 筆算・`--intermediate`)が実装済み(Phase 2, issue #21)。`--vertical` は add/sub/mul を `xlop`、div を `longdivision` でレンダリングする。`com` コマンド(補数: `a + __ = target` 形式、横書きのみ)も実装済み(Phase 3, issue #22)。`100` コマンド(100マス計算: 11×11 の加算表、ヘッダー行/列を網掛け表示)も実装済み(Phase 4, issue #23)。`ope`/`com`/`100` 以外の4コマンド(`99`/`aBc`/`squ`/`pi`)は依然プレースホルダーのまま(issues #24-#27)。詳細は [[nuts_calc_tex.py]] を参照。
+`nuts_calc.py` とは import 等のコード共有を一切行わない、完全独立の LaTeX(`pdflatex`)レンダリング版プロトタイプ。issue #19(親トラッキング issue)配下の8フェーズで段階的に実装中。CLI 引数・ページ/PDF レイアウト・TeX ビルドパイプラインという共通基盤(Phase 1, issue #20)に加え、`ope` コマンド(四則演算 add/sub/mul/div/mix、横書き・`--vertical` 筆算・`--intermediate`)が実装済み(Phase 2, issue #21)。`--vertical` は add/sub/mul を `xlop`、div を `longdivision` でレンダリングする。`com` コマンド(補数: `a + __ = target` 形式、横書きのみ)も実装済み(Phase 3, issue #22)。`100` コマンド(100マス計算: 11×11 の加算表、ヘッダー行/列を網掛け表示)も実装済み(Phase 4, issue #23)。`99` コマンド(九九: `--rows`×`--columns` 問をタイル化、`--descend`/`--reverse`/`--shuffle` の並び替えオプション)も実装済み(Phase 5, issue #24)。`ope`/`com`/`100`/`99` 以外の3コマンド(`aBc`/`squ`/`pi`)は依然プレースホルダーのまま(issues #25-#27)。詳細は [[nuts_calc_tex.py]] を参照。
 
 ## Web API 仕様(`web/backend/app.py`)
 

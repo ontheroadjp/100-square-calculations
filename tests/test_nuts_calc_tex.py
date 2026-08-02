@@ -1,13 +1,14 @@
 """End-to-end regression tests for nuts_calc_tex.py (Phase 1 foundation #20;
-`ope` command Phase 2 #21; `com` command Phase 3 #22).
+`ope` command Phase 2 #21; `com` command Phase 3 #22; `99` command Phase 5
+#24).
 
 nuts_calc_tex.py has zero code dependency on nuts_calc.py, so these tests
 run it as a real subprocess, independent of tests/test_nuts_calc_cli.py.
 All tests are skipped when `pdflatex` is not on PATH, since this module
-requires a LaTeX distribution. Pure-Python `ope`/`com` generation logic
+requires a LaTeX distribution. Pure-Python `ope`/`com`/`99` generation logic
 that doesn't need pdflatex is covered separately in
-test_nuts_calc_tex_ope_generation.py and
-test_nuts_calc_tex_com_generation.py.
+test_nuts_calc_tex_ope_generation.py, test_nuts_calc_tex_com_generation.py,
+and test_nuts_calc_tex_kuku_generation.py.
 """
 
 import shutil
@@ -296,6 +297,46 @@ def test_cli_hundred_square_csv_rows_contain_real_answer_data(run_tex_cli, tmp_p
     left_value = int(first_data_row[1])
     answers = [int(v) for v in first_data_row[2:]]
     assert answers == [left_value + top for top in top_values]
+
+
+def test_cli_kuku_produces_blank_and_filled_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "99", "-a", "3", "-r", "3", "-c", "2", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+def test_cli_kuku_requires_a_value(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "99", "--out-file", "result.pdf")
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_kuku_with_bottom_answer_produces_pdf(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "99", "-a", "3", "-r", "3", "-c", "2", "-ww", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
+def test_cli_kuku_descend_reverse_shuffle_produce_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "99", "-a", "3", "-r", "3", "-c", "2",
+        "--descend", "--reverse", "--shuffle", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
+def test_cli_kuku_csv_rows_contain_real_problem_data(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "99", "-a", "3", "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+
+    csv_path = tmp_path / "result.csv"
+    lines = csv_path.read_text().strip().splitlines()
+    assert len(lines) == 4  # rows * columns
+    page_number, index, a, b, c = lines[0].split(",")
+    assert (page_number, index, a) == ("1", "1", "3")
+    assert int(a) * int(b) == int(c)
 
 
 def test_cli_fails_clearly_when_pdflatex_missing(run_tex_cli, tmp_path, monkeypatch):

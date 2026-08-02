@@ -4,7 +4,7 @@
 """
 nuts_calc_tex.py -- Phase 1 CLI/PDF foundation (issue #20) + Phase 2 `ope`
 command (issue #21) + Phase 3 `com` command (issue #22) + Phase 4 `100`
-command (issue #23).
+command (issue #23) + Phase 5 `99` command (issue #24).
 
 A 100%-LaTeX-rendered, fully independent reimplementation of nuts_calc.py's
 CLI surface (see the tracking issue #19). This file has zero code
@@ -12,9 +12,10 @@ dependency on nuts_calc.py: no imports, no shared modules -- the two are
 meant to run side by side, each self-contained.
 
 `ope` (horizontal and --vertical, all operators plus mix, --intermediate),
-`com` (complement-to-target), and `100` (100-square addition table) are
-fully implemented. The other four commands (99/aBc/squ/pi) still render
-Phase-1 placeholder content pending later phases (issues #24-#27).
+`com` (complement-to-target), `100` (100-square addition table), and `99`
+(times-table / kuku, with --descend/--reverse/--shuffle ordering) are fully
+implemented. The other three commands (aBc/squ/pi) still render Phase-1
+placeholder content pending later phases (issues #25-#27).
 
 Requires a LaTeX distribution (`pdflatex`) on PATH. The `longdivision`
 CTAN package (used by `ope --vertical -o div`) is vendored into this repo
@@ -77,8 +78,9 @@ def _init() -> argparse.Namespace:
 
     Defined independently of nuts_calc.py's `_init()` (no shared code), but
     mirrors its flag surface for a familiar CLI. `command`/`operator` are
-    fully dispatched on for `ope` and `com`; the other five commands still
-    accept but ignore them pending later phases (issues #23-#27).
+    fully dispatched on for `ope`, `com`, `100`, and `99`; the other three
+    commands still accept but ignore them pending later phases (issues
+    #25-#27).
     """
     parser = argparse.ArgumentParser(
         usage="%(prog)s A4 | B5",
@@ -97,7 +99,7 @@ def _init() -> argparse.Namespace:
     parser.add_argument('command'
         , type = str
         , choices = ['ope', 'com', '100', '99', 'aBc', 'squ', 'pi']
-        , help = 'Type of formula to output ("ope", "com", and "100" are implemented; others render placeholder content)'
+        , help = 'Type of formula to output ("ope", "com", "100", and "99" are implemented; others render placeholder content)'
     )
     parser.add_argument('-a', '--a-value'
         , type = int
@@ -234,6 +236,10 @@ def _init() -> argparse.Namespace:
             failure("-a/--a-value (complement target) is required for the 'com' command.")
         if args.a_value < MIN_COMPLEMENT_TARGET:
             failure(f"-a/--a-value (complement target) must be at least {MIN_COMPLEMENT_TARGET} for the 'com' command.")
+
+    if args.command == '99':
+        if args.a_value is None:
+            failure("-a/--a-value (times-table row) is required for the '99' command.")
 
     if args.intermediate:
         if args.command != 'ope':
@@ -783,12 +789,107 @@ def build_hundred_square_csv_rows(pages_tables: list[HundredSquareTable]) -> lis
     return rows
 
 
+@dataclass
+class KukuProblem:
+    """One generated `99` (times-table / kuku) problem: a x b = c, with `a` fixed for a whole page."""
+    index: int
+    a: int
+    b: int
+    c: int
+
+
+def generate_kuku_problems(a_value: int, order: int, start_index: int, descend: bool, shuffle: bool) -> list[KukuProblem]:
+    """
+    Generate `order` times-table problems for the fixed row `a_value`, starting at `start_index`.
+
+    The multiplier `b` is drawn from the base sequence `1..order` -- an
+    independent reimplementation of nuts_calc.py's `get_fixed_format_data`
+    `mode == '99'` branch (`nuts_calc.py:508-522`), which likewise ties the
+    multiplier range to the page's row count rather than capping it at 9, so
+    `b` can exceed 9 when `order > 9`. `descend` reverses that sequence
+    (`order..1`); `shuffle` randomizes it after any `descend` reversal,
+    matching nuts_calc.py's `num_list.reverse()` then `random.shuffle()`
+    ordering (`nuts_calc.py:513-516`).
+    """
+    multipliers = list(range(1, order + 1))
+    if descend:
+        multipliers.reverse()
+    if shuffle:
+        random.shuffle(multipliers)
+    return [
+        KukuProblem(index=start_index + offset, a=a_value, b=b, c=a_value * b)
+        for offset, b in enumerate(multipliers)
+    ]
+
+
+def build_kuku_block_tex(problem: KukuProblem, show_answer: bool, reverse: bool) -> str:
+    """
+    Render one `99` problem: `n) $a \\times b = c$` (blank hides `c`).
+
+    `reverse` swaps the equation side order to `n) $c = a \\times b$`,
+    inferred from nuts_calc.py's `is_reverse` branch reordering `vals_c`
+    ahead of `vals_a`/`vals_b` (`nuts_calc.py:543-545`); the blanked value is
+    always `c` regardless of which side it renders on.
+    """
+    result_tex = str(problem.c) if show_answer else '\\underline{\\hspace{1.5em}}'
+    if reverse:
+        return f"{problem.index}) ${result_tex} = {problem.a} \\times {problem.b}$"
+    return f"{problem.index}) ${problem.a} \\times {problem.b} = {result_tex}$"
+
+
+def build_kuku_page_pair(problems: list[KukuProblem], columns: int, reverse: bool) -> tuple[Page, Page]:
+    """Build the (blank, filled) Page pair for one page's worth of `99` problems."""
+    blank_page = Page(
+        blocks=[build_kuku_block_tex(problem, show_answer=False, reverse=reverse) for problem in problems],
+        columns=columns,
+    )
+    filled_page = Page(
+        blocks=[build_kuku_block_tex(problem, show_answer=True, reverse=reverse) for problem in problems],
+        columns=columns,
+    )
+    return blank_page, filled_page
+
+
+def build_kuku_bottom_answer_tex(problems: list[KukuProblem]) -> str:
+    return ' \\quad '.join(f"({problem.index}) {problem.c}" for problem in problems)
+
+
+def build_kuku_csv_rows(pages_problems: list[list[KukuProblem]]) -> list[list[object]]:
+    rows: list[list[object]] = []
+    for page_number, problems in enumerate(pages_problems, start=1):
+        for problem in problems:
+            rows.append([page_number, problem.index, problem.a, problem.b, problem.c])
+    return rows
+
+
+def build_kuku_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], list[list[KukuProblem]]]:
+    """Generate real `99` problems and their blank/filled Page pairs for every page."""
+    order = ini.rows * ini.columns
+
+    blank_pages = []
+    filled_pages = []
+    pages_problems = []
+    for page_number in range(1, ini.page + 1):
+        start_index = (page_number - 1) * order + 1
+        problems = generate_kuku_problems(ini.a_value, order, start_index, ini.descend, ini.shuffle)
+        blank_page, filled_page = build_kuku_page_pair(problems, ini.columns, ini.reverse)
+        pages_problems.append(problems)
+        blank_pages.append(blank_page)
+        filled_pages.append(filled_page)
+
+    if ini.with_bottom_answer:
+        for problems, blank_page in zip(pages_problems, blank_pages):
+            blank_page.bottom_answer_tex = build_kuku_bottom_answer_tex(problems)
+
+    return blank_pages, filled_pages, pages_problems
+
+
 def build_placeholder_page(rows: int, columns: int, page_number: int, show_work: bool) -> Page:
     """
-    Phase-1 placeholder content, still used for the four commands not yet
-    implemented (99/aBc/squ/pi -- issues #24-#27). `ope` (Phase 2, issue
-    #21), `com` (Phase 3, issue #22), and `100` (Phase 4, issue #23) use
-    real problem data.
+    Phase-1 placeholder content, still used for the three commands not yet
+    implemented (aBc/squ/pi -- issues #25-#27). `ope` (Phase 2, issue #21),
+    `com` (Phase 3, issue #22), `100` (Phase 4, issue #23), and `99` (Phase
+    5, issue #24) use real problem data.
     """
     start_index = (page_number - 1) * rows * columns + 1
     blocks = []
@@ -823,7 +924,7 @@ def build_ope_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], li
 
 
 def build_placeholder_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page]]:
-    """Phase-1 placeholder content for commands not yet implemented (issues #24-#27)."""
+    """Phase-1 placeholder content for commands not yet implemented (issues #25-#27)."""
     blank_pages = [
         build_placeholder_page(ini.rows, ini.columns, page_number, show_work=False)
         for page_number in range(1, ini.page + 1)
@@ -852,12 +953,15 @@ def main(ini: argparse.Namespace) -> None:
     ope_pages_problems: list[list[OpeProblem]] | None = None
     com_pages_problems: list[list[ComProblem]] | None = None
     hundred_square_pages_tables: list[HundredSquareTable] | None = None
+    kuku_pages_problems: list[list[KukuProblem]] | None = None
     if ini.command == 'ope':
         blank_pages, filled_pages, ope_pages_problems = build_ope_pages(ini)
     elif ini.command == 'com':
         blank_pages, filled_pages, com_pages_problems = build_com_pages(ini)
     elif ini.command == '100':
         blank_pages, filled_pages, hundred_square_pages_tables = build_hundred_square_pages(ini)
+    elif ini.command == '99':
+        blank_pages, filled_pages, kuku_pages_problems = build_kuku_pages(ini)
     else:
         blank_pages, filled_pages = build_placeholder_pages(ini)
 
@@ -879,6 +983,8 @@ def main(ini: argparse.Namespace) -> None:
             rows = build_com_csv_rows(com_pages_problems)
         elif hundred_square_pages_tables is not None:
             rows = build_hundred_square_csv_rows(hundred_square_pages_tables)
+        elif kuku_pages_problems is not None:
+            rows = build_kuku_csv_rows(kuku_pages_problems)
         else:
             rows = [
                 [page_number, index]
