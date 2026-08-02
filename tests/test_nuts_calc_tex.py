@@ -1,12 +1,13 @@
 """End-to-end regression tests for nuts_calc_tex.py (Phase 1 foundation #20;
-`ope` command Phase 2 #21).
+`ope` command Phase 2 #21; `com` command Phase 3 #22).
 
 nuts_calc_tex.py has zero code dependency on nuts_calc.py, so these tests
 run it as a real subprocess, independent of tests/test_nuts_calc_cli.py.
 All tests are skipped when `pdflatex` is not on PATH, since this module
-requires a LaTeX distribution. Pure-Python `ope` generation logic that
-doesn't need pdflatex is covered separately in
-test_nuts_calc_tex_ope_generation.py.
+requires a LaTeX distribution. Pure-Python `ope`/`com` generation logic
+that doesn't need pdflatex is covered separately in
+test_nuts_calc_tex_ope_generation.py and
+test_nuts_calc_tex_com_generation.py.
 """
 
 import shutil
@@ -202,6 +203,43 @@ def test_cli_ope_csv_rows_contain_real_problem_data(run_tex_cli, tmp_path):
     page_number, index, a, operator, b, c = lines[0].split(",")
     assert (page_number, index, operator) == ("1", "1", "add")
     assert int(a) + int(b) == int(c)
+
+
+def test_cli_com_produces_blank_and_filled_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "com", "-a", "100", "-r", "3", "-c", "2", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+def test_cli_com_requires_a_value(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "com", "--out-file", "result.pdf")
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_com_rejects_target_below_two(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "com", "-a", "1", "--out-file", "result.pdf")
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_com_with_bottom_answer_produces_pdf(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "com", "-a", "100", "-r", "3", "-c", "2", "-ww", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
+def test_cli_com_csv_rows_contain_real_problem_data(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "com", "-a", "100", "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+
+    csv_path = tmp_path / "result.csv"
+    lines = csv_path.read_text().strip().splitlines()
+    assert len(lines) == 4
+    page_number, index, a, target, c = lines[0].split(",")
+    assert (page_number, index, target) == ("1", "1", "100")
+    assert int(a) + int(c) == int(target)
 
 
 def test_cli_fails_clearly_when_pdflatex_missing(run_tex_cli, tmp_path, monkeypatch):
