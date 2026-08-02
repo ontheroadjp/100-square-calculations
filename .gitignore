@@ -49,6 +49,9 @@ build/
 *.swp
 *~
 
+# Claude Code local settings
+.claude/
+
 # Web Frontend
 web/frontend/node_modules/
 web/frontend/dist/
