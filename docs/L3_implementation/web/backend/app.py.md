@@ -17,7 +17,7 @@
 
 ## 注意事項・既知の制限
 
-- `nuts_calc.py`/`nuts_calc_tex.py` 側のバリデーション失敗メッセージは `print()`(stdout)に出力されるが、このファイルは `subprocess.CalledProcessError` 発生時に `e.stderr` のみをエラーメッセージとして返すため、バリデーションエラーの具体的な理由がフロントエンドのエラー表示には渡らない(HTTP 500 は返るが `error` は空文字になる)。両レンダラー共通の既知の制限であり、issue #37 で追跡中(今回のスコープでは未修正)。
+- `nuts_calc.py`/`nuts_calc_tex.py` 側のバリデーション失敗メッセージは `print()`(stdout)に出力されるため、`subprocess.CalledProcessError` ハンドラは `e.stdout` を優先し(空なら `e.stderr` にフォールバック)、それを `error` フィールドに含める(issue #37 で修正)。`nuts_calc.py` 側でも `com`/`99`/`squ`/`pi`/`100` のバリデーション失敗が引数なし `exit()`(終了コード0、`subprocess.run(check=True)` が例外を送出しない)になっていた不具合を同 issue で `exit(1)` に修正済み([[../../../nuts_calc.py]] 参照)。修正前はこの経路で `CalledProcessError` すら発生せず、後続の `send_file` が `FileNotFoundError` になり実際の理由と無関係な「Renderer script not found」を返していた。
 - backend の URL がフロントエンド側にハードコードされている(`web/frontend/src/CustomGenerator.jsx` 側の既知の制約、[[../../frontend/src/CustomGenerator.jsx]] 参照)。
 - レンダラー選択は env 変数のみで、リクエストごとの指定はできない(フロントエンドはレンダラーの違いを一切意識しない設計、issue #36 のスコープ)。
 

@@ -242,7 +242,7 @@ def _init():
             or args.command == 'pi':
         if args.a_value is None:
             print(f"-a option must be set.")
-            exit()
+            exit(1)
     elif args.command == '100':
         if args.a_value is None:
             args.a_value = 1
@@ -253,7 +253,7 @@ def _init():
         if args.a_value > 3 or args.b_value > 3:
             print(f"bad argument: -a or -b")
             print('They must be less than 3.')
-            exit()
+            exit(1)
 
     if args.intermediate and args.b_max > SINGLE_DIGIT_MAX:
         print("--intermediate only supports a single-digit second operand (use -b 1 or --b-max <= 9).")
