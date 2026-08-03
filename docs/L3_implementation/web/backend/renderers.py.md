@@ -33,7 +33,7 @@ issue #19 のトラッキング issue にある「将来 `nuts_calc.py`/`nuts_ca
 
 ## 注意事項・既知の制限
 
-- `nuts_calc.py`/`nuts_calc_tex.py` 双方とも、バリデーション失敗メッセージを `print()`(stdout)で出力してから `exit()`/`exit(1)` する実装のため、`subprocess.CalledProcessError.stderr` は空文字になりうる。`app.py` 側の現在のエラーハンドリングは `e.stderr` のみを HTTP レスポンスに含めるため、バリデーション失敗の具体的理由がフロントエンドに届かない既知の制限がある(`docs/L3_implementation/web/backend/app.py.md` 参照、issue #37 で追跡)。
+- `nuts_calc.py`/`nuts_calc_tex.py` 双方とも、バリデーション失敗メッセージを `print()`(stdout)で出力してから `exit(1)` する実装のため、`subprocess.CalledProcessError.stderr` は空文字になりうる。`app.py` 側は `e.stdout` を優先してエラーメッセージを組み立てる(issue #37 で修正、`docs/L3_implementation/web/backend/app.py.md` 参照)。なお `nuts_calc.py` の `com`/`99`/`squ`/`pi`/`100` バリデーションは同 issue 以前は引数なし `exit()`(終了コード0)を使っており、`check=True` の `subprocess.run` がそもそも `CalledProcessError` を送出しない不具合があった(`nuts_calc.py` 側で修正済み)。
 - `get_renderer_name()` は呼び出しごとに env 変数を再読み込みする(プロセス起動時にキャッシュしない)。Flask アプリのライフサイクル中に env 変数が変わることは通常想定されないため実用上の影響はないが、テスト容易性(`monkeypatch.setenv`)を優先した設計。
 
 ## 変更履歴(git log より自動生成)

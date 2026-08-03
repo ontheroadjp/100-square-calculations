@@ -7,7 +7,7 @@
 ## 動作の概要
 
 - `_init()` が引数を検証・正規化して `argparse.Namespace` を返す。`command` ごとに `-a`/`-b`(桁数指定)から `a_min`/`a_max`/`b_min`/`b_max`(実際の数値範囲)を導出する(`nuts_calc.py:232-245`)。`ope` 以外の `command` では `--intermediate` を渡してもこの導出は行われない(`command == 'ope'` のみが対象、issue #4 Phase 1)。
-- `_init()` は他に以下をバリデーションする: `com`/`99`/`squ`/`pi` の `-a` 必須(未指定時は `exit()`、終了コード0の既知の挙動)、`100` の `-a`/`-b` は3桁まで、`--intermediate` は第2引数(`b`)が1桁の場合のみ許可(`args.b_max > SINGLE_DIGIT_MAX` なら `exit(1)`、issue #4 Phase 3)、`--vertical` 関連の制約群(下記)、`-r`/`-c` は `MIN_ROWS_OR_COLUMNS`(=1)以上必須(`exit(1)`)。
+- `_init()` は他に以下をバリデーションする: `com`/`99`/`squ`/`pi` の `-a` 必須(未指定時は `exit(1)`、issue #37 で `exit()` から修正)、`100` の `-a`/`-b` は3桁まで(未指定/不正時は `exit(1)`、同じく issue #37 で修正)、`--intermediate` は第2引数(`b`)が1桁の場合のみ許可(`args.b_max > SINGLE_DIGIT_MAX` なら `exit(1)`、issue #4 Phase 3)、`--vertical` 関連の制約群(下記)、`-r`/`-c` は `MIN_ROWS_OR_COLUMNS`(=1)以上必須(`exit(1)`)。
 - `main(ini)` は用紙サイズ・コマンドに応じて `Frame` レイアウトを組み立て、`get_vertical_contents_raw_dataset` で問題データを生成し、`command` ごとの描画ロジックで PDF 2種(通常版・解答版 `_read.pdf`)を作る。`ini.merge` が真の場合は1ファイルに問題ページ→解答ページを交互に収める(`next_content` による1ページ遅延の仕組み)。
 - `nums_a`/`nums_b`(問題の種となる数値集合)は `ini.a_min`/`ini.a_max` などから `range(min, max + 1)`(上限含む)で構築する。`min == max` の場合は `random.sample` を経由せず単一要素リストにする分岐があり、この等価判定は `!=`(恒等比較 `is not` ではない)を使う(issue #4 Phase 2, 6)。同様の `range(min, max + 1)` 構築は `100` コマンド側にも独立して存在する。
 
@@ -41,7 +41,7 @@
 
 - **対応演算を意図的に絞っている**: `mix`(`div` を含みうる)は `--vertical` では未対応。`_init()` で `VERTICAL_UNSUPPORTED_OPERATORS`(`mix` のみ)判定によりバリデーションし、非対応な組み合わせは PDF 生成前に `exit(1)` で弾く(`nuts_calc.py:257-270`)。掛ける数が2桁以上の `mul` は issue #9 の時点では未対応だったが、issue #10 で部分積の複数段表示に対応し、`_init()` 側の桁数制限は撤廃済み。`div` も issue #9 時点では未対応だったが、issue #11 で長除法ブロック(上記)を実装し撤廃済み。
 - **複数桁 mul の部分積は幅の再計算なしに収まる**: 部分積(`a * 桁`)をシフトして得られる値は、常に合計(`a * b`)以下になる(各項の和が合計になるため)。したがって `get_vertical_digit_width` が合計向けに算出した桁数は、シフトを含めた部分積のどの行にもそのまま収まることが保証されており、部分積専用の幅計算は不要(issue #10 で確認済み)。
-- **バリデーション失敗時は `exit(1)` を使う**: ファイル内の他の既存バリデーション(例: `-a option must be set.`)は引数なし `exit()` を使っており、実際には終了コード0を返すため、`web/backend/app.py` の `subprocess.run(..., check=True)` はこれを「成功」とみなしてしまう(既知の制限、下記参照)。今回追加したバリデーションはこの罠を避けるため明示的に `exit(1)` にしている。
+- **バリデーション失敗時は `exit(1)` を使う**: `com`/`99`/`squ`/`pi`(`-a` 必須)・`100`(`-a`/`-b` は3桁まで)のバリデーションは、かつて引数なし `exit()`(終了コード0)を使っており、`web/backend/app.py` の `subprocess.run(..., check=True)` がこれを「成功」とみなしてしまう不具合があった(issue #37 で `exit(1)` に修正済み)。ファイル内の他のバリデーションは元から `exit(1)` を使っており、この2箇所だけが例外的に `exit()` になっていた。
 - **ReportLab の `TableStyle` はコマンドの順序に依存する**: `get_vertical_calc_block` の `LINEBELOW`(区切り線、複数桁 mul では2本)は `GRID`(通常は透明なデバッグ用グリッド)より**後**に追加しなければならない。逆順にすると `GRID` の `width=0` 指定が同じセル境界の `LINEBELOW` を上書きして線が消える(実装中に実機で発見)。`get_vertical_div_block` の `LINEBELOW`(各 `product` 行の下)・`LINEAFTER`・`LINEABOVE`(囲み枠)も同じ理由で `GRID` より後に追加している(issue #11)。
 - **筆算ブロックの高さは `slot_height * VERTICAL_BLOCK_HEIGHT_RATIO`(0.85)で計算し、外側の `Table` は `VALIGN: TOP`**: ブロックの行がスロットの100%を占めると隣接する問題同士が隙間なく密着して読みにくいため、上詰めにして下に余白を残している。行の高さはブロックの実際の行数(`len(data)`、複数桁 mul では部分積の分だけ増える)で均等割りするため、行数が多い問題ほど1行あたりは薄くなる(固定の `VERTICAL_BLOCK_ROWS` 定数は issue #10 で廃止)。
 - **`calc_sub`/`calc_div` は無限リトライしない**: `nums_a`/`nums_b` の組み合わせに解(`a - b > 0` あるいは `a % b == 0`)が存在しない場合、`while True` のままだと永久にハングする。`MAX_OPERAND_RETRY_ATTEMPTS`(1000)回で打ち切り、`ValueError` を送出して `main()` の `try/except`(`failure()`)経由で明確に失敗させる(issue #4 Phase 5)。
