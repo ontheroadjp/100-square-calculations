@@ -29,7 +29,9 @@
 
 2桁×1桁の掛け算暗算法(`memo.md` 参照)を実装している。`get_operation_data` の `mul` 分岐で、`a`(2桁)の十の位・一の位それぞれに `b`(1桁)を掛けた値(2桁ゼロ埋め)を連結して4桁の数値(`aabb`)を作り、「`a × b => aabb => c`」の形で表示する(`nuts_calc.py:390-405` 付近)。この4桁の数値を「最初の2桁+3桁目、それに4桁目を付け加える」という手順(STEP2、暗算する側が頭の中で行う)で3桁に変換すると、常に元の `a × b` と一致する(`10*A+B` の恒等式より)。
 
-この技法は `b` が1桁であることが前提(`single_c` = `b` の十の位は使われず、常に0という前提)。`_init()` は `--intermediate` 指定時に `b_max` が1桁を超えると `exit(1)` で拒否する(issue #4 Phase 3)。
+この技法は `b` が1桁かつ演算子が `mul` であることが前提(`single_c` = `b` の十の位は使われず、常に0という前提。`mul` 以外では暗算法自体が成立しない)。`_init()` は `--intermediate` 指定時に以下を `exit(1)` で拒否する:
+- `--operator` が `['mul']` 以外(`nuts_calc.py:249-251`、issue #42)。以前は `main()` 内で `command == 'ope'` 時に無条件で `operator = ['mul']` に上書きしており(削除済み)、`--operator add --intermediate` のような組み合わせでも `--operator` の指定を無視して黙って `mul` の問題を生成していた。`nuts_calc_tex.py:261-262` は同じ組み合わせを実装当初から明示的に拒否しており、この非対称を解消した。
+- `b_max` が1桁を超える場合(`nuts_calc.py:253-255`、issue #4 Phase 3)。
 
 ## 重要な設計判断
 
@@ -44,7 +46,7 @@
 ## 注意事項・既知の制限
 
 - `--vertical`(筆算形式)は issue #46 で削除済み。書き取り式の計算ドリルが必要な場合は `nuts_calc_tex.py` を使う([[nuts_calc_tex.py]] 参照)。
-- `--intermediate` は `b` が1桁の場合のみ対応(上記参照)。
+- `--intermediate` は `-o mul`(単一の `mul` 演算子)かつ `b` が1桁の場合のみ対応(上記参照)。`-o` を省略するとデフォルトの `operator=['add']` になるため、`--intermediate` を使う呼び出し元は `-o mul` を明示する必要がある(issue #42)。
 - `--a-min`/`--a-max`(または `--b-min`/`--b-max`)を同値で直接指定した場合、`ope` の乱数生成は単一値リストにフォールバックするため問題なく動作する(issue #4 Phase 6 で修正済み。以前は CPython の small-int キャッシュ範囲外の値で `IndexError` になっていた)。
 - `-r`/`-c` は1以上必須(`_init()` でバリデーション、issue #4 Phase 9 関連で追加)。
 - 出力ファイル名の導出(`OUTFILE_NAME_READ`/`OUTFILE_NAME_CSV`)は `os.path.splitext(ini.out_file)` でベース名と拡張子を分離し、ベース名に `_read.pdf`/`.csv` を付け足す。以前は `str.rstrip('.pdf')`(接尾辞除去ではなく文字クラス除去)を使っており、`.pdf` の直前が `.`/`p`/`d`/`f` のいずれかで終わるファイル名(例: `output_add.pdf`)だと壊れていた(issue #15 で修正済み)。
