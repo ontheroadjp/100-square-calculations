@@ -22,7 +22,8 @@
 
 ## 変更履歴(git log より自動生成)
 
-- (issue #46) feat: add GET /renderer-info endpoint so the frontend can detect the active renderer
+- 9ead364 refactor(#46): remove --vertical from nuts_calc.py; gate written-calculation UI on active renderer
+- 53eb72d fix(#37): surface renderer stdout in error responses; use exit(1) for -a/-b validation failures
 - 155caf8 feat(#36): switch web/backend renderer between nuts_calc.py and nuts_calc_tex.py via env var
 - cfea9ed fix(#4): fix 9 logic bugs found in CLI, web backend, and frontend
 - 0a11eaf feat(#9): add vertical (written-calculation) output format for ope command

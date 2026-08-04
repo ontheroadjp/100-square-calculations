@@ -1,10 +1,10 @@
 # Specification Summary
 
-DB は存在しないため `database.md` は生成していない(永続化層なし。`web/backend/app.py` に DB 接続の記述なし)。API については、Flask バックエンドが1エンドポイントのみを提供するため、本ファイル内にまとめて記載し独立した `api.md` は生成していない。
+DB は存在しないため `database.md` は生成していない(永続化層なし。`web/backend/app.py` に DB 接続の記述なし)。API については、Flask バックエンドが2エンドポイントを提供するため、本ファイル内にまとめて記載し独立した `api.md` は生成していない。
 
 ## CLI 仕様(`nuts_calc.py`)
 
-引数・出力仕様は旧 `100masu.py` から機能的に踏襲されている。詳細は [[../L2_development/operation_model]] を参照。実機で7種類の `command` すべての正常終了を確認済み。`ope` コマンドには `--vertical` フラグがあり、`add`/`sub`/`mul`(掛ける数は何桁でも対応。2桁以上は部分積の複数段表示、issue #10)/`div`(長除法、issue #11)を筆算(縦書き)形式で出力できる。詳細は [[nuts_calc.py]] を参照。
+引数・出力仕様は旧 `100masu.py` から機能的に踏襲されている。詳細は [[../L2_development/operation_model]] を参照。実機で7種類の `command` すべての正常終了を確認済み。筆算(縦書き)形式(旧 `--vertical` フラグ)は issue #46 で `nuts_calc.py` から削除され、`nuts_calc_tex.py` に一本化された(下記参照)。詳細は [[nuts_calc.py]] を参照。
 
 ## `nuts_calc_tex.py`(実験的プロトタイプ)
 
@@ -14,10 +14,17 @@ DB は存在しないため `database.md` は生成していない(永続化層�
 
 ### `POST /generate-pdf`
 
-- 入力: JSON ボディ。必須キー: `paper_size`, `command_type`。任意キー: `a_value`, `b_value`, `a_min`, `a_max`, `b_min`, `b_max`, `operator`(配列), `descend`, `reverse`, `shuffle`, `intermediate`, `vertical`, `rows`, `columns`, `with_bottom_answer`, `page`, `merge`, `csv`, `debug`(`web/backend/app.py:16-54`)。`intermediate` は `b_max` が1桁を超えると `nuts_calc.py` 側で `exit(1)` になり失敗する([[../../nuts_calc.py]] 参照)。
+- 入力: JSON ボディ。必須キー: `paper_size`, `command_type`。任意キー: `a_value`, `b_value`, `a_min`, `a_max`, `b_min`, `b_max`, `operator`(配列), `descend`, `reverse`, `shuffle`, `intermediate`, `vertical`(issue #46 以降、現在有効なレンダラーが `latex`(`nuts_calc_tex.py`)のときのみ有効。`reportlab`(`nuts_calc.py`)は `--vertical` を持たないため送ると失敗する), `rows`, `columns`, `with_bottom_answer`, `page`, `merge`, `csv`, `debug`(`web/backend/app.py:16-54`)。`intermediate` は `b_max` が1桁を超えると `nuts_calc.py` 側で `exit(1)` になり失敗する([[../../nuts_calc.py]] 参照)。
 - 処理: 受け取った値を `nuts_calc.py` の CLI 引数に変換し、`--out-file` にサーバー側で生成した UUID ファイル名(`web/backend/generated_pdfs/worksheet_<uuid>.pdf`)を指定して `subprocess.run(..., check=True)` を実行(`web/backend/app.py:56-63`)。
 - 出力: 成功時は生成された PDF ファイルをそのまま `send_file` で返す(`web/backend/app.py:69`)。失敗時は `{'error': ...}` を HTTP 400/500 で返す(`web/backend/app.py:28-29,71-79`)。
 - 入力検証: `paper_size`/`command_type` の必須チェックのみ(`web/backend/app.py:28-29`)。値そのものの許可リスト検証はバックエンドには無く、最終的に `nuts_calc.py` 側の `argparse` の `choices` に委ねられている([[../L0_concept/policy]] に記録)。
+
+### `GET /renderer-info`(issue #46)
+
+- 入力: なし。
+- 処理: `renderers.get_renderer_name()` を呼び、env 変数 `NUTS_CALC_RENDERER`(未設定時は `reportlab`)から解決したレンダラー名を返す。
+- 出力: 成功時は `{'renderer': 'reportlab'|'latex'}` を HTTP 200 で返す。`NUTS_CALC_RENDERER` に許可外の値が設定されている場合は `{'error': ...}` を HTTP 500 で返す。
+- 用途: `web/frontend` がリクエスト前にどちらのレンダラーが有効かを判定し、`latex` のときのみ筆算(`vertical`)関連の UI を表示するために使う([[../../web/frontend/src/GradeDrills.jsx]]/[[../../web/frontend/src/CustomGenerator.jsx]] 参照)。
 
 ## 既知の欠陥1(解消済み): 旧 `ini.intermediate` 未定義参照、および issue #4 の9件のロジックバグ
 

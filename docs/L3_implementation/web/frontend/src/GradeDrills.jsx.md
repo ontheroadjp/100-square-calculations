@@ -43,7 +43,7 @@
 
 ## 変更履歴(git log より自動生成)
 
-- (issue #46) feat: fetch GET /renderer-info once and gate the written-calculation section/CustomGenerator's vertical checkbox on the active renderer
+- 9ead364 refactor(#46): remove --vertical from nuts_calc.py; gate written-calculation UI on active renderer
 - 5211d63 feat(#44): rework grade-based drill menu per curriculum, inline written-calculation section, add Ungraded category
 - f0201d6 feat(#13): add grade-based written-calculation (hissan) drill menu
 - 39b8f97 feat(#7): switch preset PDF preview to a full detail page with a dirty-checked regenerate button

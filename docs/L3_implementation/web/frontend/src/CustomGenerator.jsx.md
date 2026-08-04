@@ -30,7 +30,7 @@
 
 ## 変更履歴(git log より自動生成)
 
-- (issue #46) refactor: only show the vertical checkbox when the active renderer (via GradeDrills.jsx's supportsVertical prop) supports it
+- 9ead364 refactor(#46): remove --vertical from nuts_calc.py; gate written-calculation UI on active renderer
 - cfea9ed fix(#4): fix 9 logic bugs found in CLI, web backend, and frontend
 - 0a11eaf feat(#9): add vertical (written-calculation) output format for ope command
 - 0631cf9 feat(#5): add grade-based drill PDF picker to web/frontend

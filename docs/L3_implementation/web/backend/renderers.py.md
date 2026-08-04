@@ -39,5 +39,6 @@ issue #19 のトラッキング issue にある「将来 `nuts_calc.py`/`nuts_ca
 
 ## 変更履歴(git log より自動生成)
 
-- (issue #46) `--vertical` は latex 専用になった(nuts_calc.py から削除)ため build_command のドキュメントを更新
+- 9ead364 refactor(#46): remove --vertical from nuts_calc.py; gate written-calculation UI on active renderer
+- 8062b9f fix(#36): invoke the running interpreter (sys.executable) instead of hardcoded python3
 - 155caf8 feat(#36): switch web/backend renderer between nuts_calc.py and nuts_calc_tex.py via env var

@@ -53,7 +53,8 @@
 
 ## 変更履歴(git log より自動生成)
 
-- (issue #46) refactor: remove --vertical (written-calculation) support; add_vertical_frame_set/get_vertical_contents_raw_dataset/get_vertical_contents kept as shared horizontal-rendering infra
+- 9ead364 refactor(#46): remove --vertical from nuts_calc.py; gate written-calculation UI on active renderer
+- 53eb72d fix(#37): surface renderer stdout in error responses; use exit(1) for -a/-b validation failures
 - 5d05c55 feat(#11): add vertical long-division (長除法) written-calculation format for div
 - 2a7cd15 feat(#10): support multi-digit multiplier in vertical mul output
 - 4aaf251 fix(#15): fix output filename derivation to use os.path.splitext
