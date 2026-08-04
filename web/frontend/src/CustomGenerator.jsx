@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next';
 
-function CustomGenerator() {
+function CustomGenerator({ supportsVertical = false }) {
   const { t } = useTranslation();
   const [pdfUrl, setPdfUrl] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -290,8 +290,10 @@ function CustomGenerator() {
                     <label htmlFor="intermediate">{t('show_intermediate_formula')}</label>
                   </div>
                 )}
-                {/* Vertical (written-calculation / hissan) format for ope */}
-                {commandType === 'ope' && (
+                {/* Vertical (written-calculation / hissan) format for ope --
+                    only offered when the active renderer supports it
+                    (nuts_calc_tex.py; nuts_calc.py dropped --vertical, issue #46) */}
+                {commandType === 'ope' && supportsVertical && (
                   <div className="checkbox-group">
                     <input id="vertical" type="checkbox" checked={vertical} onChange={(e) => setVertical(e.target.checked)} />
                     <label htmlFor="vertical">{t('vertical_format')}</label>

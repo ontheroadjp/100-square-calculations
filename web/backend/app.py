@@ -49,5 +49,13 @@ def generate_pdf():
         app.logger.error(f"An unexpected error occurred: {e}")
         return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
 
+@app.route('/renderer-info', methods=['GET'])
+def renderer_info():
+    try:
+        return jsonify({'renderer': renderers.get_renderer_name()})
+    except ValueError as e:
+        app.logger.error(f"Invalid renderer configuration: {e}")
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

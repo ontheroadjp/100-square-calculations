@@ -61,10 +61,14 @@ def build_command(renderer_name: str, params: RendererRequest, out_file: str) ->
     """
     Translate a request's params into CLI arguments for the given renderer.
 
-    Both nuts_calc.py and nuts_calc_tex.py expose the same CLI argument
-    surface (paper_size/command/-a/-b/--rows/--descend/etc.), so this
-    command-building logic is shared across renderers; only the script path
-    differs.
+    nuts_calc.py and nuts_calc_tex.py share the same CLI argument surface
+    (paper_size/command/-a/-b/--rows/--descend/etc.) with one exception:
+    `--vertical` (written-calculation / hissan format) is latex-only as of
+    issue #46 -- nuts_calc.py no longer accepts it. This command-building
+    logic still translates `params["vertical"]` unconditionally for both
+    renderers; callers must only set it when the active renderer is `latex`
+    (see `GET /renderer-info`), otherwise nuts_calc.py will reject the
+    resulting CLI invocation as an unrecognized argument.
     """
     script_path = RENDERER_SCRIPTS[renderer_name]
     command = [sys.executable, str(script_path)]
