@@ -40,6 +40,6 @@
 
 ## 変更履歴(git log より自動生成)
 
-- (このドキュメント更新時点の最新コミット): feat(#44): rework grade-based drill menu per curriculum, inline written-calculation section, add Ungraded category
+- 5211d63 feat(#44): rework grade-based drill menu per curriculum, inline written-calculation section, add Ungraded category
 - f0201d6 feat(#13): add grade-based written-calculation (hissan) drill menu
 - 0631cf9 feat(#5): add grade-based drill PDF picker to web/frontend
