@@ -84,41 +84,6 @@ def test_init_100_rejects_digit_value_above_three_with_exit_code_none(monkeypatc
 
 
 # ---------------------------------------------------------------------------
-# --vertical validation
-# ---------------------------------------------------------------------------
-
-
-def test_init_vertical_requires_ope_command(monkeypatch):
-    with pytest.raises(SystemExit) as exc_info:
-        _init_with(monkeypatch, "A4", "99", "-a", "3", "--vertical")
-    assert exc_info.value.code == 1
-
-
-def test_init_vertical_rejects_intermediate_combination(monkeypatch):
-    with pytest.raises(SystemExit) as exc_info:
-        _init_with(monkeypatch, "A4", "ope", "--vertical", "--intermediate")
-    assert exc_info.value.code == 1
-
-
-@pytest.mark.parametrize("operator", ["mix"])
-def test_init_vertical_rejects_unsupported_operators(monkeypatch, operator):
-    with pytest.raises(SystemExit) as exc_info:
-        _init_with(monkeypatch, "A4", "ope", "--vertical", "-o", operator)
-    assert exc_info.value.code == 1
-
-
-def test_init_vertical_allows_multi_digit_mul_second_operand(monkeypatch):
-    args = _init_with(monkeypatch, "A4", "ope", "--vertical", "-o", "mul", "-b", "2")
-    assert args.vertical is True
-
-
-@pytest.mark.parametrize("operator", ["add", "sub", "mul", "div"])
-def test_init_vertical_allows_supported_operators(monkeypatch, operator):
-    args = _init_with(monkeypatch, "A4", "ope", "--vertical", "-o", operator)
-    assert args.vertical is True
-
-
-# ---------------------------------------------------------------------------
 # --intermediate validation (issue #4 Phase 3)
 # ---------------------------------------------------------------------------
 

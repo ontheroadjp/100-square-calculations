@@ -73,68 +73,6 @@ def test_cli_with_bottom_answer_produces_pdf(run_cli, tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# --vertical (written-calculation / hissan format)
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("operator", ["add", "sub", "mul", "div"])
-def test_cli_vertical_supported_operators_succeed(run_cli, tmp_path, operator):
-    result = run_cli("A4", "ope", "--vertical", "-o", operator, "-r", "2", "-c", "1", "--out-file", "result.pdf")
-    assert result.returncode == 0, result.stderr
-    _assert_is_pdf(tmp_path / "result.pdf")
-
-
-@pytest.mark.parametrize("operator", ["mix"])
-def test_cli_vertical_rejects_unsupported_operator(run_cli, tmp_path, operator):
-    result = run_cli("A4", "ope", "--vertical", "-o", operator, "--out-file", "result.pdf")
-    assert result.returncode == 1
-    assert not (tmp_path / "result.pdf").exists()
-
-
-def test_cli_vertical_merge_produces_single_pdf_without_read_file(run_cli, tmp_path):
-    result = run_cli("A4", "ope", "--vertical", "-m", "-r", "2", "-c", "1", "--out-file", "result.pdf")
-    assert result.returncode == 0, result.stderr
-    _assert_is_pdf(tmp_path / "result.pdf")
-    assert not (tmp_path / "result_read.pdf").exists()
-
-
-def test_cli_vertical_mul_supports_multi_digit_multiplier(run_cli, tmp_path):
-    # 3-digit x 2-digit, matching the web frontend's `g4-mul` preset.
-    result = run_cli(
-        "A4", "ope", "--vertical", "-o", "mul", "-a", "3", "-b", "2",
-        "-r", "2", "-c", "1", "--out-file", "result.pdf",
-    )
-    assert result.returncode == 0, result.stderr
-    _assert_is_pdf(tmp_path / "result.pdf")
-    _assert_is_pdf(tmp_path / "result_read.pdf")
-
-
-@pytest.mark.parametrize("a_value,b_value", [(2, 1), (3, 2)])
-def test_cli_vertical_div_matches_g3_g4_preset_digit_ranges(run_cli, tmp_path, a_value, b_value):
-    # (2, 1): matches the web frontend's `g3-div` preset (2-digit / 1-digit).
-    # (3, 2): matches the web frontend's `g4-div` preset (3-digit / 2-digit).
-    result = run_cli(
-        "A4", "ope", "--vertical", "-o", "div", "-a", str(a_value), "-b", str(b_value),
-        "-r", "3", "-c", "2", "--out-file", "result.pdf",
-    )
-    assert result.returncode == 0, result.stderr
-    _assert_is_pdf(tmp_path / "result.pdf")
-    _assert_is_pdf(tmp_path / "result_read.pdf")
-
-
-def test_cli_vertical_div_blank_and_filled_pdfs_differ(run_cli, tmp_path):
-    result = run_cli(
-        "A4", "ope", "--vertical", "-o", "div", "-a", "3", "-b", "2",
-        "-r", "3", "-c", "2", "--out-file", "result.pdf",
-    )
-    assert result.returncode == 0, result.stderr
-
-    blank = (tmp_path / "result.pdf").read_bytes()
-    answer = (tmp_path / "result_read.pdf").read_bytes()
-    assert blank != answer
-
-
-# ---------------------------------------------------------------------------
 # --merge for the '100' command (separate next_content logic from 'ope')
 # ---------------------------------------------------------------------------
 

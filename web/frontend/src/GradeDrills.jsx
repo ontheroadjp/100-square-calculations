@@ -193,6 +193,18 @@ function GradeDrills() {
   const { t } = useTranslation();
   const [selectedGrade, setSelectedGrade] = useState(1);
   const [openPreset, setOpenPreset] = useState(null);
+  // Defaults to false (matching the backend's default 'reportlab' renderer,
+  // which no longer supports written-calculation output as of issue #46) so
+  // the common case never flashes the written-calculation UI before the
+  // fetch resolves.
+  const [supportsWritten, setSupportsWritten] = useState(false);
+
+  useEffect(() => {
+    fetch('http://127.0.0.1:5000/renderer-info')
+      .then((response) => response.json())
+      .then((data) => setSupportsWritten(data.renderer === 'latex'))
+      .catch(() => setSupportsWritten(false));
+  }, []);
 
   const isCustom = selectedGrade === CUSTOM_GRADE;
 
@@ -209,7 +221,7 @@ function GradeDrills() {
     );
   }
 
-  const writtenPresets = !isCustom ? presetsByGrade[selectedGrade].written : [];
+  const writtenPresets = !isCustom && supportsWritten ? presetsByGrade[selectedGrade].written : [];
 
   return (
     <div className="grade-drills">
@@ -237,7 +249,7 @@ function GradeDrills() {
       </nav>
 
       {isCustom ? (
-        <CustomGenerator />
+        <CustomGenerator supportsVertical={supportsWritten} />
       ) : (
         <>
           <div className="preset-card-grid">
