@@ -18,7 +18,7 @@
 │       ├── src/
 │       │   ├── main.jsx           # エントリポイント
 │       │   ├── App.jsx            # ヘッダー(タイトル・言語切替)+ GradeDrills を描画するシェル
-│       │   ├── GradeDrills.jsx    # 学年別(1-6+カスタム)ドリルPDF選択画面(メインUI)
+│       │   ├── GradeDrills.jsx    # 学年別(1-6+無学年+カスタム)ドリルPDF選択画面(メインUI)
 │       │   ├── CustomGenerator.jsx # 詳細パラメータ指定フォーム(「カスタム」選択時)
 │       │   ├── drillPresets.js    # 学年→/generate-pdf パラメータのプリセット定義
 │       │   ├── App.css

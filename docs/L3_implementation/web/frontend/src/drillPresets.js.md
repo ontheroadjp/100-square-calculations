@@ -2,34 +2,44 @@
 
 ## 目的・役割
 
-「学年(1〜6)」を `POST /generate-pdf`(`web/backend/app.py`)へのリクエストパラメータにマッピングする静的な設定データ。UI ロジックを一切持たず、`GRADES`・`CUSTOM_GRADE`・`presetsByGrade` の3つを export するのみ。
+「学年(1〜6、または無学年)」を `POST /generate-pdf`(`web/backend/app.py`/`renderers.py`)へのリクエストパラメータにマッピングする静的な設定データ。UI ロジックを一切持たず、`GRADES`・`UNGRADED`・`CUSTOM_GRADE`・`presetsByGrade` の4つを export するのみ。
 
 ## 動作の概要
 
-- `presetsByGrade[grade]` は `{ normal: [...], written: [...] }` の形。`normal` は横書き(`a + b = c`)形式、`written` は筆算(縦書き/`vertical: true`)形式のプリセット配列。各 preset は `{ id, titleKey, descKey, params, numberInput? }` の形。
+- `presetsByGrade[grade]`(`grade` は `1`〜`6` の数値、または `UNGRADED`(`'ungraded'`))は `{ normal: [...], written: [...] }` の形。`normal` は横書き(`a + b = c`)形式、`written` は筆算(縦書き/`vertical: true`)形式のプリセット配列。各 preset は `{ id, titleKey, descKey, params, numberInput? }` の形。
   - `params`: `/generate-pdf` にそのまま渡す固定パラメータ(例: `{ command_type: 'ope', operator: ['add','sub'], a_min: 1, a_max: 9, b_min: 1, b_max: 9 }`)。
   - `numberInput`: ユーザーがカードごとに変更できる追加パラメータがある場合のみ存在。`{ param, labelKey, min, max, default }` で、`param` が `params` にマージされる対象キー(例: 九九の「段」は `a_value`)。
 - `titleKey`/`descKey` は `public/locales/{en,ja}/translation.json` のキー。
+- `UNGRADED`(`presetsByGrade['ungraded']`)は他の学年キーと完全に同じ `{ normal, written }` 構造を持つため、`GradeDrills.jsx` 側は数値学年と区別せず同じロジックで扱える(`CUSTOM_GRADE` のみ別 UI として分岐)。
 
 ## 重要な設計判断
 
-- **学年は概算のガイドであり厳密なカリキュラム対応ではない**: `nuts_calc.py` は整数の四則演算・九九(`99`)・100マス(`100`)・平方数(`squ`)・円周率3.14倍(`pi`)・aBc暗算(`aBc`)・補数(`com`)のみをサポートし、小数・分数は非対応。そのため4〜6年生で本来学ぶ小数計算・分数・円の面積などは、桁数を増やした四則混合(`operator: ['mix']`)や `pi`/`squ` コマンドで難易度的に近似している。UI (`GradeDrills.jsx`) 側で「学年の目安は概算」である旨を明記することでこの制約を利用者に伝えている。
-- `com` コマンドの `a_value` は「桁数」ではなく補数の対象(target)そのもの(`nuts_calc.py` の `main()` 内 `target = ini.a_value` を参照)。そのため `g1-complement10` は `a_value: 10`、`g2-complement100` は `a_value: 100` としている(桁数ではない点に注意)。
-- `99`/`squ`/`pi` コマンドの `a_value` は「開始する数」(`nuts_calc.py` の `get_fixed_format_data` で `start_num = ini.a_value` として使われる)。九九は段そのもの(1〜9)なので `numberInput.default: 2` かつ `max: 9`、`squ`/`pi` は連番の開始位置なので `numberInput.default: 1` かつ `max: 20`(実用上妥当な範囲として設定、`nuts_calc.py` 側に上限のバリデーションはない)。
-- **`written`(筆算)は `nuts_calc.py --vertical` が対応する組み合わせに限定している**: `--vertical` は `ope` コマンドの `add`/`sub`/`mul`(mul は掛ける数の桁数を問わず対応。issue #10 で複数桁乗数の部分積表示に対応済み)をサポートし、`div`/`mix` のみ CLI 側のバリデーションで `exit(1)` になる(`docs/L3_implementation/nuts_calc.py.md` 参照)。ただし本ファイル(`drillPresets.js`)の `written` プリセット定義自体はこの CLI 側の対応拡張にまだ追随しておらず、含めているのは各学年の `add`/`sub`(桁数を学年に応じて増やして近似)と、3年生の `mul`(2桁×1桁)のみ。4〜6年生の掛け算(複数桁乗数、CLI 側は対応済み)・わり算の筆算(長除法、issue #11)を `written` プリセットに追加するのはフロントエンド側の別途対応が必要。
-- **6年生の `written` の `addsub` プリセットは桁数を揃えていない(`a_value: 5, b_value: 3`)**: 5年生で既に `a_value: 5, b_value: 5` を使っているため、6年生をさらに大きい桁数にすると `nuts_calc.py` の `a_value`/`b_value` 桁数ショートカット(`set_min_max_value` は1〜5桁までしか定義されていない)の上限に達してしまう。桁数の異なる数どうしの位取りの練習という、実際の学習内容としても妥当な差別化を採用した。
+- **学年は概算のガイドであり厳密なカリキュラム対応ではない**: `nuts_calc.py`/`nuts_calc_tex.py` は整数の四則演算・九九(`99`)・100マス(`100`)・平方数(`squ`)・円周率3.14倍(`pi`)・aBc暗算(`aBc`)・補数(`com`)のみをサポートし、小数・分数は非対応。そのため5〜6年生で本来学ぶ小数の乗除・分数の計算などは、桁数を増やした四則混合(`operator: ['mix']`)や `pi` コマンドで難易度的に近似している。UI (`GradeDrills.jsx`) 側で「学年の目安は概算」である旨を明記することでこの制約を利用者に伝えている。
+- **日本の学習指導要領(算数)の学年配置に沿った内容確定**(2026年見直し):
+  - 1年生に `written`(筆算)セクションは存在しない。筆算という記法は指導要領上、正式には2年生から導入されるため。
+  - 2年生の加減算(`normal`/`written` とも)は「2位数+2位数」(`a_value: 2, b_value: 2`)。指導要領の2年生内容「2位数の加法及び減法の計算、それらの筆算の仕方」に対応する。
+  - 3年生に `--intermediate`(途中式)を使った掛け算工夫プリセット(`g3-mul-intermediate`)を追加。指導要領3年の「乗数や被乗数を分解して計算する工夫」に対応する内容が、これまでどの学年にも存在しなかったため。
+  - 4年生の `written` に掛け算(3桁×2桁、`g4-mul-written`)・わり算(3桁÷2桁、長除法、`g4-div-written`)を追加。指導要領4年の「乗法・除法の筆算」に対応する。`nuts_calc.py`/`nuts_calc_tex.py` 側は既に対応済み(掛け算の複数桁乗数は issue #10、わり算の長除法は issue #11)だったが、フロントエンドのプリセットには未反映だった。
+  - `aBc`(4桁数の分解暗算)・`squ`(平方数)は、指導要領上どの学年にも対応する明示的な単元が無い発展的な暗算ドリルのため、`UNGRADED`(無学年)に分類する(以前はそれぞれ6年生・5年生に割り当てていたが、根拠のない学年紐付けだったため移動した)。対照的に `pi`(×3.14)は5年生で正式に指導される円周率の定数(3.14)に直結するため、5・6年生に残している。
+- **`com` コマンドの `a_value` は「桁数」ではなく補数の対象(target)そのもの**(`nuts_calc.py` の `main()` 内 `target = ini.a_value` を参照)。そのため `g1-complement10` は `a_value: 10`、`g2-complement100` は `a_value: 100` としている(桁数ではない点に注意)。
+- **`99`/`squ`/`pi` コマンドの `a_value` は「開始する数」**(`get_fixed_format_data` で `start_num = ini.a_value` として使われる)。九九は段そのもの(1〜9)なので `numberInput.default: 2` かつ `max: 9`、`squ`/`pi` は連番の開始位置なので `numberInput.default: 1` かつ `max: 20`。
+- **`nuts_calc.py`/`nuts_calc_tex.py` 間のレンダラー相違を踏まえた除外**: `web/backend/renderers.py` は `NUTS_CALC_RENDERER` 環境変数でどちらのスクリプトにも切り替えられ、両者が同一の CLI サーフェスを持つ前提で実装されている。しかし調査の結果、3箇所で挙動が食い違うことが判明し、それぞれ別issueとして追跡している:
+  - `--vertical` + `operator: ['mix']`: `nuts_calc.py` は拒否するが `nuts_calc_tex.py` は拒否しない(issue #41)。→ 本ファイルはこの組み合わせを一切使わない。
+  - `--intermediate` と `operator`: `nuts_calc.py` は非 `mul` を指定しても黙って `mul` に上書きするが、`nuts_calc_tex.py` は明示的に拒否する(issue #42)。→ `g3-mul-intermediate` は `operator: ['mul']` を明示することで両レンダラーで動作する。
+  - `100` コマンドに `a_value`/`b_value` を明示指定(2桁・3桁)した場合、`nuts_calc.py` 側だけ桁数変換が無視される(issue #43)。→ `100` コマンドのプリセットは `a_value: 1, b_value: 1`(グレード1のみ)に限定している。
 
 ## 統合ポイント
 
-- 呼び出し元: `GradeDrills.jsx`(`GRADES`/`CUSTOM_GRADE` でナビゲーションを描画、`presetsByGrade[selectedGrade][formatCategory]` でカードを描画)
+- 呼び出し元: `GradeDrills.jsx`(`GRADES`/`UNGRADED`/`CUSTOM_GRADE` でナビゲーションを描画、`presetsByGrade[selectedGrade].normal`/`.written` でカードを描画)
 - 呼び出し先: なし(純粋なデータモジュール)
 
 ## 注意事項・既知の制限
 
-- `nuts_calc.py`/`web/backend/app.py` 側にパラメータの許可リストバリデーションが薄いため(`docs/L3_implementation/specification_summary.md` 既知の制約)、ここで不正な組み合わせを作らないよう注意する。
-- `written` の掛け算プリセットは3年生の1件のみ(理由は上記)。
+- `nuts_calc.py`/`nuts_calc_tex.py`/`web/backend/app.py` 側にパラメータの許可リストバリデーションが薄いため(`docs/L3_implementation/specification_summary.md` 既知の制約)、ここで不正な組み合わせを作らないよう注意する。特に上記のレンダラー相違(issue #41/#42/#43)が解消されるまでは、該当する組み合わせを追加しないこと。
+- `written` の内容は学年によって件数・対応演算が異なる(1年生は0件、他学年は1〜3件)。
 
 ## 変更履歴(git log より自動生成)
 
+- 5211d63 feat(#44): rework grade-based drill menu per curriculum, inline written-calculation section, add Ungraded category
 - f0201d6 feat(#13): add grade-based written-calculation (hissan) drill menu
 - 0631cf9 feat(#5): add grade-based drill PDF picker to web/frontend

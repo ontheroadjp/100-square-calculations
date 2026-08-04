@@ -8,7 +8,7 @@
 
 - `useTranslation()` から `t`/`i18n` を取得し、タイトルと言語切替ボタンのラベルに使う。
 - `changeLanguage(lng)` は `i18n.changeLanguage(lng)` を呼ぶだけ(`web/frontend/src/App.jsx:8-10`)。
-- モード切り替え(学年別 / 詳細設定)は `App.jsx` レベルには存在しない。学年(1〜6)とカスタムの切り替えは `GradeDrills` 内部の状態として持たせている(下記 [[GradeDrills.jsx]] 参照)。
+- モード切り替え(学年別 / 詳細設定)は `App.jsx` レベルには存在しない。学年(1〜6)・無学年・カスタムの切り替えは `GradeDrills` 内部の状態として持たせている(下記 [[GradeDrills.jsx]] 参照)。
 
 ## 重要な設計判断
 

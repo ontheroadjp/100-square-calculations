@@ -5,12 +5,17 @@
 
 export const GRADES = [1, 2, 3, 4, 5, 6];
 
+export const UNGRADED = 'ungraded';
+
 export const CUSTOM_GRADE = 'custom';
 
 // "written" presets use nuts_calc.py's `--vertical` flag (written-calculation /
-// hissan format). That flag only supports 'add'/'sub' and 'mul' where the second
-// operand is a single digit; 'div' and multi-digit-multiplier 'mul' are rejected
-// by the CLI, so those operators aren't offered here (tracked in issues #10/#11).
+// hissan format), which supports 'add'/'sub'/'mul'/'div' (including
+// multi-digit-multiplier 'mul', issue #10, and long-division 'div', issue
+// #11). 'mix' is intentionally never combined with `vertical: true` here:
+// nuts_calc.py rejects that combination but nuts_calc_tex.py does not
+// (tracked as a renderer-parity bug, issue #41), so exposing it would behave
+// inconsistently depending on which renderer the backend is configured to use.
 export const presetsByGrade = {
   1: {
     normal: [
@@ -33,14 +38,9 @@ export const presetsByGrade = {
         params: { command_type: '100', a_value: 1, b_value: 1 },
       },
     ],
-    written: [
-      {
-        id: 'g1-addsub-written',
-        titleKey: 'preset_g1_addsub_written_title',
-        descKey: 'preset_g1_addsub_written_desc',
-        params: { command_type: 'ope', operator: ['add', 'sub'], a_value: 1, b_value: 1, vertical: true },
-      },
-    ],
+    // Written-calculation (筆算) notation is formally introduced starting
+    // grade 2 in the course of study, so grade 1 has no `written` section.
+    written: [],
   },
   2: {
     normal: [
@@ -48,7 +48,7 @@ export const presetsByGrade = {
         id: 'g2-addsub2',
         titleKey: 'preset_g2_addsub2_title',
         descKey: 'preset_g2_addsub2_desc',
-        params: { command_type: 'ope', operator: ['add', 'sub'], a_value: 2, b_value: 1 },
+        params: { command_type: 'ope', operator: ['add', 'sub'], a_value: 2, b_value: 2 },
       },
       {
         id: 'g2-kuku',
@@ -69,7 +69,7 @@ export const presetsByGrade = {
         id: 'g2-addsub-written',
         titleKey: 'preset_g2_addsub_written_title',
         descKey: 'preset_g2_addsub_written_desc',
-        params: { command_type: 'ope', operator: ['add', 'sub'], a_value: 2, b_value: 1, vertical: true },
+        params: { command_type: 'ope', operator: ['add', 'sub'], a_value: 2, b_value: 2, vertical: true },
       },
     ],
   },
@@ -92,6 +92,16 @@ export const presetsByGrade = {
         titleKey: 'preset_g3_addsub3_title',
         descKey: 'preset_g3_addsub3_desc',
         params: { command_type: 'ope', operator: ['add', 'sub'], a_value: 3, b_value: 3 },
+      },
+      {
+        id: 'g3-mul-intermediate',
+        titleKey: 'preset_g3_mul_intermediate_title',
+        descKey: 'preset_g3_mul_intermediate_desc',
+        // operator is pinned to ['mul'] (not left to default) because
+        // nuts_calc_tex.py rejects --intermediate with any other operator,
+        // while nuts_calc.py silently ignores it -- being explicit keeps the
+        // request valid on both renderers (see issue #42).
+        params: { command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 1, intermediate: true },
       },
     ],
     written: [
@@ -132,6 +142,18 @@ export const presetsByGrade = {
     ],
     written: [
       {
+        id: 'g4-mul-written',
+        titleKey: 'preset_g4_mul_written_title',
+        descKey: 'preset_g4_mul_written_desc',
+        params: { command_type: 'ope', operator: ['mul'], a_value: 3, b_value: 2, vertical: true },
+      },
+      {
+        id: 'g4-div-written',
+        titleKey: 'preset_g4_div_written_title',
+        descKey: 'preset_g4_div_written_desc',
+        params: { command_type: 'ope', operator: ['div'], a_value: 3, b_value: 2, vertical: true },
+      },
+      {
         id: 'g4-addsub-written',
         titleKey: 'preset_g4_addsub_written_title',
         descKey: 'preset_g4_addsub_written_desc',
@@ -146,13 +168,6 @@ export const presetsByGrade = {
         titleKey: 'preset_g5_pi_title',
         descKey: 'preset_g5_pi_desc',
         params: { command_type: 'pi' },
-        numberInput: { param: 'a_value', labelKey: 'preset_input_start', min: 1, max: 20, default: 1 },
-      },
-      {
-        id: 'g5-squ',
-        titleKey: 'preset_g5_squ_title',
-        descKey: 'preset_g5_squ_desc',
-        params: { command_type: 'squ' },
         numberInput: { param: 'a_value', labelKey: 'preset_input_start', min: 1, max: 20, default: 1 },
       },
       {
@@ -173,12 +188,6 @@ export const presetsByGrade = {
   },
   6: {
     normal: [
-      {
-        id: 'g6-abc',
-        titleKey: 'preset_g6_abc_title',
-        descKey: 'preset_g6_abc_desc',
-        params: { command_type: 'aBc' },
-      },
       {
         id: 'g6-pi',
         titleKey: 'preset_g6_pi_title',
@@ -201,5 +210,30 @@ export const presetsByGrade = {
         params: { command_type: 'ope', operator: ['add', 'sub'], a_value: 5, b_value: 3, vertical: true },
       },
     ],
+  },
+  // Drills that don't correspond to any single course-of-study grade unit
+  // (unlike e.g. `pi`, which is anchored to grade 5's introduction of the
+  // 3.14 constant): `aBc` is a mental-math decomposition trick and `squ` is
+  // a generic same-number multiplication drill, neither taught as a named
+  // elementary-school unit. Neither has a `--vertical` form (only `ope`
+  // supports it), so `written` stays empty. Keyed by `UNGRADED` so
+  // `GradeDrills.jsx` can look it up the same way as a numbered grade.
+  [UNGRADED]: {
+    normal: [
+      {
+        id: 'ungraded-abc',
+        titleKey: 'preset_ungraded_abc_title',
+        descKey: 'preset_ungraded_abc_desc',
+        params: { command_type: 'aBc' },
+      },
+      {
+        id: 'ungraded-squ',
+        titleKey: 'preset_ungraded_squ_title',
+        descKey: 'preset_ungraded_squ_desc',
+        params: { command_type: 'squ' },
+        numberInput: { param: 'a_value', labelKey: 'preset_input_start', min: 1, max: 20, default: 1 },
+      },
+    ],
+    written: [],
   },
 };

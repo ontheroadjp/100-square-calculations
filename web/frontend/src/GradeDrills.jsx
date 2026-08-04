@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next';
-import { GRADES, CUSTOM_GRADE, presetsByGrade } from './drillPresets';
+import { GRADES, UNGRADED, CUSTOM_GRADE, presetsByGrade } from './drillPresets';
 import CustomGenerator from './CustomGenerator';
 
 // Maps the simplified "problem density" choice to nuts_calc.py's rows/columns.
@@ -12,11 +12,10 @@ const DENSITY_OPTIONS = [
 ];
 const DEFAULT_DENSITY = 'standard';
 
-const FORMAT_CATEGORIES = [
-  { value: 'normal', labelKey: 'format_normal' },
-  { value: 'written', labelKey: 'format_written' },
-];
-const DEFAULT_FORMAT_CATEGORY = 'normal';
+// Grade-like nav entries shown before the "Custom" button: numbered grades
+// 1-6, then the ungraded bucket for drills with no specific course-of-study
+// grade anchor (see drillPresets.js).
+const NAV_GRADES = [...GRADES, UNGRADED];
 
 const buildFileName = (grade, preset) => `drill_grade${grade}_${preset.id}.pdf`;
 
@@ -194,14 +193,12 @@ function GradeDrills() {
   const { t } = useTranslation();
   const [selectedGrade, setSelectedGrade] = useState(1);
   const [openPreset, setOpenPreset] = useState(null);
-  const [formatCategory, setFormatCategory] = useState(DEFAULT_FORMAT_CATEGORY);
 
   const isCustom = selectedGrade === CUSTOM_GRADE;
 
   const handleSelectGrade = (grade) => {
     setSelectedGrade(grade);
     setOpenPreset(null);
-    setFormatCategory(DEFAULT_FORMAT_CATEGORY);
   };
 
   if (openPreset) {
@@ -212,13 +209,15 @@ function GradeDrills() {
     );
   }
 
+  const writtenPresets = !isCustom ? presetsByGrade[selectedGrade].written : [];
+
   return (
     <div className="grade-drills">
       <p className="grade-drills-intro">{t('grade_drills_intro')}</p>
       <p className="grade-drills-disclaimer">{t('grade_drills_disclaimer')}</p>
 
       <nav className="grade-nav" aria-label={t('grade_select_label')}>
-        {GRADES.map((grade) => (
+        {NAV_GRADES.map((grade) => (
           <button
             key={grade}
             type="button"
@@ -241,23 +240,22 @@ function GradeDrills() {
         <CustomGenerator />
       ) : (
         <>
-          <nav className="grade-nav format-nav" aria-label={t('format_select_label')}>
-            {FORMAT_CATEGORIES.map((category) => (
-              <button
-                key={category.value}
-                type="button"
-                className={`grade-link ${formatCategory === category.value ? 'active' : ''}`}
-                onClick={() => setFormatCategory(category.value)}
-              >
-                {t(category.labelKey)}
-              </button>
-            ))}
-          </nav>
           <div className="preset-card-grid">
-            {presetsByGrade[selectedGrade][formatCategory].map((preset) => (
+            {presetsByGrade[selectedGrade].normal.map((preset) => (
               <PresetCard key={preset.id} preset={preset} onOpen={setOpenPreset} />
             ))}
           </div>
+
+          {writtenPresets.length > 0 && (
+            <section className="written-section">
+              <h3 className="written-section-title">{t('written_section_title')}</h3>
+              <div className="preset-card-grid">
+                {writtenPresets.map((preset) => (
+                  <PresetCard key={preset.id} preset={preset} onOpen={setOpenPreset} />
+                ))}
+              </div>
+            </section>
+          )}
         </>
       )}
     </div>
