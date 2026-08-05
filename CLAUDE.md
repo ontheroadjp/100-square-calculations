@@ -4,11 +4,13 @@ AI 運用の single source of truth。`AGENTS.md` はこのファイルへの sy
 
 ## プロジェクト概要
 
-計算ドリル PDF 生成ツール群。CLI(`nuts_calc.py`、Python + ReportLab、旧名 `100masu.py`)と、それをラップする Web UI(`web/backend` Flask + `web/frontend` React/Vite)の2経路がある。詳細は `docs/L0_concept/`, `docs/L1_project/`, `docs/L2_development/`, `docs/L3_implementation/` を参照。`docs/.ai/repo.profile.json` に主要コマンドと primary_docs へのポインタがある。
+計算ドリル PDF 生成ツール群。CLI(`nuts_calc.py`、Python + ReportLab、旧名 `100masu.py`)と、それをラップする Web UI(`web/backend` Flask + `web/frontend` React/Vite)の2経路がある。加えて、`nuts_calc.py` とコード共有しない実験的プロトタイプ `nuts_calc_tex.py`(LaTeX/`pdflatex` レンダリング、issue #19)があり、`web/backend` から `NUTS_CALC_RENDERER=latex` env 変数で選択的に呼び出せる。`tests/`(pytest、`pytest.ini`)にテストスイートがある。詳細は `docs/L0_concept/`, `docs/L1_project/`, `docs/L2_development/`, `docs/L3_implementation/` を参照。`docs/.ai/repo.profile.json` に主要コマンドと primary_docs へのポインタがある。
 
-**既知の欠陥(実機確認済み・未修正)**: `web/frontend/package.json` に `i18next`/`react-i18next`/`i18next-browser-languagedetector`/`i18next-http-backend` が不足しており、`npm run build` が `Rollup failed to resolve import "i18next"` で失敗する。詳細: `docs/L3_implementation/specification_summary.md`。
+**解消済みの既知の欠陥**: `web/frontend/package.json` に `i18next`/`react-i18next`/`i18next-browser-languagedetector`/`i18next-http-backend` が不足し `npm run build` が失敗していた問題は解消済み(2026-08-05 実機再確認、`npm install && npm run build` 成功)。
 
 **解消済みバグ**: 旧 `100masu.py:158` の `ini.intermediate` 未定義参照バグ(`ope` 以外の全コマンドが `NameError` で失敗)は、`nuts_calc.py` への移行時に `args.intermediate` へ修正済み。7コマンドすべての正常動作を実機確認済み。
+
+**既知の未修正事項**: `tests/test_nuts_calc_init.py` に9件の失敗するテストがある。`nuts_calc.py` の一部バリデーションが `exit()` から `exit(1)` に修正された(issue #37)後、テスト側の期待値が更新されないまま残っている stale なテストで、実装のバグではない。詳細: `docs/L2_development/test.md`。
 
 ## Custom / Command の使い分け（AI向けルール）
 
