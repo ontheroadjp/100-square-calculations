@@ -36,6 +36,10 @@ CI 定義・パッケージ定義(lock file 等)は Python 側に存在しない
 
 **実機確認**: 上記7コマンドすべてが `python3 nuts_calc.py A4 <command> ...` で正常に完了し、PDF/CSV を生成することを確認済み。旧 `100masu.py:158` にあった `ini.intermediate` 未定義参照バグ([[../L0_concept/policy]] 参照)は解消されている。
 
+### `nuts_calc_tex.py`(実験的プロトタイプ)
+
+`nuts_calc.py` と同じ7コマンドを LaTeX(`pdflatex`)でレンダリングする独立プロトタイプ(issue #19 配下の全8フェーズが完了済み)。`nuts_calc.py` からは import 等のコード共有を一切行わない。まだ `web/backend`(`NUTS_CALC_RENDERER=latex` 経由でのみ有効化)からのみ到達可能で、`factory.sh` からは呼ばれない。筆算(縦書き)形式は `nuts_calc.py` から issue #46 で削除され、この `nuts_calc_tex.py` に一本化されている。詳細は [[../L3_implementation/nuts_calc_tex.py]] を参照。
+
 ### Web UI(`web/`、新規)
 
 - `web/backend/app.py`: Flask アプリ。単一エンドポイント `POST /generate-pdf`(`web/backend/app.py:14`)がリクエストボディの JSON を `nuts_calc.py` の CLI 引数へ変換し `subprocess.run` で実行、生成された PDF をそのままレスポンスとして返す(`web/backend/app.py:61-69`)。
