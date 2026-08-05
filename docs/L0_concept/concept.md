@@ -29,6 +29,7 @@
 - CLI 経路は、CLI → ReportLab → PDF/CSV のワンショット変換のみ(データベースなし)。Web UI 経路は React(ブラウザ) → Flask(`web/backend/app.py`) → `subprocess` で `nuts_calc.py` を起動 → 生成された PDF をレスポンスとして返す、という構成で、いずれも状態を永続化しない(根拠: `web/backend/app.py:1-83` に DB 接続や永続ストレージの記述なし。生成 PDF は `web/backend/generated_pdfs/` に一時保存されるのみ)。
 - 用紙サイズは A3 / A4 / A4横(landscape) / B5 の4種類に限定され、それぞれ余白・フォントサイズ・仮想ページ分割数(A3は4分割、A4横は2分割)が異なるレイアウトロジックがハードコードされている(根拠: `nuts_calc.py` の用紙サイズ分岐、CLI 側の `100masu.py` 由来のロジックがそのまま引き継がれている)。
 - 問題タイプ(`command` 引数)は `ope`(四則演算), `com`(補数), `100`(100マス計算), `99`(九九), `aBc`(4桁→3桁変換トレーニング), `squ`(平方数), `pi`(円周率倍)の7種類に限定される。CLI・Web UI 双方でこの7種類が共通のインターフェースになっている(根拠: `web/backend/app.py` はこれらの値をそのまま `nuts_calc.py` の位置引数として渡すだけで、独自のバリデーションを追加していない)。
+- 筆算(縦書き)形式の計算ドリルという、ReportLab では設計上安全に実装しきれなかった要件(issue #41)に対応するため、`nuts_calc.py` とはコード共有しない完全に独立した LaTeX(`pdflatex`)レンダリング版プロトタイプ `nuts_calc_tex.py` を並行開発する方針が採られている(issue #19)。将来的に両者を同じ CLI 契約で切り替えられるラッパーを作る前提だが、現時点では `web/backend`(`NUTS_CALC_RENDERER` env 変数経由)からのみ選択的に利用でき、`factory.sh` やドリルのデフォルト経路には組み込まれていない(根拠: [[../L3_implementation/nuts_calc_tex.py]])。
 
 ## 未確認事項
 

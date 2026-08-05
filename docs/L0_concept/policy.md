@@ -5,7 +5,8 @@
 - PDF 生成には ReportLab を採用している(根拠: `nuts_calc.py` の import 群、`README.md:105-110`)。
 - Web UI は React 19 + Vite 7 + Tailwind CSS(フロントエンド、`web/frontend/package.json:12-29`)と Flask + Flask-Cors(バックエンド、`web/backend/app.py:1-2`)という構成。バックエンドは独自のドリル生成ロジックを持たず、既存の CLI(`nuts_calc.py`)を `subprocess.run` で呼び出すラッパーに徹している(根拠: `web/backend/app.py:20-63`)。これは CLI とロジックを二重実装しない設計判断と考えられる(未確認: 明示的な設計意図の記述はコード内にないが、実装から読み取れる一貫した方針)。
 - Python 側は依存関係の固定(lock file, `requirements.txt`, `pyproject.toml` など)を行っていない。以前存在した `setup.py` はコミット `d9fc0a3`("Rename 100masu.py to nuts_calc.py and remove setup.py")で削除されており、`pip install` によるパッケージインストールの導線は現状ない。README.md の Setup セクション(`README.md:13-14`)は「pip 経由でインストールでき、reportlab の依存関係も処理される」と書いてあるが、これを裏付けるパッケージ定義ファイルは存在しない(README と実装の乖離。[[consistency_checks]] 参照)。
-- npm 側は `web/frontend/package-lock.json` でバージョン固定されているが、`package.json` の `dependencies` に実際に import されている `i18next` 系パッケージが欠落しており、`npm install` 後の `npm run build`/`npm run dev` が失敗する(実機確認済み、詳細は [[specification_summary]])。
+- npm 側は `web/frontend/package-lock.json` でバージョン固定されている。`package.json` の `dependencies` には `i18next`/`react-i18next`/`i18next-browser-languagedetector`/`i18next-http-backend` が含まれており、`npm install && npm run build` が成功することを実機で再確認済み(2026-08-05)。過去(2026-07-22 時点)はこれらのパッケージが欠落しビルドが失敗していたが、その後のコミットで解消されている(詳細は [[specification_summary]])。
+- `nuts_calc_tex.py`(実験的プロトタイプ)は LaTeX(`pdflatex`)エンジンに依存する。CTAN の `longdivision` パッケージは Ubuntu の `texlive-latex-extra` に同梱されていないため `vendor/texmf/tex/latex/longdivision/` としてリポジトリに vendoring している(LPPLライセンス)。`xlop` は同パッケージに同梱されているため vendoring していない(詳細は [[../L3_implementation/nuts_calc_tex.py]])。
 
 ## セキュリティ方針
 
@@ -21,10 +22,12 @@
 ## 禁止事項・既知の制約
 
 - **(解消済み)** 旧 `100masu.py:158` の `ini.intermediate` 未定義変数バグ(`ope` 以外の全コマンドが `NameError` で失敗する不具合)は、`dev` ブランチのマージ(`nuts_calc.py`)で `args.intermediate` に修正されており、CLI の7コマンドすべてが実機で正常終了することを確認済み。
-- **(新規・実機確認済み)** `web/frontend` は `npm install && npm run build` を実行すると `i18next` の解決失敗でビルドに失敗する。`package.json` の依存関係が `src/i18n.js`/`src/App.jsx` の実際の import と一致していないため。詳細と再現手順は [[specification_summary]]。
-- README.md(`README.md:13-14`)が pip 経由のインストールに言及しているが、パッケージ定義ファイル(`setup.py`/`pyproject.toml`)は存在しない。実際には `pip install reportlab flask flask-cors` のような個別インストールが必要。
+- **(解消済み)** `web/frontend` の `npm install && npm run build` が `i18next` 系パッケージの欠落で失敗していた既知の欠陥は解消済み(2026-08-05 実機再確認)。詳細は [[specification_summary]]。
+- **(既知・未修正)** `tests/test_nuts_calc_init.py` に9件の失敗するテストがある。`nuts_calc.py` のバリデーション分岐が `exit()` から `exit(1)` に修正された(issue #37)後、テスト側の期待値が更新されないまま残っている stale なテスト。実装のバグではない(テストファイル自身の docstring、`docs/L3_implementation/nuts_calc.py.md:55`、[[../L2_development/test]] 参照)。
+- README.md(`README.md:18`)が「パッケージ定義ファイルが存在しない」旨を既に明記しており、この点についての README と実装の乖離は解消済み。実際には `pip install reportlab flask flask-cors` のような個別インストールが必要な点は変わらない。
 
 ## AI が変更判断前に確認すべきこと
 
-- `web/frontend` に手を入れる際は、まず `package.json` に `i18next`/`react-i18next`/`i18next-browser-languagedetector`/`i18next-http-backend` を追加してビルドが通る状態にする必要がある(既知の未修正課題)。
+- `web/frontend` は現在ビルド可能な状態(`npm install && npm run build` 成功、2026-08-05 確認)。変更を加えた際は `npm run build` で再確認すること。
+- `nuts_calc.py` の `_init()` バリデーション周りを変更する際は、`tests/test_nuts_calc_init.py` の9件の失敗テストが「意図的に stale なままにしている既知の状態」であることを踏まえ、無関係な差分でこれらのテスト数が変動していないか確認すること([[../L2_development/test]] 参照)。
 - `web/backend/app.py` を触る際は、`CORS(app)` がオリジン無制限である点、および入力値の許可リスト検証がない点を認識した上で変更すること。

@@ -10,14 +10,18 @@
   "commands": {
     "install_python": "python3 -m venv venv && source venv/bin/activate && pip install reportlab flask flask-cors",
     "run_cli": "python3 nuts_calc.py <paper_size> <command> [options]",
+    "run_cli_tex_prototype": "python3 nuts_calc_tex.py <paper_size> <command> [options]  # requires pdflatex; experimental, not wired into web/backend or factory.sh",
     "batch_generate": "./factory.sh",
     "run_backend": "cd web/backend && python app.py",
     "install_frontend": "cd web/frontend && npm install",
     "run_frontend_dev": "cd web/frontend && npm run dev",
-    "build_frontend": "cd web/frontend && npm run build"
+    "build_frontend": "cd web/frontend && npm run build",
+    "install_test_deps": "pip install pytest",
+    "run_tests": "pytest -q"
   },
   "entrypoints": [
     "nuts_calc.py",
+    "nuts_calc_tex.py",
     "factory.sh",
     "web/backend/app.py",
     "web/frontend/src/main.jsx"
@@ -28,8 +32,9 @@
   },
   "notes": {
     "package_manager": "No requirements.txt/pyproject.toml/setup.py exists for the Python side (a prior setup.py was removed per commit d9fc0a3, verified: 'git log -- nuts_calc.py'). README.md's Setup/Dependencies sections describe installing Flask/Flask-Cors/reportlab manually via pip, and web/frontend has its own package.json/package-lock.json for npm.",
-    "ci": "No .github/workflows directory or other CI definition exists in this repo (verified: no *.yml/*.yaml files found).",
-    "tests": "No test files or test directory exist in this repo (verified: no path matching *test*).",
-    "known_defects": "None currently known. The previously-tracked web/frontend build failure (missing i18next dependencies) is resolved: package.json lists i18next/react-i18next/i18next-browser-languagedetector/i18next-http-backend, and 'npm install && npm run build' succeeds. See docs/L3_implementation/specification_summary.md."
+    "ci": "No .github/workflows directory or other CI definition exists in this repo (verified: 'find .github -type f' returns nothing).",
+    "tests": "tests/ exists (pytest, pytest.ini: testpaths=tests, pythonpath=.). 14 test files covering nuts_calc.py, nuts_calc_tex.py (unit-level; the pdflatex-dependent CLI tests skip when pdflatex is absent), and web/backend. Verified by running 'pytest -q' on this branch (2026-08-05): 196 tests, 187 passed, 9 failed. The 9 failures are in tests/test_nuts_calc_init.py and are pre-existing/known: they assert bare `exit()` (SystemExit(None)) for validation failures that nuts_calc.py's _init() now raises as `exit(1)` (fixed in issue #37); the test file's own docstring and docs/L3_implementation/nuts_calc.py.md:55 document this as stale test expectations, reproducible on main, unrelated to any change on this branch.",
+    "known_defects": "None currently known. The previously-tracked web/frontend build failure (missing i18next dependencies) is resolved: package.json lists i18next/react-i18next/i18next-browser-languagedetector/i18next-http-backend, and 'npm install && npm run build' was re-verified to succeed on this branch (2026-08-05). See docs/L3_implementation/specification_summary.md. Separately, tests/test_nuts_calc_init.py has 9 known-stale failing tests (see notes.tests above) that are not a defect in nuts_calc.py itself.",
+    "nuts_calc_tex_py": "Experimental LaTeX-rendered prototype (see docs/L3_implementation/nuts_calc_tex.py.md), zero code sharing with nuts_calc.py. Requires pdflatex (texlive-latex-base + texlive-latex-extra). Vendors the CTAN 'longdivision' package at vendor/texmf/tex/latex/longdivision/ (not bundled with Ubuntu's texlive-latex-extra); 'xlop' is assumed available from the standard texlive-latex-extra package. Not called by web/backend/app.py directly -- web/backend/renderers.py can select it via the NUTS_CALC_RENDERER=latex env var (issue #36)."
   }
 }
