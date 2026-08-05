@@ -166,6 +166,7 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 
 ## 変更履歴(git log より自動生成)
 
+- 04d9a60 fix(#59): distribute horizontal worksheet layout
 - cf3603c fix(#55): preserve vertical worksheet page counts
 - 88eefba fix: tighten written calculation operator spacing
 - ab83032 fix: align written calculation operators
@@ -175,9 +176,3 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 - fa73c50 feat(#26): add nuts_calc_tex.py Phase 7 squ command (square numbers)
 - be25ae8 feat(#25): add nuts_calc_tex.py Phase 6 aBc command (mental arithmetic statements)
 - 1e14347 feat(#24): add nuts_calc_tex.py Phase 5 99 command (times-table / kuku)
-- 51dcb6a fix(#23): validate 100 command digit count before range conversion
-- 7393885 feat(#23): add nuts_calc_tex.py Phase 4 100 command (addition table)
-- d45bc98 feat(#22): add nuts_calc_tex.py Phase 3 com command (complements)
-- 82c0b6f fix(#21): guarantee calc_sub/calc_div succeed whenever a valid pair exists
-- 44a3c18 feat(#21): add nuts_calc_tex.py Phase 2 ope command (horizontal/vertical/mix/intermediate)
-- acb1e84 feat(#20): add nuts_calc_tex.py Phase 1 (LaTeX CLI/PDF foundation)
