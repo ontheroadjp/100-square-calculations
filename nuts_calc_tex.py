@@ -322,10 +322,22 @@ def build_page_header_tex() -> str:
 def build_inline_grid_tex(blocks: list[str], columns: int) -> str:
     """Join blocks into text rows separated by \\hspace, one row per line."""
     row_lines = []
-    for row_start in range(0, len(blocks), columns):
-        row_blocks = blocks[row_start:row_start + columns]
+    for row_blocks in build_column_major_rows(blocks, columns):
         row_lines.append((f"\\hspace{{{BLOCK_GUTTER_CM}cm}}").join(row_blocks))
     return f"\\par\\vspace{{{ROW_VSPACE_EM}em}}\n".join(row_lines)
+
+
+def build_column_major_rows(blocks: list[str], columns: int) -> list[list[str]]:
+    """Convert sequential blocks to visual rows filled down each column first."""
+    row_count = (len(blocks) + columns - 1) // columns
+    return [
+        [
+            blocks[column * row_count + row]
+            for column in range(columns)
+            if column * row_count + row < len(blocks)
+        ]
+        for row in range(row_count)
+    ]
 
 
 def build_tabular_grid_tex(blocks: list[str], columns: int) -> str:
@@ -353,8 +365,7 @@ def build_tabular_grid_tex(blocks: list[str], columns: int) -> str:
     )
     column_spec = f">{{\\centering\\arraybackslash}}p{{{column_width_tex}}}" * columns
     row_tabulars = []
-    for row_start in range(0, len(blocks), columns):
-        row_blocks = blocks[row_start:row_start + columns]
+    for row_blocks in build_column_major_rows(blocks, columns):
         row_blocks += [''] * (columns - len(row_blocks))
         row_tex = ' & '.join(row_blocks)
         row_tabulars.append(f"\\begin{{tabular}}{{{column_spec}}}\n{row_tex}\n\\end{{tabular}}")
