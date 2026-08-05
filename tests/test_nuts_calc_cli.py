@@ -150,6 +150,23 @@ def test_cli_ope_add_default_range_can_reach_upper_bound(run_cli, tmp_path):
     assert a_values == set(range(1, 10))
 
 
+def test_cli_100_honors_explicit_digit_width_for_a_and_b(run_cli, tmp_path):
+    # issue #43: the '100' command only derived a_min/a_max/b_min/b_max from
+    # -a/-b when the value was left unset (defaulting to 1 digit); an explicit
+    # -a 2 -b 2 used to be silently ignored and fall back to the 1-digit
+    # (1-9) argparse default range instead of the requested 2-digit (10-99).
+    result = run_cli("A4", "100", "-a", "2", "-b", "2", "--csv", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+
+    csv_lines = (tmp_path / "result.csv").read_text().strip().splitlines()
+
+    header_row_values = [int(v) for v in csv_lines[0].split(",")[1:]]
+    assert all(10 <= v <= 99 for v in header_row_values)
+
+    left_column_values = [int(row.split(",")[0]) for row in csv_lines[1:11]]
+    assert all(10 <= v <= 99 for v in left_column_values)
+
+
 def test_cli_com_seed_can_reach_target_minus_one(run_cli, tmp_path):
     # issue #4 Phase 8 (fixed): range(1, target - 1) used to exclude
     # a = target - 1 (the boundary that yields the valid answer c = 1).

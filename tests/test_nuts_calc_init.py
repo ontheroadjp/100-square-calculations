@@ -83,6 +83,16 @@ def test_init_100_rejects_digit_value_above_three_with_exit_code_none(monkeypatc
     assert exc_info.value.code is None
 
 
+def test_init_100_honors_explicit_digit_width_for_a_and_b(monkeypatch):
+    # issue #43: set_min_max_value() was only called inside the `-a`/`-b`
+    # is-None (defaulted) branches, so an explicit -a/-b skipped it entirely
+    # and a_min/a_max/b_min/b_max silently stayed at argparse's 1-digit
+    # default (1, 9) instead of being derived from the requested digit count.
+    args = _init_with(monkeypatch, "A4", "100", "-a", "2", "-b", "2")
+    assert (args.a_min, args.a_max) == (10, 99)
+    assert (args.b_min, args.b_max) == (10, 99)
+
+
 # ---------------------------------------------------------------------------
 # --intermediate validation (issue #4 Phase 3)
 # ---------------------------------------------------------------------------

@@ -6,8 +6,9 @@
 
 ## 動作の概要
 
-- `_init()` が引数を検証・正規化して `argparse.Namespace` を返す。`command` ごとに `-a`/`-b`(桁数指定)から `a_min`/`a_max`/`b_min`/`b_max`(実際の数値範囲)を導出する(`nuts_calc.py:232-245` 付近)。`ope` 以外の `command` では `--intermediate` を渡してもこの導出は行われない(`command == 'ope'` のみが対象、issue #4 Phase 1)。
+- `_init()` が引数を検証・正規化して `argparse.Namespace` を返す。`command` ごとに `-a`/`-b`(桁数指定)から `a_min`/`a_max`/`b_min`/`b_max`(実際の数値範囲)を導出する(`nuts_calc.py:232-247` 付近)。`ope` 以外の `command` では `--intermediate` を渡してもこの導出は行われない(`command == 'ope'` のみが対象、issue #4 Phase 1)。`100` コマンドも独自にこの導出を行う(下記)。
 - `_init()` は他に以下をバリデーションする: `com`/`99`/`squ`/`pi` の `-a` 必須(未指定時は `exit(1)`、issue #37 で `exit()` から修正)、`100` の `-a`/`-b` は3桁まで(未指定/不正時は `exit(1)`、同じく issue #37 で修正)、`--intermediate` は第2引数(`b`)が1桁の場合のみ許可(`args.b_max > SINGLE_DIGIT_MAX` なら `exit(1)`、issue #4 Phase 3)、`-r`/`-c` は `MIN_ROWS_OR_COLUMNS`(=1)以上必須(`exit(1)`)。
+- `100` コマンドの `a_min`/`a_max`/`b_min`/`b_max` 導出(`nuts_calc.py:237-247`)は、`-a`/`-b` 未指定時のデフォルト適用(`a_value = 1`)→ 3桁超えチェック → `set_min_max_value()` の無条件呼び出し、という順序で行う(issue #43)。以前は `set_min_max_value()` の呼び出しが `is None` 分岐の内側にあり、`-a 2`/`-a 3` のように明示指定すると導出自体がスキップされ、`a_min`/`a_max` が argparse のデフォルト(1, 9)のまま残る(1桁の表になる)不具合があった。`nuts_calc_tex.py:213-230` は元々「`a_value`/`b_value` が `None` でなければ無条件に導出」という構造でこの不具合を持たない。
 - `main(ini)` は用紙サイズ・コマンドに応じて `Frame` レイアウトを組み立て、`get_vertical_contents_raw_dataset` で問題データを生成し、`command` ごとの描画ロジックで PDF 2種(通常版・解答版 `_read.pdf`)を作る。`ini.merge` が真の場合は1ファイルに問題ページ→解答ページを交互に収める(`next_content` による1ページ遅延の仕組み)。
 - `nums_a`/`nums_b`(問題の種となる数値集合)は `ini.a_min`/`ini.a_max` などから `range(min, max + 1)`(上限含む)で構築する。`min == max` の場合は `random.sample` を経由せず単一要素リストにする分岐があり、この等価判定は `!=`(恒等比較 `is not` ではない)を使う(issue #4 Phase 2, 6)。同様の `range(min, max + 1)` 構築は `100` コマンド側にも独立して存在する。
 
@@ -55,6 +56,7 @@
 
 ## 変更履歴(git log より自動生成)
 
+- f613008 fix(#43): honor explicit -a/-b digit width for the '100' command
 - e619398 fix(#42): reject --intermediate with a non-mul operator instead of silently coercing it
 - 9ead364 refactor(#46): remove --vertical from nuts_calc.py; gate written-calculation UI on active renderer
 - 53eb72d fix(#37): surface renderer stdout in error responses; use exit(1) for -a/-b validation failures

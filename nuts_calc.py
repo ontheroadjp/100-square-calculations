@@ -237,14 +237,14 @@ def _init():
     elif args.command == '100':
         if args.a_value is None:
             args.a_value = 1
-            args.a_min, args.a_max = set_min_max_value(args.a_value)
         if args.b_value is None:
             args.b_value = 1
-            args.b_min, args.b_max = set_min_max_value(args.b_value)
         if args.a_value > 3 or args.b_value > 3:
             print(f"bad argument: -a or -b")
             print('They must be less than 3.')
             exit(1)
+        args.a_min, args.a_max = set_min_max_value(args.a_value)
+        args.b_min, args.b_max = set_min_max_value(args.b_value)
 
     if args.intermediate and args.operator != ['mul']:
         print("--intermediate only supports a single 'mul' operator (use -o mul).")
