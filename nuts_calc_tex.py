@@ -39,6 +39,13 @@ from typing import Callable
 
 
 MIN_ROWS_OR_COLUMNS = 1
+DEFAULT_ROWS = 10
+VERTICAL_DEFAULT_ROWS_BY_PAPER_SIZE = {
+    'a3': 4,
+    'a4': 4,
+    'b5': 2,
+    'a4l': 2,
+}
 BLOCK_GUTTER_CM = 1.0
 ROW_VSPACE_EM = 2.0
 MAX_OPERAND_RETRY_ATTEMPTS = 1000
@@ -168,7 +175,7 @@ def _init() -> argparse.Namespace:
     )
     parser.add_argument('-r', '--rows'
         , type = int
-        , default = 10
+        , default = None
         , help = 'Lines of question per page'
     )
     parser.add_argument('-c', '--columns'
@@ -206,6 +213,12 @@ def _init() -> argparse.Namespace:
         , help = 'Enable debug mode'
     )
     args = parser.parse_args()
+
+    if args.rows is None:
+        if args.command == 'ope' and args.vertical:
+            args.rows = VERTICAL_DEFAULT_ROWS_BY_PAPER_SIZE[args.paper_size.lower()]
+        else:
+            args.rows = DEFAULT_ROWS
 
     def set_min_max_value(value: int) -> list[int]:
         digits_list = ((1, 9), (10, 99), (100, 999), (1000, 9999), (10000, 99999))

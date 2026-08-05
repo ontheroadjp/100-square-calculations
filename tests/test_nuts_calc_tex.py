@@ -72,6 +72,16 @@ def _assert_is_pdf(path: Path) -> None:
     assert len(data) > 500
 
 
+def _pdf_page_count(path: Path) -> int:
+    result = subprocess.run(
+        ["pdfinfo", str(path)], capture_output=True, text=True, check=True,
+    )
+    for line in result.stdout.splitlines():
+        if line.startswith("Pages:"):
+            return int(line.split(":", maxsplit=1)[1].strip())
+    raise AssertionError(f"pdfinfo did not report a page count for {path}")
+
+
 def test_cli_produces_blank_and_filled_pdfs(run_tex_cli, tmp_path):
     result = run_tex_cli("A4", "ope", "-r", "3", "-c", "2", "-p", "1", "--out-file", "result.pdf")
     assert result.returncode == 0, result.stderr
@@ -181,6 +191,25 @@ def test_cli_ope_vertical_default_rows_does_not_drop_content(run_tex_cli, tmp_pa
     assert result.returncode == 0, result.stderr
     _assert_is_pdf(tmp_path / "result.pdf")
     _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+@pytest.mark.skipif(shutil.which("pdfinfo") is None, reason="pdfinfo is required to inspect PDF page counts")
+@pytest.mark.parametrize(
+    ("paper_size", "expected_rows"),
+    [("A3", 4), ("A4", 4), ("B5", 2), ("a4l", 2)],
+)
+def test_cli_ope_vertical_default_rows_match_requested_page_count(
+    run_tex_cli, tmp_path, paper_size, expected_rows,
+):
+    result = run_tex_cli(
+        paper_size, "ope", "-o", "mul", "--a-value", "3", "--b-value", "2",
+        "--vertical", "-p", "2", "--csv", "--out-file", "result.pdf",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert _pdf_page_count(tmp_path / "result.pdf") == 2
+    assert _pdf_page_count(tmp_path / "result_read.pdf") == 2
+    assert len((tmp_path / "result.csv").read_text().strip().splitlines()) == expected_rows * 2 * 2
 
 
 def test_cli_ope_intermediate_produces_pdfs(run_tex_cli, tmp_path):
