@@ -57,12 +57,13 @@ CI 定義・パッケージ定義(lock file 等)は Python 側に存在しない
 ## エントリポイント
 
 - `nuts_calc.py` — CLI 単体実行: `python3 nuts_calc.py <paper_size> <command> [options]`
+- `nuts_calc_tex.py` — 実験的 LaTeX プロトタイプの単体実行: `python3 nuts_calc_tex.py <paper_size> <command> [options]`(要 `pdflatex`)
 - `factory.sh` — バッチ実行(`python nuts_calc.py` を内部で呼び出す。リポジトリルートでの実行を前提)
 - `web/backend/app.py` — Flask サーバー起動: `python app.py`(`web/backend` ディレクトリ内で実行、`http://127.0.0.1:5000`)
 - `web/frontend/src/main.jsx` — React アプリのエントリ。`npm run dev`(`http://localhost:5173`)または `npm run build` で起動/ビルド
 
 ## 未確認事項
 
-- 自動テストの有無: リポジトリ内に test ファイルは存在しない。
-- CI/CD: `.github/workflows` 等の定義は存在しない。
+- CI/CD: `.github/workflows` 等の定義は存在しない(`find .github -type f` で確認済み)。
 - Web UI の実運用(本番デプロイ)構成: README には開発サーバーの起動手順のみが記載されており、本番ビルド・デプロイ手順の記述はない。
+- `tests/`(pytest)は web/frontend・web/backend の結合テスト(実際に Flask を起動してフロントエンドと繋いだ動作確認)まではカバーしていない(`tests/test_web_backend_app.py`/`tests/test_web_backend_renderers.py` はあるが、フロントエンドは対象外。詳細は [[../L2_development/test]])。
