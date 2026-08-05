@@ -35,9 +35,11 @@ Notes:
 
 ## Python Environment
 
-- No lock file, `requirements.txt`, or `pyproject.toml` exists. CLI dependency is `reportlab`; the web backend additionally needs `Flask`/`Flask-Cors`. Install via `pip install reportlab flask flask-cors` (see `README.md`).
+- No lock file, `requirements.txt`, or `pyproject.toml` exists. CLI dependency is `reportlab`; the web backend additionally needs `Flask`/`Flask-Cors`; the test suite needs `pytest`. Install via `pip install reportlab flask flask-cors pytest` (see `README.md`).
 - Before running `nuts_calc.py`, confirm `python3 -c "import reportlab"` succeeds; if not, ask before installing.
+- `pytest -q` at the repo root runs the suite (`pytest.ini`: `testpaths = tests`). As of 2026-08-05, 9 of 196 tests fail; this is a known, pre-existing stale-test issue in `tests/test_nuts_calc_init.py` unrelated to any single change (see `docs/L2_development/test.md`) — don't assume a newly-introduced regression without checking whether the failure is one of those 9.
+- `nuts_calc_tex.py` (experimental LaTeX prototype) additionally requires `pdflatex` on `PATH`; its `pdflatex`-dependent CLI tests auto-skip when it's absent.
 
 ## Web Frontend Environment (`web/frontend`)
 
-- Before running `npm install`/`npm run dev`/`npm run build`, be aware `package.json` is missing `i18next`-family packages (see known defect above). `npm install` alone will NOT fix the build; ask the user before adding packages.
+- `web/frontend/package.json` includes the `i18next` family of packages; `npm install && npm run build` succeeds (re-verified 2026-08-05). The previously-tracked missing-dependency defect is resolved.
