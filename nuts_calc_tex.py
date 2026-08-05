@@ -59,6 +59,7 @@ VENDOR_TEXMF_DIR = os.path.join(SCRIPT_DIR, 'vendor', 'texmf')
 OPERATOR_TEX_SYMBOLS = {'add': '+', 'sub': '-', 'mul': '\\times', 'div': '\\div'}
 MIX_OPERATORS = ['add', 'sub', 'mul', 'div']
 XLOP_VERTICAL_COMMANDS = {'add': 'opadd', 'sub': 'opsub', 'mul': 'opmul'}
+XLOP_VERTICAL_LAYOUT_OPTIONS = 'voperator=bottom,columnwidth=2.4ex'
 
 PAPER_SIZE_TO_GEOMETRY_OPTION = {
     'a3': 'a3paper',
@@ -600,10 +601,17 @@ def build_vertical_block_tex(problem: OpeProblem, show_answer: bool) -> str:
     command = XLOP_VERTICAL_COMMANDS[problem.operator]
     op_call_tex = f"\\[\\{command}{{{problem.a}}}{{{problem.b}}}\\]"
     if show_answer:
-        return index_line + op_call_tex
+        return (
+            index_line
+            + f"\\begingroup\\opset{{{XLOP_VERTICAL_LAYOUT_OPTIONS}}}"
+            + op_call_tex
+            + "\\endgroup"
+        )
     return (
         index_line
-        + "\\begingroup\\opset{resultstyle=\\phantom,carrystyle=\\phantom,intermediarystyle=\\phantom}"
+        + "\\begingroup\\opset{"
+        + XLOP_VERTICAL_LAYOUT_OPTIONS
+        + ",resultstyle=\\phantom,carrystyle=\\phantom,intermediarystyle=\\phantom}"
         + op_call_tex
         + "\\endgroup"
     )

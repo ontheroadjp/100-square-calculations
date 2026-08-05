@@ -134,6 +134,16 @@ def test_build_vertical_block_tex_div_uses_stage_zero_for_blank() -> None:
     assert 'stage=0' not in filled_tex
 
 
+def test_build_vertical_block_tex_aligns_operator_and_extends_horizontal_rule() -> None:
+    problem = tex_module.OpeProblem(index=1, a=23, b=4, operator='add', c=27)
+    blank_tex = tex_module.build_vertical_block_tex(problem, show_answer=False)
+    filled_tex = tex_module.build_vertical_block_tex(problem, show_answer=True)
+    layout_options = 'voperator=bottom,columnwidth=2.4ex'
+
+    assert f'\\opset{{{layout_options}' in blank_tex
+    assert f'\\opset{{{layout_options}}}' in filled_tex
+
+
 def test_build_ope_csv_rows_has_one_row_per_problem() -> None:
     page1 = [tex_module.OpeProblem(index=1, a=2, b=3, operator='add', c=5)]
     page2 = [tex_module.OpeProblem(index=2, a=9, b=4, operator='sub', c=5)]
