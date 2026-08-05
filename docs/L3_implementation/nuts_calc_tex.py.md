@@ -155,6 +155,7 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 
 ## 変更履歴(git log より自動生成)
 
+- fbb0f27 fix(#53): arrange worksheet problems in column order
 - 99352fd fix(#51): remove latex answer underlines
 - 93877f0 feat(#27): add nuts_calc_tex.py Phase 8 pi command (multiplication by pi)
 - fa73c50 feat(#26): add nuts_calc_tex.py Phase 7 squ command (square numbers)
