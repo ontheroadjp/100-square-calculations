@@ -47,7 +47,8 @@ def test_build_abc_block_tex_blank_hides_answer() -> None:
     blank_tex = tex_module.build_abc_block_tex(problem, show_answer=False)
     filled_tex = tex_module.build_abc_block_tex(problem, show_answer=True)
     assert '154' not in blank_tex
-    assert '1234 \\Rightarrow \\underline' in blank_tex
+    assert '\\underline' not in blank_tex
+    assert '1234 \\Rightarrow \\hspace{1.5em}' in blank_tex
     assert '1234 \\Rightarrow 154$' in filled_tex
 
 

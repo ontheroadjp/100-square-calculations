@@ -50,7 +50,8 @@ def test_build_squ_block_tex_blank_hides_answer() -> None:
     blank_tex = tex_module.build_squ_block_tex(problem, show_answer=False, reverse=False)
     filled_tex = tex_module.build_squ_block_tex(problem, show_answer=True, reverse=False)
     assert '16' not in blank_tex
-    assert '4 \\times 4 = \\underline' in blank_tex
+    assert '\\underline' not in blank_tex
+    assert '4 \\times 4 = \\hspace{1.5em}' in blank_tex
     assert '4 \\times 4 = 16$' in filled_tex
 
 
@@ -59,7 +60,8 @@ def test_build_squ_block_tex_reverse_swaps_equation_sides() -> None:
     blank_tex = tex_module.build_squ_block_tex(problem, show_answer=False, reverse=True)
     filled_tex = tex_module.build_squ_block_tex(problem, show_answer=True, reverse=True)
     assert '16' not in blank_tex
-    assert '\\underline{\\hspace{1.5em}} = 4 \\times 4$' in blank_tex
+    assert '\\underline' not in blank_tex
+    assert '\\hspace{1.5em} = 4 \\times 4$' in blank_tex
     assert '16 = 4 \\times 4$' in filled_tex
 
 

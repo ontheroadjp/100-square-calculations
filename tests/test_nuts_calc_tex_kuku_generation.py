@@ -51,7 +51,8 @@ def test_build_kuku_block_tex_blank_hides_answer() -> None:
     blank_tex = tex_module.build_kuku_block_tex(problem, show_answer=False, reverse=False)
     filled_tex = tex_module.build_kuku_block_tex(problem, show_answer=True, reverse=False)
     assert '12' not in blank_tex
-    assert '3 \\times 4 = \\underline' in blank_tex
+    assert '\\underline' not in blank_tex
+    assert '3 \\times 4 = \\hspace{1.5em}' in blank_tex
     assert '3 \\times 4 = 12$' in filled_tex
 
 
@@ -60,7 +61,8 @@ def test_build_kuku_block_tex_reverse_swaps_equation_sides() -> None:
     blank_tex = tex_module.build_kuku_block_tex(problem, show_answer=False, reverse=True)
     filled_tex = tex_module.build_kuku_block_tex(problem, show_answer=True, reverse=True)
     assert '12' not in blank_tex
-    assert '\\underline{\\hspace{1.5em}} = 3 \\times 4$' in blank_tex
+    assert '\\underline' not in blank_tex
+    assert '\\hspace{1.5em} = 3 \\times 4$' in blank_tex
     assert '12 = 3 \\times 4$' in filled_tex
 
 

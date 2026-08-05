@@ -110,8 +110,20 @@ def test_build_horizontal_block_tex_blank_hides_answer() -> None:
     blank_tex = tex_module.build_horizontal_block_tex(problem, show_answer=False)
     filled_tex = tex_module.build_horizontal_block_tex(problem, show_answer=True)
     assert '= 5$' not in blank_tex
+    assert '\\underline' not in blank_tex
     assert '2 + 3' in blank_tex
+    assert '2 + 3 = \\hspace{1.5em}$' in blank_tex
     assert '2 + 3 = 5' in filled_tex
+
+
+def test_build_horizontal_intermediate_block_tex_blank_hides_answer_without_underline() -> None:
+    problem = tex_module.OpeProblem(index=1, a=23, b=4, operator='mul', c=92)
+    blank_tex = tex_module.build_horizontal_intermediate_block_tex(problem, show_answer=False)
+    filled_tex = tex_module.build_horizontal_intermediate_block_tex(problem, show_answer=True)
+    assert '92' not in blank_tex
+    assert '\\underline' not in blank_tex
+    assert '23 \\times 4 \\Rightarrow 0812 \\Rightarrow \\hspace{1.5em}$' in blank_tex
+    assert '23 \\times 4 \\Rightarrow 0812 \\Rightarrow 92$' in filled_tex
 
 
 def test_build_vertical_block_tex_div_uses_stage_zero_for_blank() -> None:
