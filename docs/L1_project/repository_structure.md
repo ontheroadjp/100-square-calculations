@@ -40,14 +40,19 @@
 ## 各ファイル/ディレクトリの責務(実装から確認)
 
 - `nuts_calc.py`: CLI エントリポイント兼ロジック全体。ファイル冒頭のヘッダーコメント(`nuts_calc.py:4-13`)は "Script: 100masu.py" のままリネーム前の名称を残しており、実際のファイル名(`nuts_calc.py`)と食い違っている(ドキュメンテーションの取り残し、実害はない)。内部構成(引数パース、7種のデータ生成関数、ReportLab レイアウト構築、`main()`)は旧 `100masu.py` から機能的に踏襲。
-- `factory.sh`: `_basic`/`_kuku`系関数で用紙サイズ・分量違いの複数パターンを `dist/` 以下に一括生成。呼び出し方法が `100masu.py ...`(裸のコマンド名)から `python nuts_calc.py ...` に変更され(`factory.sh:127` 等)、`nuts_calc.py` がリポジトリルートにあり `python`(`python3` ではない)が `PATH` 上にあることを前提にしている。
+- `nuts_calc_tex.py`: `nuts_calc.py` と同じ7コマンドを LaTeX(`pdflatex`)でレンダリングする実験的プロトタイプ(issue #19 配下の全8フェーズ実装済み)。`nuts_calc.py` とはコード共有なし。詳細は [[../L3_implementation/nuts_calc_tex.py]]。
+- `factory.sh`: `_basic`/`_kuku`系関数で用紙サイズ・分量違いの複数パターンを `dist/` 以下に一括生成。呼び出し方法が `100masu.py ...`(裸のコマンド名)から `python nuts_calc.py ...` に変更され(`factory.sh:127` 等)、`nuts_calc.py` がリポジトリルートにあり `python`(`python3` ではない)が `PATH` 上にあることを前提にしている。`nuts_calc_tex.py` は呼び出さない。
 - `memo.md`: コードではなく、暗算指導法・学習ステップ・受験算数における計算力の重要性を説明する日本語の教育コンテンツ。`dev` ブランチのマージで一度削除されたが、ユーザーの指示によりマージ後に `main` の内容から復元済み(2026-07-22)。
 - `LICENSE`: MIT License(`LICENSE:1-21`、Copyright (c) 2025 ontheroadjp)。`dev` ブランチのマージで新規追加。
-- `README.md` / `README_ja.md`: 英語/日本語で内容が対応した利用者向け説明。CLI・`factory.sh`・Web UI(バックエンド/フロントエンド起動手順)をカバーしている。
-- `web/backend/app.py`: Flask アプリ。`/generate-pdf` の単一エンドポイントで `nuts_calc.py` を `subprocess` 実行するラッパー(詳細は [[../L1_project/project_overview]])。
+- `README.md` / `README_ja.md`: 英語/日本語で内容が対応した利用者向け説明。CLI・`factory.sh`・Web UI(バックエンド/フロントエンド起動手順)をカバーしている。README.md には `Architecture`/`Design Principles` セクションがあるが README_ja.md には対応するセクションがなく、両者は完全な対訳ではなくなっている(下記「未確認事項」参照)。
+- `tests/`: pytest テストスイート(14ファイル)。`nuts_calc.py`(単体・CLI経由のend-to-end)、`nuts_calc_tex.py`(単体は常時実行、`pdflatex` 依存のCLIテストは未インストール時に自動スキップ)、`web/backend`(`app.py`/`renderers.py`)を対象とする。詳細は [[../L2_development/test]]。
+- `vendor/texmf/tex/latex/longdivision/`: CTAN の `longdivision` パッケージ(LPPLライセンス)を vendoring したもの。Ubuntu の `texlive-latex-extra` に同梱されていないため、`nuts_calc_tex.py` が `TEXINPUTS` 経由でこのパスを解決する([[../L3_implementation/nuts_calc_tex.py]] 参照)。
+- `web/backend/app.py`: Flask アプリ。`POST /generate-pdf`(PDF生成)と `GET /renderer-info`(有効レンダラー名の取得)の2エンドポイント。コマンド構築・レンダラー選択・subprocess実行は `web/backend/renderers.py` に切り出されている(詳細は [[../L1_project/project_overview]])。
+- `web/backend/renderers.py`: `NUTS_CALC_RENDERER` env 変数(`reportlab`|`latex`)で `nuts_calc.py`/`nuts_calc_tex.py` を切り替えて呼び出す、Flask 非依存の純粋関数群(issue #36)。
 - `web/frontend/`: Vite ベースの React SPA。`node_modules/` と `dist/` は `.gitignore` で除外済み(`.gitignore:53-54`)。トップ画面は学年別ドリル選択(`GradeDrills.jsx`)で、そこから「カスタム」を選ぶと詳細パラメータ指定フォーム(`CustomGenerator.jsx`)に切り替わる。
 
 ## 未確認事項
 
 - `docs/` 以外に、リポジトリ外で管理されているドキュメント(Notion、Google Docs等)があるかどうかは本リポジトリから確認できない。
 - `web/backend/generated_pdfs/`(実行時に自動作成されるディレクトリ、`web/backend/app.py:11-12`)が `.gitignore` の対象になっていない点は [[../L0_concept/policy]] に記録済み。
+- README.md には存在する `Architecture`/`Design Principles` セクションが README_ja.md にはない(`grep -n '^##' README_ja.md` で確認済み)。意図的な省略か更新漏れかは本リポジトリから確認できない。
