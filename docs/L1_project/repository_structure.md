@@ -30,7 +30,7 @@
 │       │   ├── App.css
 │       │   └── i18n.js            # react-i18next 設定
 │       ├── public/locales/{en,ja}/translation.json  # 翻訳文言
-│       ├── package.json         # i18next系4パッケージを含む(下記「既知の欠陥」参照、解消済み)
+│       ├── package.json         # i18next系4パッケージを含む(過去欠落していたが解消済み。[[../L3_implementation/specification_summary]] 参照)
 │       └── package-lock.json
 └── docs/                 # /init-docs で生成した設計ドキュメント
 ```
