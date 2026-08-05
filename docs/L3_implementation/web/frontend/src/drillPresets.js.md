@@ -7,7 +7,7 @@
 ## 動作の概要
 
 - `presetsByGrade[grade]`(`grade` は `1`〜`6` の数値、または `UNGRADED`(`'ungraded'`))は `{ normal: [...], written: [...] }` の形。`normal` は横書き(`a + b = c`)形式、`written` は筆算(縦書き/`vertical: true`)形式のプリセット配列。各 preset は `{ id, titleKey, descKey, params, numberInput? }` の形。
-  - `params`: `/generate-pdf` にそのまま渡す固定パラメータ(例: `{ command_type: 'ope', operator: ['add','sub'], a_min: 1, a_max: 9, b_min: 1, b_max: 9 }`)。
+  - `params`: `/generate-pdf` にそのまま渡す固定パラメータ(例: `{ command_type: 'ope', operator: ['add', 'sub'], a_min: 1, a_max: 9, b_min: 1, b_max: 9 }`)。既存の加減算プリセットには、同じ桁数条件で `operator: ['add']` と `operator: ['sub']` を指定する単独プリセットが先行し、順に加算・減算・加減算が表示される(`drillPresets.js:22-42`)。
   - `numberInput`: ユーザーがカードごとに変更できる追加パラメータがある場合のみ存在。`{ param, labelKey, min, max, default }` で、`param` が `params` にマージされる対象キー(例: 九九の「段」は `a_value`)。
 - `titleKey`/`descKey` は `public/locales/{en,ja}/translation.json` のキー。
 - `UNGRADED`(`presetsByGrade['ungraded']`)は他の学年キーと完全に同じ `{ normal, written }` 構造を持つため、`GradeDrills.jsx` 側は数値学年と区別せず同じロジックで扱える(`CUSTOM_GRADE` のみ別 UI として分岐)。
@@ -22,6 +22,7 @@
   - 4年生の `written` に掛け算(3桁×2桁、`g4-mul-written`)・わり算(3桁÷2桁、長除法、`g4-div-written`)を追加。指導要領4年の「乗法・除法の筆算」に対応する。`nuts_calc.py`/`nuts_calc_tex.py` 側は既に対応済み(掛け算の複数桁乗数は issue #10、わり算の長除法は issue #11)だったが、フロントエンドのプリセットには未反映だった。
   - `aBc`(4桁数の分解暗算)・`squ`(平方数)は、指導要領上どの学年にも対応する明示的な単元が無い発展的な暗算ドリルのため、`UNGRADED`(無学年)に分類する(以前はそれぞれ6年生・5年生に割り当てていたが、根拠のない学年紐付けだったため移動した)。対照的に `pi`(×3.14)は5年生で正式に指導される円周率の定数(3.14)に直結するため、5・6年生に残している。
 - **`com` コマンドの `a_value` は「桁数」ではなく補数の対象(target)そのもの**(`nuts_calc.py` の `main()` 内 `target = ini.a_value` を参照)。そのため `g1-complement10` は `a_value: 10`、`g2-complement100` は `a_value: 100` としている(桁数ではない点に注意)。
+- **加減算の単独・混合プリセットはすべて併存する**: 加算のみ・減算のみを選びたい利用者に対応するため、既存の `operator: ['add', 'sub']` プリセットを削除せず、同一の難易度条件と `vertical` 設定を持つ `['add']`・`['sub']` プリセットを直前に配置する。これによりカード配列の描画順が「加算 → 減算 → 加減算」となる(`drillPresets.js:22-42`, `drillPresets.js:89-117`, `drillPresets.js:153-181`)。
 - **`99`/`squ`/`pi` コマンドの `a_value` は「開始する数」**(`get_fixed_format_data` で `start_num = ini.a_value` として使われる)。九九は段そのもの(1〜9)なので `numberInput.default: 2` かつ `max: 9`、`squ`/`pi` は連番の開始位置なので `numberInput.default: 1` かつ `max: 20`。
 - **`nuts_calc.py`/`nuts_calc_tex.py` 間のレンダラー相違を踏まえた除外**: `web/backend/renderers.py` は `NUTS_CALC_RENDERER` 環境変数でどちらのスクリプトにも切り替えられ、両者が同一の CLI サーフェスを持つ前提で実装されている。しかし調査の結果、3箇所で挙動が食い違うことが判明し、それぞれ別issueとして追跡している:
   - `--vertical` + `operator: ['mix']`: `nuts_calc.py` は拒否するが `nuts_calc_tex.py` は拒否しない(issue #41)。→ 本ファイルはこの組み合わせを一切使わない。
@@ -40,6 +41,7 @@
 
 ## 変更履歴(git log より自動生成)
 
+- b727443 feat(#61): add separate addition and subtraction drills
 - 5211d63 feat(#44): rework grade-based drill menu per curriculum, inline written-calculation section, add Ungraded category
 - f0201d6 feat(#13): add grade-based written-calculation (hissan) drill menu
 - 0631cf9 feat(#5): add grade-based drill PDF picker to web/frontend
