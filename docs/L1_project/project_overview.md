@@ -16,6 +16,8 @@ CI 定義・パッケージ定義(lock file 等)は Python 側に存在しない
 | Web フロントエンド | React 19 + Vite 7 + Tailwind CSS 4 | `web/frontend/package.json:12-29` |
 | 国際化 | react-i18next(英語/日本語) | `web/frontend/src/i18n.js:1-4` |
 | バッチ生成 | Bash(`set -Ceu`) | `factory.sh:1,38` |
+| CLI(実験的プロトタイプ) | `nuts_calc_tex.py`(LaTeX/`pdflatex` レンダリング、`nuts_calc.py` とコード共有なし) | `nuts_calc_tex.py:1`、[[../L3_implementation/nuts_calc_tex.py]] |
+| テスト | pytest(`tests/`、14ファイル、`pytest.ini`) | `pytest.ini:1-3`、`find tests -name 'test_*.py'` |
 | パッケージマネージャ(Python) | pip(lock file なし。旧 `setup.py` は削除済み、`git log` のコミット `d9fc0a3` で確認) | `README.md:13-14` は pip インストールを謳うが検証すると裏付けとなるパッケージ定義ファイルは存在しない |
 | パッケージマネージャ(Web) | npm(`package-lock.json` あり) | `web/frontend/package-lock.json` |
 | ライセンス | MIT | `LICENSE:1-21` |
