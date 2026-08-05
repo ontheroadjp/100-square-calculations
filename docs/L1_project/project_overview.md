@@ -42,7 +42,7 @@ CI 定義・パッケージ定義(lock file 等)は Python 側に存在しない
 
 ### Web UI(`web/`、新規)
 
-- `web/backend/app.py`: Flask アプリ。単一エンドポイント `POST /generate-pdf`(`web/backend/app.py:14`)がリクエストボディの JSON を `nuts_calc.py` の CLI 引数へ変換し `subprocess.run` で実行、生成された PDF をそのままレスポンスとして返す(`web/backend/app.py:61-69`)。
+- `web/backend/app.py`: Flask アプリ。エンドポイントは `POST /generate-pdf`(PDF生成)と `GET /renderer-info`(現在有効なレンダラー名の取得、issue #46)の2つ。コマンド構築・レンダラー選択・subprocess 実行のロジックは `web/backend/renderers.py`(issue #36)に切り出されており、env 変数 `NUTS_CALC_RENDERER`(`reportlab`|`latex`、デフォルト `reportlab`)で `nuts_calc.py`/`nuts_calc_tex.py` を切り替えられる。詳細は [[../L3_implementation/specification_summary]] を参照。
 - `web/frontend/src/App.jsx`: ヘッダー(タイトル・英語/日本語の言語切り替え)を描画し、本体は `GradeDrills.jsx` に委譲するシェル(`web/frontend/src/App.jsx`)。
 - `web/frontend/src/GradeDrills.jsx`: トップ画面。学年(1〜6年生)+「無学年」+「カスタム」をリンク風ボタンで並べ、選択中の学年に応じて `drillPresets.js` のプリセットをカード表示する(通常形式のグリッドの下に、筆算プリセットがある学年のみ「筆算」セクションをインライン表示)。カードの「PDFを生成」を押すと、グリッドの代わりに詳細ページ(プレビュー・用紙サイズ/ページ数/問題数の設定・「戻る」)に切り替わる。詳細ページを開くと自動でプレビュー生成され、設定を変更するまで「PDF再生成」は非活性。ダウンロードは常に実際の `<a href download>` リンクをユーザーがクリックする2段階方式。
 - `web/frontend/src/CustomGenerator.jsx`: 「カスタム」選択時に表示される、7種類の `command` すべてに対応する詳細パラメータフォーム(用紙サイズ・数値範囲・演算子・行列数・オプション)。`activeTab` state でタブ切り替え(計算内容/用紙/オプション/PDFプレビュー)を実装。
