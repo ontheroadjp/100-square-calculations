@@ -10,6 +10,7 @@
 - `handleSubmit` が `formData` を組み立てて `POST http://127.0.0.1:5000/generate-pdf` を呼び、成功時は `blob` から `URL.createObjectURL` で `pdfUrl` を作り、PDFタブに切り替えてプレビュー(`<iframe>`)と `<a href={pdfUrl} download>` を表示する(`web/frontend/src/CustomGenerator.jsx:39-104` 付近)。
 - `a_value`/`b_value` は `commandType` ごとに送信要否が分岐する(`formData` 組み立て内)。入力欄自体は `ope`/`100` で `a_value`/`b_value` の両方、`com`/`99`/`squ`/`pi` で `a_value` のみ表示するのに対し、`formData` 側の分岐もこれと1対1で対応している必要がある(以前は `100` の分岐が漏れており、入力しても送信されなかった。issue #4 Phase 4 で修正済み)。
 - `commandType === 'ope' && supportsVertical` のとき、「オプション」タブに `vertical`(筆算形式で出力)チェックボックスがある(issue #46)。`supportsVertical` は親 `GradeDrills.jsx` が `GET /renderer-info` の結果から算出して渡す prop で、デフォルト `false`([[../GradeDrills.jsx]] 参照)。`nuts_calc.py` は `--vertical` を issue #46 で削除したため、このチェックボックスは有効なレンダラーが `nuts_calc_tex.py`(`latex`)のときにしか意味を持たず、`supportsVertical` が `false` の間は DOM に一切描画されない(disabled ではなく非表示)。チェック時のみ `formData.vertical = true` を送信する。対応演算(add/sub/mul/div。mul は掛ける数の桁数を問わず対応、issue #10。div は長除法、issue #11)以外(mix)を選んだ場合のバリデーションはフロントエンドでは行わず、`nuts_calc_tex.py` 側のエラーに委ねている。
+- `commandType === 'ope' && supportsVertical` のとき、「オプション」タブに `vertical`(筆算形式で出力)チェックボックスがある(issue #46)。`supportsVertical` は親 `GradeDrills.jsx` が `GET /renderer-info` の結果から算出して渡す prop で、デフォルト `false`([[../GradeDrills.jsx]] 参照)。`nuts_calc.py` は `--vertical` を issue #46 で削除したため、このチェックボックスは有効なレンダラーが `nuts_calc_tex.py`(`latex`)のときにしか意味を持たず、`supportsVertical` が `false` の間は DOM に一切描画されない(disabled ではなく非表示)。筆算を有効にすると `verticalLayout.js` が返す用紙別の行数と2列を設定し、筆算中に用紙を変更した場合も同じレイアウトに更新する。`formData` にはチェック時のみ `vertical: true` を送信する。対応演算(add/sub/mul/div。mul は掛ける数の桁数を問わず対応、issue #10。div は長除法、issue #11)以外(mix)を選んだ場合のバリデーションはフロントエンドでは行わず、`nuts_calc_tex.py` 側のエラーに委ねている。
 
 ## 重要な設計判断
 
@@ -30,6 +31,7 @@
 
 ## 変更履歴(git log より自動生成)
 
+- fd449c7 fix(#57): apply vertical layout in web UI
 - 9ead364 refactor(#46): remove --vertical from nuts_calc.py; gate written-calculation UI on active renderer
 - cfea9ed fix(#4): fix 9 logic bugs found in CLI, web backend, and frontend
 - 0a11eaf feat(#9): add vertical (written-calculation) output format for ope command

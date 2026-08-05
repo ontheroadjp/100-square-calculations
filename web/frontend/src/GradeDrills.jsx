@@ -2,6 +2,11 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next';
 import { GRADES, UNGRADED, CUSTOM_GRADE, presetsByGrade } from './drillPresets';
 import CustomGenerator from './CustomGenerator';
+import {
+  getVerticalRows,
+  isVerticalOperation,
+  VERTICAL_COLUMNS,
+} from './verticalLayout';
 
 // Maps the simplified "problem density" choice to nuts_calc.py's rows/columns.
 // 'standard' matches the previous hardcoded default (10 rows x 2 columns).
@@ -23,7 +28,8 @@ function PresetDetail({ grade, preset, onBack }) {
   const { t } = useTranslation();
   // The 100-square preset renders a fixed 10x10 grid; nuts_calc.py ignores
   // rows/columns for that command type, so the density choice has no effect.
-  const supportsDensity = preset.params.command_type !== '100';
+  const isVerticalPreset = isVerticalOperation(preset.params);
+  const supportsDensity = preset.params.command_type !== '100' && !isVerticalPreset;
 
   const [numberValue, setNumberValue] = useState(preset.numberInput?.default ?? null);
   const [paperSize, setPaperSize] = useState('A4');
@@ -38,14 +44,17 @@ function PresetDetail({ grade, preset, onBack }) {
 
   const generatePdf = async () => {
     const densityOption = DENSITY_OPTIONS.find((option) => option.value === density) ?? DENSITY_OPTIONS[1];
+    const layout = isVerticalPreset
+      ? { rows: getVerticalRows(paperSize), columns: VERTICAL_COLUMNS }
+      : densityOption;
 
     setStatus('loading');
     setError(null);
 
     const requestBody = {
       paper_size: paperSize,
-      rows: densityOption.rows,
-      columns: densityOption.columns,
+      rows: layout.rows,
+      columns: layout.columns,
       page: pageCount,
       ...preset.params,
       ...(preset.numberInput && { [preset.numberInput.param]: numberValue }),

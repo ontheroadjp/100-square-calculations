@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next';
+import { getVerticalRows, VERTICAL_COLUMNS } from './verticalLayout';
 
 function CustomGenerator({ supportsVertical = false }) {
   const { t } = useTranslation();
@@ -105,6 +106,11 @@ function CustomGenerator({ supportsVertical = false }) {
     }
     // Add other required field logic here if needed
     return false;
+  };
+
+  const enableVerticalLayout = (nextPaperSize) => {
+    setRows(getVerticalRows(nextPaperSize));
+    setColumns(VERTICAL_COLUMNS);
   };
 
   return (
@@ -253,7 +259,13 @@ function CustomGenerator({ supportsVertical = false }) {
                 <select
                   id="paperSize"
                   value={paperSize}
-                  onChange={(e) => setPaperSize(e.target.value)}
+                  onChange={(e) => {
+                    const nextPaperSize = e.target.value;
+                    setPaperSize(nextPaperSize);
+                    if (vertical) {
+                      enableVerticalLayout(nextPaperSize);
+                    }
+                  }}
                 >
                   <option value="A4">{t('paper_size_a4')}</option>
                   <option value="A3">{t('paper_size_a3')}</option>
@@ -295,7 +307,18 @@ function CustomGenerator({ supportsVertical = false }) {
                     (nuts_calc_tex.py; nuts_calc.py dropped --vertical, issue #46) */}
                 {commandType === 'ope' && supportsVertical && (
                   <div className="checkbox-group">
-                    <input id="vertical" type="checkbox" checked={vertical} onChange={(e) => setVertical(e.target.checked)} />
+                    <input
+                      id="vertical"
+                      type="checkbox"
+                      checked={vertical}
+                      onChange={(e) => {
+                        const isEnabled = e.target.checked;
+                        setVertical(isEnabled);
+                        if (isEnabled) {
+                          enableVerticalLayout(paperSize);
+                        }
+                      }}
+                    />
                     <label htmlFor="vertical">{t('vertical_format')}</label>
                   </div>
                 )}

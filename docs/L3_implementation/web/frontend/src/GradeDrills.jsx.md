@@ -11,7 +11,7 @@
 - `NAV_GRADES`: `[...GRADES, UNGRADED]`。学年ナビの「カスタム」ボタン手前に並べる項目(数値学年1〜6 → 無学年)。`presetsByGrade` のキー(`drillPresets.js`)がすべて `{ normal, written }` の同一構造を持つため、`UNGRADED` も数値学年と全く同じ描画ロジックで扱える。
 - 筆算(`written`)は独立したタブではなく、通常グリッドの直後に `<section className="written-section">` として常時インライン表示する。`writtenPresets` は `!isCustom && supportsWritten` の場合のみ `presetsByGrade[selectedGrade].written` を参照し、それ以外(`isCustom`、または `supportsWritten` が `false`)は空配列にする(issue #46)。`presetsByGrade[selectedGrade].written` が空配列の学年(現状は1年生のみ)ではいずれにせよセクション自体を描画しない。以前は「通常形式/筆算形式」タブ切り替えだったが、筆算を隠さず常に見える位置に置きたいという要望により変更した。
 - `PresetCard`(グリッド側): タイトル・説明・「PDFを生成」ボタンのみを持つ。クリックで親の `openPreset` にそのプリセットをセットする。通常セクション・筆算セクションのどちらでも同じコンポーネントを再利用する。
-- `PresetDetail`(詳細ページ側): プリセットごとの生成設定(用紙サイズ・ページ数・問題数、`numberInput` を持つプリセットは段/開始する数も)・生成状態(`status`/`pdfUrl`/`error`)を保持する。マウント時に `useEffect` で自動的に1回 `generatePdf()` を実行し、詳細ページを開いた瞬間にプレビューが表示されるようにしている。`written`(筆算)プリセットも `params.vertical: true` が `/generate-pdf` にそのまま渡るだけで、`PresetDetail` 自体に筆算固有の分岐は無い(`nuts_calc_tex.py` 側が `rows`/`columns` を横書きと同じ意味で使うため、問題数セレクタもそのまま機能する)。`writtenPresets` が `supportsWritten` でガードされているため、`PresetDetail` に到達する `written` プリセットは常に `latex` レンダラーが有効な状態になる。
+- `PresetDetail`(詳細ページ側): プリセットごとの生成設定(用紙サイズ・ページ数・問題数、`numberInput` を持つプリセットは段/開始する数も)・生成状態(`status`/`pdfUrl`/`error`)を保持する。マウント時に `useEffect` で1回 `generatePdf()` を実行し、詳細ページを開いた瞬間にプレビューを表示する。`written`(筆算)プリセットは `verticalLayout.js` の用紙別行数と2列を送るため、通常の問題密度セレクタは表示しない。通常プリセットだけが固定の問題密度(5×2 / 10×2 / 10×4)を使う。`writtenPresets` が `supportsWritten` でガードされているため、`PresetDetail` に到達する `written` プリセットは常に `latex` レンダラーが有効な状態になる。
 - `<CustomGenerator supportsVertical={supportsWritten} />`: カスタム画面にも同じ `supportsWritten` 値をそのまま渡し、筆算チェックボックスの表示可否を揃える([[CustomGenerator.jsx]] 参照)。
 
 ## 主要フロー1: モーダルではなくページ内遷移
@@ -43,6 +43,7 @@
 
 ## 変更履歴(git log より自動生成)
 
+- fd449c7 fix(#57): apply vertical layout in web UI
 - 9ead364 refactor(#46): remove --vertical from nuts_calc.py; gate written-calculation UI on active renderer
 - 5211d63 feat(#44): rework grade-based drill menu per curriculum, inline written-calculation section, add Ungraded category
 - f0201d6 feat(#13): add grade-based written-calculation (hissan) drill menu
