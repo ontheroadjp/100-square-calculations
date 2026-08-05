@@ -54,21 +54,31 @@ npm install
 npm run dev      # http://localhost:5173
 ```
 
-**注意(実機確認済みの既知バグ)**: `npm install` 自体は成功するが、`npm run build`(および `npm run dev` で当該コンポーネントを描画しようとした場合)は `src/i18n.js` が要求する `i18next` 系パッケージが `package.json` の依存関係に存在しないため、Vite/Rollup のモジュール解決エラーで失敗する。
+`npm run build` は 2026-08-05 時点の `main`(このブランチの分岐元)で実機確認済み: `package.json` に `i18next`/`react-i18next`/`i18next-browser-languagedetector`/`i18next-http-backend` が揃っており(コミット `724f752` 等)、`npm install && npm run build` が成功する(以前の "Rollup failed to resolve import "i18next"" 失敗は解消済み。詳細は [[../L3_implementation/specification_summary]])。
 
-再現(実機確認済み):
+## `nuts_calc_tex.py`(実験的LaTeXプロトタイプ)のセットアップと実行
+
 ```bash
-cd web/frontend && npm install && npm run build
-# => [vite]: Rollup failed to resolve import "i18next" from ".../src/i18n.js"
+# pdflatex を含む LaTeX ディストリビューションが必要(例: texlive-latex-base + texlive-latex-extra)
+python3 nuts_calc_tex.py A4 ope -a 1 -b 1 --out-file result.pdf
 ```
-詳細は [[../L3_implementation/specification_summary]]。
+`vendor/texmf/tex/latex/longdivision/` を `TEXINPUTS` 経由で解決するため、クローン後の追加セットアップは不要(`nuts_calc.py` とは独立の CLI で、`factory.sh`/`web/backend/app.py` からは直接呼ばれない)。`pdflatex` が `PATH` にない場合は `_init()` ではなく `compile_tex` が明確なエラーで `exit(1)` する。詳細は [[../L3_implementation/nuts_calc_tex.py]]。
+
+## テスト(pytest)
+
+```bash
+pip install pytest
+pytest -q
+```
+`pytest.ini`(`testpaths = tests`, `pythonpath = .`)によりリポジトリルートで実行する。2026-08-05 時点でこのブランチの分岐元(`main`)で実行し、196件中187件成功・9件失敗を確認済み。失敗の9件は `tests/test_nuts_calc_init.py` の既知のstaleなテスト(`nuts_calc.py` の一部バリデーションが `exit()` から `exit(1)` に修正された(issue #37)後もテスト側の期待値が更新されていない)で、今回のドキュメント作業とは無関係。詳細は [[test]] を参照。`pdflatex` 依存の `nuts_calc_tex.py` CLI テストは `pdflatex` 未インストール時は自動的にスキップされる。
 
 ## ビルド
 
 - CLI/Web バックエンド: ビルド工程なし(PDF/CSV 生成そのものが成果物)。
-- Web フロントエンド: `npm run build`(Vite)。上記の依存関係欠落により現状失敗する。
+- Web フロントエンド: `npm run build`(Vite)。実機確認済み(成功)。
 
 ## 未確認事項
 
 - `factory.sh` を実際に実行して `dist/` 配下の全生成物が意図通りかは未検証(今回は `nuts_calc.py` を直接呼び出しての動作確認のみ実施)。
-- Web バックエンドを実際に起動し、フロントエンドと結合して `POST /generate-pdf` が動作するかは未検証(フロントエンドのビルドが壊れているため、結合テストの前提が崩れている)。
+- Web バックエンドを実際に起動し、フロントエンドと結合して `POST /generate-pdf`/`GET /renderer-info` が動作するかの結合確認(`pytest` の `tests/test_web_backend_app.py` はモジュールレベルの単体テストで、実プロセス起動を伴う結合確認ではない)は本ドキュメント作業では未実施。
+- `nuts_calc_tex.py` の実機コンパイル(`pdflatex` インストール環境での CLI 直接実行)は本ドキュメント作業では未実施。ユニットテストと `docs/L3_implementation/nuts_calc_tex.py.md` に記載の過去の実機コンパイル確認内容を根拠としている。
