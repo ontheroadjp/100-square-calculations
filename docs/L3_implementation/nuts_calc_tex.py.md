@@ -160,6 +160,9 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 
 ## 変更履歴(git log より自動生成)
 
+- cf3603c fix(#55): preserve vertical worksheet page counts
+- 88eefba fix: tighten written calculation operator spacing
+- ab83032 fix: align written calculation operators
 - fbb0f27 fix(#53): arrange worksheet problems in column order
 - 99352fd fix(#51): remove latex answer underlines
 - 93877f0 feat(#27): add nuts_calc_tex.py Phase 8 pi command (multiplication by pi)
