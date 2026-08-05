@@ -59,7 +59,7 @@ VENDOR_TEXMF_DIR = os.path.join(SCRIPT_DIR, 'vendor', 'texmf')
 OPERATOR_TEX_SYMBOLS = {'add': '+', 'sub': '-', 'mul': '\\times', 'div': '\\div'}
 MIX_OPERATORS = ['add', 'sub', 'mul', 'div']
 XLOP_VERTICAL_COMMANDS = {'add': 'opadd', 'sub': 'opsub', 'mul': 'opmul'}
-XLOP_VERTICAL_LAYOUT_OPTIONS = 'voperator=bottom,columnwidth=2.4ex'
+XLOP_VERTICAL_LAYOUT_OPTIONS = 'voperator=bottom,columnwidth=2ex'
 
 PAPER_SIZE_TO_GEOMETRY_OPTION = {
     'a3': 'a3paper',
