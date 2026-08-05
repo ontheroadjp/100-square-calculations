@@ -20,6 +20,18 @@ export const presetsByGrade = {
   1: {
     normal: [
       {
+        id: 'g1-add',
+        titleKey: 'preset_g1_add_title',
+        descKey: 'preset_g1_add_desc',
+        params: { command_type: 'ope', operator: ['add'], a_min: 1, a_max: 9, b_min: 1, b_max: 9 },
+      },
+      {
+        id: 'g1-sub',
+        titleKey: 'preset_g1_sub_title',
+        descKey: 'preset_g1_sub_desc',
+        params: { command_type: 'ope', operator: ['sub'], a_min: 1, a_max: 9, b_min: 1, b_max: 9 },
+      },
+      {
         id: 'g1-addsub',
         titleKey: 'preset_g1_addsub_title',
         descKey: 'preset_g1_addsub_desc',
@@ -45,6 +57,18 @@ export const presetsByGrade = {
   2: {
     normal: [
       {
+        id: 'g2-add2',
+        titleKey: 'preset_g2_add2_title',
+        descKey: 'preset_g2_add2_desc',
+        params: { command_type: 'ope', operator: ['add'], a_value: 2, b_value: 2 },
+      },
+      {
+        id: 'g2-sub2',
+        titleKey: 'preset_g2_sub2_title',
+        descKey: 'preset_g2_sub2_desc',
+        params: { command_type: 'ope', operator: ['sub'], a_value: 2, b_value: 2 },
+      },
+      {
         id: 'g2-addsub2',
         titleKey: 'preset_g2_addsub2_title',
         descKey: 'preset_g2_addsub2_desc',
@@ -65,6 +89,18 @@ export const presetsByGrade = {
       },
     ],
     written: [
+      {
+        id: 'g2-add-written',
+        titleKey: 'preset_g2_add_written_title',
+        descKey: 'preset_g2_add_written_desc',
+        params: { command_type: 'ope', operator: ['add'], a_value: 2, b_value: 2, vertical: true },
+      },
+      {
+        id: 'g2-sub-written',
+        titleKey: 'preset_g2_sub_written_title',
+        descKey: 'preset_g2_sub_written_desc',
+        params: { command_type: 'ope', operator: ['sub'], a_value: 2, b_value: 2, vertical: true },
+      },
       {
         id: 'g2-addsub-written',
         titleKey: 'preset_g2_addsub_written_title',
@@ -88,6 +124,18 @@ export const presetsByGrade = {
         params: { command_type: 'ope', operator: ['div'], a_value: 2, b_value: 1 },
       },
       {
+        id: 'g3-add3',
+        titleKey: 'preset_g3_add3_title',
+        descKey: 'preset_g3_add3_desc',
+        params: { command_type: 'ope', operator: ['add'], a_value: 3, b_value: 3 },
+      },
+      {
+        id: 'g3-sub3',
+        titleKey: 'preset_g3_sub3_title',
+        descKey: 'preset_g3_sub3_desc',
+        params: { command_type: 'ope', operator: ['sub'], a_value: 3, b_value: 3 },
+      },
+      {
         id: 'g3-addsub3',
         titleKey: 'preset_g3_addsub3_title',
         descKey: 'preset_g3_addsub3_desc',
@@ -105,6 +153,18 @@ export const presetsByGrade = {
       },
     ],
     written: [
+      {
+        id: 'g3-add-written',
+        titleKey: 'preset_g3_add_written_title',
+        descKey: 'preset_g3_add_written_desc',
+        params: { command_type: 'ope', operator: ['add'], a_value: 3, b_value: 3, vertical: true },
+      },
+      {
+        id: 'g3-sub-written',
+        titleKey: 'preset_g3_sub_written_title',
+        descKey: 'preset_g3_sub_written_desc',
+        params: { command_type: 'ope', operator: ['sub'], a_value: 3, b_value: 3, vertical: true },
+      },
       {
         id: 'g3-addsub-written',
         titleKey: 'preset_g3_addsub_written_title',
@@ -154,6 +214,18 @@ export const presetsByGrade = {
         params: { command_type: 'ope', operator: ['div'], a_value: 3, b_value: 2, vertical: true },
       },
       {
+        id: 'g4-add-written',
+        titleKey: 'preset_g4_add_written_title',
+        descKey: 'preset_g4_add_written_desc',
+        params: { command_type: 'ope', operator: ['add'], a_value: 4, b_value: 4, vertical: true },
+      },
+      {
+        id: 'g4-sub-written',
+        titleKey: 'preset_g4_sub_written_title',
+        descKey: 'preset_g4_sub_written_desc',
+        params: { command_type: 'ope', operator: ['sub'], a_value: 4, b_value: 4, vertical: true },
+      },
+      {
         id: 'g4-addsub-written',
         titleKey: 'preset_g4_addsub_written_title',
         descKey: 'preset_g4_addsub_written_desc',
@@ -179,6 +251,18 @@ export const presetsByGrade = {
     ],
     written: [
       {
+        id: 'g5-add-written',
+        titleKey: 'preset_g5_add_written_title',
+        descKey: 'preset_g5_add_written_desc',
+        params: { command_type: 'ope', operator: ['add'], a_value: 5, b_value: 5, vertical: true },
+      },
+      {
+        id: 'g5-sub-written',
+        titleKey: 'preset_g5_sub_written_title',
+        descKey: 'preset_g5_sub_written_desc',
+        params: { command_type: 'ope', operator: ['sub'], a_value: 5, b_value: 5, vertical: true },
+      },
+      {
         id: 'g5-addsub-written',
         titleKey: 'preset_g5_addsub_written_title',
         descKey: 'preset_g5_addsub_written_desc',
@@ -203,6 +287,18 @@ export const presetsByGrade = {
       },
     ],
     written: [
+      {
+        id: 'g6-add-written',
+        titleKey: 'preset_g6_add_written_title',
+        descKey: 'preset_g6_add_written_desc',
+        params: { command_type: 'ope', operator: ['add'], a_value: 5, b_value: 3, vertical: true },
+      },
+      {
+        id: 'g6-sub-written',
+        titleKey: 'preset_g6_sub_written_title',
+        descKey: 'preset_g6_sub_written_desc',
+        params: { command_type: 'ope', operator: ['sub'], a_value: 5, b_value: 3, vertical: true },
+      },
       {
         id: 'g6-addsub-written',
         titleKey: 'preset_g6_addsub_written_title',
