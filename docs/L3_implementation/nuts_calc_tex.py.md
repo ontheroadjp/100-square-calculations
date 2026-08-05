@@ -159,13 +159,14 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 - **`100` は `--a-min`/`--a-max` を極端に狭めると `ValueError` になりうる**: `sample_hundred_square_values` は候補範囲を2倍に複製してから10個抽出するため、範囲の要素数が5未満(例: `--a-min 5 --a-max 5`)だと母集団不足で `random.sample` が例外を送出する。`nuts_calc.py` 側の元実装にも同型の潜在バグがあり、本 Phase のスコープ外として未対応。
 - **`pdflatex` が必須**: `shutil.which('pdflatex')` が `None` の場合は明確なエラーメッセージで `exit(1)` する。CI やローカル環境に LaTeX が無い場合、`tests/test_nuts_calc_tex.py` は `pytest.mark.skipif` で自動的にスキップされる(`tests/test_nuts_calc_tex_ope_generation.py`/`tests/test_nuts_calc_tex_com_generation.py`/`tests/test_nuts_calc_tex_kuku_generation.py`/`tests/test_nuts_calc_tex_squ_generation.py`/`tests/test_nuts_calc_tex_pi_generation.py` の純 Python ユニットテストは pdflatex なしでも実行される)。
 - **`--descend`/`--reverse`/`--shuffle` は `ope`/`com`/`100` でも引数として受理されるが未使用**: `99`/`squ`/`pi` コマンドでのみ意味を持つ。`--debug` はどのコマンドでも未使用のまま。
-- **`com`/`99`/`aBc`/`squ`/`pi` は `--vertical`/`--intermediate` 未対応、ただし挙動が異なる**: `--vertical` は指定しても静かに無視され(`build_com_pages`/`build_kuku_pages`/`build_abc_pages`/`build_squ_pages`/`build_pi_pages` は `Page.layout` を常に `'inline'` にする)、`com` は常に横書き(`n) $a + __ = target$`)、`99` は常に横書き(`n) $a \times b = c$`、`--reverse` 指定時は式の左右が入れ替わる)、`aBc` は常に横書き(`n) $abcd \Rightarrow answer$`)、`squ`/`pi` は常に横書き(それぞれ `n) $a \times a = c$`/`n) $a \times 3.14 = c$`、`--reverse` 指定時は式の左右が入れ替わる)で出力される。一方 `--intermediate` は無視されず、`_init()`(`nuts_calc_tex.py:247-249`)が `command != 'ope'` を検知した時点で `"--intermediate is only supported for the 'ope' command."` として `exit(1)` する(`com`/`99`/`aBc`/`squ`/`pi` いずれでも同様、`--vertical` の有無に関わらない)。それぞれ issue #22/#24/#25/#26/#27 のスコープ外。
+- **`com`/`99`/`aBc`/`squ`/`pi` は `--vertical`/`--intermediate` 未対応、ただし挙動が異なる**: `--vertical` は指定しても静かに無視され(`build_com_pages`/`build_kuku_pages`/`build_abc_pages`/`build_squ_pages`/`build_pi_pages` は `Page.layout` を常に `'inline'` にする)、`com` は常に横書き(`n) $a + □ = target$`)、`99` は常に横書き(`n) $a \times b = c$`、`--reverse` 指定時は式の左右が入れ替わる)、`aBc` は常に横書き(`n) $abcd \Rightarrow answer$`)、`squ`/`pi` は常に横書き(それぞれ `n) $a \times a = c$`/`n) $a \times 3.14 = c$`、`--reverse` 指定時は式の左右が入れ替わる)で出力される。一方 `--intermediate` は無視されず、`_init()`(`nuts_calc_tex.py:247-249`)が `command != 'ope'` を検知した時点で `"--intermediate is only supported for the 'ope' command."` として `exit(1)` する(`com`/`99`/`aBc`/`squ`/`pi` いずれでも同様、`--vertical` の有無に関わらない)。それぞれ issue #22/#24/#25/#26/#27 のスコープ外。
 - **`99` の乗数(b)・`squ`/`pi` の数列(a)は9で頭打ちにならない**: `order = ini.rows * ini.columns` が9を超えると `99` の乗数、`squ`/`pi` の数列いずれもそれに応じて9を超える(`nuts_calc.py` の元実装を踏襲した意図的な設計、詳細は上記の設計判断を参照)。
 - **`--vertical` 指定時の CSV/bottom-answer の桁**: 特別な整形はしておらず、`build_ope_csv_rows`/`build_ope_bottom_answer_tex` は横書き・縦書きで共通(問題データそのものは表示形式に関わらず同一)。
 - **`pi` の答え `c` は丸め済み**: `generate_pi_problems` が `round(a * PI_MULTIPLIER, 2)` を返すため、`build_pi_csv_rows`/`build_pi_bottom_answer_tex`/`build_pi_block_tex` はいずれも丸め後の値のみを扱う(`nuts_calc.py` の生の浮動小数点値との差異、詳細は上記の設計判断を参照)。
 
 ## 変更履歴(git log より自動生成)
 
+- 5acfc32 fix(#63): box complement worksheet blanks
 - 04d9a60 fix(#59): distribute horizontal worksheet layout
 - cf3603c fix(#55): preserve vertical worksheet page counts
 - 88eefba fix: tighten written calculation operator spacing
@@ -175,4 +176,3 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 - 93877f0 feat(#27): add nuts_calc_tex.py Phase 8 pi command (multiplication by pi)
 - fa73c50 feat(#26): add nuts_calc_tex.py Phase 7 squ command (square numbers)
 - be25ae8 feat(#25): add nuts_calc_tex.py Phase 6 aBc command (mental arithmetic statements)
-- 1e14347 feat(#24): add nuts_calc_tex.py Phase 5 99 command (times-table / kuku)
