@@ -11,9 +11,9 @@
 ### 共通基盤(Phase 1)
 
 - `_init()`(`nuts_calc_tex.py:74-250`): `nuts_calc.py` と同じ引数(`paper_size`/`command`/`-a`/`-b`/`--a-min`/`--a-max`/`--b-min`/`--b-max`/`-o`/`--rows`/`--columns`/`--page`/`--merge`/`--csv`/`--out-file`/`--with-bottom-answer`/`--vertical`/`--intermediate`/`--debug` 等)を独立に定義・パースする。`-r`/`-c`/`-p` は1以上を要求する。`command == '100'` の場合、`-a`/`-b`(桁数)が指定されていれば1〜3の範囲であることを、`-a`/`-b` の桁数レンジ変換(`set_min_max_value`)より**前**に検証する(範囲外だと `set_min_max_value` 内で `IndexError` になる、または負のインデックスで誤ったレンジになるため。詳細は後述)。`-a`/`-b` の桁数レンジ変換自体は `command in ('ope', '100')` の場合のみ行う。`command == 'com'` の場合は `-a/--a-value`(補数ターゲット)が必須かつ2以上であることを検証する。`command == '99'` の場合は `-a/--a-value`(九九の段)が必須であることを検証する(値域は `nuts_calc.py` と同じく未検証)。`command == 'squ'` の場合は `-a/--a-value`(開始する二乗数の起点)が必須であることを検証する(`99` と同じ形、値域は同じく未検証)。`command == 'pi'` の場合は `-a/--a-value`(円周率倍する整数列の起点)が必須であることを検証する(`squ` と全く同じ形)。`command == 'aBc'` の場合は `-a`/`-b` を一切使用しない(`com`/`99`/`squ`/`pi` と異なり検証も不要)。`command == 'ope'` の場合のみ `--intermediate` のバリデーションを行う(後述)。
-- `Page` データクラス(`blocks: list[str]`, `columns: int`, `bottom_answer_tex: str | None`, `layout: str`): 1ページ分の LaTeX コンテンツを表す最小単位。`layout='inline'`(横書き・プレースホルダー用、`\hspace` でブロックをテキスト行として結合)と `layout='tabular'`(`--vertical` 用、後述)の2種類。問題ブロックは生成順に各列を上から下へ満たす列優先で配置するため、複数列では問題番号2は問題番号1の直下に置かれる。
+- `Page` データクラス(`blocks: list[str]`, `columns: int`, `bottom_answer_tex: str | None`, `layout: str`): 1ページ分の LaTeX コンテンツを表す最小単位。`layout='inline'`(横書き用。本文幅を列数で割った等幅セルに問題を中央配置し、余剰の本文高を行間に配分)、`layout='tabular'`(`--vertical` 用、後述)、`layout='block'`(100マス表のような自己完結したLaTeXブロック用)の3種類。問題ブロックは生成順に各列を上から下へ満たす列優先で配置するため、複数列では問題番号2は問題番号1の直下に置かれる。
 - `--rows` の既定値: 通常形式では `DEFAULT_ROWS`(10)を使う。`ope --vertical` では `VERTICAL_DEFAULT_ROWS_BY_PAPER_SIZE` により、A3/A4は4行、B5/A4横は2行を使う。筆算ブロックは複数行にわたるため、既定の `--page` 数を物理PDFのページ数として保つための用紙別設定である。明示した `--rows` は常にそのまま使う。
-- `build_preamble_tex`/`build_page_header_tex`/`build_page_tex`/`build_document_tex`: LaTeX ソースを文字列として組み立てる。用紙サイズは `geometry` パッケージのオプション(`a3paper`/`a4paper`/`b5paper`/`a4paper,landscape`)にマッピングし、ヘッダー(タイトル・日付欄)・フッター(ページ番号・著作権、`fancyhdr`)・行×列グリッドを構築する。プリアンブルは `longdivision`/`xlop`/`array`/`fancyhdr`/`xcolor`(`table` オプション、`100` コマンドのヘッダー網掛けに使用)を読み込む。
+- `build_preamble_tex`/`build_page_header_tex`/`build_page_tex`/`build_document_tex`: LaTeX ソースを文字列として組み立てる。用紙サイズは `geometry` パッケージのオプション(`a3paper`/`a4paper`/`b5paper`/`a4paper,landscape`)にマッピングし、左右15mm・上20mm・下40mmの余白、ヘッダー(タイトル・日付欄)、下端寄りに配置するフッター(ページ番号・著作権、`fancyhdr`)、行×列グリッドを構築する。プリアンブルは `longdivision`/`xlop`/`array`/`fancyhdr`/`xcolor`(`table` オプション、`100` コマンドのヘッダー網掛けに使用)を読み込む。
 - `compile_tex`: `pdflatex -interaction=nonstopmode -halt-on-error` を一時ディレクトリで subprocess 実行し、生成された PDF を指定パスへコピーする。失敗時は `pdflatex` の出力末尾を含めて `exit(1)` する。
 - 出力ファイル名の導出は `nuts_calc.py`(issue #15 修正後)と同様に `os.path.splitext(ini.out_file)` を使う(`_read.pdf`/`.csv` の付与)。
 - `main(ini)`(`nuts_calc_tex.py:1157-`): `ini.command == 'ope'` なら `build_ope_pages`、`'com'` なら `build_com_pages`、`'100'` なら `build_hundred_square_pages`、`'99'` なら `build_kuku_pages`、`'aBc'` なら `build_abc_pages`、`'squ'` なら `build_squ_pages`、それ以外(`'pi'`、7コマンドの choices のうち上記6分岐に該当しない残り)なら `build_pi_pages` で実データを生成し、`--merge` の有無に応じて blank/filled/merge の3モードでドキュメントをビルドする。`--csv` 指定時は、`ope`/`com`/`100`/`99`/`aBc`/`squ`/`pi` それぞれの実問題データを CSV に書き出す(7コマンド全てが実データを持つため、プレースホルダー用の CSV フォールバックは Phase 8 で削除済み)。
@@ -109,6 +109,12 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 列幅は `\dimexpr(\textwidth-2N\tabcolsep)/N\relax`(`N`=列数)で動的に計算しており、用紙サイズ(A3/A4/B5/A4横)や列数が変わっても `\textwidth` に追従する。
 
 横書きの `build_inline_grid_tex` と筆算の `build_tabular_grid_tex` は、共通の `build_column_major_rows` を使って問題ブロックを列優先の視覚行に変換する。これにより、どちらの形式でも左端の列を上から下へ読んだときに問題番号が連番となり、2列なら `1, 2, ...` の右側に次の列の問題が置かれる。問題データやCSVの生成順は変えず、変更するのはPDF上の配置だけである。
+
+### 横書き問題を等幅セルと可変行間で配置する理由
+
+横書きの問題を固定の`\hspace`と行間で結合すると、ページの左上に寄り、列数が少ない場合は中央に過大な空白が生じる。`build_inline_grid_tex`は本文幅からセル余白を引いた幅を列数で等分する`p{...}`セルを使い、各問題をそのセル内で中央揃えにする。そのため2列では各半ページの中央、4列では各4分割領域の中央に問題が置かれる。各行の前に`\vfill`を置くことで、ヘッダー、任意の下部解答欄、下40mmのフッタ領域を除いた可用高さに行を均等配分する。
+
+100マス表は内部で`tabular`を生成する自己完結ブロックのため、横書きグリッドのセルに入れるとLaTeXの表がネストしてコンパイルできない。`layout='block'`で別扱いにし、`\vfill`で本文内に配置することで、同じ余白方針を守りながらネストを回避する。
 
 ### 筆算で用紙別の既定行数を使う理由
 

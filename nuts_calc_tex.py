@@ -40,13 +40,16 @@ from typing import Callable
 
 MIN_ROWS_OR_COLUMNS = 1
 DEFAULT_ROWS = 10
+PAGE_SIDE_MARGIN_MM = 15
+PAGE_TOP_MARGIN_MM = 20
+PAGE_BOTTOM_MARGIN_MM = 40
+FOOTER_TEXT_LOWERING_MM = 20
 VERTICAL_DEFAULT_ROWS_BY_PAPER_SIZE = {
     'a3': 4,
     'a4': 4,
     'b5': 2,
     'a4l': 2,
 }
-BLOCK_GUTTER_CM = 1.0
 ROW_VSPACE_EM = 2.0
 MAX_OPERAND_RETRY_ATTEMPTS = 1000
 INTERMEDIATE_SINGLE_DIGIT_MAX = 9
@@ -291,11 +294,11 @@ class Page:
         columns: Number of columns to arrange `blocks` into.
         bottom_answer_tex: Optional LaTeX snippet appended near the page
             bottom (e.g. a compact answer-key line); `None` to omit it.
-        layout: 'inline' (blocks joined with \\hspace on a single text line
-            per row, used by horizontal-format problems) or 'tabular' (a
-            LaTeX tabular grid with one block per cell, used by --vertical
-            hissan blocks so multi-row blocks like xlop/longdivision output
-            stay column-aligned).
+        layout: 'inline' (a full-width grid for horizontal-format problems),
+            'tabular' (a LaTeX tabular grid with one block per cell, used by
+            --vertical hissan blocks so multi-row blocks like
+            xlop/longdivision output stay column-aligned), or 'block' (one
+            self-contained LaTeX block, used by the 100-square table).
     """
     blocks: list[str] = field(default_factory=list)
     columns: int = 1
@@ -307,7 +310,8 @@ def build_preamble_tex(paper_size: str) -> str:
     geometry_option = PAPER_SIZE_TO_GEOMETRY_OPTION[paper_size.lower()]
     return (
         "\\documentclass[12pt]{article}\n"
-        f"\\usepackage[{geometry_option},margin=15mm,top=20mm,bottom=20mm]{{geometry}}\n"
+        f"\\usepackage[{geometry_option},margin={PAGE_SIDE_MARGIN_MM}mm,top={PAGE_TOP_MARGIN_MM}mm,"
+        f"bottom={PAGE_BOTTOM_MARGIN_MM}mm]{{geometry}}\n"
         "\\usepackage{longdivision}\n"
         "\\usepackage{xlop}\n"
         "\\usepackage{array}\n"
@@ -319,6 +323,7 @@ def build_preamble_tex(paper_size: str) -> str:
         "\\fancyfoot[R]{Page \\#\\thepage}\n"
         "\\renewcommand{\\headrulewidth}{0pt}\n"
         "\\renewcommand{\\footrulewidth}{0pt}\n"
+        f"\\addtolength{{\\footskip}}{{{FOOTER_TEXT_LOWERING_MM}mm}}\n"
         "\\setlength{\\parindent}{0pt}\n"
     )
 
@@ -334,11 +339,27 @@ def build_page_header_tex() -> str:
 
 
 def build_inline_grid_tex(blocks: list[str], columns: int) -> str:
-    """Join blocks into text rows separated by \\hspace, one row per line."""
-    row_lines = []
+    """Lay out horizontal problem rows across the full page body.
+
+    Each visual row uses equal-width cells spanning ``\\textwidth``, keeping
+    each problem centered in its allocated column regardless of the number
+    of columns. ``\\vfill`` before every row lets TeX distribute the
+    remaining printable height between the header, rows, optional bottom
+    answer, and footer area.
+    """
+    column_width_tex = (
+        f"\\dimexpr(\\textwidth-{TABCOLSEP_COUNT_PER_COLUMN * columns}\\tabcolsep)/{columns}\\relax"
+    )
+    column_spec = f">{{\\centering\\arraybackslash}}p{{{column_width_tex}}}" * columns
+    row_tabulars = []
     for row_blocks in build_column_major_rows(blocks, columns):
-        row_lines.append((f"\\hspace{{{BLOCK_GUTTER_CM}cm}}").join(row_blocks))
-    return f"\\par\\vspace{{{ROW_VSPACE_EM}em}}\n".join(row_lines)
+        row_blocks += [''] * (columns - len(row_blocks))
+        row_tex = ' & '.join(row_blocks)
+        row_tabulars.append(
+            "\\vfill\n"
+            f"\\noindent\\begin{{tabular}}{{{column_spec}}}\n{row_tex}\\\\\n\\end{{tabular}}"
+        )
+    return '\n'.join(row_tabulars)
 
 
 def build_column_major_rows(blocks: list[str], columns: int) -> list[list[str]]:
@@ -386,10 +407,17 @@ def build_tabular_grid_tex(blocks: list[str], columns: int) -> str:
     return f"\\par\\vspace{{{ROW_VSPACE_EM}em}}\n".join(row_tabulars)
 
 
+def build_block_grid_tex(blocks: list[str]) -> str:
+    """Vertically center self-contained blocks without nesting LaTeX tables."""
+    return "\\vfill\n" + "\n".join(blocks) + "\n\\vfill"
+
+
 def build_page_tex(page: Page) -> str:
     """Render one Page's grid of blocks, plus header and optional bottom answer."""
     if page.layout == 'tabular':
         grid_tex = build_tabular_grid_tex(page.blocks, page.columns)
+    elif page.layout == 'block':
+        grid_tex = build_block_grid_tex(page.blocks)
     else:
         grid_tex = build_inline_grid_tex(page.blocks, page.columns)
 
@@ -818,8 +846,12 @@ def build_hundred_square_pages(ini: argparse.Namespace) -> tuple[list[Page], lis
     for _ in range(ini.page):
         table = generate_hundred_square(nums_left, nums_top)
         pages_tables.append(table)
-        blank_pages.append(Page(blocks=[build_hundred_square_block_tex(table, show_answer=False)], columns=1))
-        filled_pages.append(Page(blocks=[build_hundred_square_block_tex(table, show_answer=True)], columns=1))
+        blank_pages.append(
+            Page(blocks=[build_hundred_square_block_tex(table, show_answer=False)], columns=1, layout='block')
+        )
+        filled_pages.append(
+            Page(blocks=[build_hundred_square_block_tex(table, show_answer=True)], columns=1, layout='block')
+        )
 
     return blank_pages, filled_pages, pages_tables
 

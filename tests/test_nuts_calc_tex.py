@@ -20,7 +20,14 @@ from pathlib import Path
 
 import pytest
 
-from nuts_calc_tex import build_inline_grid_tex, build_tabular_grid_tex
+from nuts_calc_tex import (
+    Page,
+    build_block_grid_tex,
+    build_inline_grid_tex,
+    build_page_tex,
+    build_preamble_tex,
+    build_tabular_grid_tex,
+)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 NUTS_CALC_TEX = REPO_ROOT / "nuts_calc_tex.py"
@@ -36,7 +43,48 @@ pytestmark = pytest.mark.skipif(
 def test_inline_grid_places_sequential_blocks_down_each_column() -> None:
     tex = build_inline_grid_tex(["1)", "2)", "3)", "4)"], columns=2)
 
-    assert tex == "1)\\hspace{1.0cm}3)\\par\\vspace{2.0em}\n2)\\hspace{1.0cm}4)"
+    assert tex == (
+        "\\vfill\n"
+        "\\noindent\\begin{tabular}{>{\\centering\\arraybackslash}p{\\dimexpr(\\textwidth-4\\tabcolsep)/2\\relax}"
+        ">{\\centering\\arraybackslash}p{\\dimexpr(\\textwidth-4\\tabcolsep)/2\\relax}}\n"
+        "1) & 3)\\\\\n"
+        "\\end{tabular}\n"
+        "\\vfill\n"
+        "\\noindent\\begin{tabular}{>{\\centering\\arraybackslash}p{\\dimexpr(\\textwidth-4\\tabcolsep)/2\\relax}"
+        ">{\\centering\\arraybackslash}p{\\dimexpr(\\textwidth-4\\tabcolsep)/2\\relax}}\n"
+        "2) & 4)\\\\\n"
+        "\\end{tabular}"
+    )
+
+
+def test_preamble_reserves_a_40mm_footer_area() -> None:
+    tex = build_preamble_tex("A4")
+
+    assert "margin=15mm,top=20mm,bottom=40mm" in tex
+    assert "\\addtolength{\\footskip}{20mm}" in tex
+
+
+def test_inline_grid_fills_an_incomplete_row_with_an_empty_cell() -> None:
+    tex = build_inline_grid_tex(["1)", "2)", "3)"], columns=2)
+
+    assert "2) & " in tex
+    assert tex.count("\\begin{tabular}{") == 2
+
+
+def test_inline_grid_uses_equal_width_cells_for_four_columns() -> None:
+    tex = build_inline_grid_tex(["1)", "2)", "3)", "4)"], columns=4)
+
+    expected_column = ">{\\centering\\arraybackslash}p{\\dimexpr(\\textwidth-8\\tabcolsep)/4\\relax}"
+    assert expected_column * 4 in tex
+
+
+def test_block_grid_keeps_a_self_contained_table_outside_inline_cells() -> None:
+    block_tex = "\\begin{center}\\begin{tabular}{c}100\\end{tabular}\\end{center}"
+
+    tex = build_page_tex(Page(blocks=[block_tex], layout="block"))
+
+    assert build_block_grid_tex([block_tex]) in tex
+    assert "\\begin{tabular}{>{\\centering\\arraybackslash}p" not in tex
 
 
 def test_tabular_grid_places_sequential_blocks_down_each_column() -> None:
