@@ -5,15 +5,21 @@
 ```
 100-square-calculations/
 ├── nuts_calc.py         # PDF生成CLI本体(実行可能。旧 100masu.py)
+├── nuts_calc_tex.py     # LaTeX(pdflatex)レンダリングの実験的プロトタイプCLI(実行可能。nuts_calc.pyとコード共有なし)
 ├── factory.sh           # バッチ生成シェルスクリプト(実行可能)
 ├── memo.md              # 暗算指導法の解説(教育コンテンツ、非コード)
 ├── LICENSE              # MIT License
 ├── README.md            # 利用者向け説明(英語)
-├── README_ja.md         # 利用者向け説明(日本語、README.md と同内容の対訳)
+├── README_ja.md         # 利用者向け説明(日本語、README.md の対訳。Architecture/Design Principles セクションは README.md にのみ存在し未追随、下記「未確認事項」参照)
+├── pytest.ini           # pytest 設定(testpaths=tests, pythonpath=.)
 ├── .gitignore
+├── tests/               # pytestテストスイート(14ファイル)。nuts_calc.py/nuts_calc_tex.py/web/backendを対象
+├── vendor/
+│   └── texmf/tex/latex/longdivision/  # CTAN 'longdivision' パッケージのvendoring(nuts_calc_tex.pyの--vertical divで使用)
 ├── web/
 │   ├── backend/
-│   │   └── app.py       # Flask API(nuts_calc.pyをsubprocessで呼び出すラッパー)
+│   │   ├── app.py         # Flask API(POST /generate-pdf, GET /renderer-info)
+│   │   └── renderers.py   # レンダラー選択・CLIコマンド構築・subprocess実行(Flask非依存、issue #36)
 │   └── frontend/        # React + Vite + Tailwind の SPA
 │       ├── src/
 │       │   ├── main.jsx           # エントリポイント
@@ -24,7 +30,7 @@
 │       │   ├── App.css
 │       │   └── i18n.js            # react-i18next 設定
 │       ├── public/locales/{en,ja}/translation.json  # 翻訳文言
-│       ├── package.json
+│       ├── package.json         # i18next系4パッケージを含む(下記「既知の欠陥」参照、解消済み)
 │       └── package-lock.json
 └── docs/                 # /init-docs で生成した設計ドキュメント
 ```
