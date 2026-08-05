@@ -15,12 +15,18 @@ class RendererRequest(TypedDict, total=False):
     a_max: int
     b_min: int
     b_max: int
+    numerator_digits: int
+    denominator_digits: int
     operator: list[str]
     descend: bool
     reverse: bool
     shuffle: bool
     intermediate: bool
     vertical: bool
+    same_denominator: bool
+    different_denominators: bool
+    proper_operands: bool
+    proper_result: bool
     rows: int
     columns: int
     with_bottom_answer: bool
@@ -93,6 +99,10 @@ def build_command(renderer_name: str, params: RendererRequest, out_file: str) ->
         command.extend(["--b-min", str(params["b_min"])])
     if "b_max" in params:
         command.extend(["--b-max", str(params["b_max"])])
+    if "numerator_digits" in params:
+        command.extend(["--numerator-digits", str(params["numerator_digits"])])
+    if "denominator_digits" in params:
+        command.extend(["--denominator-digits", str(params["denominator_digits"])])
     if params.get("operator"):
         command.extend(["--operator", *params["operator"]])
     if params.get("descend"):
@@ -105,6 +115,14 @@ def build_command(renderer_name: str, params: RendererRequest, out_file: str) ->
         command.append("--intermediate")
     if params.get("vertical"):
         command.append("--vertical")
+    if params.get("same_denominator"):
+        command.append("--same-denominator")
+    if params.get("different_denominators"):
+        command.append("--different-denominators")
+    if params.get("proper_operands"):
+        command.append("--proper-operands")
+    if params.get("proper_result"):
+        command.append("--proper-result")
     if "rows" in params:
         command.extend(["--rows", str(params["rows"])])
     if "columns" in params:

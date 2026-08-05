@@ -107,3 +107,33 @@ def test_build_command_passes_operator_list_once() -> None:
     idx = command.index("--operator")
     assert command[idx : idx + 3] == ["--operator", "add", "sub"]
     assert command.count("--operator") == 1
+
+
+def test_build_command_translates_fraction_params() -> None:
+    params = {
+        "paper_size": "A4",
+        "command_type": "frac",
+        "operator": ["add", "sub"],
+        "numerator_digits": 1,
+        "denominator_digits": 2,
+        "same_denominator": True,
+        "proper_operands": True,
+        "proper_result": True,
+    }
+    command = renderers.build_command("latex", params, "out.pdf")
+
+    assert command[command.index("--numerator-digits") + 1] == "1"
+    assert command[command.index("--denominator-digits") + 1] == "2"
+    assert "--same-denominator" in command
+    assert "--proper-operands" in command
+    assert "--proper-result" in command
+
+
+def test_build_command_translates_different_denominators() -> None:
+    params = {
+        "paper_size": "A4",
+        "command_type": "frac",
+        "different_denominators": True,
+    }
+    command = renderers.build_command("latex", params, "out.pdf")
+    assert "--different-denominators" in command
