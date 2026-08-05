@@ -55,6 +55,7 @@
 
 ## 変更履歴(git log より自動生成)
 
+- e619398 fix(#42): reject --intermediate with a non-mul operator instead of silently coercing it
 - 9ead364 refactor(#46): remove --vertical from nuts_calc.py; gate written-calculation UI on active renderer
 - 53eb72d fix(#37): surface renderer stdout in error responses; use exit(1) for -a/-b validation failures
 - 5d05c55 feat(#11): add vertical long-division (長除法) written-calculation format for div
