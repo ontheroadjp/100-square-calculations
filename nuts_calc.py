@@ -246,6 +246,10 @@ def _init():
             print('They must be less than 3.')
             exit(1)
 
+    if args.intermediate and args.operator != ['mul']:
+        print("--intermediate only supports a single 'mul' operator (use -o mul).")
+        exit(1)
+
     if args.intermediate and args.b_max > SINGLE_DIGIT_MAX:
         print("--intermediate only supports a single-digit second operand (use -b 1 or --b-max <= 9).")
         exit(1)
@@ -628,8 +632,6 @@ def get_vertical_contents_raw_dataset(command, data_elements, rows, columns):
             )
         elif command == 'ope':
             nums_a, nums_b, operator, intermediate = data_elements
-            if intermediate:
-                operator = ['mul']
             data = get_operation_data(
                 nums_a, nums_b, operator, order, print_index, intermediate
             )

@@ -99,8 +99,17 @@ def test_init_intermediate_rejects_multi_digit_second_operand(monkeypatch):
 
 
 def test_init_intermediate_allows_single_digit_second_operand(monkeypatch):
-    args = _init_with(monkeypatch, "A4", "ope", "--intermediate")
+    args = _init_with(monkeypatch, "A4", "ope", "-o", "mul", "--intermediate")
     assert args.intermediate is True
+
+
+def test_init_intermediate_rejects_non_mul_operator(monkeypatch):
+    # issue #42: --intermediate used to silently override --operator to
+    # 'mul' during PDF generation (nuts_calc.py:631-632) instead of
+    # rejecting the combination, matching nuts_calc_tex.py's behavior.
+    with pytest.raises(SystemExit) as exc_info:
+        _init_with(monkeypatch, "A4", "ope", "-o", "add", "--intermediate")
+    assert exc_info.value.code == 1
 
 
 # ---------------------------------------------------------------------------
