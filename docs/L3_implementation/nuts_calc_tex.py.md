@@ -36,7 +36,7 @@
 
 - `ComProblem` データクラス(`index`/`a`/`target`/`c`、`nuts_calc_tex.py:598-604`)が1問を表す。`a + c = target` が常に成り立つ。
 - `generate_com_problems`(`nuts_calc_tex.py:607-618`): `1..target-1` の範囲から `a` を `random.choice` で選び、`c = target - a` を計算する。`nuts_calc.py` の `get_complement_data` と意味論は同じだが独立に再実装している(コード共有なし)。`a` は範囲の閉区間からの毎回の乱択で選ぶため、`nuts_calc.py` 側にあった「事前に `random.sample` でシャッフルしてから `random.choice` する」という冗長な前処理は行わない。
-- `build_com_block_tex`(`nuts_calc_tex.py:659-662`): `n) $a + \hspace{1.5em} = target$`(blank、`ope` と共通の下線なし固定幅プレースホルダー)/`n) $a + c = target$`(filled)を生成する。blank でも `target` はそのまま表示し、隠すのは答え `c` のみ(issue #22 の "a + __ = target" 形式の通り)。
+- `build_com_block_tex`(`nuts_calc_tex.py:721-724`): `n) $a + □ = target$`(blank)/`n) $a + c = target$`(filled)を生成する。blank の欠けた加数には `COM_BLANK_ANSWER_TEX` の四角枠を表示し、`\vcenter` で枠の中心を数式軸に揃える。blank でも `target` はそのまま表示し、隠すのは答え `c` のみ。通常計算の式末尾にある解答欄は引き続き共通の `BLANK_ANSWER_TEX` による空白表示で、四角枠にはしない(`nuts_calc_tex.py:64-65,721-724`)。
 - `build_com_page_pair`/`build_com_pages`(`nuts_calc_tex.py:629-673`): `ope` の同名関数群と同じ構造。`--vertical`(筆算)には未対応(issue #22 のスコープ外、`Page.layout` は常に `'inline'`)。`--with-bottom-answer` 指定時は `build_com_bottom_answer_tex` で `(index) c` の一覧を blank ページ末尾に追加する。
 - `build_com_csv_rows`(`nuts_calc_tex.py:645-650`): 1問1行、`[page_number, index, a, target, c]` の列で CSV を書き出す。
 
