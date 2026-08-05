@@ -31,6 +31,7 @@
 
 ## 変更履歴(git log より自動生成)
 
+- fd449c7 fix(#57): apply vertical layout in web UI
 - 9ead364 refactor(#46): remove --vertical from nuts_calc.py; gate written-calculation UI on active renderer
 - cfea9ed fix(#4): fix 9 logic bugs found in CLI, web backend, and frontend
 - 0a11eaf feat(#9): add vertical (written-calculation) output format for ope command
