@@ -43,7 +43,8 @@ def test_build_com_block_tex_blank_hides_answer() -> None:
     blank_tex = tex_module.build_com_block_tex(problem, show_answer=False)
     filled_tex = tex_module.build_com_block_tex(problem, show_answer=True)
     assert '63' not in blank_tex
-    assert '37 + \\underline' in blank_tex
+    assert '\\underline' not in blank_tex
+    assert '37 + \\hspace{1.5em}' in blank_tex
     assert '= 100$' in blank_tex
     assert '37 + 63 = 100' in filled_tex
 

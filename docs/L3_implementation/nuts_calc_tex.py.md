@@ -22,7 +22,7 @@
 - `OpeProblem` データクラス(`index`/`a`/`b`/`operator`/`c`)が1問を表す。
 - `calc_add`/`calc_mul` は単純計算。`calc_sub`/`calc_div` は `nuts_calc.py` の同名関数と同じ意味論(結果が正になるまで/割り切れるまで、最大 `MAX_OPERAND_RETRY_ATTEMPTS`(1000)回オペランドを再抽選)をベースに独立に再実装しているが、`nuts_calc.py` 側にはない決定的フォールバックを追加している: `nums_a`×`nums_b` のうち条件を満たすペアが極めて少ない場合(例: `nums_a=1..1000`, `nums_b=[999,1000]` では正の結果になる組が `(1000, 999)` の1組のみ)、純粋な乱択再抽選だけでは1000回の試行内に解を引けない確率が無視できないため、再抽選が尽きた後に `calc_sub` は `(max(nums_a), min(nums_b))`、`calc_div` は `find_exact_division_pair`(各 `nums_b` の倍数を `nums_a` の範囲内だけ探索する決定的探索)にフォールバックし、解が存在する限り必ず成功するようにしている(codex レビュー指摘、PR #29 で対応)。
 - `generate_ope_problems`(`nuts_calc_tex.py:433-451`): `operators` に `'mix'` が含まれる場合は `add`/`sub`/`mul`/`div` の4種から**問題ごとに**ランダムな演算子を選ぶ(`nuts_calc.py` の `mix` 展開と同じ意味論)。
-- 横書き: `build_horizontal_block_tex` が `n) $a op b = c$`(blank 版は `c` の代わりに `\underline{\hspace{1.5em}}`)を生成。`--intermediate` 指定時は `build_horizontal_intermediate_block_tex` が代わりに使われ、`build_intermediate_memo`(`memo.md` STEP 1 の2桁×1桁暗算メモ技法: `a` の十の位×`b` と一の位×`b` をそれぞれ2桁ゼロ埋めして連結)を挟んだ `n) $a \times b \Rightarrow memo \Rightarrow c$` を出力する。
+- 横書き: `build_horizontal_block_tex` が `n) $a op b = c$` を生成する。blank 版は `c` の代わりに、下線を伴わない固定幅の `\hspace{1.5em}` を出力する。`--intermediate` 指定時は `build_horizontal_intermediate_block_tex` が代わりに使われ、`build_intermediate_memo`(`memo.md` STEP 1 の2桁×1桁暗算メモ技法: `a` の十の位×`b` と一の位×`b` をそれぞれ2桁ゼロ埋めして連結)を挟んだ `n) $a \times b \Rightarrow memo \Rightarrow c$` を出力する。同じ固定幅の空欄を使うため、通常・途中式とも解答欄のレイアウトを維持する。
 - `--vertical`(筆算): `build_vertical_block_tex`(`nuts_calc_tex.py:478-505`)が問題の `operator` に応じて分岐する。
   - `add`/`sub`/`mul`: `xlop` の `\opadd`/`\opsub`/`\opmul` を使用(多桁の乗数は自動で部分積の複数段表示になる)。blank 版は `\opset{resultstyle=\phantom,carrystyle=\phantom,intermediarystyle=\phantom}` を `\begingroup`/`\endgroup` で局所適用し、結果・繰り上がり・部分積の**数字だけ**を不可視化する(レイアウトの高さ・幅は保持されるため、罫線位置は blank/filled で一致する)。
   - `div`: `longdivision` の `\intlongdivision` を使用。blank 版は `stage=0` オプションで除数・被除数の枠のみを表示する。
@@ -35,7 +35,7 @@
 
 - `ComProblem` データクラス(`index`/`a`/`target`/`c`、`nuts_calc_tex.py:598-604`)が1問を表す。`a + c = target` が常に成り立つ。
 - `generate_com_problems`(`nuts_calc_tex.py:607-618`): `1..target-1` の範囲から `a` を `random.choice` で選び、`c = target - a` を計算する。`nuts_calc.py` の `get_complement_data` と意味論は同じだが独立に再実装している(コード共有なし)。`a` は範囲の閉区間からの毎回の乱択で選ぶため、`nuts_calc.py` 側にあった「事前に `random.sample` でシャッフルしてから `random.choice` する」という冗長な前処理は行わない。
-- `build_com_block_tex`(`nuts_calc_tex.py:622-625`): `n) $a + \underline{\hspace{1.5em}} = target$`(blank、`ope` の横書きブロックと同じ下線プレースホルダーを流用)/`n) $a + c = target$`(filled)を生成する。blank でも `target` はそのまま表示し、隠すのは答え `c` のみ(issue #22 の "a + __ = target" 形式の通り)。
+- `build_com_block_tex`(`nuts_calc_tex.py:659-662`): `n) $a + \hspace{1.5em} = target$`(blank、`ope` と共通の下線なし固定幅プレースホルダー)/`n) $a + c = target$`(filled)を生成する。blank でも `target` はそのまま表示し、隠すのは答え `c` のみ(issue #22 の "a + __ = target" 形式の通り)。
 - `build_com_page_pair`/`build_com_pages`(`nuts_calc_tex.py:629-673`): `ope` の同名関数群と同じ構造。`--vertical`(筆算)には未対応(issue #22 のスコープ外、`Page.layout` は常に `'inline'`)。`--with-bottom-answer` 指定時は `build_com_bottom_answer_tex` で `(index) c` の一覧を blank ページ末尾に追加する。
 - `build_com_csv_rows`(`nuts_calc_tex.py:645-650`): 1問1行、`[page_number, index, a, target, c]` の列で CSV を書き出す。
 
@@ -52,7 +52,7 @@
 
 - `KukuProblem` データクラス(`index`/`a`/`b`/`c`)が1問を表す。`a`(段、`-a/--a-value` から取得)はページ内の全問題で共通。
 - `generate_kuku_problems`(乗数 `b` の生成): `order = ini.rows * ini.columns` 問を1ページ分生成する。乗数 `b` は基本 `1..order` の連番で、`--descend` で `order..1` の降順に反転し、`--shuffle` で(`--descend` 反転後の並びを)`random.shuffle` する。`order` が9を超えると `b` も9を超える値になる(`nuts_calc.py` の `get_fixed_format_data`(`mode == '99'`、`nuts_calc.py:508-522`)が `order = rows` を乗数の生成範囲に直結させている挙動を踏襲し、9問固定にはしていない)。`nuts_calc.py` と同じくコード共有はせず独立に再実装している。
-- `build_kuku_block_tex`: 通常は `n) $a \times b = c$`(blank 版は `c` の代わりに `\underline{\hspace{1.5em}}`)を生成する。`--reverse` 指定時は式の左右を入れ替えて `n) $c = a \times b$` にする(blank でも隠すのは常に `c`)。この入れ替えの意味論は `nuts_calc.py` の `get_fixed_format_data` が `is_reverse` のとき返すタプルの並びが `vals_c` を `vals_a`/`vals_b` より前に置く(`nuts_calc.py:543-545`)ことから独立に解釈・再実装したもの(`nuts_calc.py` 側のレンダリングパイプラインは完全に別実装のため、表示結果を直接比較検証してはいない)。
+- `build_kuku_block_tex`: 通常は `n) $a \times b = c$` を生成する。blank 版は `c` を、下線を伴わない固定幅の `\hspace{1.5em}` に置き換える。`--reverse` 指定時は式の左右を入れ替えて `n) $c = a \times b$` にする(blank でも隠すのは常に `c`)。この入れ替えの意味論は `nuts_calc.py` の `get_fixed_format_data` が `is_reverse` のとき返すタプルの並びが `vals_c` を `vals_a`/`vals_b` より前に置く(`nuts_calc.py:543-545`)ことから独立に解釈・再実装したもの(`nuts_calc.py` 側のレンダリングパイプラインは完全に別実装のため、表示結果を直接比較検証してはいない)。
 - `build_kuku_page_pair`/`build_kuku_pages`: `ope`/`com` と同じ構造。`Page.layout` は常に `'inline'`(`--vertical` 未対応)。`--with-bottom-answer` 指定時は `build_kuku_bottom_answer_tex` で `(index) c` の一覧を blank ページ末尾に追加する。
 - `build_kuku_csv_rows`: 1問1行、`[page_number, index, a, b, c]` の列で CSV を書き出す。
 
@@ -60,7 +60,7 @@
 
 - `AbcProblem` データクラス(`index`/`a`/`b`/`c`/`d`)が1問を表す。`abcd_display` プロパティが `f"{a}{b}{c}{d}"` で4桁の表示文字列を、`answer` プロパティが `(a*10+b)*10 + (c*10+d)`(2桁ペア `ab` を10倍してもう一方の2桁ペア `cd` を加算)を計算する。
 - `generate_abc_problems`: `a`/`b`/`c`/`d` をそれぞれ独立に `0..9`(`ABC_DIGIT_MAX`)から `random.choice` で選ぶ。`nuts_calc.py` の `get_aBc_data`(`nuts_calc.py:548-587`)と同じ範囲・意味論だが独立に再実装している(コード共有なし)。`ope --intermediate` の暗算メモ技法(`build_intermediate_memo`)と同じ「2桁ペアへの分解」の考え方を、単独の変換ドリルとして流用したもの(`memo.md` セクション3)。
-- `build_abc_block_tex`: `n) $abcd \Rightarrow answer$`(blank 版は `answer` の代わりに `\underline{\hspace{1.5em}}`)を生成する。
+- `build_abc_block_tex`: `n) $abcd \Rightarrow answer$` を生成する。blank 版は `answer` の代わりに、下線を伴わない固定幅の `\hspace{1.5em}` を出力する。
 - `build_abc_page_pair`/`build_abc_pages`: `com`/`99` と同じ構造。`order = ini.rows * ini.columns`。`Page.layout` は常に `'inline'`(`--vertical` 未対応)、`-a`/`-b` は不使用。`--with-bottom-answer` 指定時は `build_abc_bottom_answer_tex` で `(index) answer` の一覧を blank ページ末尾に追加する。
 - `build_abc_csv_rows`: 1問1行、`[page_number, index, a, b, c, d, answer]` の列で CSV を書き出す。
 
@@ -68,7 +68,7 @@
 
 - `SquProblem` データクラス(`index`/`a`/`c`)が1問を表す。`99`(kuku)の `KukuProblem` と異なり `a` はページ内で問題ごとに変化する側、`b` は常に `a` と同値のため専用フィールドを持たない。
 - `generate_squ_problems`(数列 `a` の生成): `order = ini.rows * ini.columns` 問を1ページ分生成する。`a` は `-a/--a-value`(`start_num`)を起点とする `start_num..start_num+order-1` の連番で、`c = a * a`。`--descend` で `start_num+order-1..start_num` の降順に反転し、`--shuffle` で(`--descend` 反転後の並びを)`random.shuffle` する。`nuts_calc.py` の `get_fixed_format_data`(`mode == 'squ'`、`nuts_calc.py:508-526,541-542`)と同じ意味論(`num_list = [start_num+i for i in range(order)]`)だが、`order` を `99` と同じく `rows*columns` に連動させている(`nuts_calc.py` 側は `order = rows` で列ごとに `start_num` がリセットされる設計だが、`nuts_calc_tex.py` は `99`/`aBc` で確立済みの「1ページ分をフラットな `rows*columns` 件の列とみなす」方針をそのまま踏襲した)。`start_num` はページをまたいでも変化しない(`nuts_calc.py` 側で `ini.a_value` が書き換えられる箇所がないことを踏襲し、各ページで同じ起点から独立して数列を生成し直す)。`nuts_calc.py` と同じくコード共有はせず独立に再実装している。
-- `build_squ_block_tex`: 通常は `n) $a \times a = c$`(blank 版は `c` の代わりに `\underline{\hspace{1.5em}}`)を生成する。`--reverse` 指定時は式の左右を入れ替えて `n) $c = a \times a$` にする(blank でも隠すのは常に `c`)。`build_kuku_block_tex` の `reverse` 処理と同じ構造。
+- `build_squ_block_tex`: 通常は `n) $a \times a = c$` を生成する。blank 版は `c` の代わりに、下線を伴わない固定幅の `\hspace{1.5em}` を出力する。`--reverse` 指定時は式の左右を入れ替えて `n) $c = a \times a$` にする(blank でも隠すのは常に `c`)。`build_kuku_block_tex` の `reverse` 処理と同じ構造。
 - `build_squ_page_pair`/`build_squ_pages`: `99` と同じ構造。`Page.layout` は常に `'inline'`(`--vertical` 未対応)。`--with-bottom-answer` 指定時は `build_squ_bottom_answer_tex` で `(index) c` の一覧を blank ページ末尾に追加する。
 - `build_squ_csv_rows`: 1問1行、`[page_number, index, a, c]` の列で CSV を書き出す(`b` は常に `a` と同値のため冗長な列を持たない、`99` の `[..., a, b, c]` との差異)。
 
@@ -76,7 +76,7 @@
 
 - `PiProblem` データクラス(`index`/`a`/`c`)が1問を表す。`squ` の `SquProblem` と同じ形(`b` は常に `PI_MULTIPLIER`(3.14)で固定のため専用フィールドを持たない)。
 - `generate_pi_problems`(数列 `a` の生成): `order = ini.rows * ini.columns` 問を1ページ分生成する。`a` は `-a/--a-value`(`start_num`)を起点とする `start_num..start_num+order-1` の連番で、`c = round(a * PI_MULTIPLIER, 2)`。`--descend`/`--shuffle` の意味論は `generate_squ_problems` と全く同じ(`descend` で降順反転、`shuffle` で反転後の並びをさらにランダム化)。`nuts_calc.py` の `get_fixed_format_data`(`mode == 'pi'`、`nuts_calc.py:508-522,527-530,541-542`)と同じ数列生成・意味論だが、`c` の丸め方が異なる(後述)。`nuts_calc.py` と同じくコード共有はせず独立に再実装している。
-- `build_pi_block_tex`: 通常は `n) $a \times 3.14 = c$`(blank 版は `c` の代わりに `\underline{\hspace{1.5em}}`)を生成する。`--reverse` 指定時は式の左右を入れ替えて `n) $c = a \times 3.14$` にする(blank でも隠すのは常に `c`)。`build_squ_block_tex` の `reverse` 処理と同じ構造。
+- `build_pi_block_tex`: 通常は `n) $a \times 3.14 = c$` を生成する。blank 版は `c` の代わりに、下線を伴わない固定幅の `\hspace{1.5em}` を出力する。`--reverse` 指定時は式の左右を入れ替えて `n) $c = a \times 3.14$` にする(blank でも隠すのは常に `c`)。`build_squ_block_tex` の `reverse` 処理と同じ構造。
 - `build_pi_page_pair`/`build_pi_pages`: `squ` と同じ構造。`Page.layout` は常に `'inline'`(`--vertical` 未対応)。`--with-bottom-answer` 指定時は `build_pi_bottom_answer_tex` で `(index) c` の一覧を blank ページ末尾に追加する。
 - `build_pi_csv_rows`: 1問1行、`[page_number, index, a, c]` の列で CSV を書き出す(`squ` と同じ列構成、`b` は常に `PI_MULTIPLIER` で固定のため冗長な列を持たない)。
 - `pi` は issue #19 が計画する7コマンドの最後の1つで、Phase 1 時点のプレースホルダーコンテンツ(`build_placeholder_page`/`build_placeholder_pages`)を実データ生成に置き換える形で実装した。全7コマンドが実データを持つようになったため、これらのプレースホルダー関数と `main()` の CSV フォールバック(プレースホルダー相当の行を書き出す分岐)は Phase 8 で削除した。

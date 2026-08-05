@@ -51,6 +51,7 @@ HUNDRED_SQUARE_SIZE = 10
 HUNDRED_SQUARE_SAMPLE_REPEAT_FACTOR = 2
 HUNDRED_SQUARE_HEADER_COLOR = 'lightgray'
 PI_MULTIPLIER = 3.14
+BLANK_ANSWER_TEX = '\\hspace{1.5em}'
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 VENDOR_TEXMF_DIR = os.path.join(SCRIPT_DIR, 'vendor', 'texmf')
@@ -546,7 +547,7 @@ def generate_ope_problems(
 def build_horizontal_block_tex(problem: OpeProblem, show_answer: bool) -> str:
     """Render one `ope` problem in horizontal format: `n) $a op b = c$`."""
     symbol = OPERATOR_TEX_SYMBOLS[problem.operator]
-    result_tex = str(problem.c) if show_answer else '\\underline{\\hspace{1.5em}}'
+    result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
     return f"{problem.index}) ${problem.a} {symbol} {problem.b} = {result_tex}$"
 
 
@@ -563,7 +564,7 @@ def build_intermediate_memo(a: int, b: int) -> str:
 def build_horizontal_intermediate_block_tex(problem: OpeProblem, show_answer: bool) -> str:
     """Render one `ope --intermediate` problem: `n) $a * b => memo => c$`."""
     memo = build_intermediate_memo(problem.a, problem.b)
-    result_tex = str(problem.c) if show_answer else '\\underline{\\hspace{1.5em}}'
+    result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
     return f"{problem.index}) ${problem.a} \\times {problem.b} \\Rightarrow {memo} \\Rightarrow {result_tex}$"
 
 
@@ -658,7 +659,7 @@ def generate_com_problems(target: int, order: int, start_index: int) -> list[Com
 
 def build_com_block_tex(problem: ComProblem, show_answer: bool) -> str:
     """Render one `com` problem: `n) $a + __ = target$`, filled with `c` when show_answer."""
-    result_tex = str(problem.c) if show_answer else '\\underline{\\hspace{1.5em}}'
+    result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
     return f"{problem.index}) ${problem.a} + {result_tex} = {problem.target}$"
 
 
@@ -843,7 +844,7 @@ def build_kuku_block_tex(problem: KukuProblem, show_answer: bool, reverse: bool)
     ahead of `vals_a`/`vals_b` (`nuts_calc.py:543-545`); the blanked value is
     always `c` regardless of which side it renders on.
     """
-    result_tex = str(problem.c) if show_answer else '\\underline{\\hspace{1.5em}}'
+    result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
     if reverse:
         return f"{problem.index}) ${result_tex} = {problem.a} \\times {problem.b}$"
     return f"{problem.index}) ${problem.a} \\times {problem.b} = {result_tex}$"
@@ -947,7 +948,7 @@ def generate_abc_problems(order: int, start_index: int) -> list[AbcProblem]:
 
 def build_abc_block_tex(problem: AbcProblem, show_answer: bool) -> str:
     """Render one `aBc` problem: `n) $abcd \\Rightarrow ____$`, filled with the converted answer when show_answer."""
-    result_tex = str(problem.answer) if show_answer else '\\underline{\\hspace{1.5em}}'
+    result_tex = str(problem.answer) if show_answer else BLANK_ANSWER_TEX
     return f"{problem.index}) ${problem.abcd_display} \\Rightarrow {result_tex}$"
 
 
@@ -1041,7 +1042,7 @@ def build_squ_block_tex(problem: SquProblem, show_answer: bool, reverse: bool) -
     `is_reverse` branch (`nuts_calc.py:543-545`); the blanked value is
     always `c` regardless of which side it renders on.
     """
-    result_tex = str(problem.c) if show_answer else '\\underline{\\hspace{1.5em}}'
+    result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
     if reverse:
         return f"{problem.index}) ${result_tex} = {problem.a} \\times {problem.a}$"
     return f"{problem.index}) ${problem.a} \\times {problem.a} = {result_tex}$"
@@ -1165,7 +1166,7 @@ def build_pi_block_tex(problem: PiProblem, show_answer: bool, reverse: bool) -> 
     `is_reverse` branch (`nuts_calc.py:543-545`); the blanked value is
     always `c` regardless of which side it renders on.
     """
-    result_tex = str(problem.c) if show_answer else '\\underline{\\hspace{1.5em}}'
+    result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
     if reverse:
         return f"{problem.index}) ${result_tex} = {problem.a} \\times {PI_MULTIPLIER}$"
     return f"{problem.index}) ${problem.a} \\times {PI_MULTIPLIER} = {result_tex}$"

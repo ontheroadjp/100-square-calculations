@@ -57,7 +57,8 @@ def test_build_pi_block_tex_blank_hides_answer() -> None:
     blank_tex = tex_module.build_pi_block_tex(problem, show_answer=False, reverse=False)
     filled_tex = tex_module.build_pi_block_tex(problem, show_answer=True, reverse=False)
     assert '6.28' not in blank_tex
-    assert '2 \\times 3.14 = \\underline' in blank_tex
+    assert '\\underline' not in blank_tex
+    assert '2 \\times 3.14 = \\hspace{1.5em}' in blank_tex
     assert '2 \\times 3.14 = 6.28$' in filled_tex
 
 
@@ -66,7 +67,8 @@ def test_build_pi_block_tex_reverse_swaps_equation_sides() -> None:
     blank_tex = tex_module.build_pi_block_tex(problem, show_answer=False, reverse=True)
     filled_tex = tex_module.build_pi_block_tex(problem, show_answer=True, reverse=True)
     assert '6.28' not in blank_tex
-    assert '\\underline{\\hspace{1.5em}} = 2 \\times 3.14$' in blank_tex
+    assert '\\underline' not in blank_tex
+    assert '\\hspace{1.5em} = 2 \\times 3.14$' in blank_tex
     assert '6.28 = 2 \\times 3.14$' in filled_tex
 
 
