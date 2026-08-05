@@ -10,7 +10,7 @@
 ├── memo.md              # 暗算指導法の解説(教育コンテンツ、非コード)
 ├── LICENSE              # MIT License
 ├── README.md            # 利用者向け説明(英語)
-├── README_ja.md         # 利用者向け説明(日本語、README.md の対訳。Architecture/Design Principles セクションは README.md にのみ存在し未追随、下記「未確認事項」参照)
+├── README_ja.md         # 利用者向け説明(日本語、README.md の対訳。下記「未確認事項」参照)
 ├── pytest.ini           # pytest 設定(testpaths=tests, pythonpath=.)
 ├── .gitignore
 ├── tests/               # pytestテストスイート(14ファイル)。nuts_calc.py/nuts_calc_tex.py/web/backendを対象
