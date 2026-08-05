@@ -5,7 +5,8 @@
 - PDF 生成には ReportLab を採用している(根拠: `nuts_calc.py` の import 群、`README.md:105-110`)。
 - Web UI は React 19 + Vite 7 + Tailwind CSS(フロントエンド、`web/frontend/package.json:12-29`)と Flask + Flask-Cors(バックエンド、`web/backend/app.py:1-2`)という構成。バックエンドは独自のドリル生成ロジックを持たず、既存の CLI(`nuts_calc.py`)を `subprocess.run` で呼び出すラッパーに徹している(根拠: `web/backend/app.py:20-63`)。これは CLI とロジックを二重実装しない設計判断と考えられる(未確認: 明示的な設計意図の記述はコード内にないが、実装から読み取れる一貫した方針)。
 - Python 側は依存関係の固定(lock file, `requirements.txt`, `pyproject.toml` など)を行っていない。以前存在した `setup.py` はコミット `d9fc0a3`("Rename 100masu.py to nuts_calc.py and remove setup.py")で削除されており、`pip install` によるパッケージインストールの導線は現状ない。README.md の Setup セクション(`README.md:13-14`)は「pip 経由でインストールでき、reportlab の依存関係も処理される」と書いてあるが、これを裏付けるパッケージ定義ファイルは存在しない(README と実装の乖離。[[consistency_checks]] 参照)。
-- npm 側は `web/frontend/package-lock.json` でバージョン固定されているが、`package.json` の `dependencies` に実際に import されている `i18next` 系パッケージが欠落しており、`npm install` 後の `npm run build`/`npm run dev` が失敗する(実機確認済み、詳細は [[specification_summary]])。
+- npm 側は `web/frontend/package-lock.json` でバージョン固定されている。`package.json` の `dependencies` には `i18next`/`react-i18next`/`i18next-browser-languagedetector`/`i18next-http-backend` が含まれており、`npm install && npm run build` が成功することを実機で再確認済み(2026-08-05)。過去(2026-07-22 時点)はこれらのパッケージが欠落しビルドが失敗していたが、その後のコミットで解消されている(詳細は [[specification_summary]])。
+- `nuts_calc_tex.py`(実験的プロトタイプ)は LaTeX(`pdflatex`)エンジンに依存する。CTAN の `longdivision` パッケージは Ubuntu の `texlive-latex-extra` に同梱されていないため `vendor/texmf/tex/latex/longdivision/` としてリポジトリに vendoring している(LPPLライセンス)。`xlop` は同パッケージに同梱されているため vendoring していない(詳細は [[../L3_implementation/nuts_calc_tex.py]])。
 
 ## セキュリティ方針
 
