@@ -11,7 +11,7 @@
 ### 共通基盤(Phase 1)
 
 - `_init()`(`nuts_calc_tex.py:74-250`): `nuts_calc.py` と同じ引数(`paper_size`/`command`/`-a`/`-b`/`--a-min`/`--a-max`/`--b-min`/`--b-max`/`-o`/`--rows`/`--columns`/`--page`/`--merge`/`--csv`/`--out-file`/`--with-bottom-answer`/`--vertical`/`--intermediate`/`--debug` 等)を独立に定義・パースする。`-r`/`-c`/`-p` は1以上を要求する。`command == '100'` の場合、`-a`/`-b`(桁数)が指定されていれば1〜3の範囲であることを、`-a`/`-b` の桁数レンジ変換(`set_min_max_value`)より**前**に検証する(範囲外だと `set_min_max_value` 内で `IndexError` になる、または負のインデックスで誤ったレンジになるため。詳細は後述)。`-a`/`-b` の桁数レンジ変換自体は `command in ('ope', '100')` の場合のみ行う。`command == 'com'` の場合は `-a/--a-value`(補数ターゲット)が必須かつ2以上であることを検証する。`command == '99'` の場合は `-a/--a-value`(九九の段)が必須であることを検証する(値域は `nuts_calc.py` と同じく未検証)。`command == 'squ'` の場合は `-a/--a-value`(開始する二乗数の起点)が必須であることを検証する(`99` と同じ形、値域は同じく未検証)。`command == 'pi'` の場合は `-a/--a-value`(円周率倍する整数列の起点)が必須であることを検証する(`squ` と全く同じ形)。`command == 'aBc'` の場合は `-a`/`-b` を一切使用しない(`com`/`99`/`squ`/`pi` と異なり検証も不要)。`command == 'ope'` の場合のみ `--intermediate` のバリデーションを行う(後述)。
-- `Page` データクラス(`blocks: list[str]`, `columns: int`, `bottom_answer_tex: str | None`, `layout: str`): 1ページ分の LaTeX コンテンツを表す最小単位。`layout='inline'`(横書き・プレースホルダー用、`\hspace` でブロックをテキスト行として結合)と `layout='tabular'`(`--vertical` 用、後述)の2種類。
+- `Page` データクラス(`blocks: list[str]`, `columns: int`, `bottom_answer_tex: str | None`, `layout: str`): 1ページ分の LaTeX コンテンツを表す最小単位。`layout='inline'`(横書き・プレースホルダー用、`\hspace` でブロックをテキスト行として結合)と `layout='tabular'`(`--vertical` 用、後述)の2種類。問題ブロックは生成順に各列を上から下へ満たす列優先で配置するため、複数列では問題番号2は問題番号1の直下に置かれる。
 - `build_preamble_tex`/`build_page_header_tex`/`build_page_tex`/`build_document_tex`: LaTeX ソースを文字列として組み立てる。用紙サイズは `geometry` パッケージのオプション(`a3paper`/`a4paper`/`b5paper`/`a4paper,landscape`)にマッピングし、ヘッダー(タイトル・日付欄)・フッター(ページ番号・著作権、`fancyhdr`)・行×列グリッドを構築する。プリアンブルは `longdivision`/`xlop`/`array`/`fancyhdr`/`xcolor`(`table` オプション、`100` コマンドのヘッダー網掛けに使用)を読み込む。
 - `compile_tex`: `pdflatex -interaction=nonstopmode -halt-on-error` を一時ディレクトリで subprocess 実行し、生成された PDF を指定パスへコピーする。失敗時は `pdflatex` の出力末尾を含めて `exit(1)` する。
 - 出力ファイル名の導出は `nuts_calc.py`(issue #15 修正後)と同様に `os.path.splitext(ini.out_file)` を使う(`_read.pdf`/`.csv` の付与)。
@@ -106,6 +106,8 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 `--vertical` ブロック(xlop/longdivision の出力)は複数行にまたがる LaTeX コンテンツのため、横書きプレースホルダーで使っている `\hspace` によるテキスト結合(`build_inline_grid_tex`)では列が揃わない。当初は1ページ分の全ブロックを1つの `tabular` にまとめていたが、**LaTeX の `tabular` はページをまたいで自動改ページしない**ため、既定の `-r 10` のような行数の多いグリッドでは、その `tabular` 全体がページに収まらず丸ごと次ページへ送られ、結果として1ページ目が空白になり2ページ目の下端から内容が溢れて実質的に問題が失われる不具合が実機コンパイルで確認された。この問題を避けるため、`build_tabular_grid_tex`(`nuts_calc_tex.py:284-314`)は**行ごとに独立した1行だけの `tabular`** を生成し、既存の `\par\vspace` 区切り(`build_inline_grid_tex` と同じ)で連結する設計にしている。これにより通常の段落と同様に行単位で自然に改ページできる。回帰テスト: `tests/test_nuts_calc_tex.py::test_cli_ope_vertical_default_rows_does_not_drop_content`。
 
 列幅は `\dimexpr(\textwidth-2N\tabcolsep)/N\relax`(`N`=列数)で動的に計算しており、用紙サイズ(A3/A4/B5/A4横)や列数が変わっても `\textwidth` に追従する。
+
+横書きの `build_inline_grid_tex` と筆算の `build_tabular_grid_tex` は、共通の `build_column_major_rows` を使って問題ブロックを列優先の視覚行に変換する。これにより、どちらの形式でも左端の列を上から下へ読んだときに問題番号が連番となり、2列なら `1, 2, ...` の右側に次の列の問題が置かれる。問題データやCSVの生成順は変えず、変更するのはPDF上の配置だけである。
 
 ### blank(練習用)版の実現方法が xlop と longdivision で異なる理由
 
