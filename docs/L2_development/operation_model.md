@@ -61,8 +61,9 @@ npm run dev      # http://localhost:5173
 ```bash
 # pdflatex を含む LaTeX ディストリビューションが必要(例: texlive-latex-base + texlive-latex-extra)
 python3 nuts_calc_tex.py A4 ope -a 1 -b 1 --out-file result.pdf
+python3 nuts_calc_tex.py A4 frac --numerator-digits 1 --denominator-digits 1 --same-denominator --proper-operands -o add sub --out-file fractions.pdf
 ```
-`vendor/texmf/tex/latex/longdivision/` を `TEXINPUTS` 経由で解決するため、クローン後の追加セットアップは不要(`nuts_calc.py` とは独立の CLI で、`factory.sh`/`web/backend/app.py` からは直接呼ばれない)。`pdflatex` が `PATH` にない場合は `_init()` ではなく `compile_tex` が明確なエラーで `exit(1)` する。詳細は [[../L3_implementation/nuts_calc_tex.py]]。
+`frac` は分子・分母の桁数(1〜3)と四則演算を受け付け、同分母・異分母・真分数条件を追加できる。`vendor/texmf/tex/latex/longdivision/` は `TEXINPUTS` 経由で解決する。`pdflatex` が無い場合は明確なエラーで終了する(`nuts_calc_tex.py:118-184,305-328,512-526`)。
 
 ## テスト(pytest)
 
@@ -70,7 +71,7 @@ python3 nuts_calc_tex.py A4 ope -a 1 -b 1 --out-file result.pdf
 pip install pytest
 pytest -q
 ```
-`pytest.ini`(`testpaths = tests`, `pythonpath = .`)によりリポジトリルートで実行する。2026-08-05 時点でこのブランチの分岐元(`main`)で実行し、196件中187件成功・9件失敗を確認済み。失敗の9件は `tests/test_nuts_calc_init.py` の既知のstaleなテスト(`nuts_calc.py` の一部バリデーションが `exit()` から `exit(1)` に修正された(issue #37)後もテスト側の期待値が更新されていない)で、今回のドキュメント作業とは無関係。詳細は [[test]] を参照。`pdflatex` 依存の `nuts_calc_tex.py` CLI テストは `pdflatex` 未インストール時は自動的にスキップされる。
+`pytest.ini` によりリポジトリルートで実行する。2026-08-06時点で222件を収集した。`tests/test_nuts_calc_init.py` は既知の9失敗・13成功、分数/backend単体22件と分数PDF 2件は成功した。既知ファイルを除く一括実行は最終サマリが返らず未確認として分離する。詳細は [[test]]。
 
 ## ビルド
 

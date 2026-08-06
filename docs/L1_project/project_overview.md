@@ -17,7 +17,7 @@ CI 定義・パッケージ定義(lock file 等)は Python 側に存在しない
 | 国際化 | react-i18next(英語/日本語) | `web/frontend/src/i18n.js:1-4` |
 | バッチ生成 | Bash(`set -Ceu`) | `factory.sh:1,38` |
 | CLI(実験的プロトタイプ) | `nuts_calc_tex.py`(LaTeX/`pdflatex` レンダリング、`nuts_calc.py` とコード共有なし) | `nuts_calc_tex.py:1`、[[../L3_implementation/nuts_calc_tex.py]] |
-| テスト | pytest(`tests/`、14ファイル、`pytest.ini`) | `pytest.ini:1-3`、`find tests -name 'test_*.py'` |
+| テスト | pytest(`tests/`、15ファイル、`pytest.ini`) | `pytest.ini:1-3`、`find tests -name 'test_*.py'` |
 | パッケージマネージャ(Python) | pip(lock file なし。旧 `setup.py` は削除済み、`git log` のコミット `d9fc0a3` で確認) | `README.md:13-14` は pip インストールを謳うが検証すると裏付けとなるパッケージ定義ファイルは存在しない |
 | パッケージマネージャ(Web) | npm(`package-lock.json` あり) | `web/frontend/package-lock.json` |
 | ライセンス | MIT | `LICENSE:1-21` |
@@ -38,7 +38,7 @@ CI 定義・パッケージ定義(lock file 等)は Python 側に存在しない
 
 ### `nuts_calc_tex.py`(実験的プロトタイプ)
 
-`nuts_calc.py` と同じ7コマンドを LaTeX(`pdflatex`)でレンダリングする独立プロトタイプ(issue #19 配下の全8フェーズが完了済み)。`nuts_calc.py` からは import 等のコード共有を一切行わない。まだ `web/backend`(`NUTS_CALC_RENDERER=latex` 経由でのみ有効化)からのみ到達可能で、`factory.sh` からは呼ばれない。筆算(縦書き)形式は `nuts_calc.py` から issue #46 で削除され、この `nuts_calc_tex.py` に一本化されている。詳細は [[../L3_implementation/nuts_calc_tex.py]] を参照。
+`nuts_calc.py` と同じ7コマンドにLaTeX専用 `frac` を加えた8コマンドを `pdflatex` でレンダリングする独立プロトタイプ。`frac` は分子・分母の桁数、同分母・異分母、真分数条件を指定して厳密な四則演算を生成する。Webでは `NUTS_CALC_RENDERER=latex` の場合だけ3〜6年生の分数カードを表示する(`nuts_calc_tex.py:118-184,1339-1498`、`web/frontend/src/drillPresets.js:154-327`)。`factory.sh` からは呼ばれない。
 
 ### Web UI(`web/`、新規)
 
