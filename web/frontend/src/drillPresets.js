@@ -1,6 +1,7 @@
 // Curated mappings from "school grade" to /generate-pdf request params.
-// Fraction presets are curriculum-aligned and marked latexOnly because the
-// `frac` command exists only in nuts_calc_tex.py.
+// Fraction presets and parenthesized-expression presets (`use_parentheses`)
+// are curriculum-aligned and marked latexOnly because the `frac` command and
+// `--use-parentheses` flag exist only in nuts_calc_tex.py.
 
 export const GRADES = [1, 2, 3, 4, 5, 6];
 
@@ -210,6 +211,25 @@ export const presetsByGrade = {
         params: { command_type: 'ope', operator: ['mix'], a_value: 2, b_value: 2 },
       },
       {
+        // Matches the formal grade-4 course-of-study unit A(6) 数量の関係を表す式
+        // ("四則の混合した式や（　）を用いた式", elementary-course-of-study
+        // -mathematics-2017.pdf page 196): single-digit three-operand
+        // expressions. operator: ['mix'] plus --use-parentheses's own
+        // per-problem position/operator randomization (nuts_calc_tex.py
+        // issue #67) varies both which pair is parenthesized ("(a op b) op
+        // c" vs "a op (b op c)") and which of the four operations are used,
+        // instead of a single fixed pattern. latexOnly because
+        // --use-parentheses exists only in nuts_calc_tex.py.
+        id: 'g4-parentheses',
+        titleKey: 'preset_g4_parentheses_title',
+        descKey: 'preset_g4_parentheses_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'ope', operator: ['mix'], use_parentheses: true,
+          a_value: 1, b_value: 1,
+        },
+      },
+      {
         id: 'g4-fraction-common-addsub',
         titleKey: 'preset_g4_fraction_title',
         descKey: 'preset_g4_fraction_desc',
@@ -269,6 +289,24 @@ export const presetsByGrade = {
         params: { command_type: 'ope', operator: ['mix'], a_value: 3, b_value: 2 },
       },
       {
+        // Advanced extension of g4-parentheses: no grade-5 course-of-study
+        // unit covers this directly (that unit is grade 4 only), so this is
+        // an ungraded-in-spirit but grade-5-placed application drill with a
+        // 2-digit first operand (b/c stay single-digit -- verified by
+        // simulation that widening both b and c to 2 digits makes some
+        // operator/position combinations, e.g. sub outside a mul on the
+        // right, have essentially no solvable triple in range). Same
+        // operator/position randomization as g4-parentheses.
+        id: 'g5-parentheses-advanced',
+        titleKey: 'preset_g5_parentheses_advanced_title',
+        descKey: 'preset_g5_parentheses_advanced_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'ope', operator: ['mix'], use_parentheses: true,
+          a_value: 2, b_value: 1,
+        },
+      },
+      {
         id: 'g5-fraction-unlike-addsub',
         titleKey: 'preset_g5_fraction_title',
         descKey: 'preset_g5_fraction_desc',
@@ -314,6 +352,21 @@ export const presetsByGrade = {
         titleKey: 'preset_g6_mix_title',
         descKey: 'preset_g6_mix_desc',
         params: { command_type: 'ope', operator: ['mix'], a_value: 3, b_value: 3 },
+      },
+      {
+        // Advanced extension of g4-parentheses (see g5-parentheses-advanced):
+        // a 3-digit first operand (one step up from grade 5's 2-digit) is
+        // the differentiator, with b/c kept single-digit for the same
+        // solvability reason as g5-parentheses-advanced. Same
+        // operator/position randomization as g4-parentheses.
+        id: 'g6-parentheses-advanced',
+        titleKey: 'preset_g6_parentheses_advanced_title',
+        descKey: 'preset_g6_parentheses_advanced_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'ope', operator: ['mix'], use_parentheses: true,
+          a_value: 3, b_value: 1,
+        },
       },
       {
         id: 'g6-fraction-muldiv',

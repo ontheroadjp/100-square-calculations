@@ -152,3 +152,119 @@ def test_build_ope_csv_rows_has_one_row_per_problem() -> None:
         [1, 1, 2, 'add', 3, 5],
         [2, 2, 9, 'sub', 4, 5],
     ]
+
+
+def test_paren_stage_add_returns_sum() -> None:
+    assert tex_module.paren_stage_add(3, 4) == 7
+
+
+def test_paren_stage_sub_returns_none_for_non_positive_result() -> None:
+    assert tex_module.paren_stage_sub(3, 4) is None
+    assert tex_module.paren_stage_sub(4, 3) == 1
+
+
+def test_paren_stage_mul_returns_product() -> None:
+    assert tex_module.paren_stage_mul(6, 7) == 42
+
+
+def test_paren_stage_div_returns_none_for_inexact_or_zero_divisor() -> None:
+    assert tex_module.paren_stage_div(10, 0) is None
+    assert tex_module.paren_stage_div(10, 3) is None
+    assert tex_module.paren_stage_div(10, 5) == 2
+
+
+def test_generate_paren_ope_problems_assigns_sequential_indices() -> None:
+    problems = tex_module.generate_paren_ope_problems(
+        [5], [3], [2], ['add'], order=4, start_index=11
+    )
+    assert [problem.index for problem in problems] == [11, 12, 13, 14]
+    # op_left == op_right == 'add' is associative, so every problem's final
+    # result is 5 + 3 + 2 == 10 regardless of which pair gets parenthesized.
+    assert [(p.a, p.b, p.c, p.result) for p in problems] == [(5, 3, 2, 10)] * 4
+    for problem in problems:
+        assert (problem.inner, problem.position) in [(8, 'left'), (5, 'right')]
+
+
+def test_generate_paren_ope_problems_satisfies_both_stage_constraints_for_each_position() -> None:
+    nums_a = list(range(10, 100))
+    nums_bc = list(range(1, 10))
+    problems = tex_module.generate_paren_ope_problems(
+        nums_a, nums_bc, nums_bc, ['mul', 'div'], order=GENERATION_SAMPLE_SIZE, start_index=1
+    )
+    positions_seen = set()
+    for problem in problems:
+        positions_seen.add(problem.position)
+        assert problem.op_left in ('mul', 'div')
+        assert problem.op_right in ('mul', 'div')
+        if problem.position == 'left':
+            assert problem.inner == tex_module.PAREN_STAGE_FUNCTIONS[problem.op_left](problem.a, problem.b)
+            combined = tex_module.PAREN_STAGE_FUNCTIONS[problem.op_right](problem.inner, problem.c)
+        else:
+            assert problem.inner == tex_module.PAREN_STAGE_FUNCTIONS[problem.op_right](problem.b, problem.c)
+            combined = tex_module.PAREN_STAGE_FUNCTIONS[problem.op_left](problem.a, problem.inner)
+        assert combined == problem.result
+    assert positions_seen == {'left', 'right'}  # both should appear across this many samples
+
+
+def test_generate_paren_ope_problems_mix_only_uses_the_four_base_operators() -> None:
+    nums = list(range(1, 10))
+    problems = tex_module.generate_paren_ope_problems(
+        nums, nums, nums, ['mix'], order=GENERATION_SAMPLE_SIZE, start_index=1
+    )
+    operators_used = {problem.op_left for problem in problems} | {problem.op_right for problem in problems}
+    assert operators_used <= {'add', 'sub', 'mul', 'div'}
+    assert 'mix' not in operators_used
+
+
+def test_generate_paren_ope_problems_raises_when_no_valid_triple_is_possible() -> None:
+    with pytest.raises(ValueError):
+        tex_module.generate_paren_ope_problems([1], [9], [9], ['sub'], order=1, start_index=1)
+
+
+def test_build_paren_ope_block_tex_left_position_parenthesizes_a_and_b() -> None:
+    problem = tex_module.ParenOpeProblem(
+        index=1, a=3, b=5, c=2, op_left='add', op_right='mul', position='left', inner=8, result=16
+    )
+    blank_tex = tex_module.build_paren_ope_block_tex(problem, show_answer=False)
+    filled_tex = tex_module.build_paren_ope_block_tex(problem, show_answer=True)
+    assert '= 16$' not in blank_tex
+    assert '(3 + 5) \\times 2 = \\hspace{1.5em}$' in blank_tex
+    assert '(3 + 5) \\times 2 = 16$' in filled_tex
+
+
+def test_build_paren_ope_block_tex_right_position_parenthesizes_b_and_c() -> None:
+    problem = tex_module.ParenOpeProblem(
+        index=1, a=3, b=5, c=2, op_left='add', op_right='mul', position='right', inner=10, result=13
+    )
+    filled_tex = tex_module.build_paren_ope_block_tex(problem, show_answer=True)
+    assert '3 + (5 \\times 2) = 13$' in filled_tex
+
+
+def test_build_paren_ope_bottom_answer_tex_lists_results() -> None:
+    problems = [
+        tex_module.ParenOpeProblem(
+            index=1, a=3, b=5, c=2, op_left='add', op_right='mul', position='left', inner=8, result=16,
+        ),
+        tex_module.ParenOpeProblem(
+            index=2, a=9, b=4, c=1, op_left='sub', op_right='add', position='left', inner=5, result=6,
+        ),
+    ]
+    assert tex_module.build_paren_ope_bottom_answer_tex(problems) == '(1) 16 \\quad (2) 6'
+
+
+def test_build_paren_ope_csv_rows_has_one_row_per_problem() -> None:
+    page1 = [
+        tex_module.ParenOpeProblem(
+            index=1, a=3, b=5, c=2, op_left='add', op_right='mul', position='left', inner=8, result=16,
+        )
+    ]
+    page2 = [
+        tex_module.ParenOpeProblem(
+            index=2, a=9, b=4, c=1, op_left='sub', op_right='add', position='right', inner=5, result=4,
+        )
+    ]
+    rows = tex_module.build_paren_ope_csv_rows([page1, page2])
+    assert rows == [
+        [1, 1, 3, 'add', 5, 'mul', 2, 'left', 8, 16],
+        [2, 2, 9, 'sub', 4, 'add', 1, 'right', 5, 4],
+    ]
