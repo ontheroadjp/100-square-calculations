@@ -1,7 +1,7 @@
 """End-to-end regression tests for nuts_calc_tex.py (Phase 1 foundation #20;
 `ope` command Phase 2 #21; `com` command Phase 3 #22; `99` command Phase 5
 #24; `aBc` command Phase 6 #25; `squ` command Phase 7 #26; `pi` command
-Phase 8 #27; and fraction arithmetic #65).
+Phase 8 #27; fraction arithmetic #65; and `ope --use-parentheses` #67).
 
 nuts_calc_tex.py has zero code dependency on nuts_calc.py, so these tests
 run it as a real subprocess, independent of tests/test_nuts_calc_cli.py.
@@ -286,6 +286,89 @@ def test_cli_ope_intermediate_rejects_multi_digit_b(run_tex_cli, tmp_path):
     result = run_tex_cli("A4", "ope", "-o", "mul", "--intermediate", "--b-max", "15", "--out-file", "result.pdf")
     assert result.returncode == 1
     assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_use_parentheses_produces_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "mul", "--use-parentheses",
+        "--a-value", "1", "--b-value", "1",
+        "-r", "2", "-c", "2", "-ww", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+def test_cli_ope_use_parentheses_mix_produces_pdfs(run_tex_cli, tmp_path):
+    # -o mix (and a single non-mix operator, below) are no longer rejected:
+    # op_left/op_right and the parenthesized side are chosen per problem, so
+    # even a one-element --operator still varies via --use-parentheses's own
+    # position randomization.
+    result = run_tex_cli(
+        "A4", "ope", "-o", "mix", "--use-parentheses",
+        "--a-value", "1", "--b-value", "1",
+        "-r", "3", "-c", "3", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+def test_cli_ope_use_parentheses_single_operator_produces_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "--use-parentheses",
+        "-r", "2", "-c", "2", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
+def test_cli_ope_use_parentheses_rejects_vertical_combo(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "mul", "--use-parentheses", "--vertical", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_use_parentheses_rejects_intermediate_combo(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "mul", "--intermediate", "--use-parentheses", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_use_parentheses_rejects_non_ope_command(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "99", "-a", "2", "--use-parentheses", "--out-file", "result.pdf")
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_use_parentheses_csv_rows_contain_real_problem_data(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "sub", "mul", "--use-parentheses",
+        "--a-value", "2", "--b-value", "1",
+        "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+
+    stage_fn = {"sub": lambda x, y: x - y, "mul": lambda x, y: x * y}
+
+    csv_path = tmp_path / "result.csv"
+    lines = csv_path.read_text().strip().splitlines()
+    assert len(lines) == 4
+    page_number, index, a, op_left, b, op_right, c, position, inner, res = lines[0].split(",")
+    assert (page_number, index) == ("1", "1")
+    assert op_left in stage_fn
+    assert op_right in stage_fn
+    assert position in ("left", "right")
+    if position == "left":
+        assert stage_fn[op_left](int(a), int(b)) == int(inner)
+        assert stage_fn[op_right](int(inner), int(c)) == int(res)
+    else:
+        assert stage_fn[op_right](int(b), int(c)) == int(inner)
+        assert stage_fn[op_left](int(a), int(inner)) == int(res)
 
 
 def test_cli_ope_csv_rows_contain_real_problem_data(run_tex_cli, tmp_path):

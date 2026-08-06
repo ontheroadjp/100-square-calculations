@@ -4,7 +4,7 @@
 
 `nuts_calc.py`(ReportLab ベース)とは**完全に独立した**、LaTeX(TeX)でレンダリングする計算ドリル PDF 生成 CLI のプロトタイプ。issue #19(親トラッキング issue)で計画されている全7コマンド再実装のうち、Phase 1(issue #20)で CLI 引数・ページ/PDF レイアウト・TeX ビルドパイプライン・CSV 出力という共通基盤を実装し、Phase 2(issue #21)で `ope` コマンド(四則演算 add/sub/mul/div/mix、横書き・`--vertical`・`--intermediate`)、Phase 3(issue #22)で `com` コマンド(補数: `a + __ = target`)、Phase 4(issue #23)で `100` コマンド(100マス計算: 11×11 の加算表)、Phase 5(issue #24)で `99` コマンド(九九: 固定の1段 × `--rows`×`--columns` 問、`--descend`/`--reverse`/`--shuffle` の並び替え)、Phase 6(issue #25)で `aBc` コマンド(暗算: 4桁の数字列 `abcd` を2桁ずつのペア `ab`/`cd` に分けて変換する暗算ステートメント)、Phase 7(issue #26)で `squ` コマンド(二乗数: `-a` から始まる整数列を `a × a` の形で出題、`--descend`/`--reverse`/`--shuffle` の並び替えは `99` と共通)、Phase 8(issue #27)で `pi` コマンド(円周率倍: `-a` から始まる整数列を `a × 3.14` の形で出題、並び替えオプションは `squ` と共通)を実装した。これで issue #19 が計画する全7コマンドの実装が完了している。
 
-`nuts_calc.py` とは import 等のコード共有を一切行わない(`nuts_calc.py` 側も変更しない)。将来的に両者を同じ CLI 契約で切り替えられるラッパーを作る前提のため、引数体系は `nuts_calc.py` の `_init()` に似せているが、実装は完全に別物。問題生成ロジック(`calc_add`/`calc_sub`/`calc_mul`/`calc_div`/`generate_ope_problems`)も `nuts_calc.py` の `get_operation_data` 等とは独立に再実装している(意味論は似せているが、コードは共有しない)。issue #65 では LaTeX 固有の8番目のコマンド `frac` を追加し、分数の四則演算を実装した。
+`nuts_calc.py` とは import 等のコード共有を一切行わない(`nuts_calc.py` 側も変更しない)。将来的に両者を同じ CLI 契約で切り替えられるラッパーを作る前提のため、引数体系は `nuts_calc.py` の `_init()` に似せているが、実装は完全に別物。問題生成ロジック(`calc_add`/`calc_sub`/`calc_mul`/`calc_div`/`generate_ope_problems`)も `nuts_calc.py` の `get_operation_data` 等とは独立に再実装している(意味論は似せているが、コードは共有しない)。issue #65 では LaTeX 固有の8番目のコマンド `frac` を追加し、分数の四則演算を実装した。issue #67 では `ope` コマンドに LaTeX 固有のオプション `--use-parentheses` を追加し、かっこ付き3項式(`(a op b) op c` または `a op (b op c)`)の出題を実装した。
 
 ### `frac` コマンド(issue #65)
 
@@ -13,6 +13,14 @@
 - `generate_fraction_problems()` は `add`/`sub`/`mul`/`div`/`mix` を問題ごとに解決し、答えが正になる問題だけを生成する。`--proper-result` はさらに答えを1未満へ制限し、同分母・異分母条件も生成時に保証する。条件を1000回以内に満たせない場合は明確な `ValueError` にする(`nuts_calc_tex.py:1394-1434`)。
 - 問題・解答は `\frac` と `\displaystyle` で横書き表示する。通常の問題PDF、`_read.pdf`、`--merge`、`--with-bottom-answer`、`--csv` の全出力経路に対応する。答えの文字色は既存コマンドと同じ黒である(`nuts_calc_tex.py:1441-1500,1510-1565`)。
 - 学年別配置の根拠となる文部科学省資料は `docs/reference/` に保存する。Webカードは LaTeX レンダラー時のみ表示される([[web/frontend/src/drillPresets.js]]、[[web/frontend/src/GradeDrills.jsx]])。
+
+### `ope --use-parentheses`(issue #67)
+
+- `_init()` は `command == 'ope'` のときのみ `--use-parentheses` を許可し、`--vertical`/`--intermediate` との併用を拒否する。`-o/--operator` の受け付け方は通常の `ope`(`mix` を含む1〜4個の演算子)と全く同じで、「かっこ内外の演算子をちょうど2つ指定する」といった専用の制約は課さない(`nuts_calc_tex.py:326-352`)。
+- `ParenOpeProblem`(`index`/`a`/`b`/`c`/`op_left`/`op_right`/`position`/`inner`/`result`)が1問を表す。3つの数 `a`/`b`/`c` を左から並べ、`a` と `b` の間の演算子を `op_left`、`b` と `c` の間の演算子を `op_right` と呼ぶ。`position`(`'left'`/`'right'`)がどちらの隣接ペアが先に計算される(かっこで囲まれる)かを表す: `'left'` は `(a op_left b) op_right c`(`inner = a op_left b`)、`'right'` は `a op_left (b op_right c)`(`inner = b op_right c`)としてレンダリングされる。
+- `generate_paren_ope_problems()`(`nuts_calc_tex.py:803-840`前後): 問題ごとに `op_left`/`op_right`(`generate_ope_problems` の `mix` 展開と同じ `effective_operators` からそれぞれ独立に `random.choice`)と `position`(`PAREN_POSITIONS = ['left', 'right']` から `random.choice`)を1回選び、その組み合わせに対して `a`/`b`/`c` を `MAX_OPERAND_RETRY_ATTEMPTS` 回まで再抽選する。`paren_stage_add`/`_sub`/`_mul`/`_div`(`PAREN_STAGE_FUNCTIONS`)は `calc_sub`/`calc_div` と同じ検証(減算は正の結果のみ、除算は割り切れる場合のみ)を行う純粋関数で、内側・外側の両方の段階を満たさない組み合わせは `continue` で再抽選する。**`calc_sub`/`calc_div` と異なり決定的フォールバックを持たない**ため、有効な `(a, b, c)` の組が極端に少ない `op_left`/`op_right`/`position` の組み合わせでは `MAX_OPERAND_RETRY_ATTEMPTS` 消化後に `ValueError` になりうる(既知の制限、後述)。
+- `build_paren_ope_block_tex()`: `problem.position` に応じて `(a op b) op c` 形式と `a op (b op c)` 形式を切り替えてレンダリングする。それ以外(blank/filled の切り替え、CSV 行構成、下部解答欄)は `ope` 通常形式と同じ方針(`build_paren_ope_csv_rows` は `[page_number, index, a, op_left, b, op_right, c, position, inner, result]` の10列)。
+- `build_ope_pages()` は `ini.use_parentheses` が真の場合、通常の2項 `ope` 生成ロジックに入らず `build_paren_ope_pages()` に委譲する(`nuts_calc_tex.py:1379-`)。`--vertical`/`--intermediate` は非対応のため `Page.layout` は常に `'inline'`。
 
 ## 動作の概要
 
@@ -156,6 +164,18 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 
 `nuts_calc.py` は `--vertical` で `div`/`mix` を拒否するが、`nuts_calc_tex.py` はこの制約を意図的に踏襲しない(親 issue #19 の指示、および上記の通り xlop/longdivision の組み合わせで div/mix も自然に筆算表示できることを確認済み)。
 
+### `--use-parentheses` の第3項 `c` が `-b`/`--b-value` のレンジを再利用する理由(issue #67)
+
+3つの数 `a`/`b`/`c` に対して専用の CLI フラグ(`--c-min`/`--c-max` 等)を追加せず、`c` は `b` と同じレンジ(`nums_c = nums_b`)から抽選する設計にしている。既存の CLI サーフェスを変えずに済むという理由に加え、後述のように `c` を広いレンジにすると解の存在しない演算子/位置の組み合わせが生じることを実装時のシミュレーションで確認したため、`c` は意図的に狭いレンジへ固定する設計上の要請とも一致する。
+
+### `--use-parentheses` で演算子・かっこの位置を問題ごとにランダム化する理由
+
+初期実装では `-o/--operator` にちょうど2つの演算子を要求し、1回のCLI実行(1枚のプリント)内で演算子ペアとかっこの位置(常に `(a op b) op c`)が固定だった。「かっこの位置・かっこ内の演算子・式全体のパターンが単調」というレビュー指摘を受け、`generate_ope_problems` の `mix` 展開と同じ仕組みを二段階(`op_left`/`op_right`)に拡張し、`position`(`'left'`/`'right'`)も含めて問題ごとに独立して抽選するよう変更した。これにより `-o/--operator` は通常の `ope` と全く同じ受け付け方(`mix` を含む1〜4個)になり、専用のバリデーション(旧: ちょうど2個・`mix` 不可)は撤廃した。
+
+### 数値レンジと演算子/位置の組み合わせによる `ValueError` リスクを軽減する設計
+
+`generate_paren_ope_problems` はランダムな `op_left`/`op_right`/`position` の組み合わせに対して `a`/`b`/`c` を再抽選するだけで、`calc_sub`/`calc_div` のような決定的フォールバックは持たない。実装時のシミュレーション(`a`/`b`/`c` を全て2桁(10〜99)にした場合)で、例えば `position='right'`, `op_right='mul'`, `op_left='sub'`(`a - (b × c)`)のような組み合わせは `b × c` が `a` の取りうる最大値を大きく超えるため、1000回の再抽選内で正の結果が一度も得られず確実に失敗することを確認した。この失敗を避けるため、Web プリセット(`drillPresets.js` の `g4/g5/g6-parentheses*`)は `a` の桁数だけを学年で増やし(1桁→2桁→3桁)、`b`/`c` は常に1桁のレンジに留める設計にしている。この組み合わせは全32通り(演算子4×4×位置2)がシミュレーション上安定して解を持つことを確認済み。
+
 ## 統合ポイント
 
 - 呼び出し元: CLI 直接実行(`python3 nuts_calc_tex.py <paper_size> <command> ...`)のみ。`nuts_calc.py`/`web/backend/app.py`/`factory.sh` からは呼ばれない(まだ配線されていない)。
@@ -171,9 +191,13 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 - **`99` の乗数(b)・`squ`/`pi` の数列(a)は9で頭打ちにならない**: `order = ini.rows * ini.columns` が9を超えると `99` の乗数、`squ`/`pi` の数列いずれもそれに応じて9を超える(`nuts_calc.py` の元実装を踏襲した意図的な設計、詳細は上記の設計判断を参照)。
 - **`--vertical` 指定時の CSV/bottom-answer の桁**: 特別な整形はしておらず、`build_ope_csv_rows`/`build_ope_bottom_answer_tex` は横書き・縦書きで共通(問題データそのものは表示形式に関わらず同一)。
 - **`pi` の答え `c` は丸め済み**: `generate_pi_problems` が `round(a * PI_MULTIPLIER, 2)` を返すため、`build_pi_csv_rows`/`build_pi_bottom_answer_tex`/`build_pi_block_tex` はいずれも丸め後の値のみを扱う(`nuts_calc.py` の生の浮動小数点値との差異、詳細は上記の設計判断を参照)。
+- **`ope --use-parentheses` は決定的フォールバックを持たない**: `calc_sub`/`calc_div` と異なり、`generate_paren_ope_problems` は内側・外側どちらの段階も単純な再抽選(`MAX_OPERAND_RETRY_ATTEMPTS` 回)のみで解を探す。`a`/`b`/`c` の全レンジが広い(特に2桁以上)状態で `sub`/`div` を外側演算子に選ぶ組み合わせ(例: `a - (b × c)`)は、有効な解がほぼ存在せず `ValueError` になりうることをシミュレーションで確認済み(詳細は上記の設計判断を参照)。呼び出し側は `c`(`-b`/`--b-value` 由来)を狭いレンジに保つことでこれを回避する。
+- **`ope --use-parentheses` は `--vertical`/`--intermediate` 非対応**: `_init()` が明示的に拒否する(`command != 'ope'` の場合も同様)。`Page.layout` は常に `'inline'`。
 
 ## 変更履歴(git log より自動生成)
 
+- 1b7e795 feat(#67): add ope --use-parentheses option with grade menu cards
+- 7c89a52 feat(#65): add curriculum-aligned fraction worksheets
 - 5acfc32 fix(#63): box complement worksheet blanks
 - 04d9a60 fix(#59): distribute horizontal worksheet layout
 - cf3603c fix(#55): preserve vertical worksheet page counts
@@ -182,5 +206,3 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 - fbb0f27 fix(#53): arrange worksheet problems in column order
 - 99352fd fix(#51): remove latex answer underlines
 - 93877f0 feat(#27): add nuts_calc_tex.py Phase 8 pi command (multiplication by pi)
-- fa73c50 feat(#26): add nuts_calc_tex.py Phase 7 squ command (square numbers)
-- be25ae8 feat(#25): add nuts_calc_tex.py Phase 6 aBc command (mental arithmetic statements)

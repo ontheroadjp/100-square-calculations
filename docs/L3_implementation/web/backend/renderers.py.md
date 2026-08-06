@@ -26,7 +26,7 @@ issue #19 のトラッキング issue にある「将来 `nuts_calc.py`/`nuts_ca
 
 ### コマンド構築ロジックを共用している理由
 
-`nuts_calc.py`(`nuts_calc.py:97-` の `_init()`)と `nuts_calc_tex.py`(`nuts_calc_tex.py:80-266` の `_init()`)の CLI 引数体系(`paper_size`/`command`/`-a`/`-b`/`--a-min`/`--a-max`/`--b-min`/`--b-max`/`-o`/`--descend`/`--reverse`/`--shuffle`/`--intermediate`/`-r`/`-c`/`-ww`/`-p`/`-m`/`--csv`/`--out-file`/`--debug`)はほぼ一致するため、`build_command` はレンダラー間で分岐させず、スクリプトパスの選択のみをレンダラー固有の差分として扱っている。ただし `--vertical`(筆算/written-calculation 形式)は例外で、`nuts_calc.py` から削除された(issue #46)ため `nuts_calc_tex.py`(`latex`)専用になった。`build_command` は `params["vertical"]` を両レンダラーに対して無条件に変換するため、呼び出し元(`app.py`)は `latex` が有効なとき(`GET /renderer-info` で判定)のみ `vertical` を送るよう注意する必要がある — さもないと `nuts_calc.py` 側で `unrecognized arguments` となり `subprocess.CalledProcessError` が送出される。
+`nuts_calc.py`(`nuts_calc.py:97-` の `_init()`)と `nuts_calc_tex.py`(`nuts_calc_tex.py:80-266` の `_init()`)の CLI 引数体系(`paper_size`/`command`/`-a`/`-b`/`--a-min`/`--a-max`/`--b-min`/`--b-max`/`-o`/`--descend`/`--reverse`/`--shuffle`/`--intermediate`/`-r`/`-c`/`-ww`/`-p`/`-m`/`--csv`/`--out-file`/`--debug`)はほぼ一致するため、`build_command` はレンダラー間で分岐させず、スクリプトパスの選択のみをレンダラー固有の差分として扱っている。ただし `--vertical`(筆算/written-calculation 形式)と `--use-parentheses`(かっこ付き3項式、issue #67)は例外で、いずれも `nuts_calc_tex.py`(`latex`)専用のフラグである(`--vertical` は `nuts_calc.py` から削除済み、issue #46。`--use-parentheses` は `nuts_calc_tex.py` にのみ実装されている)。`build_command` は `params["vertical"]`/`params["use_parentheses"]` を両レンダラーに対して無条件に変換するため、呼び出し元(`app.py`)は `latex` が有効なとき(`GET /renderer-info` で判定)のみこれらを送るよう注意する必要がある — さもないと `nuts_calc.py` 側で `unrecognized arguments` となり `subprocess.CalledProcessError` が送出される。
 
 ## 統合ポイント
 
@@ -37,10 +37,12 @@ issue #19 のトラッキング issue にある「将来 `nuts_calc.py`/`nuts_ca
 
 - `nuts_calc.py`/`nuts_calc_tex.py` 双方とも、バリデーション失敗メッセージを `print()`(stdout)で出力してから `exit(1)` する実装のため、`subprocess.CalledProcessError.stderr` は空文字になりうる。`app.py` 側は `e.stdout` を優先してエラーメッセージを組み立てる(issue #37 で修正、`docs/L3_implementation/web/backend/app.py.md` 参照)。なお `nuts_calc.py` の `com`/`99`/`squ`/`pi`/`100` バリデーションは同 issue 以前は引数なし `exit()`(終了コード0)を使っており、`check=True` の `subprocess.run` がそもそも `CalledProcessError` を送出しない不具合があった(`nuts_calc.py` 側で修正済み)。
 - `get_renderer_name()` は呼び出しごとに env 変数を再読み込みする(プロセス起動時にキャッシュしない)。Flask アプリのライフサイクル中に env 変数が変わることは通常想定されないため実用上の影響はないが、テスト容易性(`monkeypatch.setenv`)を優先した設計。
-- `--vertical` は `nuts_calc.py` から削除済み(issue #46)。`nuts_calc.py`/`nuts_calc_tex.py` の CLI 引数体系はこの1点を除き一致する([[../../../../nuts_calc.py]] 参照)。
+- `--vertical` は `nuts_calc.py` から削除済み(issue #46)。`--use-parentheses` はそもそも `nuts_calc.py` に実装されていない(issue #67)。`nuts_calc.py`/`nuts_calc_tex.py` の CLI 引数体系はこの2点を除き一致する([[../../../../nuts_calc.py]] 参照)。
 
 ## 変更履歴(git log より自動生成)
 
+- 1b7e795 feat(#67): add ope --use-parentheses option with grade menu cards
+- 7c89a52 feat(#65): add curriculum-aligned fraction worksheets
 - 9ead364 refactor(#46): remove --vertical from nuts_calc.py; gate written-calculation UI on active renderer
 - 8062b9f fix(#36): invoke the running interpreter (sys.executable) instead of hardcoded python3
 - 155caf8 feat(#36): switch web/backend renderer between nuts_calc.py and nuts_calc_tex.py via env var

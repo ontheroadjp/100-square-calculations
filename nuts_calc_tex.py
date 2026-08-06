@@ -64,6 +64,7 @@ HUNDRED_SQUARE_HEADER_COLOR = 'lightgray'
 PI_MULTIPLIER = 3.14
 MIN_FRACTION_DIGITS = 1
 MAX_FRACTION_DIGITS = 3
+PAREN_POSITIONS = ['left', 'right']
 BLANK_ANSWER_TEX = '\\hspace{1.5em}'
 COM_BLANK_ANSWER_TEX = '\\vcenter{\\hbox{\\fbox{\\rule{0pt}{1em}\\hspace{1em}}}}'
 
@@ -210,6 +211,15 @@ def _init() -> argparse.Namespace:
         , action = 'store_true'
         , help = 'Output "ope" problems in vertical (written-calculation, hissan) format'
     )
+    parser.add_argument('--use-parentheses'
+        , default = False
+        , action = 'store_true'
+        , help = (
+            'Output "ope" problems as parenthesized 3-operand expressions '
+            '"(a op b) op c" or "a op (b op c)"; -o/--operator (including '
+            '"mix") and the parenthesized side are chosen per problem'
+        )
+    )
     parser.add_argument('-r', '--rows'
         , type = int
         , default = None
@@ -332,6 +342,14 @@ def _init() -> argparse.Namespace:
             failure("--intermediate only supports a single 'mul' operator (use -o mul).")
         if args.b_max > INTERMEDIATE_SINGLE_DIGIT_MAX:
             failure("--intermediate only supports a single-digit second operand (use -b 1 or --b-max <= 9).")
+
+    if args.use_parentheses:
+        if args.command != 'ope':
+            failure("--use-parentheses is only supported for the 'ope' command.")
+        if args.vertical:
+            failure("--use-parentheses cannot be combined with --vertical.")
+        if args.intermediate:
+            failure("--use-parentheses cannot be combined with --intermediate.")
 
     return args
 
@@ -743,6 +761,167 @@ def build_ope_csv_rows(pages_problems: list[list[OpeProblem]]) -> list[list[obje
         for problem in problems:
             rows.append([page_number, problem.index, problem.a, problem.operator, problem.b, problem.c])
     return rows
+
+
+@dataclass
+class ParenOpeProblem:
+    """
+    One `ope --use-parentheses` problem over three operands a, b, c with
+    op_left between a and b, op_right between b and c.
+
+    `position` records which pair is parenthesized (computed first):
+    'left' renders "(a op_left b) op_right c" (inner = a op_left b), while
+    'right' renders "a op_left (b op_right c)" (inner = b op_right c).
+    """
+    index: int
+    a: int
+    b: int
+    c: int
+    op_left: str
+    op_right: str
+    position: str
+    inner: int
+    result: int
+
+
+def paren_stage_add(x: int, y: int) -> int | None:
+    return x + y
+
+
+def paren_stage_sub(x: int, y: int) -> int | None:
+    return x - y if x - y > 0 else None
+
+
+def paren_stage_mul(x: int, y: int) -> int | None:
+    return x * y
+
+
+def paren_stage_div(x: int, y: int) -> int | None:
+    return x // y if y != 0 and x % y == 0 else None
+
+
+PAREN_STAGE_FUNCTIONS: dict[str, Callable[[int, int], int | None]] = {
+    'add': paren_stage_add,
+    'sub': paren_stage_sub,
+    'mul': paren_stage_mul,
+    'div': paren_stage_div,
+}
+
+
+def generate_paren_ope_problems(
+        nums_a: list[int], nums_b: list[int], nums_c: list[int], operators: list[str],
+        order: int, start_index: int
+    ) -> list[ParenOpeProblem]:
+    """
+    Generate `order` parenthesized 3-operand problems starting at `start_index`.
+
+    For each problem, op_left, op_right (independently, same effective-set
+    expansion as generate_ope_problems's 'mix') and position ('left'/'right')
+    are each drawn once; operands are then retried (bounded by
+    MAX_OPERAND_RETRY_ATTEMPTS) until both stages are valid: the inner
+    stage's sub/div constraint (positive result / exact division), and then
+    the outer stage's same constraint. Unlike calc_sub/calc_div, there is no
+    deterministic fallback for this combined two-stage constraint -- an
+    exhausted retry budget raises ValueError.
+    """
+    effective_operators = MIX_OPERATORS if 'mix' in operators else operators
+    problems = []
+    for offset in range(order):
+        op_left = random.choice(effective_operators)
+        op_right = random.choice(effective_operators)
+        position = random.choice(PAREN_POSITIONS)
+        for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
+            a = random.choice(nums_a)
+            b = random.choice(nums_b)
+            c = random.choice(nums_c)
+            if position == 'left':
+                inner = PAREN_STAGE_FUNCTIONS[op_left](a, b)
+                result = None if inner is None else PAREN_STAGE_FUNCTIONS[op_right](inner, c)
+            else:
+                inner = PAREN_STAGE_FUNCTIONS[op_right](b, c)
+                result = None if inner is None else PAREN_STAGE_FUNCTIONS[op_left](a, inner)
+            if inner is None or result is None:
+                continue
+            problems.append(ParenOpeProblem(
+                index=start_index + offset, a=a, b=b, c=c,
+                op_left=op_left, op_right=op_right, position=position,
+                inner=inner, result=result,
+            ))
+            break
+        else:
+            raise ValueError(
+                f"No valid (a, b, c) triple found for op_left={op_left!r}, "
+                f"op_right={op_right!r}, position={position!r} within the given number ranges."
+            )
+    return problems
+
+
+def build_paren_ope_block_tex(problem: ParenOpeProblem, show_answer: bool) -> str:
+    """
+    Render one `ope --use-parentheses` problem: `n) $(a op b) op c = result$`
+    or `n) $a op (b op c) = result$`, depending on `problem.position`.
+    """
+    left_symbol = OPERATOR_TEX_SYMBOLS[problem.op_left]
+    right_symbol = OPERATOR_TEX_SYMBOLS[problem.op_right]
+    result_tex = str(problem.result) if show_answer else BLANK_ANSWER_TEX
+    if problem.position == 'left':
+        expression = f"({problem.a} {left_symbol} {problem.b}) {right_symbol} {problem.c}"
+    else:
+        expression = f"{problem.a} {left_symbol} ({problem.b} {right_symbol} {problem.c})"
+    return f"{problem.index}) ${expression} = {result_tex}$"
+
+
+def build_paren_ope_page_pair(problems: list[ParenOpeProblem], columns: int) -> tuple[Page, Page]:
+    """Build the (blank, filled) Page pair for one page's worth of parenthesized `ope` problems."""
+    blank_page = Page(
+        blocks=[build_paren_ope_block_tex(problem, show_answer=False) for problem in problems],
+        columns=columns, layout='inline',
+    )
+    filled_page = Page(
+        blocks=[build_paren_ope_block_tex(problem, show_answer=True) for problem in problems],
+        columns=columns, layout='inline',
+    )
+    return blank_page, filled_page
+
+
+def build_paren_ope_bottom_answer_tex(problems: list[ParenOpeProblem]) -> str:
+    return ' \\quad '.join(f"({problem.index}) {problem.result}" for problem in problems)
+
+
+def build_paren_ope_csv_rows(pages_problems: list[list[ParenOpeProblem]]) -> list[list[object]]:
+    rows: list[list[object]] = []
+    for page_number, problems in enumerate(pages_problems, start=1):
+        for problem in problems:
+            rows.append([
+                page_number, problem.index, problem.a, problem.op_left, problem.b,
+                problem.op_right, problem.c, problem.position, problem.inner, problem.result,
+            ])
+    return rows
+
+
+def build_paren_ope_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], list[list[ParenOpeProblem]]]:
+    """Generate real `ope --use-parentheses` problems and their blank/filled Page pairs for every page."""
+    nums_a = list(range(ini.a_min, ini.a_max + 1))
+    nums_b = list(range(ini.b_min, ini.b_max + 1))
+    nums_c = nums_b
+    order = ini.rows * ini.columns
+
+    blank_pages = []
+    filled_pages = []
+    pages_problems = []
+    for page_number in range(1, ini.page + 1):
+        start_index = (page_number - 1) * order + 1
+        problems = generate_paren_ope_problems(nums_a, nums_b, nums_c, ini.operator, order, start_index)
+        blank_page, filled_page = build_paren_ope_page_pair(problems, ini.columns)
+        pages_problems.append(problems)
+        blank_pages.append(blank_page)
+        filled_pages.append(filled_page)
+
+    if ini.with_bottom_answer:
+        for problems, blank_page in zip(pages_problems, blank_pages):
+            blank_page.bottom_answer_tex = build_paren_ope_bottom_answer_tex(problems)
+
+    return blank_pages, filled_pages, pages_problems
 
 
 @dataclass
@@ -1211,8 +1390,19 @@ def build_squ_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], li
     return blank_pages, filled_pages, pages_problems
 
 
-def build_ope_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], list[list[OpeProblem]]]:
-    """Generate real `ope` problems and their blank/filled Page pairs for every page."""
+def build_ope_pages(
+        ini: argparse.Namespace
+    ) -> tuple[list[Page], list[Page], list[list[OpeProblem]] | list[list[ParenOpeProblem]]]:
+    """
+    Generate real `ope` problems and their blank/filled Page pairs for every page.
+
+    Delegates to build_paren_ope_pages() when --use-parentheses is set,
+    since that mode uses a distinct problem shape (three operands, two
+    operators) and generation/rendering path.
+    """
+    if ini.use_parentheses:
+        return build_paren_ope_pages(ini)
+
     nums_a = list(range(ini.a_min, ini.a_max + 1))
     nums_b = list(range(ini.b_min, ini.b_max + 1))
     order = ini.rows * ini.columns
@@ -1505,6 +1695,7 @@ def main(ini: argparse.Namespace) -> None:
         )
 
     ope_pages_problems: list[list[OpeProblem]] | None = None
+    paren_ope_pages_problems: list[list[ParenOpeProblem]] | None = None
     com_pages_problems: list[list[ComProblem]] | None = None
     hundred_square_pages_tables: list[HundredSquareTable] | None = None
     kuku_pages_problems: list[list[KukuProblem]] | None = None
@@ -1512,7 +1703,9 @@ def main(ini: argparse.Namespace) -> None:
     squ_pages_problems: list[list[SquProblem]] | None = None
     pi_pages_problems: list[list[PiProblem]] | None = None
     fraction_pages_problems: list[list[FractionProblem]] | None = None
-    if ini.command == 'ope':
+    if ini.command == 'ope' and ini.use_parentheses:
+        blank_pages, filled_pages, paren_ope_pages_problems = build_ope_pages(ini)
+    elif ini.command == 'ope':
         blank_pages, filled_pages, ope_pages_problems = build_ope_pages(ini)
     elif ini.command == 'com':
         blank_pages, filled_pages, com_pages_problems = build_com_pages(ini)
@@ -1543,6 +1736,8 @@ def main(ini: argparse.Namespace) -> None:
     if ini.csv:
         if ope_pages_problems is not None:
             rows = build_ope_csv_rows(ope_pages_problems)
+        elif paren_ope_pages_problems is not None:
+            rows = build_paren_ope_csv_rows(paren_ope_pages_problems)
         elif com_pages_problems is not None:
             rows = build_com_csv_rows(com_pages_problems)
         elif hundred_square_pages_tables is not None:
