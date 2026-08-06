@@ -35,6 +35,7 @@ import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
+from fractions import Fraction
 from typing import Callable
 
 
@@ -61,6 +62,8 @@ HUNDRED_SQUARE_SIZE = 10
 HUNDRED_SQUARE_SAMPLE_REPEAT_FACTOR = 2
 HUNDRED_SQUARE_HEADER_COLOR = 'lightgray'
 PI_MULTIPLIER = 3.14
+MIN_FRACTION_DIGITS = 1
+MAX_FRACTION_DIGITS = 3
 BLANK_ANSWER_TEX = '\\hspace{1.5em}'
 COM_BLANK_ANSWER_TEX = '\\vcenter{\\hbox{\\fbox{\\rule{0pt}{1em}\\hspace{1em}}}}'
 
@@ -115,8 +118,8 @@ def _init() -> argparse.Namespace:
     )
     parser.add_argument('command'
         , type = str
-        , choices = ['ope', 'com', '100', '99', 'aBc', 'squ', 'pi']
-        , help = 'Type of formula to output ("ope", "com", "100", "99", "aBc", "squ", and "pi" are implemented)'
+        , choices = ['ope', 'com', '100', '99', 'aBc', 'squ', 'pi', 'frac']
+        , help = 'Type of formula to output (including "frac" for fraction arithmetic)'
     )
     parser.add_argument('-a', '--a-value'
         , type = int
@@ -151,6 +154,36 @@ def _init() -> argparse.Namespace:
         , choices = ['add', 'sub', 'mul', 'div', 'mix']
         , nargs="*"
         , help = 'Types of operations included in formulas'
+    )
+    parser.add_argument('--numerator-digits'
+        , type = int
+        , default = 1
+        , help = 'Number of digits in fraction numerators (frac only)'
+    )
+    parser.add_argument('--denominator-digits'
+        , type = int
+        , default = 1
+        , help = 'Number of digits in fraction denominators (frac only)'
+    )
+    parser.add_argument('--same-denominator'
+        , default = False
+        , action = 'store_true'
+        , help = 'Use the same denominator for both fraction operands (frac only)'
+    )
+    parser.add_argument('--different-denominators'
+        , default = False
+        , action = 'store_true'
+        , help = 'Require different denominators for the two fraction operands (frac only)'
+    )
+    parser.add_argument('--proper-operands'
+        , default = False
+        , action = 'store_true'
+        , help = 'Use proper fractions for both operands (frac only)'
+    )
+    parser.add_argument('--proper-result'
+        , default = False
+        , action = 'store_true'
+        , help = 'Only generate positive proper-fraction answers (frac only)'
     )
     parser.add_argument('--descend'
         , default = False
@@ -271,6 +304,24 @@ def _init() -> argparse.Namespace:
     if args.command == 'pi':
         if args.a_value is None:
             failure("-a/--a-value (starting multiplicand) is required for the 'pi' command.")
+
+    if args.command == 'frac':
+        if args.same_denominator and args.different_denominators:
+            failure("--same-denominator and --different-denominators cannot be combined.")
+        for option_name, value in (
+            ('--numerator-digits', args.numerator_digits),
+            ('--denominator-digits', args.denominator_digits),
+        ):
+            if not MIN_FRACTION_DIGITS <= value <= MAX_FRACTION_DIGITS:
+                failure(
+                    f"{option_name} must be between {MIN_FRACTION_DIGITS} "
+                    f"and {MAX_FRACTION_DIGITS} for the 'frac' command."
+                )
+        if args.proper_operands and args.numerator_digits > args.denominator_digits:
+            failure(
+                "--proper-operands requires --numerator-digits to be no greater "
+                "than --denominator-digits."
+            )
 
     if args.intermediate:
         if args.command != 'ope':
@@ -1284,6 +1335,168 @@ def build_pi_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], lis
     return blank_pages, filled_pages, pages_problems
 
 
+@dataclass(frozen=True)
+class FractionOperand:
+    """A displayed fraction whose unreduced numerator/denominator are retained."""
+    numerator: int
+    denominator: int
+
+    @property
+    def value(self) -> Fraction:
+        return Fraction(self.numerator, self.denominator)
+
+
+@dataclass(frozen=True)
+class FractionProblem:
+    """One exact fraction-arithmetic problem."""
+    index: int
+    a: FractionOperand
+    b: FractionOperand
+    operator: str
+    c: Fraction
+
+
+def digit_range(digits: int) -> tuple[int, int]:
+    """Return the positive integer range having exactly ``digits`` digits."""
+    return (1 if digits == 1 else 10 ** (digits - 1), 10 ** digits - 1)
+
+
+def random_fraction_operand(
+        numerator_digits: int, denominator_digits: int, proper: bool,
+        denominator: int | None = None,
+    ) -> FractionOperand:
+    numerator_min, numerator_max = digit_range(numerator_digits)
+    denominator_min, denominator_max = digit_range(denominator_digits)
+    denominator_min = max(2, denominator_min)
+    chosen_denominator = denominator or random.randint(denominator_min, denominator_max)
+    if proper:
+        numerator_max = min(numerator_max, chosen_denominator - 1)
+    if numerator_min > numerator_max:
+        raise ValueError("No fraction operand satisfies the requested digit and proper-fraction constraints.")
+    return FractionOperand(random.randint(numerator_min, numerator_max), chosen_denominator)
+
+
+def calculate_fraction(a: Fraction, b: Fraction, operator: str) -> Fraction:
+    """Apply one supported operator to two exact fraction values."""
+    if operator == 'add':
+        return a + b
+    if operator == 'sub':
+        return a - b
+    if operator == 'mul':
+        return a * b
+    return a / b
+
+
+def generate_fraction_problems(
+        numerator_digits: int, denominator_digits: int, operators: list[str],
+        order: int, start_index: int, same_denominator: bool,
+        proper_operands: bool, proper_result: bool,
+        different_denominators: bool = False,
+    ) -> list[FractionProblem]:
+    """Generate exact fraction problems satisfying the requested constraints."""
+    effective_operators = MIX_OPERATORS if 'mix' in operators else operators
+    denominator_min, denominator_max = digit_range(denominator_digits)
+    denominator_min = max(2, denominator_min)
+    problems = []
+    for offset in range(order):
+        operator = random.choice(effective_operators)
+        for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
+            common_denominator = (
+                random.randint(denominator_min, denominator_max)
+                if same_denominator else None
+            )
+            try:
+                a = random_fraction_operand(
+                    numerator_digits, denominator_digits, proper_operands,
+                    common_denominator,
+                )
+                b = random_fraction_operand(
+                    numerator_digits, denominator_digits, proper_operands,
+                    common_denominator,
+                )
+            except ValueError:
+                continue
+            if different_denominators and a.denominator == b.denominator:
+                continue
+            c = calculate_fraction(a.value, b.value, operator)
+            if c <= 0:
+                continue
+            if proper_result and c >= 1:
+                continue
+            problems.append(FractionProblem(start_index + offset, a, b, operator, c))
+            break
+        else:
+            raise ValueError("Unable to generate fraction problems with the requested constraints.")
+    return problems
+
+
+def fraction_to_tex(value: Fraction | FractionOperand) -> str:
+    """Render an exact or display-preserving fraction as LaTeX."""
+    numerator = value.numerator
+    denominator = value.denominator
+    if denominator == 1:
+        return str(numerator)
+    return f"\\frac{{{numerator}}}{{{denominator}}}"
+
+
+def build_fraction_block_tex(problem: FractionProblem, show_answer: bool) -> str:
+    symbol = OPERATOR_TEX_SYMBOLS[problem.operator]
+    result_tex = fraction_to_tex(problem.c) if show_answer else BLANK_ANSWER_TEX
+    return (
+        f"{problem.index}) $\\displaystyle {fraction_to_tex(problem.a)} {symbol} "
+        f"{fraction_to_tex(problem.b)} = {result_tex}$"
+    )
+
+
+def build_fraction_page_pair(problems: list[FractionProblem], columns: int) -> tuple[Page, Page]:
+    return (
+        Page([build_fraction_block_tex(problem, False) for problem in problems], columns),
+        Page([build_fraction_block_tex(problem, True) for problem in problems], columns),
+    )
+
+
+def build_fraction_bottom_answer_tex(problems: list[FractionProblem]) -> str:
+    return ' \\quad '.join(
+        f"({problem.index}) $\\displaystyle {fraction_to_tex(problem.c)}$"
+        for problem in problems
+    )
+
+
+def build_fraction_csv_rows(pages_problems: list[list[FractionProblem]]) -> list[list[object]]:
+    rows: list[list[object]] = []
+    for page_number, problems in enumerate(pages_problems, start=1):
+        for problem in problems:
+            rows.append([
+                page_number, problem.index,
+                problem.a.numerator, problem.a.denominator, problem.operator,
+                problem.b.numerator, problem.b.denominator,
+                problem.c.numerator, problem.c.denominator,
+            ])
+    return rows
+
+
+def build_fraction_pages(
+        ini: argparse.Namespace,
+    ) -> tuple[list[Page], list[Page], list[list[FractionProblem]]]:
+    order = ini.rows * ini.columns
+    blank_pages = []
+    filled_pages = []
+    pages_problems = []
+    for page_number in range(1, ini.page + 1):
+        problems = generate_fraction_problems(
+            ini.numerator_digits, ini.denominator_digits, ini.operator, order,
+            (page_number - 1) * order + 1, ini.same_denominator,
+            ini.proper_operands, ini.proper_result, ini.different_denominators,
+        )
+        blank_page, filled_page = build_fraction_page_pair(problems, ini.columns)
+        if ini.with_bottom_answer:
+            blank_page.bottom_answer_tex = build_fraction_bottom_answer_tex(problems)
+        pages_problems.append(problems)
+        blank_pages.append(blank_page)
+        filled_pages.append(filled_page)
+    return blank_pages, filled_pages, pages_problems
+
+
 def main(ini: argparse.Namespace) -> None:
     if shutil.which('pdflatex') is None:
         failure(
@@ -1298,6 +1511,7 @@ def main(ini: argparse.Namespace) -> None:
     abc_pages_problems: list[list[AbcProblem]] | None = None
     squ_pages_problems: list[list[SquProblem]] | None = None
     pi_pages_problems: list[list[PiProblem]] | None = None
+    fraction_pages_problems: list[list[FractionProblem]] | None = None
     if ini.command == 'ope':
         blank_pages, filled_pages, ope_pages_problems = build_ope_pages(ini)
     elif ini.command == 'com':
@@ -1310,8 +1524,10 @@ def main(ini: argparse.Namespace) -> None:
         blank_pages, filled_pages, abc_pages_problems = build_abc_pages(ini)
     elif ini.command == 'squ':
         blank_pages, filled_pages, squ_pages_problems = build_squ_pages(ini)
-    else:
+    elif ini.command == 'pi':
         blank_pages, filled_pages, pi_pages_problems = build_pi_pages(ini)
+    else:
+        blank_pages, filled_pages, fraction_pages_problems = build_fraction_pages(ini)
 
     outfile_basename, _ = os.path.splitext(ini.out_file)
     outfile_read = outfile_basename + '_read.pdf'
@@ -1337,8 +1553,10 @@ def main(ini: argparse.Namespace) -> None:
             rows = build_abc_csv_rows(abc_pages_problems)
         elif squ_pages_problems is not None:
             rows = build_squ_csv_rows(squ_pages_problems)
-        else:
+        elif pi_pages_problems is not None:
             rows = build_pi_csv_rows(pi_pages_problems)
+        else:
+            rows = build_fraction_csv_rows(fraction_pages_problems)
         write_csv(rows, outfile_csv)
 
     print("export PDF")

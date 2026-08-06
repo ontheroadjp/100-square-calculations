@@ -6,7 +6,7 @@ This project provides a set of tools to generate various types of mathematical p
 For the pedagogical background behind the drills (the mental-arithmetic technique the worksheets are built around), see `memo.md` (Japanese).
 
 ## Features
-*   **Diverse Problem Types**: Generate worksheets for basic arithmetic operations (addition, subtraction, multiplication, division), complements, 100-square calculation tables, multiplication tables (kuku), square numbers, and specific mental arithmetic problems.
+*   **Diverse Problem Types**: Generate worksheets for integer arithmetic, complements, 100-square tables, multiplication tables, square numbers, mental arithmetic, and exact fraction arithmetic through the LaTeX renderer.
 *   **Customizable Generation**: Extensive command-line options allow users to specify paper size, number ranges, operators, problem counts, and output formats.
 *   **PDF Output**: All worksheets are generated as high-quality PDF files, ready for printing.
 *   **Answer Options**: Include answers at the bottom of the page, merge answer files, or output raw problem data to CSV for further analysis.
@@ -34,7 +34,7 @@ To use this generator, you need Python 3. It is highly recommended to use a virt
     pip install reportlab
     ```
 
-4.  **(Optional) Install LaTeX environment**: While `nuts_calc.py` uses ReportLab for PDF generation, if you encounter issues or plan to use other LaTeX-based tools, ensure you have a LaTeX distribution (e.g., TeX Live, MiKTeX) with `platex` and `dvipdfmx` installed.
+4.  **(Optional) Install a LaTeX environment**: `nuts_calc_tex.py`, including fraction worksheets and written-calculation output, requires `pdflatex`. On Debian/Ubuntu, install the TeX Live base and extra packages; the repository already vendors `longdivision`.
 
     To deactivate the virtual environment when you are done:
     ```bash
@@ -69,6 +69,21 @@ For a full list of options, run:
 ```bash
 python nuts_calc.py -h
 ```
+
+### Fraction worksheets with `nuts_calc_tex.py`
+
+The LaTeX renderer adds a `frac` command with exact, reduced answers and
+constraints for numerator/denominator digit counts and denominator matching.
+
+```bash
+python3 nuts_calc_tex.py A4 frac \
+  --numerator-digits 1 --denominator-digits 1 \
+  --same-denominator --proper-operands --proper-result \
+  -o add sub --out-file fractions.pdf
+```
+
+Grade 3-6 fraction cards appear only with `NUTS_CALC_RENDERER=latex`. The
+curriculum source used for their placement is preserved under `docs/reference/`.
 
 ### Batch Generation with `factory.sh`
 The `factory.sh` script automates the generation of a predefined set of worksheets, creating a structured output directory (`dist/`).
@@ -129,15 +144,15 @@ There are two independent ways to generate a worksheet, both ultimately driven b
 
 `factory.sh` is a third, batch-oriented entry point that calls `nuts_calc.py` repeatedly to populate a `dist/` directory with a fixed set of worksheets.
 
-**Experimental**: `nuts_calc_tex.py` is a separate, fully independent prototype that renders worksheets via LaTeX (`pdflatex`) instead of ReportLab, with zero code sharing with `nuts_calc.py`. It implements the common CLI/PDF foundation (Phase 1), the `ope` command -- four arithmetic operations plus `mix`, horizontal and `--vertical` (hissan, via `xlop`/`longdivision`) format, and `--intermediate` (Phase 2) --, the `com` command -- complement-to-target problems (`a + □ = target`), horizontal only (Phase 3) --, the `100` command -- a 100-square addition table (11x11 grid with a shaded header row/column, via `xcolor`) (Phase 4) --, the `99` command -- times-table (kuku) problems tiled across `--rows`x`--columns`, with `--descend`/`--reverse`/`--shuffle` ordering options (Phase 5) --, the `aBc` command -- mental-arithmetic digit-pair conversion problems (a random 4-digit sequence `abcd` converted to its value via the two digit-pairs `ab`/`cd`), tiled across `--rows`x`--columns` (Phase 6) --, the `squ` command -- square-number problems (`a x a = c`) starting from `-a`, tiled across `--rows`x`--columns`, with the same `--descend`/`--reverse`/`--shuffle` ordering options as `99` (Phase 7) --, and the `pi` command -- multiplication-by-pi problems (`a x 3.14 = c`) starting from `-a`, tiled across `--rows`x`--columns`, with the same `--descend`/`--reverse`/`--shuffle` ordering options as `squ` (Phase 8). All 7 commands planned by tracking issue #19 are now implemented. See `docs/L3_implementation/nuts_calc_tex.py.md` and tracking issue #19.
+**Experimental**: `nuts_calc_tex.py` is independent from ReportLab and implements eight commands: the seven commands planned by issue #19 plus the LaTeX-only `frac` command. Fraction answers use exact rational arithmetic, and Web fraction cards are renderer-gated because `nuts_calc.py` does not implement `frac`. See `docs/L3_implementation/nuts_calc_tex.py.md`.
 
 See `docs/L1_project/project_overview.md` and `docs/L0_concept/concept.md` for the full breakdown and file/line references.
 
 ## Design Principles
 
-*   **Single source of drill logic.** The web backend does not reimplement worksheet generation — it always shells out to `nuts_calc.py`, so the CLI and the web UI can never drift into producing different problems for the same parameters.
+*   **Renderer-owned drill logic.** The web backend does not implement worksheet generation; it translates requests and shells out to the selected renderer. Most CLI parameters are shared, while LaTeX-only features such as `frac` are hidden when ReportLab is active.
 *   **No dependency pinning on the Python side.** There is no lock file, `requirements.txt`, or `pyproject.toml`; dependencies are installed ad hoc. This reflects the project's scope as a small personal/batch-generation tool rather than a deployed service.
-*   **`nuts_calc.py` has an automated pytest regression suite (no CI yet).** Unit tests cover the problem-data generation functions and `_init()` argument validation; end-to-end tests run the CLI as a subprocess and check the generated PDF/CSV output. Run with `pip install pytest && pytest` after installing the CLI dependency. The web frontend/backend are not yet covered.
+*   **The Python generators and Web backend have pytest coverage (no CI yet).** Unit tests cover problem generation and backend command translation; end-to-end tests compile PDF/CSV output when renderer dependencies are available. Run with `pip install pytest && python3 -m pytest` after installing the Python dependencies.
 
 ## License
 MIT License

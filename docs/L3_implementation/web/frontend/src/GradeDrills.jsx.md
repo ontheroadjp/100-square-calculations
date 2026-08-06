@@ -6,8 +6,9 @@
 
 ## 動作の概要
 
-- `GradeDrills`(親): `selectedGrade`(初期値 `1`、数値学年、`UNGRADED`、または `CUSTOM_GRADE`)・`openPreset`(選択中のプリセット、または `null`)・`supportsWritten`(筆算 UI を出してよいか、初期値 `false`、issue #46)を状態として持つ。`openPreset` が非 null の間はグリッドの代わりに `PresetDetail` を描画する「一覧⇔詳細」の単純な2画面構成(ルーティングライブラリは使わず、コンポーネント内 state で切り替え)。
+- `GradeDrills`(親): `selectedGrade`(初期値 `1`、数値学年、`UNGRADED`、または `CUSTOM_GRADE`)・`openPreset`(選択中のプリセット、または `null`)・`activeRenderer`(初期値 `reportlab`)を状態として持つ。`supportsWritten` は `activeRenderer === 'latex'` から導出する。`openPreset` が非 null の間はグリッドの代わりに `PresetDetail` を描画する「一覧⇔詳細」の単純な2画面構成(ルーティングライブラリは使わず、コンポーネント内 state で切り替え)。
 - **`supportsWritten`(issue #46)**: マウント時に `useEffect` で1回だけ `GET http://127.0.0.1:5000/renderer-info`(`web/backend/app.py`)を叩き、レスポンスの `renderer` が `'latex'`(= `nuts_calc_tex.py`)なら `true` にする。fetch 失敗時も `catch` で `false` にフォールバックする。初期値・フォールバック値をともに `false` にしているのは、バックエンドのデフォルトレンダラーが `reportlab`(`nuts_calc.py`、`--vertical` 非対応、issue #46 で削除)であることに合わせたもので、最も一般的なケース(env 変数未設定)では fetch 完了前後で表示が変化(フラッシュ)しない。
+- **LaTeX専用プリセット(issue #65)**: `normalPresets` は `preset.latexOnly` が真のカードを `activeRenderer === 'latex'` の場合だけ残す。これにより `nuts_calc_tex.py` 固有の `frac` カードがReportLab環境で表示・送信されることを防ぐ。レンダラー取得失敗時も `reportlab` に戻る安全側の挙動である(`web/frontend/src/GradeDrills.jsx:201-239,264-268`)。
 - `NAV_GRADES`: `[...GRADES, UNGRADED]`。学年ナビの「カスタム」ボタン手前に並べる項目(数値学年1〜6 → 無学年)。`presetsByGrade` のキー(`drillPresets.js`)がすべて `{ normal, written }` の同一構造を持つため、`UNGRADED` も数値学年と全く同じ描画ロジックで扱える。
 - 筆算(`written`)は独立したタブではなく、通常グリッドの直後に `<section className="written-section">` として常時インライン表示する。`writtenPresets` は `!isCustom && supportsWritten` の場合のみ `presetsByGrade[selectedGrade].written` を参照し、それ以外(`isCustom`、または `supportsWritten` が `false`)は空配列にする(issue #46)。`presetsByGrade[selectedGrade].written` が空配列の学年(現状は1年生のみ)ではいずれにせよセクション自体を描画しない。以前は「通常形式/筆算形式」タブ切り替えだったが、筆算を隠さず常に見える位置に置きたいという要望により変更した。
 - `PresetCard`(グリッド側): タイトル・説明・「PDFを生成」ボタンのみを持つ。クリックで親の `openPreset` にそのプリセットをセットする。通常セクション・筆算セクションのどちらでも同じコンポーネントを再利用する。

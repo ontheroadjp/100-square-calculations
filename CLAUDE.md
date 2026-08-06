@@ -4,7 +4,7 @@ AI 運用の single source of truth。`AGENTS.md` はこのファイルへの sy
 
 ## プロジェクト概要
 
-計算ドリル PDF 生成ツール群。CLI(`nuts_calc.py`、Python + ReportLab、旧名 `100masu.py`)と、それをラップする Web UI(`web/backend` Flask + `web/frontend` React/Vite)の2経路がある。加えて、`nuts_calc.py` とコード共有しない実験的プロトタイプ `nuts_calc_tex.py`(LaTeX/`pdflatex` レンダリング、issue #19)があり、`web/backend` から `NUTS_CALC_RENDERER=latex` env 変数で選択的に呼び出せる。`tests/`(pytest、`pytest.ini`)にテストスイートがある。詳細は `docs/L0_concept/`, `docs/L1_project/`, `docs/L2_development/`, `docs/L3_implementation/` を参照。`docs/.ai/repo.profile.json` に主要コマンドと primary_docs へのポインタがある。
+計算ドリル PDF 生成ツール群。CLI(`nuts_calc.py`、Python + ReportLab)とWeb UI(`web/backend` Flask + `web/frontend` React/Vite)がある。独立プロトタイプ `nuts_calc_tex.py` は7つの互換コマンドとLaTeX専用 `frac` を実装し、`NUTS_CALC_RENDERER=latex` で選択する。分数カードはこの場合だけ表示され、学年配置の一次資料は `docs/reference/` に保存する。
 
 **解消済みの既知の欠陥**: `web/frontend/package.json` に `i18next`/`react-i18next`/`i18next-browser-languagedetector`/`i18next-http-backend` が不足し `npm run build` が失敗していた問題は解消済み(2026-08-05 実機再確認、`npm install && npm run build` 成功)。
 
@@ -21,7 +21,7 @@ AI 運用の single source of truth。`AGENTS.md` はこのファイルへの sy
 
 ## Local Tooling Environment
 
-Observed by /init-docs (2026-08-05, re-run after issue #43/#46 merges):
+Observed by /init-docs (2026-08-06, re-run for issue #65):
 - gh: 2.96.0
 - gh auth: logged in to github.com as ontheroadjp (ssh protocol, scopes: admin:public_key, gist, read:org, repo)
 - node: v24.16.0 (via mise: `~/.local/share/mise/installs/node/24/bin/node`)
@@ -37,9 +37,9 @@ Notes:
 
 - No lock file, `requirements.txt`, or `pyproject.toml` exists. CLI dependency is `reportlab`; the web backend additionally needs `Flask`/`Flask-Cors`; the test suite needs `pytest`. Install via `pip install reportlab flask flask-cors pytest` (see `README.md`).
 - Before running `nuts_calc.py`, confirm `python3 -c "import reportlab"` succeeds; if not, ask before installing.
-- `pytest -q` at the repo root runs the suite (`pytest.ini`: `testpaths = tests`). As of 2026-08-05, 9 of 196 tests fail; this is a known, pre-existing stale-test issue in `tests/test_nuts_calc_init.py` unrelated to any single change (see `docs/L2_development/test.md`) — don't assume a newly-introduced regression without checking whether the failure is one of those 9.
+- `python3 -m pytest` collects 222 tests as of 2026-08-06. `tests/test_nuts_calc_init.py` has 9 known stale failures and 13 passes; fraction/backend unit tests (22) and fraction pdflatex CLI tests (2) pass. The complete run excluding the stale file did not return a final summary in the observed environment; see `docs/L2_development/test.md`.
 - `nuts_calc_tex.py` (experimental LaTeX prototype) additionally requires `pdflatex` on `PATH`; its `pdflatex`-dependent CLI tests auto-skip when it's absent.
 
 ## Web Frontend Environment (`web/frontend`)
 
-- `web/frontend/package.json` includes the `i18next` family of packages; `npm install && npm run build` succeeds (re-verified 2026-08-05). The previously-tracked missing-dependency defect is resolved.
+- `web/frontend/package.json` includes the `i18next` family of packages; `npm run build` succeeds (re-verified 2026-08-06). The previously-tracked missing-dependency defect is resolved.

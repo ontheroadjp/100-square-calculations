@@ -1,7 +1,6 @@
 // Curated mappings from "school grade" to /generate-pdf request params.
-// nuts_calc.py only supports integer arithmetic (no decimals/fractions), so
-// grade levels here are an approximate difficulty guide, not a literal
-// curriculum match. See docs/L3_implementation/web/frontend/src/drillPresets.js.md.
+// Fraction presets are curriculum-aligned and marked latexOnly because the
+// `frac` command exists only in nuts_calc_tex.py.
 
 export const GRADES = [1, 2, 3, 4, 5, 6];
 
@@ -151,6 +150,17 @@ export const presetsByGrade = {
         // request valid on both renderers (see issue #42).
         params: { command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 1, intermediate: true },
       },
+      {
+        id: 'g3-fraction-simple-addsub',
+        titleKey: 'preset_g3_fraction_title',
+        descKey: 'preset_g3_fraction_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'frac', operator: ['add', 'sub'], numerator_digits: 1,
+          denominator_digits: 1, same_denominator: true, proper_operands: true,
+          proper_result: true,
+        },
+      },
     ],
     written: [
       {
@@ -198,6 +208,16 @@ export const presetsByGrade = {
         titleKey: 'preset_g4_mix_title',
         descKey: 'preset_g4_mix_desc',
         params: { command_type: 'ope', operator: ['mix'], a_value: 2, b_value: 2 },
+      },
+      {
+        id: 'g4-fraction-common-addsub',
+        titleKey: 'preset_g4_fraction_title',
+        descKey: 'preset_g4_fraction_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'frac', operator: ['add', 'sub'], numerator_digits: 1,
+          denominator_digits: 1, same_denominator: true,
+        },
       },
     ],
     written: [
@@ -248,6 +268,16 @@ export const presetsByGrade = {
         descKey: 'preset_g5_mix_desc',
         params: { command_type: 'ope', operator: ['mix'], a_value: 3, b_value: 2 },
       },
+      {
+        id: 'g5-fraction-unlike-addsub',
+        titleKey: 'preset_g5_fraction_title',
+        descKey: 'preset_g5_fraction_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'frac', operator: ['add', 'sub'], numerator_digits: 1,
+          denominator_digits: 1, different_denominators: true, proper_operands: true,
+        },
+      },
     ],
     written: [
       {
@@ -284,6 +314,16 @@ export const presetsByGrade = {
         titleKey: 'preset_g6_mix_title',
         descKey: 'preset_g6_mix_desc',
         params: { command_type: 'ope', operator: ['mix'], a_value: 3, b_value: 3 },
+      },
+      {
+        id: 'g6-fraction-muldiv',
+        titleKey: 'preset_g6_fraction_title',
+        descKey: 'preset_g6_fraction_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'frac', operator: ['mul', 'div'], numerator_digits: 1,
+          denominator_digits: 1, proper_operands: true,
+        },
       },
     ],
     written: [

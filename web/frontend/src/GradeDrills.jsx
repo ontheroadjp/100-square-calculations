@@ -206,13 +206,14 @@ function GradeDrills() {
   // which no longer supports written-calculation output as of issue #46) so
   // the common case never flashes the written-calculation UI before the
   // fetch resolves.
-  const [supportsWritten, setSupportsWritten] = useState(false);
+  const [activeRenderer, setActiveRenderer] = useState('reportlab');
+  const supportsWritten = activeRenderer === 'latex';
 
   useEffect(() => {
     fetch('http://127.0.0.1:5000/renderer-info')
       .then((response) => response.json())
-      .then((data) => setSupportsWritten(data.renderer === 'latex'))
-      .catch(() => setSupportsWritten(false));
+      .then((data) => setActiveRenderer(data.renderer))
+      .catch(() => setActiveRenderer('reportlab'));
   }, []);
 
   const isCustom = selectedGrade === CUSTOM_GRADE;
@@ -231,6 +232,11 @@ function GradeDrills() {
   }
 
   const writtenPresets = !isCustom && supportsWritten ? presetsByGrade[selectedGrade].written : [];
+  const normalPresets = !isCustom
+    ? presetsByGrade[selectedGrade].normal.filter(
+      (preset) => !preset.latexOnly || activeRenderer === 'latex',
+    )
+    : [];
 
   return (
     <div className="grade-drills">
@@ -262,7 +268,7 @@ function GradeDrills() {
       ) : (
         <>
           <div className="preset-card-grid">
-            {presetsByGrade[selectedGrade].normal.map((preset) => (
+            {normalPresets.map((preset) => (
               <PresetCard key={preset.id} preset={preset} onOpen={setOpenPreset} />
             ))}
           </div>

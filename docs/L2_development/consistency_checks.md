@@ -1,6 +1,6 @@
 # Consistency Checks
 
-CI が存在しないため、整合性確認は手動実行に依存する。以下は `/init-docs` 再実行(2026-08-05、issue #43/#46 等マージ後)の Phase 4 で実施した検証内容と結果。過去の検証(2026-07-22)は本ファイルの旧内容を置き換える形で更新した。
+CI が存在しないため、整合性確認は手動実行に依存する。以下は `/init-docs` 再実行(2026-08-06、issue #65)の Phase 4 で実施した検証内容と結果。
 
 ## 実施した検証
 
@@ -18,7 +18,7 @@ CI が存在しないため、整合性確認は手動実行に依存する。�
 ### 3. pytest テストスイートの実行可否(実機検証・新規)
 
 - 検証方法: リポジトリルートで `python3 -m pytest -q` を実行。
-- 結果: **196件中187件成功、9件失敗**。失敗の9件は `tests/test_nuts_calc_init.py` に属し、`nuts_calc.py` の一部バリデーションが `exit()` から `exit(1)` に変更された(issue #37)後もテスト側の期待値(`exit code is None`)が更新されていないことが原因。テストファイル自身の docstring と `docs/L3_implementation/nuts_calc.py.md:55` がこれを既知のstale expectationとして明記しており、今回の `/init-docs` 実行が原因ではないことを確認済み。詳細は [[test]]。
+- 結果: **222件を収集**。`tests/test_nuts_calc_init.py` は既知の9失敗・13成功。分数/backend単体22件と分数`pdflatex` CLI 2件は成功。既知ファイルを除く全件実行は最終サマリを取得できず未確認として [[test]] に分離した。
 - 過去の `docs/.ai/repo.profile.json`(2026-07-22 時点)は `"tests": "No test files or test directory exist"` としていたが、これは誤り(`tests/` は少なくとも issue #4 のテスト追加以降存在する)。本 `/init-docs` 実行で修正した。
 
 ### 4. README/README_ja ⇄ 実装(パッケージング)

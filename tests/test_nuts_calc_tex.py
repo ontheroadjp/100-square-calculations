@@ -1,7 +1,7 @@
 """End-to-end regression tests for nuts_calc_tex.py (Phase 1 foundation #20;
 `ope` command Phase 2 #21; `com` command Phase 3 #22; `99` command Phase 5
 #24; `aBc` command Phase 6 #25; `squ` command Phase 7 #26; `pi` command
-Phase 8 #27).
+Phase 8 #27; and fraction arithmetic #65).
 
 nuts_calc_tex.py has zero code dependency on nuts_calc.py, so these tests
 run it as a real subprocess, independent of tests/test_nuts_calc_cli.py.
@@ -536,6 +536,28 @@ def test_cli_pi_csv_rows_contain_real_problem_data(run_tex_cli, tmp_path):
     page_number, index, a, c = lines[0].split(",")
     assert (page_number, index, a) == ("1", "1", "3")
     assert round(int(a) * 3.14, 2) == float(c)
+
+
+def test_cli_frac_produces_blank_and_filled_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "frac", "--numerator-digits", "1", "--denominator-digits", "1",
+        "--same-denominator", "--proper-operands", "--proper-result",
+        "-o", "add", "sub", "-r", "2", "-c", "2", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+def test_cli_frac_csv_rows_contain_exact_fraction_data(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "frac", "--numerator-digits", "1", "--denominator-digits", "1",
+        "-o", "mul", "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    lines = (tmp_path / "result.csv").read_text().strip().splitlines()
+    assert len(lines) == 4
+    assert len(lines[0].split(",")) == 9
 
 
 def test_cli_fails_clearly_when_pdflatex_missing(run_tex_cli, tmp_path, monkeypatch):

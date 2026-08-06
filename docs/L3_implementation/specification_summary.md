@@ -8,7 +8,7 @@ DB は存在しないため `database.md` は生成していない(永続化層�
 
 ## `nuts_calc_tex.py`(実験的プロトタイプ)
 
-`nuts_calc.py` とは import 等のコード共有を一切行わない、完全独立の LaTeX(`pdflatex`)レンダリング版プロトタイプ。issue #19(親トラッキング issue)配下の8フェーズで段階的に実装中。CLI 引数・ページ/PDF レイアウト・TeX ビルドパイプラインという共通基盤(Phase 1, issue #20)に加え、`ope` コマンド(四則演算 add/sub/mul/div/mix、横書き・`--vertical` 筆算・`--intermediate`)が実装済み(Phase 2, issue #21)。`--vertical` は add/sub/mul を `xlop`、div を `longdivision` でレンダリングする。`com` コマンド(補数: `a + □ = target` 形式、横書きのみ)も実装済み(Phase 3, issue #22)。`100` コマンド(100マス計算: 11×11 の加算表、ヘッダー行/列を網掛け表示)も実装済み(Phase 4, issue #23)。`99` コマンド(九九: `--rows`×`--columns` 問をタイル化、`--descend`/`--reverse`/`--shuffle` の並び替えオプション)も実装済み(Phase 5, issue #24)。`aBc` コマンド(4桁の数字列 `abcd` を2桁ペア `ab`/`cd` に分けて変換する暗算ドリル)も実装済み(Phase 6, issue #25)。`squ` コマンド(平方数: `-a` を起点に `a × a` の問題を `--rows`×`--columns` 問タイル化、`99` と同じ `--descend`/`--reverse`/`--shuffle` の並び替えオプション)も実装済み(Phase 7, issue #26)。`pi` コマンド(円周率倍: `-a` を起点に `a × 3.14` の問題を `--rows`×`--columns` 問タイル化、並び替えオプションは `squ` と共通)も実装済み(Phase 8, issue #27)。これで issue #19 が計画する全7コマンドの実装が完了している。詳細は [[nuts_calc_tex.py]] を参照。
+`nuts_calc.py` とはコード共有しない独立LaTeXレンダラー。issue #19の7コマンドに `frac` を加えた計8コマンドを実装する。`frac` は分子・分母の桁数(各1〜3)、同分母/異分母、真分数条件、add/sub/mul/div/mixを指定できる。未約分の出題表記を保持し、答えは `fractions.Fraction` で厳密に約分してPDF・下部解答・CSVへ出力する(`nuts_calc_tex.py:118-184,305-328,1339-1565`)。学年カードの根拠資料は `docs/reference/` に保存し、カードはLaTeXレンダラー時だけ表示する(`web/frontend/src/drillPresets.js:154-327`、`web/frontend/src/GradeDrills.jsx:201-269`)。
 
 ## Web API 仕様(`web/backend/app.py`)
 

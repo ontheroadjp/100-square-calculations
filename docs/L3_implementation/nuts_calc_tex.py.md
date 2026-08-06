@@ -4,7 +4,15 @@
 
 `nuts_calc.py`(ReportLab ベース)とは**完全に独立した**、LaTeX(TeX)でレンダリングする計算ドリル PDF 生成 CLI のプロトタイプ。issue #19(親トラッキング issue)で計画されている全7コマンド再実装のうち、Phase 1(issue #20)で CLI 引数・ページ/PDF レイアウト・TeX ビルドパイプライン・CSV 出力という共通基盤を実装し、Phase 2(issue #21)で `ope` コマンド(四則演算 add/sub/mul/div/mix、横書き・`--vertical`・`--intermediate`)、Phase 3(issue #22)で `com` コマンド(補数: `a + __ = target`)、Phase 4(issue #23)で `100` コマンド(100マス計算: 11×11 の加算表)、Phase 5(issue #24)で `99` コマンド(九九: 固定の1段 × `--rows`×`--columns` 問、`--descend`/`--reverse`/`--shuffle` の並び替え)、Phase 6(issue #25)で `aBc` コマンド(暗算: 4桁の数字列 `abcd` を2桁ずつのペア `ab`/`cd` に分けて変換する暗算ステートメント)、Phase 7(issue #26)で `squ` コマンド(二乗数: `-a` から始まる整数列を `a × a` の形で出題、`--descend`/`--reverse`/`--shuffle` の並び替えは `99` と共通)、Phase 8(issue #27)で `pi` コマンド(円周率倍: `-a` から始まる整数列を `a × 3.14` の形で出題、並び替えオプションは `squ` と共通)を実装した。これで issue #19 が計画する全7コマンドの実装が完了している。
 
-`nuts_calc.py` とは import 等のコード共有を一切行わない(`nuts_calc.py` 側も変更しない)。将来的に両者を同じ CLI 契約で切り替えられるラッパーを作る前提のため、引数体系は `nuts_calc.py` の `_init()` に似せているが、実装は完全に別物。問題生成ロジック(`calc_add`/`calc_sub`/`calc_mul`/`calc_div`/`generate_ope_problems`)も `nuts_calc.py` の `get_operation_data` 等とは独立に再実装している(意味論は似せているが、コードは共有しない)。
+`nuts_calc.py` とは import 等のコード共有を一切行わない(`nuts_calc.py` 側も変更しない)。将来的に両者を同じ CLI 契約で切り替えられるラッパーを作る前提のため、引数体系は `nuts_calc.py` の `_init()` に似せているが、実装は完全に別物。問題生成ロジック(`calc_add`/`calc_sub`/`calc_mul`/`calc_div`/`generate_ope_problems`)も `nuts_calc.py` の `get_operation_data` 等とは独立に再実装している(意味論は似せているが、コードは共有しない)。issue #65 では LaTeX 固有の8番目のコマンド `frac` を追加し、分数の四則演算を実装した。
+
+### `frac` コマンド(issue #65)
+
+- `_init()` は `--numerator-digits`/`--denominator-digits`(各1〜3)、`--same-denominator`/`--different-denominators`(排他)、`--proper-operands`、`--proper-result` を受け付ける。分子の桁数が分母を上回る状態で真分数を要求するなど、生成不能な代表的組み合わせを事前に拒否する(`nuts_calc_tex.py:155-184,305-328`)。
+- `FractionOperand` は出題時の未約分の分子・分母を保持し、`FractionProblem.c` は標準ライブラリ `fractions.Fraction` による厳密な約分済み解答を保持する。これにより、例えば問題の `2/4` はそのまま表示しつつ答えは `1/2` と表示できる(`nuts_calc_tex.py:1338-1361,1431-1438`)。
+- `generate_fraction_problems()` は `add`/`sub`/`mul`/`div`/`mix` を問題ごとに解決し、答えが正になる問題だけを生成する。`--proper-result` はさらに答えを1未満へ制限し、同分母・異分母条件も生成時に保証する。条件を1000回以内に満たせない場合は明確な `ValueError` にする(`nuts_calc_tex.py:1394-1434`)。
+- 問題・解答は `\frac` と `\displaystyle` で横書き表示する。通常の問題PDF、`_read.pdf`、`--merge`、`--with-bottom-answer`、`--csv` の全出力経路に対応する。答えの文字色は既存コマンドと同じ黒である(`nuts_calc_tex.py:1441-1500,1510-1565`)。
+- 学年別配置の根拠となる文部科学省資料は `docs/reference/` に保存する。Webカードは LaTeX レンダラー時のみ表示される([[web/frontend/src/drillPresets.js]]、[[web/frontend/src/GradeDrills.jsx]])。
 
 ## 動作の概要
 
