@@ -62,6 +62,7 @@ HUNDRED_SQUARE_SAMPLE_REPEAT_FACTOR = 2
 HUNDRED_SQUARE_HEADER_COLOR = 'lightgray'
 PI_MULTIPLIER = 3.14
 BLANK_ANSWER_TEX = '\\hspace{1.5em}'
+COM_BLANK_ANSWER_TEX = '\\vcenter{\\hbox{\\fbox{\\rule{0pt}{1em}\\hspace{1em}}}}'
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 VENDOR_TEXMF_DIR = os.path.join(SCRIPT_DIR, 'vendor', 'texmf')
@@ -718,8 +719,8 @@ def generate_com_problems(target: int, order: int, start_index: int) -> list[Com
 
 
 def build_com_block_tex(problem: ComProblem, show_answer: bool) -> str:
-    """Render one `com` problem: `n) $a + __ = target$`, filled with `c` when show_answer."""
-    result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
+    """Render one `com` problem with a boxed missing operand in the blank version."""
+    result_tex = str(problem.c) if show_answer else COM_BLANK_ANSWER_TEX
     return f"{problem.index}) ${problem.a} + {result_tex} = {problem.target}$"
 
 
