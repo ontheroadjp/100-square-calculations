@@ -45,6 +45,8 @@
 
 ## 変更履歴(git log より自動生成)
 
+- 1b7e795 feat(#67): add ope --use-parentheses option with grade menu cards
+- 7c89a52 feat(#65): add curriculum-aligned fraction worksheets
 - b727443 feat(#61): add separate addition and subtraction drills
 - 5211d63 feat(#44): rework grade-based drill menu per curriculum, inline written-calculation section, add Ungraded category
 - f0201d6 feat(#13): add grade-based written-calculation (hissan) drill menu
