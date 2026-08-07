@@ -225,6 +225,7 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 
 ## 変更履歴(git log より自動生成)
 
+- 8ae1b1f feat(#71): add multi-term ope support and generalize parentheses to N terms
 - 6c2ee20 feat(#69): add ope --missing-value option with grade menu cards
 - 1b7e795 feat(#67): add ope --use-parentheses option with grade menu cards
 - 7c89a52 feat(#65): add curriculum-aligned fraction worksheets
