@@ -4,7 +4,7 @@ AI 運用の single source of truth。`AGENTS.md` はこのファイルへの sy
 
 ## プロジェクト概要
 
-計算ドリル PDF 生成ツール群。CLI(`nuts_calc.py`、Python + ReportLab)とWeb UI(`web/backend` Flask + `web/frontend` React/Vite)がある。独立プロトタイプ `nuts_calc_tex.py` は7つの互換コマンドとLaTeX専用 `frac` を実装し、`NUTS_CALC_RENDERER=latex` で選択する。分数カードはこの場合だけ表示され、学年配置の一次資料は `docs/reference/` に保存する。
+計算ドリル PDF 生成ツール群。CLI(`nuts_calc.py`、Python + ReportLab)とWeb UI(`web/backend` Flask + `web/frontend` React/Vite)がある。独立プロトタイプ `nuts_calc_tex.py` は7つの互換コマンドとLaTeX専用 `frac` を実装し、`NUTS_CALC_RENDERER=latex` で選択する。分数カードと4〜6年生の中学受験準備27プリセットはこの場合だけ表示され、学年配置の一次資料は `docs/reference/` に保存する。
 
 **解消済みの既知の欠陥**: `web/frontend/package.json` に `i18next`/`react-i18next`/`i18next-browser-languagedetector`/`i18next-http-backend` が不足し `npm run build` が失敗していた問題は解消済み(2026-08-05 実機再確認、`npm install && npm run build` 成功)。
 
@@ -21,8 +21,8 @@ AI 運用の single source of truth。`AGENTS.md` はこのファイルへの sy
 
 ## Local Tooling Environment
 
-Observed by /init-docs (2026-08-06, re-run for issue #65):
-- gh: 2.96.0
+Observed by /init-docs (2026-08-07):
+- gh: 2.97.0
 - gh auth: logged in to github.com as ontheroadjp (ssh protocol, scopes: admin:public_key, gist, read:org, repo)
 - node: v24.16.0 (via mise: `~/.local/share/mise/installs/node/24/bin/node`)
 - npm: 11.13.0 (same mise install)
@@ -37,9 +37,12 @@ Notes:
 
 - No lock file, `requirements.txt`, or `pyproject.toml` exists. CLI dependency is `reportlab`; the web backend additionally needs `Flask`/`Flask-Cors`; the test suite needs `pytest`. Install via `pip install reportlab flask flask-cors pytest` (see `README.md`).
 - Before running `nuts_calc.py`, confirm `python3 -c "import reportlab"` succeeds; if not, ask before installing.
-- `python3 -m pytest` collects 222 tests as of 2026-08-06. `tests/test_nuts_calc_init.py` has 9 known stale failures and 13 passes; fraction/backend unit tests (22) and fraction pdflatex CLI tests (2) pass. The complete run excluding the stale file did not return a final summary in the observed environment; see `docs/L2_development/test.md`.
+- repo-local `venv/` has Python 3.12.3, ReportLab 5.0.0, Flask 3.1.3, Flask-Cors 6.0.5, and pytest 9.1.1. System `python3` did not resolve ReportLab/Flask during the 2026-08-07 observation; activate `venv/` or install only after user confirmation.
+- `python3 -m pytest` collects 319 tests as of 2026-08-07. Excluding `tests/test_nuts_calc_init.py`, 297 tests pass; that stale file has 9 known failures and 13 passes. `pdflatex`-dependent tests ran successfully; see `docs/L2_development/test.md`.
 - `nuts_calc_tex.py` (experimental LaTeX prototype) additionally requires `pdflatex` on `PATH`; its `pdflatex`-dependent CLI tests auto-skip when it's absent.
 
 ## Web Frontend Environment (`web/frontend`)
 
-- `web/frontend/package.json` includes the `i18next` family of packages; `npm run build` succeeds (re-verified 2026-08-06). The previously-tracked missing-dependency defect is resolved.
+- `web/frontend/package.json` includes the `i18next` family of packages; `npm run build` succeeds (re-verified 2026-08-07). The previously-tracked missing-dependency defect is resolved.
+- Frontend pure-function tests use Node's built-in runner directly: `node --test web/frontend/src/drillPresets.test.js web/frontend/src/verticalLayout.test.js` (7 passed on 2026-08-07). There is no `npm test` script.
+- `npm run lint` currently fails once at `web/frontend/src/drillPresets.js:304` because `no-irregular-whitespace` rejects a full-width space in a Japanese comment.
