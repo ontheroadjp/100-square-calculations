@@ -180,7 +180,7 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 
 ### `nuts_calc.py` の `VERTICAL_UNSUPPORTED_OPERATORS` を踏襲しない
 
-`nuts_calc.py` は `--vertical` で `div`/`mix` を拒否するが、`nuts_calc_tex.py` はこの制約を意図的に踏襲しない(親 issue #19 の指示、および上記の通り xlop/longdivision の組み合わせで div/mix も自然に筆算表示できることを確認済み)。
+旧 `nuts_calc.py` の `--vertical` は `div`/`mix` を拒否していたが、issue #46 で ReportLab 側の筆算機能自体が削除された。`nuts_calc_tex.py` はこの旧制約を踏襲せず、xlop/longdivision により div/mix も筆算表示する。現在、筆算は LaTeX renderer に一本化されている(`nuts_calc.py` に `--vertical` 引数はない)。
 
 ### `--use-parentheses` の第3項以降が `-b`/`--b-value` のレンジを再利用する理由(issue #67、issue #71 でN項に一般化)
 
@@ -204,7 +204,7 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 
 ## 統合ポイント
 
-- 呼び出し元: CLI 直接実行(`python3 nuts_calc_tex.py <paper_size> <command> ...`)のみ。`nuts_calc.py`/`web/backend/app.py`/`factory.sh` からは呼ばれない(まだ配線されていない)。
+- 呼び出し元: CLI 直接実行(`python3 nuts_calc_tex.py <paper_size> <command> ...`)と、`NUTS_CALC_RENDERER=latex` を設定した `web/backend`。backend は `renderers.py:48-54,170-189` で script を選択し subprocess 起動する。`nuts_calc.py` と `factory.sh` からは呼ばれない。
 - 呼び出し先: `pdflatex`(要 LaTeX ディストリビューション、`texlive-latex-base` + `texlive-latex-extra`)。
 
 ## 注意事項・既知の制限

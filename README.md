@@ -11,9 +11,10 @@ For the pedagogical background behind the drills (the mental-arithmetic techniqu
 *   **PDF Output**: All worksheets are generated as high-quality PDF files, ready for printing.
 *   **Answer Options**: Include answers at the bottom of the page, merge answer files, or output raw problem data to CSV for further analysis.
 *   **Automated Batch Generation**: The `factory.sh` script provides an automated way to generate a wide variety of pre-configured worksheets.
+*   **Grade and exam-prep presets**: The Web UI groups drills by grades 1-6 and, with the LaTeX renderer, adds 27 entrance-exam-prep presets for grades 4-6 (three stages and three levels per grade).
 
 ## Installation
-To use this generator, you need Python 3. It is highly recommended to use a virtual environment to manage dependencies. A LaTeX environment is optional, primarily if you plan to use other LaTeX-based tools or older versions of this project that might have relied on it.
+To use the ReportLab generator, you need Python 3. The Web UI additionally needs Flask, Flask-Cors, Node.js, and npm. A LaTeX environment with `pdflatex` is required when using `nuts_calc_tex.py` or `NUTS_CALC_RENDERER=latex`.
 
 > **Note:** there is no `requirements.txt`/`pyproject.toml`/`setup.py` in this repo, so dependencies must be installed manually — see step 3 and the Dependencies section below.
 
@@ -34,7 +35,15 @@ To use this generator, you need Python 3. It is highly recommended to use a virt
     pip install reportlab
     ```
 
-4.  **(Optional) Install a LaTeX environment**: `nuts_calc_tex.py`, including fraction worksheets and written-calculation output, requires `pdflatex`. On Debian/Ubuntu, install the TeX Live base and extra packages; the repository already vendors `longdivision`.
+4.  **Install Web dependencies when using the Web UI**:
+    ```bash
+    pip install flask flask-cors
+    cd web/frontend
+    npm install
+    cd ../..
+    ```
+
+5.  **(Optional) Install a LaTeX environment**: `nuts_calc_tex.py`, including fraction, written-calculation, and entrance-exam-prep worksheets, requires `pdflatex`. On Debian/Ubuntu, install the TeX Live base and extra packages; the repository already vendors `longdivision`.
 
     To deactivate the virtual environment when you are done:
     ```bash
@@ -84,6 +93,8 @@ python3 nuts_calc_tex.py A4 frac \
 
 Grade 3-6 fraction cards appear only with `NUTS_CALC_RENDERER=latex`. The
 curriculum source used for their placement is preserved under `docs/reference/`.
+The same renderer exposes the grades 4-6 entrance-exam-prep section, which uses
+multi-term, mixed-operator, and parenthesized `ope` expressions.
 
 ### Batch Generation with `factory.sh`
 The `factory.sh` script automates the generation of a predefined set of worksheets, creating a structured output directory (`dist/`).
@@ -121,23 +132,33 @@ To use the web interface, you need to start both the Flask backend and the React
         ```
     *   Start the React development server:
         ```bash
+        npm install
         npm run dev
         ```
     *   The frontend will typically run on `http://localhost:5173`.
 
 Once both are running, open your browser to the frontend's address (e.g., `http://localhost:5173`) to access the web interface.
 
+### Running checks
+
+```bash
+python3 -m pytest -q --ignore=tests/test_nuts_calc_init.py
+node --test web/frontend/src/drillPresets.test.js web/frontend/src/verticalLayout.test.js
+cd web/frontend && npm run build
+```
+
+`tests/test_nuts_calc_init.py` is excluded above because 9 expectations still pin the old `exit()` status while the implementation correctly uses `exit(1)`; see `docs/L2_development/test.md`. `npm run lint` is also available, but currently reports one `no-irregular-whitespace` error at `web/frontend/src/drillPresets.js:304`.
+
 ## Dependencies
 *   Python 3
 *   Flask (`pip install Flask`)
 *   Flask-Cors (`pip install Flask-Cors`)
 *   Node.js and npm (for React frontend)
-*   (Optional) LaTeX environment (for `platex`, `dvipdfmx` if used by other tools or older versions)
-*   (Optional) `pdflatex` -- required only for `nuts_calc_tex.py`, an experimental, fully independent LaTeX-rendered prototype (see Architecture below)
+*   (Optional) `pdflatex` -- required for `nuts_calc_tex.py` and `NUTS_CALC_RENDERER=latex` (see Architecture below)
 
 ## Architecture
 
-There are two independent ways to generate a worksheet, both ultimately driven by the same CLI:
+There are two user-facing ways to generate a worksheet; the Web path selects one of the two independent renderer CLIs:
 
 *   **CLI**: `nuts_calc.py` → ReportLab → PDF/CSV. No server, no database, no persisted state.
 *   **Web UI**: React frontend (`web/frontend`) → Flask backend (`web/backend/app.py`) → `web/backend/renderers.py` → `subprocess` call to `nuts_calc.py` (default) or `nuts_calc_tex.py` (via `NUTS_CALC_RENDERER=latex`) → generated PDF is streamed back to the browser. The backend holds no drill-generation logic of its own; it only translates form input into CLI arguments shared by both renderers.
@@ -152,7 +173,7 @@ See `docs/L1_project/project_overview.md` and `docs/L0_concept/concept.md` for t
 
 *   **Renderer-owned drill logic.** The web backend does not implement worksheet generation; it translates requests and shells out to the selected renderer. Most CLI parameters are shared, while LaTeX-only features such as `frac` are hidden when ReportLab is active.
 *   **No dependency pinning on the Python side.** There is no lock file, `requirements.txt`, or `pyproject.toml`; dependencies are installed ad hoc. This reflects the project's scope as a small personal/batch-generation tool rather than a deployed service.
-*   **The Python generators and Web backend have pytest coverage (no CI yet).** Unit tests cover problem generation and backend command translation; end-to-end tests compile PDF/CSV output when renderer dependencies are available. Run with `pip install pytest && python3 -m pytest` after installing the Python dependencies.
+*   **Local tests are the current quality gate (no CI yet).** pytest covers both generators and backend translation; Node's built-in test runner covers frontend preset/layout pure functions. Renderer-dependent tests compile PDF/CSV output when dependencies are available.
 
 ## License
 MIT License

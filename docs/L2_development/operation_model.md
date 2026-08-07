@@ -17,7 +17,7 @@ python3 nuts_calc.py <paper_size> <command> [options]
 - `paper_size`: `A3` | `A4` | `B5` | `a4l`(A4横向き、大文字小文字どちらも可)
 - `command`: `ope` | `com` | `100` | `99` | `aBc` | `squ` | `pi`
 
-実行例(実機で成功を確認済み、7コマンドすべて):
+実行例(2026-08-07 に repo-local `venv/` で7コマンドすべて成功):
 ```bash
 python3 nuts_calc.py A4 ope -a 1 -b 1 --out-file result.pdf
 python3 nuts_calc.py A4 com -a 100 --out-file result.pdf
@@ -50,11 +50,13 @@ python app.py
 
 ```bash
 cd web/frontend
+node --version
+npm --version
 npm install
 npm run dev      # http://localhost:5173
 ```
 
-`npm run build` は 2026-08-05 時点の `main`(このブランチの分岐元)で実機確認済み: `package.json` に `i18next`/`react-i18next`/`i18next-browser-languagedetector`/`i18next-http-backend` が揃っており(コミット `724f752` 等)、`npm install && npm run build` が成功する(以前の "Rollup failed to resolve import "i18next"" 失敗は解消済み。詳細は [[../L3_implementation/specification_summary]])。
+`npm run build` は 2026-08-07 に実機確認済み(68 modules transformed、成功)。`package.json` に `i18next`/`react-i18next`/`i18next-browser-languagedetector`/`i18next-http-backend` が揃っており、以前の依存欠落は解消済み。`npm run lint` は同日の検証で `web/frontend/src/drillPresets.js:304` の日本語コメント内全角空白を `no-irregular-whitespace` が拒否し、1件失敗する。
 
 ## `nuts_calc_tex.py`(実験的LaTeXプロトタイプ)のセットアップと実行
 
@@ -63,23 +65,33 @@ npm run dev      # http://localhost:5173
 python3 nuts_calc_tex.py A4 ope -a 1 -b 1 --out-file result.pdf
 python3 nuts_calc_tex.py A4 frac --numerator-digits 1 --denominator-digits 1 --same-denominator --proper-operands -o add sub --out-file fractions.pdf
 ```
-`frac` は分子・分母の桁数(1〜3)と四則演算を受け付け、同分母・異分母・真分数条件を追加できる。`vendor/texmf/tex/latex/longdivision/` は `TEXINPUTS` 経由で解決する。`pdflatex` が無い場合は明確なエラーで終了する(`nuts_calc_tex.py:118-184,305-328,512-526`)。
+`frac` は分子・分母の桁数(1〜3)と四則演算を受け付け、同分母・異分母・真分数条件を追加できる。`vendor/texmf/tex/latex/longdivision/` は `TEXINPUTS` 経由で解決する。2026-08-07 に `pdflatex` を使う `frac` の直接生成まで成功した。`pdflatex` が無い場合は明確なエラーで終了する(`nuts_calc_tex.py:117-189,633-646`)。
 
 ## テスト(pytest)
 
 ```bash
 pip install pytest
-pytest -q
+python3 -m pytest -q
+# 既知の stale テストだけを分離する場合
+python3 -m pytest -q --ignore=tests/test_nuts_calc_init.py
 ```
-`pytest.ini` によりリポジトリルートで実行する。2026-08-06時点で222件を収集した。`tests/test_nuts_calc_init.py` は既知の9失敗・13成功、分数/backend単体22件と分数PDF 2件は成功した。既知ファイルを除く一括実行は最終サマリが返らず未確認として分離する。詳細は [[test]]。
+`pytest.ini` によりリポジトリルートで実行する。2026-08-07 に319件を収集し、既知 stale ファイルを除く297件は全成功した。`tests/test_nuts_calc_init.py` 単独は既知どおり9失敗・13成功。詳細は [[test]]。
+
+frontend の純粋関数テストは `package.json` に script がないため直接実行する:
+
+```bash
+node --test web/frontend/src/drillPresets.test.js web/frontend/src/verticalLayout.test.js
+```
+
+2026-08-07 に7件すべて成功した(`web/frontend/src/drillPresets.test.js:1-78`、`web/frontend/src/verticalLayout.test.js:1-25`)。
 
 ## ビルド
 
 - CLI/Web バックエンド: ビルド工程なし(PDF/CSV 生成そのものが成果物)。
-- Web フロントエンド: `npm run build`(Vite)。実機確認済み(成功)。
+- Web フロントエンド: `npm run build`(Vite)。2026-08-07 実機確認済み(成功)。
 
 ## 未確認事項
 
 - `factory.sh` を実際に実行して `dist/` 配下の全生成物が意図通りかは未検証(今回は `nuts_calc.py` を直接呼び出しての動作確認のみ実施)。
 - Web バックエンドを実際に起動し、フロントエンドと結合して `POST /generate-pdf`/`GET /renderer-info` が動作するかの結合確認(`pytest` の `tests/test_web_backend_app.py` はモジュールレベルの単体テストで、実プロセス起動を伴う結合確認ではない)は本ドキュメント作業では未実施。
-- `nuts_calc_tex.py` の実機コンパイル(`pdflatex` インストール環境での CLI 直接実行)は本ドキュメント作業では未実施。ユニットテストと `docs/L3_implementation/nuts_calc_tex.py.md` に記載の過去の実機コンパイル確認内容を根拠としている。
+- frontend の production build をどこへ配備するか、および Flask と結合したブラウザ E2E の実行方法は未確認。確定にはデプロイ設定または E2E 設定ファイルが必要だが、現行リポジトリには存在しない。

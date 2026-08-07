@@ -26,7 +26,9 @@
 │       │   ├── App.jsx            # ヘッダー(タイトル・言語切替)+ GradeDrills を描画するシェル
 │       │   ├── GradeDrills.jsx    # 学年別(1-6+無学年+カスタム)ドリルPDF選択画面(メインUI)
 │       │   ├── CustomGenerator.jsx # 詳細パラメータ指定フォーム(「カスタム」選択時)
-│       │   ├── drillPresets.js    # 学年→/generate-pdf パラメータのプリセット定義
+│       │   ├── drillPresets.js    # 学年→/generate-pdf パラメータのプリセット定義(中学受験準備を含む)
+│       │   ├── drillPresets.test.js # node:test によるプリセット構造テスト
+│       │   ├── verticalLayout.js / verticalLayout.test.js # 筆算行数の純粋関数と node:test
 │       │   ├── App.css
 │       │   └── i18n.js            # react-i18next 設定
 │       ├── public/locales/{en,ja}/translation.json  # 翻訳文言
@@ -45,12 +47,12 @@
 - `memo.md`: コードではなく、暗算指導法・学習ステップ・受験算数における計算力の重要性を説明する日本語の教育コンテンツ。`dev` ブランチのマージで一度削除されたが、ユーザーの指示によりマージ後に `main` の内容から復元済み(2026-07-22)。
 - `LICENSE`: MIT License(`LICENSE:1-21`、Copyright (c) 2025 ontheroadjp)。`dev` ブランチのマージで新規追加。
 - `README.md` / `README_ja.md`: 英語/日本語で内容が対応した利用者向け説明。CLI・`factory.sh`・Web UI(バックエンド/フロントエンド起動手順)をカバーしている。README.md には `Architecture`/`Design Principles` セクションがあるが README_ja.md には対応するセクションがなく、両者は完全な対訳ではなくなっている(下記「未確認事項」参照)。
-- `tests/`: pytestテストスイート(15ファイル)。分数生成専用の `test_nuts_calc_tex_fraction_generation.py` を含む。詳細は [[../L2_development/test]]。
+- `tests/`: pytestテストスイート(15ファイル)。分数生成と4〜6年生の中学受験プリセットを生成関数へ通す `test_nuts_calc_tex_exam_prep_presets.py` を含む。frontend には別途 `node:test` 形式の2ファイルがある(`web/frontend/src/*.test.js`)。詳細は [[../L2_development/test]]。
 - `docs/reference/`: 教材仕様の根拠となる一次資料を出典・取得日・SHA-256と共に保存する(`docs/reference/README.md:1-24`)。
 - `vendor/texmf/tex/latex/longdivision/`: CTAN の `longdivision` パッケージ(LPPLライセンス)を vendoring したもの。Ubuntu の `texlive-latex-extra` に同梱されていないため、`nuts_calc_tex.py` が `TEXINPUTS` 経由でこのパスを解決する([[../L3_implementation/nuts_calc_tex.py]] 参照)。
 - `web/backend/app.py`: Flask アプリ。`POST /generate-pdf`(PDF生成)と `GET /renderer-info`(有効レンダラー名の取得)の2エンドポイント。コマンド構築・レンダラー選択・subprocess実行は `web/backend/renderers.py` に切り出されている(詳細は [[../L1_project/project_overview]])。
 - `web/backend/renderers.py`: `NUTS_CALC_RENDERER` env 変数(`reportlab`|`latex`)で `nuts_calc.py`/`nuts_calc_tex.py` を切り替えて呼び出す、Flask 非依存の純粋関数群(issue #36)。
-- `web/frontend/`: Vite ベースの React SPA。`node_modules/` と `dist/` は `.gitignore` で除外済み(`.gitignore:53-54`)。トップ画面は学年別ドリル選択(`GradeDrills.jsx`)で、そこから「カスタム」を選ぶと詳細パラメータ指定フォーム(`CustomGenerator.jsx`)に切り替わる。
+- `web/frontend/`: Vite ベースの React SPA。`node_modules/` と `dist/` は `.gitignore` で除外済み(`.gitignore:55-57`)。トップ画面は学年別ドリル選択(`GradeDrills.jsx`)で、LaTeX 時の4〜6年生には中学受験準備セクションも表示する。そこから「カスタム」を選ぶと詳細パラメータ指定フォーム(`CustomGenerator.jsx`)に切り替わる。
 
 ## 未確認事項
 
