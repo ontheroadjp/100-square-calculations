@@ -217,9 +217,11 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 - **`99` の乗数(b)・`squ`/`pi` の数列(a)は9で頭打ちにならない**: `order = ini.rows * ini.columns` が9を超えると `99` の乗数、`squ`/`pi` の数列いずれもそれに応じて9を超える(`nuts_calc.py` の元実装を踏襲した意図的な設計、詳細は上記の設計判断を参照)。
 - **`--vertical` 指定時の CSV/bottom-answer の桁**: 特別な整形はしておらず、`build_ope_csv_rows`/`build_ope_bottom_answer_tex` は横書き・縦書きで共通(問題データそのものは表示形式に関わらず同一)。
 - **`pi` の答え `c` は丸め済み**: `generate_pi_problems` が `round(a * PI_MULTIPLIER, 2)` を返すため、`build_pi_csv_rows`/`build_pi_bottom_answer_tex`/`build_pi_block_tex` はいずれも丸め後の値のみを扱う(`nuts_calc.py` の生の浮動小数点値との差異、詳細は上記の設計判断を参照)。
-- **`ope --use-parentheses` は決定的フォールバックを持たない**: `calc_sub`/`calc_div` と異なり、`generate_paren_ope_problems` は内側・外側どちらの段階も単純な再抽選(`MAX_OPERAND_RETRY_ATTEMPTS` 回)のみで解を探す。`a`/`b`/`c` の全レンジが広い(特に2桁以上)状態で `sub`/`div` を外側演算子に選ぶ組み合わせ(例: `a - (b × c)`)は、有効な解がほぼ存在せず `ValueError` になりうることをシミュレーションで確認済み(詳細は上記の設計判断を参照)。呼び出し側は `c`(`-b`/`--b-value` 由来)を狭いレンジに保つことでこれを回避する。
-- **`ope --use-parentheses` は `--vertical`/`--intermediate` 非対応**: `_init()` が明示的に拒否する(`command != 'ope'` の場合も同様)。`Page.layout` は常に `'inline'`。
-- **`ope --missing-value` は `--vertical`/`--intermediate`/`--use-parentheses` いずれとも併用不可**: `_init()` が明示的に拒否する(`command != 'ope'` の場合も同様)。`Page.layout` は常に `'inline'`。決定的フォールバックを持つ既存の `CALC_FUNCTIONS` をそのまま再利用しているため、`ope --use-parentheses` と異なり `ValueError` のリスクはない(常に `a op b = c` が先に確定してから隠す位置を選ぶだけのため)。
+- **`ope --use-parentheses`(N項一般化後)は決定的フォールバックを持たない**: `calc_sub`/`calc_div` と異なり、`generate_tree_ope_problems` は木構造・演算子・オペランドの組み合わせ全体を単純な再抽選(`MAX_OPERAND_RETRY_ATTEMPTS` 回)のみで解を探す。`a`/`b`/`c` の全レンジが広い(特に2桁以上)状態で `sub`/`div` を含む組み合わせ(例: `a - (b × c)`)は、有効な解がほぼ存在せず `ValueError` になりうることをシミュレーションで確認済み(詳細は上記の設計判断を参照)。呼び出し側は最初の葉以外(`-b`/`--b-value` 由来)を狭いレンジに保つことでこれを回避する。**項数(`--terms`等)が増えるほど木のノード数も増え、`ValueError` のリスクは旧3項固定実装よりさらに悪化する**(issue #71)。
+- **`ope --terms`/`--terms-min`/`--terms-max`/`--mixed-operators` の項数floor/上限は `failure()`/`exit(1)` ではなくクランプする**(issue #71、意図的な例外): 通常の `ope` では2項未満、`--use-parentheses` 使用時は3項未満を要求してもエラーにならず、該当する下限(2または3)に自動的に引き上げられる。`MAX_OPE_TERMS`(12)を超える値も上限にクランプされる。本ファイルの他の数値バリデーションはすべて `failure()` による即時エラーであり、この挙動は唯一の例外(`resolve_term_range()` 参照)。
+- **`ope --use-parentheses`/`--terms`系は `--vertical`/`--intermediate` 非対応**: `_init()` が明示的に拒否する(`command != 'ope'` の場合も同様)。`Page.layout` は常に `'inline'`。
+- **`ope --missing-value` は `--vertical`/`--intermediate`/`--use-parentheses`/`--terms`系いずれとも併用不可**: `_init()` が明示的に拒否する(`command != 'ope'` の場合も同様)。`Page.layout` は常に `'inline'`。決定的フォールバックを持つ既存の `CALC_FUNCTIONS` をそのまま再利用しているため、`ope --use-parentheses`/`--terms`系と異なり `ValueError` のリスクはない(常に `a op b = c` が先に確定してから隠す位置を選ぶだけのため)。
+- **Web層(`web/backend/renderers.py`、`web/frontend/src/drillPresets.js`)は issue #71 の新オプションに未対応**: `--terms`/`--terms-min`/`--terms-max`/`--mixed-operators` は CLI 直接実行でのみ利用可能で、Webからの配線は別issueで対応予定。
 
 ## 変更履歴(git log より自動生成)
 
