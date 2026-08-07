@@ -9,6 +9,47 @@ export const UNGRADED = 'ungraded';
 
 export const CUSTOM_GRADE = 'custom';
 
+// "examPrep" ("中学受験" / entrance-exam prep) presets combine ope's
+// --terms/--mixed-operators/--use-parentheses options (issue #71) into 9
+// cards per grade (3 stages x 3 levels = 27 total across grades 4-6).
+// latexOnly because --terms/--mixed-operators exist only in
+// nuts_calc_tex.py. Stage/level parameter choices (first-operand digit
+// range per grade, term count per level) mirror
+// tests/test_nuts_calc_tex_exam_prep_presets.py, which simulates each
+// combination directly against nuts_calc_tex.py's generation functions to
+// confirm it doesn't exhaust the retry budget -- keep the two in sync.
+const EXAM_PREP_STAGES = [
+  { stage: 'basic', mixedOperators: false, useParentheses: false },
+  { stage: 'intermediate', mixedOperators: true, useParentheses: false },
+  { stage: 'advanced', mixedOperators: true, useParentheses: true },
+];
+
+const EXAM_PREP_TERMS_BY_LEVEL = { 1: 3, 2: 4, 3: 5 };
+
+function buildExamPrepPresets(grade, aValue) {
+  const presets = [];
+  for (const { stage, mixedOperators, useParentheses } of EXAM_PREP_STAGES) {
+    for (const level of Object.keys(EXAM_PREP_TERMS_BY_LEVEL)) {
+      presets.push({
+        id: `g${grade}-examprep-${stage}-${level}`,
+        titleKey: `preset_g${grade}_examprep_${stage}_${level}_title`,
+        descKey: `preset_g${grade}_examprep_${stage}_${level}_desc`,
+        latexOnly: true,
+        params: {
+          command_type: 'ope',
+          operator: ['mix'],
+          terms: EXAM_PREP_TERMS_BY_LEVEL[level],
+          a_value: aValue,
+          b_value: 1,
+          ...(mixedOperators && { mixed_operators: true }),
+          ...(useParentheses && { use_parentheses: true }),
+        },
+      });
+    }
+  }
+  return presets;
+}
+
 // "written" presets use nuts_calc.py's `--vertical` flag (written-calculation /
 // hissan format), which supports 'add'/'sub'/'mul'/'div' (including
 // multi-digit-multiplier 'mul', issue #10, and long-division 'div', issue
@@ -68,6 +109,9 @@ export const presetsByGrade = {
     // Written-calculation (筆算) notation is formally introduced starting
     // grade 2 in the course of study, so grade 1 has no `written` section.
     written: [],
+    // The entrance-exam-prep section only applies to grades 4-6 (see
+    // buildExamPrepPresets above).
+    examPrep: [],
   },
   2: {
     normal: [
@@ -137,6 +181,7 @@ export const presetsByGrade = {
         params: { command_type: 'ope', operator: ['add', 'sub'], a_value: 2, b_value: 2, vertical: true },
       },
     ],
+    examPrep: [],
   },
   3: {
     normal: [
@@ -232,6 +277,7 @@ export const presetsByGrade = {
         params: { command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 1, vertical: true },
       },
     ],
+    examPrep: [],
   },
   4: {
     normal: [
@@ -329,6 +375,7 @@ export const presetsByGrade = {
         params: { command_type: 'ope', operator: ['add', 'sub'], a_value: 4, b_value: 4, vertical: true },
       },
     ],
+    examPrep: buildExamPrepPresets(4, 1),
   },
   5: {
     normal: [
@@ -410,6 +457,7 @@ export const presetsByGrade = {
         params: { command_type: 'ope', operator: ['add', 'sub'], a_value: 5, b_value: 5, vertical: true },
       },
     ],
+    examPrep: buildExamPrepPresets(5, 2),
   },
   6: {
     normal: [
@@ -487,6 +535,7 @@ export const presetsByGrade = {
         params: { command_type: 'ope', operator: ['add', 'sub'], a_value: 5, b_value: 3, vertical: true },
       },
     ],
+    examPrep: buildExamPrepPresets(6, 3),
   },
   // Drills that don't correspond to any single course-of-study grade unit
   // (unlike e.g. `pi`, which is anchored to grade 5's introduction of the
@@ -512,5 +561,6 @@ export const presetsByGrade = {
       },
     ],
     written: [],
+    examPrep: [],
   },
 };
