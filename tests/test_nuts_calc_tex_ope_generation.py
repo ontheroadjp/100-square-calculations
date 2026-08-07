@@ -268,3 +268,90 @@ def test_build_paren_ope_csv_rows_has_one_row_per_problem() -> None:
         [1, 1, 3, 'add', 5, 'mul', 2, 'left', 8, 16],
         [2, 2, 9, 'sub', 4, 'add', 1, 'right', 5, 4],
     ]
+
+
+def test_generate_missing_value_problems_assigns_sequential_indices() -> None:
+    problems = tex_module.generate_missing_value_problems(
+        [5], [3], ['add'], order=4, start_index=11
+    )
+    assert [problem.index for problem in problems] == [11, 12, 13, 14]
+    assert [(problem.a, problem.b, problem.c) for problem in problems] == [(5, 3, 8)] * 4
+
+
+def test_generate_missing_value_problems_satisfies_a_op_b_equals_c_for_every_operator() -> None:
+    nums_a = list(range(10, 100))
+    nums_b = list(range(1, 10))
+    problems = tex_module.generate_missing_value_problems(
+        nums_a, nums_b, ['mix'], order=GENERATION_SAMPLE_SIZE, start_index=1
+    )
+    for problem in problems:
+        a, b, c = tex_module.CALC_FUNCTIONS[problem.operator](problem.a, problem.b, nums_a, nums_b)
+        assert (a, b, c) == (problem.a, problem.b, problem.c)
+
+
+def test_generate_missing_value_problems_distributes_blank_across_a_and_b() -> None:
+    problems = tex_module.generate_missing_value_problems(
+        list(range(10, 100)), list(range(1, 10)), ['mix'], order=GENERATION_SAMPLE_SIZE, start_index=1
+    )
+    blanks_seen = {problem.blank for problem in problems}
+    assert blanks_seen == {'a', 'b'}
+
+
+def test_generate_missing_value_problems_never_blanks_the_result() -> None:
+    # 'c' (the result) is deliberately excluded from blank candidates:
+    # hiding it would be indistinguishable from plain `ope`'s
+    # always-hide-the-answer output, not a genuine missing-number puzzle.
+    problems = tex_module.generate_missing_value_problems(
+        list(range(10, 100)), list(range(1, 10)), ['mix'], order=GENERATION_SAMPLE_SIZE, start_index=1
+    )
+    assert all(problem.blank != 'c' for problem in problems)
+
+
+def test_generate_missing_value_problems_mix_only_uses_the_four_base_operators() -> None:
+    nums = list(range(1, 10))
+    problems = tex_module.generate_missing_value_problems(
+        nums, nums, ['mix'], order=GENERATION_SAMPLE_SIZE, start_index=1
+    )
+    operators_used = {problem.operator for problem in problems}
+    assert operators_used <= {'add', 'sub', 'mul', 'div'}
+    assert 'mix' not in operators_used
+
+
+def test_build_missing_value_block_tex_boxes_only_the_blank_position() -> None:
+    problem = tex_module.MissingValueProblem(index=1, a=2, b=3, operator='add', c=5, blank='b')
+    blank_tex = tex_module.build_missing_value_block_tex(problem, show_answer=False)
+    filled_tex = tex_module.build_missing_value_block_tex(problem, show_answer=True)
+
+    assert blank_tex == f"1) $2 + {tex_module.BOXED_BLANK_TEX} = 5$"
+    assert filled_tex == "1) $2 + 3 = 5$"
+
+
+def test_build_missing_value_block_tex_boxes_a_when_blank_is_a() -> None:
+    problem = tex_module.MissingValueProblem(index=1, a=2, b=3, operator='add', c=5, blank='a')
+    blank_tex = tex_module.build_missing_value_block_tex(problem, show_answer=False)
+    assert blank_tex == f"1) ${tex_module.BOXED_BLANK_TEX} + 3 = 5$"
+
+
+def test_build_missing_value_block_tex_always_shows_the_result() -> None:
+    problem = tex_module.MissingValueProblem(index=1, a=2, b=3, operator='add', c=5, blank='a')
+    blank_tex = tex_module.build_missing_value_block_tex(problem, show_answer=False)
+    assert '= 5$' in blank_tex
+    assert tex_module.BOXED_BLANK_TEX not in blank_tex.split('=')[-1]
+
+
+def test_build_missing_value_bottom_answer_tex_returns_the_blanked_value() -> None:
+    problems = [
+        tex_module.MissingValueProblem(index=1, a=2, b=3, operator='add', c=5, blank='a'),
+        tex_module.MissingValueProblem(index=2, a=9, b=4, operator='sub', c=5, blank='b'),
+    ]
+    assert tex_module.build_missing_value_bottom_answer_tex(problems) == '(1) 2 \\quad (2) 4'
+
+
+def test_build_missing_value_csv_rows_has_one_row_per_problem() -> None:
+    page1 = [tex_module.MissingValueProblem(index=1, a=2, b=3, operator='add', c=5, blank='b')]
+    page2 = [tex_module.MissingValueProblem(index=2, a=9, b=4, operator='sub', c=5, blank='a')]
+    rows = tex_module.build_missing_value_csv_rows([page1, page2])
+    assert rows == [
+        [1, 1, 2, 'add', 3, 5, 'b'],
+        [2, 2, 9, 'sub', 4, 5, 'a'],
+    ]

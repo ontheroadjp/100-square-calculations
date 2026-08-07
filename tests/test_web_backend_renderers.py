@@ -137,3 +137,24 @@ def test_build_command_translates_different_denominators() -> None:
     }
     command = renderers.build_command("latex", params, "out.pdf")
     assert "--different-denominators" in command
+
+
+def test_build_command_translates_missing_value() -> None:
+    params = {
+        "paper_size": "A4",
+        "command_type": "ope",
+        "operator": ["add", "sub"],
+        "missing_value": True,
+    }
+    command = renderers.build_command("latex", params, "out.pdf")
+    assert "--missing-value" in command
+
+
+def test_build_command_omits_missing_value_when_false() -> None:
+    params = {
+        "paper_size": "A4",
+        "command_type": "ope",
+        "missing_value": False,
+    }
+    command = renderers.build_command("latex", params, "out.pdf")
+    assert "--missing-value" not in command

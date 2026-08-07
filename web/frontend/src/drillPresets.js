@@ -49,6 +49,21 @@ export const presetsByGrade = {
         descKey: 'preset_g1_hyakumasu_desc',
         params: { command_type: '100', a_value: 1, b_value: 1 },
       },
+      {
+        // No formal square-bracket (□) notation at grade 1 in the course of
+        // study; this is an introductory application drill, consistent with
+        // grade 1 already having non-standards-mandated presets (e.g.
+        // g1-hyakumasu above). latexOnly because --missing-value exists only
+        // in nuts_calc_tex.py (issue #69).
+        id: 'g1-missing-value',
+        titleKey: 'preset_g1_missing_value_title',
+        descKey: 'preset_g1_missing_value_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'ope', operator: ['add', 'sub'], missing_value: true,
+          a_min: 1, a_max: 9, b_min: 1, b_max: 9,
+        },
+      },
     ],
     // Written-calculation (筆算) notation is formally introduced starting
     // grade 2 in the course of study, so grade 1 has no `written` section.
@@ -86,6 +101,20 @@ export const presetsByGrade = {
         titleKey: 'preset_g2_complement100_title',
         descKey: 'preset_g2_complement100_desc',
         params: { command_type: 'com', a_value: 100 },
+      },
+      {
+        // Matches the formal grade-2 course-of-study unit A(3) 加法と減法との
+        // 相互関係 (elementary-course-of-study-mathematics-2017.pdf p.114),
+        // e.g. □＋５＝12. latexOnly because --missing-value exists only in
+        // nuts_calc_tex.py (issue #69).
+        id: 'g2-missing-value',
+        titleKey: 'preset_g2_missing_value_title',
+        descKey: 'preset_g2_missing_value_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'ope', operator: ['add', 'sub'], missing_value: true,
+          a_value: 2, b_value: 2,
+        },
       },
     ],
     written: [
@@ -150,6 +179,20 @@ export const presetsByGrade = {
         // while nuts_calc.py silently ignores it -- being explicit keeps the
         // request valid on both renderers (see issue #42).
         params: { command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 1, intermediate: true },
+      },
+      {
+        // Matches the formal grade-3 course-of-study unit covering □ for
+        // multiplication/division relationships (elementary-course-of-study
+        // -mathematics-2017.pdf p.55), e.g. 12÷3 framed as 3×□＝12. latexOnly
+        // because --missing-value exists only in nuts_calc_tex.py (issue #69).
+        id: 'g3-missing-value',
+        titleKey: 'preset_g3_missing_value_title',
+        descKey: 'preset_g3_missing_value_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'ope', operator: ['mul', 'div'], missing_value: true,
+          a_value: 2, b_value: 1,
+        },
       },
       {
         id: 'g3-fraction-simple-addsub',
@@ -230,6 +273,20 @@ export const presetsByGrade = {
         },
       },
       {
+        // Extends the g4-mix preset (2-digit, mixed operators) with
+        // --missing-value's boxed-blank treatment: grade 4 formalizes □/△
+        // notation for mixed-operator expressions. latexOnly because
+        // --missing-value exists only in nuts_calc_tex.py (issue #69).
+        id: 'g4-missing-value',
+        titleKey: 'preset_g4_missing_value_title',
+        descKey: 'preset_g4_missing_value_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'ope', operator: ['mix'], missing_value: true,
+          a_value: 2, b_value: 2,
+        },
+      },
+      {
         id: 'g4-fraction-common-addsub',
         titleKey: 'preset_g4_fraction_title',
         descKey: 'preset_g4_fraction_desc',
@@ -307,6 +364,22 @@ export const presetsByGrade = {
         },
       },
       {
+        // Extends the g5-mix preset (3-digit x 2-digit, mixed operators)
+        // with --missing-value's boxed-blank treatment. No direct
+        // course-of-study unit for this combination; same "advanced
+        // application" framing as g5-parentheses-advanced. latexOnly
+        // because --missing-value exists only in nuts_calc_tex.py (issue
+        // #69).
+        id: 'g5-missing-value',
+        titleKey: 'preset_g5_missing_value_title',
+        descKey: 'preset_g5_missing_value_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'ope', operator: ['mix'], missing_value: true,
+          a_value: 3, b_value: 2,
+        },
+      },
+      {
         id: 'g5-fraction-unlike-addsub',
         titleKey: 'preset_g5_fraction_title',
         descKey: 'preset_g5_fraction_desc',
@@ -366,6 +439,21 @@ export const presetsByGrade = {
         params: {
           command_type: 'ope', operator: ['mix'], use_parentheses: true,
           a_value: 3, b_value: 1,
+        },
+      },
+      {
+        // Extends the g6-mix preset (same operand ranges) with
+        // --missing-value's boxed-blank treatment. Same "advanced
+        // application" framing as g6-parentheses-advanced. latexOnly
+        // because --missing-value exists only in nuts_calc_tex.py (issue
+        // #69).
+        id: 'g6-missing-value',
+        titleKey: 'preset_g6_missing_value_title',
+        descKey: 'preset_g6_missing_value_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'ope', operator: ['mix'], missing_value: true,
+          a_value: 3, b_value: 3,
         },
       },
       {

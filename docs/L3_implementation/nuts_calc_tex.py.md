@@ -4,7 +4,7 @@
 
 `nuts_calc.py`(ReportLab ベース)とは**完全に独立した**、LaTeX(TeX)でレンダリングする計算ドリル PDF 生成 CLI のプロトタイプ。issue #19(親トラッキング issue)で計画されている全7コマンド再実装のうち、Phase 1(issue #20)で CLI 引数・ページ/PDF レイアウト・TeX ビルドパイプライン・CSV 出力という共通基盤を実装し、Phase 2(issue #21)で `ope` コマンド(四則演算 add/sub/mul/div/mix、横書き・`--vertical`・`--intermediate`)、Phase 3(issue #22)で `com` コマンド(補数: `a + __ = target`)、Phase 4(issue #23)で `100` コマンド(100マス計算: 11×11 の加算表)、Phase 5(issue #24)で `99` コマンド(九九: 固定の1段 × `--rows`×`--columns` 問、`--descend`/`--reverse`/`--shuffle` の並び替え)、Phase 6(issue #25)で `aBc` コマンド(暗算: 4桁の数字列 `abcd` を2桁ずつのペア `ab`/`cd` に分けて変換する暗算ステートメント)、Phase 7(issue #26)で `squ` コマンド(二乗数: `-a` から始まる整数列を `a × a` の形で出題、`--descend`/`--reverse`/`--shuffle` の並び替えは `99` と共通)、Phase 8(issue #27)で `pi` コマンド(円周率倍: `-a` から始まる整数列を `a × 3.14` の形で出題、並び替えオプションは `squ` と共通)を実装した。これで issue #19 が計画する全7コマンドの実装が完了している。
 
-`nuts_calc.py` とは import 等のコード共有を一切行わない(`nuts_calc.py` 側も変更しない)。将来的に両者を同じ CLI 契約で切り替えられるラッパーを作る前提のため、引数体系は `nuts_calc.py` の `_init()` に似せているが、実装は完全に別物。問題生成ロジック(`calc_add`/`calc_sub`/`calc_mul`/`calc_div`/`generate_ope_problems`)も `nuts_calc.py` の `get_operation_data` 等とは独立に再実装している(意味論は似せているが、コードは共有しない)。issue #65 では LaTeX 固有の8番目のコマンド `frac` を追加し、分数の四則演算を実装した。issue #67 では `ope` コマンドに LaTeX 固有のオプション `--use-parentheses` を追加し、かっこ付き3項式(`(a op b) op c` または `a op (b op c)`)の出題を実装した。
+`nuts_calc.py` とは import 等のコード共有を一切行わない(`nuts_calc.py` 側も変更しない)。将来的に両者を同じ CLI 契約で切り替えられるラッパーを作る前提のため、引数体系は `nuts_calc.py` の `_init()` に似せているが、実装は完全に別物。問題生成ロジック(`calc_add`/`calc_sub`/`calc_mul`/`calc_div`/`generate_ope_problems`)も `nuts_calc.py` の `get_operation_data` 等とは独立に再実装している(意味論は似せているが、コードは共有しない)。issue #65 では LaTeX 固有の8番目のコマンド `frac` を追加し、分数の四則演算を実装した。issue #67 では `ope` コマンドに LaTeX 固有のオプション `--use-parentheses` を追加し、かっこ付き3項式(`(a op b) op c` または `a op (b op c)`)の出題を実装した。issue #69 では `ope` コマンドに LaTeX 固有のオプション `--missing-value` を追加し、`a op b = c` のうち `a`/`b`(演算子の両オペランド)いずれか1つを枠で隠す虫食い算(missing-number)の出題を実装した。
 
 ### `frac` コマンド(issue #65)
 
@@ -21,6 +21,15 @@
 - `generate_paren_ope_problems()`(`nuts_calc_tex.py:803-840`前後): 問題ごとに `op_left`/`op_right`(`generate_ope_problems` の `mix` 展開と同じ `effective_operators` からそれぞれ独立に `random.choice`)と `position`(`PAREN_POSITIONS = ['left', 'right']` から `random.choice`)を1回選び、その組み合わせに対して `a`/`b`/`c` を `MAX_OPERAND_RETRY_ATTEMPTS` 回まで再抽選する。`paren_stage_add`/`_sub`/`_mul`/`_div`(`PAREN_STAGE_FUNCTIONS`)は `calc_sub`/`calc_div` と同じ検証(減算は正の結果のみ、除算は割り切れる場合のみ)を行う純粋関数で、内側・外側の両方の段階を満たさない組み合わせは `continue` で再抽選する。**`calc_sub`/`calc_div` と異なり決定的フォールバックを持たない**ため、有効な `(a, b, c)` の組が極端に少ない `op_left`/`op_right`/`position` の組み合わせでは `MAX_OPERAND_RETRY_ATTEMPTS` 消化後に `ValueError` になりうる(既知の制限、後述)。
 - `build_paren_ope_block_tex()`: `problem.position` に応じて `(a op b) op c` 形式と `a op (b op c)` 形式を切り替えてレンダリングする。それ以外(blank/filled の切り替え、CSV 行構成、下部解答欄)は `ope` 通常形式と同じ方針(`build_paren_ope_csv_rows` は `[page_number, index, a, op_left, b, op_right, c, position, inner, result]` の10列)。
 - `build_ope_pages()` は `ini.use_parentheses` が真の場合、通常の2項 `ope` 生成ロジックに入らず `build_paren_ope_pages()` に委譲する(`nuts_calc_tex.py:1379-`)。`--vertical`/`--intermediate` は非対応のため `Page.layout` は常に `'inline'`。
+
+### `ope --missing-value`(issue #69)
+
+- `_init()` は `command == 'ope'` のときのみ `--missing-value` を許可し、`--vertical`/`--intermediate`/`--use-parentheses` との併用を拒否する(`nuts_calc_tex.py:223-231,362-371`)。
+- `MissingValueProblem`(`index`/`a`/`b`/`operator`/`c`/`blank`)が1問を表す。新しい算術ロジックは追加せず、既存の `OpeProblem` と同じ `CALC_FUNCTIONS`(`calc_add`/`calc_sub`/`calc_mul`/`calc_div`)をそのまま呼び出して `a op b = c` を成立させたうえで、`blank` にどの位置を隠すかを記録するだけの薄いラッパーになっている(`generate_missing_value_problems`、`nuts_calc_tex.py:973-990`)。`calc_sub`/`calc_div` の決定的フォールバックも自動的に引き継がれる。
+- `blank` の候補は `MISSING_VALUE_POSITIONS = ('a', 'b')` に限定し、**答え `c` は候補に含めない**(後述の設計判断を参照)。
+- `build_missing_value_block_tex()` は `n) $a op b = c$` を生成し、`blank` が `'a'`/`'b'` のときだけその位置を `BOXED_BLANK_TEX`(`com` の欠けた加数と共有する角枠、旧 `COM_BLANK_ANSWER_TEX` からリネーム)に置き換える。`c` は常に実値を表示する。
+- `build_missing_value_page_pair`/`build_missing_value_bottom_answer_tex`/`build_missing_value_csv_rows`/`build_missing_value_pages` は `ope --use-parentheses` の対応する関数群と同じ構造。`build_missing_value_csv_rows` は `[page_number, index, a, operator, b, c, blank]` の7列。`Page.layout` は常に `'inline'`(`--vertical`/`--intermediate` 非対応)。
+- `build_ope_pages()` は `ini.use_parentheses` の次に `ini.missing_value` をチェックし、真の場合は `build_missing_value_pages()` に委譲する(`nuts_calc_tex.py:1539-1560`)。両フラグは `_init()` のバリデーションで排他が保証されているため、この2分岐は同時に真にならない。
 
 ## 動作の概要
 
@@ -176,6 +185,14 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 
 `generate_paren_ope_problems` はランダムな `op_left`/`op_right`/`position` の組み合わせに対して `a`/`b`/`c` を再抽選するだけで、`calc_sub`/`calc_div` のような決定的フォールバックは持たない。実装時のシミュレーション(`a`/`b`/`c` を全て2桁(10〜99)にした場合)で、例えば `position='right'`, `op_right='mul'`, `op_left='sub'`(`a - (b × c)`)のような組み合わせは `b × c` が `a` の取りうる最大値を大きく超えるため、1000回の再抽選内で正の結果が一度も得られず確実に失敗することを確認した。この失敗を避けるため、Web プリセット(`drillPresets.js` の `g4/g5/g6-parentheses*`)は `a` の桁数だけを学年で増やし(1桁→2桁→3桁)、`b`/`c` は常に1桁のレンジに留める設計にしている。この組み合わせは全32通り(演算子4×4×位置2)がシミュレーション上安定して解を持つことを確認済み。
 
+### `--missing-value` の blank 候補から答え `c` を除外する理由(issue #69)
+
+実装時の初期版は `MISSING_VALUE_POSITIONS = ('a', 'b', 'c')` として3候補すべてから抽選していたが、ユーザーレビューで「`c`(答え)を隠すのは通常の `ope`(常に答えを隠す)と区別がつかず、虫食い算(式中の数を問う)の本質ではない」という指摘を受け、`('a', 'b')` の2候補(演算子の両オペランドのみ)に限定した。これに伴い `build_missing_value_block_tex()` は `c` を条件分岐なしに常に実値表示する形へ簡略化し、`MISSING_VALUE_TEX_VALUES` の `'c'` キーも削除した(到達不能になる分岐を残さない)。
+
+### `COM_BLANK_ANSWER_TEX` を `BOXED_BLANK_TEX` にリネームした理由(issue #69)
+
+`com` コマンドの欠けた加数を示す角枠 LaTeX(`\fbox` ベース)は、`--missing-value` の欠けたオペランドにもそのまま流用できる見た目だったため、`com` 専用を示唆する名前 `COM_BLANK_ANSWER_TEX` から、用途を限定しない `BOXED_BLANK_TEX` にリネームして両方の呼び出し元(`build_com_block_tex`/`build_missing_value_block_tex`)で共有した。
+
 ## 統合ポイント
 
 - 呼び出し元: CLI 直接実行(`python3 nuts_calc_tex.py <paper_size> <command> ...`)のみ。`nuts_calc.py`/`web/backend/app.py`/`factory.sh` からは呼ばれない(まだ配線されていない)。
@@ -193,6 +210,7 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 - **`pi` の答え `c` は丸め済み**: `generate_pi_problems` が `round(a * PI_MULTIPLIER, 2)` を返すため、`build_pi_csv_rows`/`build_pi_bottom_answer_tex`/`build_pi_block_tex` はいずれも丸め後の値のみを扱う(`nuts_calc.py` の生の浮動小数点値との差異、詳細は上記の設計判断を参照)。
 - **`ope --use-parentheses` は決定的フォールバックを持たない**: `calc_sub`/`calc_div` と異なり、`generate_paren_ope_problems` は内側・外側どちらの段階も単純な再抽選(`MAX_OPERAND_RETRY_ATTEMPTS` 回)のみで解を探す。`a`/`b`/`c` の全レンジが広い(特に2桁以上)状態で `sub`/`div` を外側演算子に選ぶ組み合わせ(例: `a - (b × c)`)は、有効な解がほぼ存在せず `ValueError` になりうることをシミュレーションで確認済み(詳細は上記の設計判断を参照)。呼び出し側は `c`(`-b`/`--b-value` 由来)を狭いレンジに保つことでこれを回避する。
 - **`ope --use-parentheses` は `--vertical`/`--intermediate` 非対応**: `_init()` が明示的に拒否する(`command != 'ope'` の場合も同様)。`Page.layout` は常に `'inline'`。
+- **`ope --missing-value` は `--vertical`/`--intermediate`/`--use-parentheses` いずれとも併用不可**: `_init()` が明示的に拒否する(`command != 'ope'` の場合も同様)。`Page.layout` は常に `'inline'`。決定的フォールバックを持つ既存の `CALC_FUNCTIONS` をそのまま再利用しているため、`ope --use-parentheses` と異なり `ValueError` のリスクはない(常に `a op b = c` が先に確定してから隠す位置を選ぶだけのため)。
 
 ## 変更履歴(git log より自動生成)
 

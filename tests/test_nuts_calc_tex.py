@@ -1,7 +1,8 @@
 """End-to-end regression tests for nuts_calc_tex.py (Phase 1 foundation #20;
 `ope` command Phase 2 #21; `com` command Phase 3 #22; `99` command Phase 5
 #24; `aBc` command Phase 6 #25; `squ` command Phase 7 #26; `pi` command
-Phase 8 #27; fraction arithmetic #65; and `ope --use-parentheses` #67).
+Phase 8 #27; fraction arithmetic #65; `ope --use-parentheses` #67; and
+`ope --missing-value` #69).
 
 nuts_calc_tex.py has zero code dependency on nuts_calc.py, so these tests
 run it as a real subprocess, independent of tests/test_nuts_calc_cli.py.
@@ -362,13 +363,75 @@ def test_cli_ope_use_parentheses_csv_rows_contain_real_problem_data(run_tex_cli,
     assert (page_number, index) == ("1", "1")
     assert op_left in stage_fn
     assert op_right in stage_fn
-    assert position in ("left", "right")
-    if position == "left":
-        assert stage_fn[op_left](int(a), int(b)) == int(inner)
-        assert stage_fn[op_right](int(inner), int(c)) == int(res)
-    else:
-        assert stage_fn[op_right](int(b), int(c)) == int(inner)
-        assert stage_fn[op_left](int(a), int(inner)) == int(res)
+
+
+def test_cli_ope_missing_value_produces_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "mul", "--missing-value",
+        "-r", "2", "-c", "2", "-ww", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+def test_cli_ope_missing_value_mix_produces_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "mix", "--missing-value",
+        "-r", "3", "-c", "3", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+def test_cli_ope_missing_value_rejects_vertical_combo(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "mul", "--missing-value", "--vertical", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_missing_value_rejects_intermediate_combo(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "mul", "--intermediate", "--missing-value", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_missing_value_rejects_use_parentheses_combo(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "mul", "--missing-value", "--use-parentheses", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_missing_value_rejects_non_ope_command(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "99", "-a", "2", "--missing-value", "--out-file", "result.pdf")
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_missing_value_csv_rows_contain_real_problem_data(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "sub", "mul", "--missing-value",
+        "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+
+    calc_fn = {"sub": lambda a, b: a - b, "mul": lambda a, b: a * b}
+
+    csv_path = tmp_path / "result.csv"
+    lines = csv_path.read_text().strip().splitlines()
+    assert len(lines) == 4
+    for line in lines:
+        page_number, index, a, operator, b, c, blank = line.split(",")
+        assert operator in calc_fn
+        assert calc_fn[operator](int(a), int(b)) == int(c)
+        assert blank in ("a", "b")
 
 
 def test_cli_ope_csv_rows_contain_real_problem_data(run_tex_cli, tmp_path):

@@ -44,7 +44,7 @@ def test_build_com_block_tex_blank_hides_answer() -> None:
     filled_tex = tex_module.build_com_block_tex(problem, show_answer=True)
     assert '63' not in blank_tex
     assert '\\underline' not in blank_tex
-    assert f'37 + {tex_module.COM_BLANK_ANSWER_TEX}' in blank_tex
+    assert f'37 + {tex_module.BOXED_BLANK_TEX}' in blank_tex
     assert '\\vcenter{\\hbox{\\fbox{' in blank_tex
     assert tex_module.BLANK_ANSWER_TEX not in blank_tex
     assert '= 100$' in blank_tex
