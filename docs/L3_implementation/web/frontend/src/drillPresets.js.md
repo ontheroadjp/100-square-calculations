@@ -48,6 +48,7 @@
 
 ## 変更履歴(git log より自動生成)
 
+- 6c2ee20 feat(#69): add ope --missing-value option with grade menu cards
 - 1b7e795 feat(#67): add ope --use-parentheses option with grade menu cards
 - 7c89a52 feat(#65): add curriculum-aligned fraction worksheets
 - b727443 feat(#61): add separate addition and subtraction drills

@@ -214,6 +214,7 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 
 ## 変更履歴(git log より自動生成)
 
+- 6c2ee20 feat(#69): add ope --missing-value option with grade menu cards
 - 1b7e795 feat(#67): add ope --use-parentheses option with grade menu cards
 - 7c89a52 feat(#65): add curriculum-aligned fraction worksheets
 - 5acfc32 fix(#63): box complement worksheet blanks
@@ -223,4 +224,3 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 - ab83032 fix: align written calculation operators
 - fbb0f27 fix(#53): arrange worksheet problems in column order
 - 99352fd fix(#51): remove latex answer underlines
-- 93877f0 feat(#27): add nuts_calc_tex.py Phase 8 pi command (multiplication by pi)
