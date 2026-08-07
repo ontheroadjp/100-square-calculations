@@ -66,7 +66,7 @@ MIN_FRACTION_DIGITS = 1
 MAX_FRACTION_DIGITS = 3
 PAREN_POSITIONS = ['left', 'right']
 BLANK_ANSWER_TEX = '\\hspace{1.5em}'
-COM_BLANK_ANSWER_TEX = '\\vcenter{\\hbox{\\fbox{\\rule{0pt}{1em}\\hspace{1em}}}}'
+BOXED_BLANK_TEX = '\\vcenter{\\hbox{\\fbox{\\rule{0pt}{1em}\\hspace{1em}}}}'
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 VENDOR_TEXMF_DIR = os.path.join(SCRIPT_DIR, 'vendor', 'texmf')
@@ -220,6 +220,15 @@ def _init() -> argparse.Namespace:
             '"mix") and the parenthesized side are chosen per problem'
         )
     )
+    parser.add_argument('--missing-value'
+        , default = False
+        , action = 'store_true'
+        , help = (
+            'Output "ope" problems as missing-number (mushikuizan) expressions '
+            '"a op b = c" with one of a/b boxed out; the blanked operand is '
+            'chosen per problem'
+        )
+    )
     parser.add_argument('-r', '--rows'
         , type = int
         , default = None
@@ -350,6 +359,16 @@ def _init() -> argparse.Namespace:
             failure("--use-parentheses cannot be combined with --vertical.")
         if args.intermediate:
             failure("--use-parentheses cannot be combined with --intermediate.")
+
+    if args.missing_value:
+        if args.command != 'ope':
+            failure("--missing-value is only supported for the 'ope' command.")
+        if args.vertical:
+            failure("--missing-value cannot be combined with --vertical.")
+        if args.intermediate:
+            failure("--missing-value cannot be combined with --intermediate.")
+        if args.use_parentheses:
+            failure("--missing-value cannot be combined with --use-parentheses.")
 
     return args
 
@@ -925,6 +944,129 @@ def build_paren_ope_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Pag
 
 
 @dataclass
+class MissingValueProblem:
+    """
+    One `ope --missing-value` problem: a op b = c with one of a/b boxed out.
+
+    `blank` records which operand is hidden in the blank (practice) variant;
+    the filled (answer) variant always shows all three values. `c` (the
+    result) is never blanked: hiding it would be indistinguishable from
+    plain `ope`'s default output (which already always hides the answer),
+    not a genuine missing-number (mushikuizan) puzzle -- see
+    MISSING_VALUE_POSITIONS.
+    """
+    index: int
+    a: int
+    b: int
+    operator: str
+    c: int
+    blank: str  # 'a' | 'b'
+
+
+# 'c' (the result) is deliberately excluded: blanking it produces the same
+# shape as plain `ope`'s always-hide-the-answer output, not a real
+# missing-number problem. Only the operand positions (a/b) are genuine
+# missing-number blanks.
+MISSING_VALUE_POSITIONS = ('a', 'b')
+
+
+def generate_missing_value_problems(
+        nums_a: list[int], nums_b: list[int], operators: list[str],
+        order: int, start_index: int
+    ) -> list[MissingValueProblem]:
+    """
+    Generate `order` missing-value problems starting at `start_index`.
+
+    Reuses generate_ope_problems's operand/operator generation semantics
+    directly (via CALC_FUNCTIONS) -- no new arithmetic logic is needed, since
+    calc_sub/calc_div's existing validity checks (positive result / exact
+    division) already guarantee a op b == c holds. Once that equation holds,
+    hiding either operand is always solvable (e.g. "8 / __ = 4" is valid
+    whenever "8 / 2 = 4" was), so no retry/fallback logic is required here.
+    """
+    effective_operators = MIX_OPERATORS if 'mix' in operators else operators
+    problems = []
+    for offset in range(order):
+        a = random.choice(nums_a)
+        b = random.choice(nums_b)
+        operator = random.choice(effective_operators)
+        a, b, c = CALC_FUNCTIONS[operator](a, b, nums_a, nums_b)
+        blank = random.choice(MISSING_VALUE_POSITIONS)
+        problems.append(MissingValueProblem(
+            index=start_index + offset, a=a, b=b, operator=operator, c=c, blank=blank,
+        ))
+    return problems
+
+
+def build_missing_value_block_tex(problem: MissingValueProblem, show_answer: bool) -> str:
+    """Render one `ope --missing-value` problem: `n) $a op b = c$` with the blanked operand boxed. `c` is always shown."""
+    symbol = OPERATOR_TEX_SYMBOLS[problem.operator]
+    a_tex = str(problem.a) if show_answer or problem.blank != 'a' else BOXED_BLANK_TEX
+    b_tex = str(problem.b) if show_answer or problem.blank != 'b' else BOXED_BLANK_TEX
+    return f"{problem.index}) ${a_tex} {symbol} {b_tex} = {problem.c}$"
+
+
+def build_missing_value_page_pair(problems: list[MissingValueProblem], columns: int) -> tuple[Page, Page]:
+    """Build the (blank, filled) Page pair for one page's worth of missing-value `ope` problems."""
+    blank_page = Page(
+        blocks=[build_missing_value_block_tex(problem, show_answer=False) for problem in problems],
+        columns=columns, layout='inline',
+    )
+    filled_page = Page(
+        blocks=[build_missing_value_block_tex(problem, show_answer=True) for problem in problems],
+        columns=columns, layout='inline',
+    )
+    return blank_page, filled_page
+
+
+MISSING_VALUE_TEX_VALUES: dict[str, Callable[[MissingValueProblem], int]] = {
+    'a': lambda problem: problem.a,
+    'b': lambda problem: problem.b,
+}
+
+
+def build_missing_value_bottom_answer_tex(problems: list[MissingValueProblem]) -> str:
+    return ' \\quad '.join(
+        f"({problem.index}) {MISSING_VALUE_TEX_VALUES[problem.blank](problem)}" for problem in problems
+    )
+
+
+def build_missing_value_csv_rows(pages_problems: list[list[MissingValueProblem]]) -> list[list[object]]:
+    rows: list[list[object]] = []
+    for page_number, problems in enumerate(pages_problems, start=1):
+        for problem in problems:
+            rows.append([
+                page_number, problem.index, problem.a, problem.operator,
+                problem.b, problem.c, problem.blank,
+            ])
+    return rows
+
+
+def build_missing_value_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], list[list[MissingValueProblem]]]:
+    """Generate real `ope --missing-value` problems and their blank/filled Page pairs for every page."""
+    nums_a = list(range(ini.a_min, ini.a_max + 1))
+    nums_b = list(range(ini.b_min, ini.b_max + 1))
+    order = ini.rows * ini.columns
+
+    blank_pages = []
+    filled_pages = []
+    pages_problems = []
+    for page_number in range(1, ini.page + 1):
+        start_index = (page_number - 1) * order + 1
+        problems = generate_missing_value_problems(nums_a, nums_b, ini.operator, order, start_index)
+        blank_page, filled_page = build_missing_value_page_pair(problems, ini.columns)
+        pages_problems.append(problems)
+        blank_pages.append(blank_page)
+        filled_pages.append(filled_page)
+
+    if ini.with_bottom_answer:
+        for problems, blank_page in zip(pages_problems, blank_pages):
+            blank_page.bottom_answer_tex = build_missing_value_bottom_answer_tex(problems)
+
+    return blank_pages, filled_pages, pages_problems
+
+
+@dataclass
 class ComProblem:
     """One generated `com` (complement-to-target) problem: a + c = target."""
     index: int
@@ -950,7 +1092,7 @@ def generate_com_problems(target: int, order: int, start_index: int) -> list[Com
 
 def build_com_block_tex(problem: ComProblem, show_answer: bool) -> str:
     """Render one `com` problem with a boxed missing operand in the blank version."""
-    result_tex = str(problem.c) if show_answer else COM_BLANK_ANSWER_TEX
+    result_tex = str(problem.c) if show_answer else BOXED_BLANK_TEX
     return f"{problem.index}) ${problem.a} + {result_tex} = {problem.target}$"
 
 
@@ -1392,16 +1534,23 @@ def build_squ_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], li
 
 def build_ope_pages(
         ini: argparse.Namespace
-    ) -> tuple[list[Page], list[Page], list[list[OpeProblem]] | list[list[ParenOpeProblem]]]:
+    ) -> tuple[
+        list[Page], list[Page],
+        list[list[OpeProblem]] | list[list[ParenOpeProblem]] | list[list[MissingValueProblem]],
+    ]:
     """
     Generate real `ope` problems and their blank/filled Page pairs for every page.
 
-    Delegates to build_paren_ope_pages() when --use-parentheses is set,
-    since that mode uses a distinct problem shape (three operands, two
-    operators) and generation/rendering path.
+    Delegates to build_paren_ope_pages() when --use-parentheses is set, and
+    to build_missing_value_pages() when --missing-value is set, since both
+    modes use a distinct problem shape and generation/rendering path from
+    plain `ope` (and are mutually exclusive, enforced in _init()).
     """
     if ini.use_parentheses:
         return build_paren_ope_pages(ini)
+
+    if ini.missing_value:
+        return build_missing_value_pages(ini)
 
     nums_a = list(range(ini.a_min, ini.a_max + 1))
     nums_b = list(range(ini.b_min, ini.b_max + 1))
@@ -1696,6 +1845,7 @@ def main(ini: argparse.Namespace) -> None:
 
     ope_pages_problems: list[list[OpeProblem]] | None = None
     paren_ope_pages_problems: list[list[ParenOpeProblem]] | None = None
+    missing_value_pages_problems: list[list[MissingValueProblem]] | None = None
     com_pages_problems: list[list[ComProblem]] | None = None
     hundred_square_pages_tables: list[HundredSquareTable] | None = None
     kuku_pages_problems: list[list[KukuProblem]] | None = None
@@ -1705,6 +1855,8 @@ def main(ini: argparse.Namespace) -> None:
     fraction_pages_problems: list[list[FractionProblem]] | None = None
     if ini.command == 'ope' and ini.use_parentheses:
         blank_pages, filled_pages, paren_ope_pages_problems = build_ope_pages(ini)
+    elif ini.command == 'ope' and ini.missing_value:
+        blank_pages, filled_pages, missing_value_pages_problems = build_ope_pages(ini)
     elif ini.command == 'ope':
         blank_pages, filled_pages, ope_pages_problems = build_ope_pages(ini)
     elif ini.command == 'com':
@@ -1738,6 +1890,8 @@ def main(ini: argparse.Namespace) -> None:
             rows = build_ope_csv_rows(ope_pages_problems)
         elif paren_ope_pages_problems is not None:
             rows = build_paren_ope_csv_rows(paren_ope_pages_problems)
+        elif missing_value_pages_problems is not None:
+            rows = build_missing_value_csv_rows(missing_value_pages_problems)
         elif com_pages_problems is not None:
             rows = build_com_csv_rows(com_pages_problems)
         elif hundred_square_pages_tables is not None:

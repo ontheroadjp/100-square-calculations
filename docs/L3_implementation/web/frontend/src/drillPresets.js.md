@@ -19,6 +19,9 @@
 - **かっこ付き計算カードも学習指導要領に沿って配置する(issue #67)**: `nuts_calc_tex.py` の `ope --use-parentheses`(issue #67)を使い、4年生に基本形、5・6年生に発展形(指導要領上の正式単元ではない応用ドリル)を配置する。根拠資料は分数カードと同じ `docs/reference/elementary-course-of-study-mathematics-2017.pdf`(196ページ、第４学年 A(6) 数量の関係を表す式「四則の混合した式や（　）を用いた式」)。分数カードと同じ理由で `latexOnly: true` を付ける。
   - `g4-parentheses`(`a_value: 1, b_value: 1`)・`g5-parentheses-advanced`(`a_value: 2, b_value: 1`)・`g6-parentheses-advanced`(`a_value: 3, b_value: 1`)はいずれも `operator: ['mix']` で、`--use-parentheses` 自体が問題ごとに演算子(`op_left`/`op_right`)とかっこの位置(`position`)をランダムに選ぶため、カード側で演算子を固定していない(旧実装はカードごとに固定の演算子ペアと左かっこ固定だったが、「かっこの位置・演算子・式全体のパターンが単調」というレビュー指摘を受けて廃止)。学年間の差は `a` の桁数のみ(1桁→2桁→3桁)で表現する。
   - `b_value` を3カードとも `1`(1桁、1〜9)に固定しているのは UI 上の意図ではなく、`nuts_calc_tex.py` 側の制約に合わせたもの: 第3項 `c` は `b` と同じレンジを再利用するため(`nuts_calc_tex.py` 参照)、`b`/`c` を広げると一部の演算子・かっこ位置の組み合わせ(例: 2桁×2桁の掛け算を外側の引き算に使う)で解が見つからず `ValueError` になることをシミュレーションで確認済み。詳細は [[../../../../nuts_calc_tex.py]] を参照。
+- **虫食い算カードも学習指導要領に沿って配置する(issue #69)**: `nuts_calc_tex.py` の `ope --missing-value`(issue #69)を使い、1年生は導入的な応用(指導要領上の正式単元ではない)、2年生は指導要領記載の「加法と減法との相互関係」(`elementary-course-of-study-mathematics-2017.pdf` p.114、例: `□＋５＝12`)、3年生は「乗法・除法の相互関係」(同 p.55、例: `12÷3` を `3×□＝12` として出題)、4〜6年生は既存の `g4/g5/g6-mix` プリセットと同じオペランド条件を流用した四則混合の発展的応用として配置する(`drillPresets.js:51-65,103-118,181-195,273-287,366-381,443-458`)。分数・かっこ付き計算カードと同じ理由で `latexOnly: true` を付ける。
+  - `g1-missing-value`/`g2-missing-value` は加減算のみ(`operator: ['add', 'sub']`)、`g3-missing-value` は乗除算のみ(`operator: ['mul', 'div']`)、`g4`〜`g6` は `operator: ['mix']`。いずれも `ope --missing-value` 自体が blank 位置(`a`/`b`)を問題ごとにランダムに選ぶため、カード側で blank 位置を指定するパラメータは存在しない。
+  - `--missing-value` は答え `c` を blank 候補に含めない(`nuts_calc_tex.py` 参照: 答えを隠すのは通常の `ope` と区別がつかず虫食い算の本質ではないため)。そのため学年カードのオペランド範囲は既存の対応する `mix`/`add`/`sub`/`mul`/`div` プリセットと同じ値をそのまま流用でき、`--use-parentheses` のような「`b`/`c` を狭いレンジに保つ」といった特別な回避策は不要(決定的フォールバックを持つ既存の `CALC_FUNCTIONS` を再利用しているため `ValueError` のリスク自体がない)。
 - **日本の学習指導要領(算数)の学年配置に沿った内容確定**(2026年見直し):
   - 1年生に `written`(筆算)セクションは存在しない。筆算という記法は指導要領上、正式には2年生から導入されるため。
   - 2年生の加減算(`normal`/`written` とも)は「2位数+2位数」(`a_value: 2, b_value: 2`)。指導要領の2年生内容「2位数の加法及び減法の計算、それらの筆算の仕方」に対応する。
@@ -45,6 +48,7 @@
 
 ## 変更履歴(git log より自動生成)
 
+- 6c2ee20 feat(#69): add ope --missing-value option with grade menu cards
 - 1b7e795 feat(#67): add ope --use-parentheses option with grade menu cards
 - 7c89a52 feat(#65): add curriculum-aligned fraction worksheets
 - b727443 feat(#61): add separate addition and subtraction drills
