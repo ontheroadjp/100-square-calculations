@@ -53,6 +53,9 @@ VERTICAL_DEFAULT_ROWS_BY_PAPER_SIZE = {
 }
 ROW_VSPACE_EM = 2.0
 MAX_OPERAND_RETRY_ATTEMPTS = 1000
+TERM_COUNT_FLOOR_DEFAULT = 2
+TERM_COUNT_FLOOR_PARENTHESES = 3
+MAX_OPE_TERMS = 12
 INTERMEDIATE_SINGLE_DIGIT_MAX = 9
 MIN_COMPLEMENT_TARGET = 2
 ABC_DIGIT_MAX = 9
@@ -64,7 +67,6 @@ HUNDRED_SQUARE_HEADER_COLOR = 'lightgray'
 PI_MULTIPLIER = 3.14
 MIN_FRACTION_DIGITS = 1
 MAX_FRACTION_DIGITS = 3
-PAREN_POSITIONS = ['left', 'right']
 BLANK_ANSWER_TEX = '\\hspace{1.5em}'
 BOXED_BLANK_TEX = '\\vcenter{\\hbox{\\fbox{\\rule{0pt}{1em}\\hspace{1em}}}}'
 
@@ -211,13 +213,44 @@ def _init() -> argparse.Namespace:
         , action = 'store_true'
         , help = 'Output "ope" problems in vertical (written-calculation, hissan) format'
     )
+    parser.add_argument('--terms'
+        , type = int
+        , default = None
+        , help = (
+            'Exact number of terms (operands) per "ope" problem, e.g. 4 for '
+            '"a op b op c op d". Overrides --terms-min/--terms-max. Clamped '
+            f'to [{TERM_COUNT_FLOOR_DEFAULT}, {MAX_OPE_TERMS}] '
+            f'(or [{TERM_COUNT_FLOOR_PARENTHESES}, {MAX_OPE_TERMS}] with '
+            '--use-parentheses) instead of erroring'
+        )
+    )
+    parser.add_argument('--terms-min'
+        , type = int
+        , default = TERM_COUNT_FLOOR_DEFAULT
+        , help = 'Minimum number of terms per "ope" problem (each problem draws its own random count)'
+    )
+    parser.add_argument('--terms-max'
+        , type = int
+        , default = TERM_COUNT_FLOOR_DEFAULT
+        , help = 'Maximum number of terms per "ope" problem (each problem draws its own random count)'
+    )
+    parser.add_argument('--mixed-operators'
+        , default = False
+        , action = 'store_true'
+        , help = (
+            'Choose an independent operator per gap/node instead of one '
+            'operator for the whole "ope" problem; flat expressions are '
+            'evaluated with standard operator precedence (* / before + -)'
+        )
+    )
     parser.add_argument('--use-parentheses'
         , default = False
         , action = 'store_true'
         , help = (
-            'Output "ope" problems as parenthesized 3-operand expressions '
-            '"(a op b) op c" or "a op (b op c)"; -o/--operator (including '
-            '"mix") and the parenthesized side are chosen per problem'
+            'Output "ope" problems as parenthesized N-term (N>=3) expressions '
+            'using a random binary expression tree; -o/--operator (including '
+            '"mix") is chosen per node (or once per problem without '
+            '--mixed-operators)'
         )
     )
     parser.add_argument('--missing-value'
@@ -370,7 +403,58 @@ def _init() -> argparse.Namespace:
         if args.use_parentheses:
             failure("--missing-value cannot be combined with --use-parentheses.")
 
+    if args.terms is not None:
+        # Overrides --terms-min/--terms-max unconditionally, mirroring how
+        # -a/--a-value overrides --a-min/--a-max above (not a rejected
+        # combination -- the exact-value form simply wins).
+        args.terms_min = args.terms_max = args.terms
+
+    terms_options_given = (
+        args.terms is not None or args.terms_min != TERM_COUNT_FLOOR_DEFAULT
+        or args.terms_max != TERM_COUNT_FLOOR_DEFAULT or args.mixed_operators
+    )
+    if terms_options_given and args.command != 'ope':
+        failure("--terms/--terms-min/--terms-max/--mixed-operators are only supported for the 'ope' command.")
+
+    if args.command == 'ope' and terms_options_given:
+        if args.terms_min > args.terms_max:
+            failure("--terms-min must be less than or equal to --terms-max.")
+        if args.vertical:
+            failure("--terms/--terms-min/--terms-max/--mixed-operators cannot be combined with --vertical.")
+        if args.intermediate:
+            failure("--terms/--terms-min/--terms-max/--mixed-operators cannot be combined with --intermediate.")
+        if args.missing_value:
+            failure("--terms/--terms-min/--terms-max/--mixed-operators cannot be combined with --missing-value.")
+
+    if args.command == 'ope':
+        args.terms_min, args.terms_max = resolve_term_range(
+            args.terms_min, args.terms_max, args.use_parentheses,
+        )
+
     return args
+
+
+def resolve_term_range(terms_min: int, terms_max: int, use_parentheses: bool) -> tuple[int, int]:
+    """
+    Clamp a requested (terms_min, terms_max) range to the applicable
+    floor/ceiling instead of rejecting it.
+
+    Deliberate, explicit exception to this file's dominant failure()/
+    exit(1) validation convention (see docs/L3_implementation/
+    nuts_calc_tex.py.md): a requested term count at or below the floor is
+    silently clamped up rather than rejected, since fewer than 2 terms is
+    meaningless for any "ope" expression and fewer than 3 is meaningless
+    for --use-parentheses (grouping only two terms). MAX_OPE_TERMS is a
+    practical ceiling to keep print layout and sub/div-chain retry odds
+    from degrading without bound. Assumes terms_min <= terms_max on input
+    (validated by the caller before clamping); clamping each bound
+    independently with the same floor/ceiling preserves that ordering.
+    """
+    floor = TERM_COUNT_FLOOR_PARENTHESES if use_parentheses else TERM_COUNT_FLOOR_DEFAULT
+    return (
+        min(max(terms_min, floor), MAX_OPE_TERMS),
+        min(max(terms_max, floor), MAX_OPE_TERMS),
+    )
 
 
 @dataclass
@@ -783,23 +867,62 @@ def build_ope_csv_rows(pages_problems: list[list[OpeProblem]]) -> list[list[obje
 
 
 @dataclass
-class ParenOpeProblem:
+class MultiTermOpeProblem:
     """
-    One `ope --use-parentheses` problem over three operands a, b, c with
-    op_left between a and b, op_right between b and c.
+    One flat (non-parenthesized) `ope` problem with 2+ terms, generalizing
+    OpeProblem. `len(operators) == len(operands) - 1`.
 
-    `position` records which pair is parenthesized (computed first):
-    'left' renders "(a op_left b) op_right c" (inner = a op_left b), while
-    'right' renders "a op_left (b op_right c)" (inner = b op_right c).
+    When `mixed` is False, every entry in `operators` is identical (today's
+    per-problem single-operator behavior generalized to N terms, evaluated
+    strictly left-to-right via evaluate_left_to_right). When `mixed` is
+    True, operators may differ per gap and the expression is evaluated with
+    standard operator precedence (* / before + -), not left-to-right -- see
+    evaluate_mixed_expression().
     """
     index: int
-    a: int
-    b: int
-    c: int
-    op_left: str
-    op_right: str
-    position: str
-    inner: int
+    operands: list[int]
+    operators: list[str]
+    mixed: bool
+    result: int
+
+
+@dataclass
+class ExprTreeNode:
+    """
+    One node of a binary expression tree used by `ope --use-parentheses`.
+
+    Leaves have `left = right = None` and hold an operand in `value`;
+    internal nodes have an `operator` and two children, with `value` filled
+    in as that subtree's evaluated result once evaluate_expr_tree() succeeds
+    for it.
+    """
+    value: int = 0
+    operator: str | None = None
+    left: 'ExprTreeNode | None' = None
+    right: 'ExprTreeNode | None' = None
+
+    @property
+    def is_leaf(self) -> bool:
+        return self.left is None
+
+
+@dataclass
+class TreeOpeProblem:
+    """
+    One `ope --use-parentheses` problem: a random binary expression tree
+    over N>=3 operands, rendered with parentheses around every internal
+    node except the root (see render_expr_tree). Generalizes the former
+    fixed-3-operand a/b/c/op_left/op_right/position shape -- N=3 is simply
+    the tree with 3 leaves, not a distinct code path.
+
+    `operands`/`operators` are flattened convenience views (leaves
+    left-to-right, internal-node operators pre-order, via flatten_tree) --
+    they do not by themselves encode the tree shape, only `tree` does.
+    """
+    index: int
+    operands: list[int]
+    operators: list[str]
+    tree: ExprTreeNode
     result: int
 
 
@@ -819,6 +942,11 @@ def paren_stage_div(x: int, y: int) -> int | None:
     return x // y if y != 0 and x % y == 0 else None
 
 
+# Shared per-step validity check (positive subtraction result, exact
+# division) reused by ope --use-parentheses's tree evaluation
+# (evaluate_expr_tree) and plain multi-term ope's chained/grouped
+# evaluation (evaluate_left_to_right) -- not parentheses-specific despite
+# the name, kept for backward compatibility with existing tests/CSV data.
 PAREN_STAGE_FUNCTIONS: dict[str, Callable[[int, int], int | None]] = {
     'add': paren_stage_add,
     'sub': paren_stage_sub,
@@ -827,102 +955,223 @@ PAREN_STAGE_FUNCTIONS: dict[str, Callable[[int, int], int | None]] = {
 }
 
 
-def generate_paren_ope_problems(
-        nums_a: list[int], nums_b: list[int], nums_c: list[int], operators: list[str],
-        order: int, start_index: int
-    ) -> list[ParenOpeProblem]:
+def build_tree_shape(leaf_count: int) -> ExprTreeNode:
     """
-    Generate `order` parenthesized 3-operand problems starting at `start_index`.
+    Build a random binary tree shape with `leaf_count` leaves (values/
+    operators left as placeholders; see assign_tree_operands/
+    assign_tree_operators).
 
-    For each problem, op_left, op_right (independently, same effective-set
-    expansion as generate_ope_problems's 'mix') and position ('left'/'right')
-    are each drawn once; operands are then retried (bounded by
-    MAX_OPERAND_RETRY_ATTEMPTS) until both stages are valid: the inner
-    stage's sub/div constraint (positive result / exact division), and then
-    the outer stage's same constraint. Unlike calc_sub/calc_div, there is no
-    deterministic fallback for this combined two-stage constraint -- an
-    exhausted retry budget raises ValueError.
+    Recursively picks a random split point in [1, leaf_count-1] and
+    partitions the leaves into a left subtree of that size and a right
+    subtree of the remainder. This is one standard, simple, correct way to
+    generate a random binary tree shape (not the only one -- e.g.
+    uniform-over-Catalan-shapes sampling is an alternative with a flatter
+    shape distribution). For leaf_count == 3, the only two possible splits
+    (1/2 and 2/1) exactly reproduce the two shapes the former fixed-3-term
+    implementation produced (position='right'/'left' respectively), each
+    equally likely.
+    """
+    if leaf_count == 1:
+        return ExprTreeNode()
+    split = random.randint(1, leaf_count - 1)
+    return ExprTreeNode(left=build_tree_shape(split), right=build_tree_shape(leaf_count - split))
+
+
+def collect_leaves(node: ExprTreeNode) -> list[ExprTreeNode]:
+    """Collect a tree's leaf nodes in left-to-right (in-order) order."""
+    if node.is_leaf:
+        return [node]
+    return collect_leaves(node.left) + collect_leaves(node.right)
+
+
+def assign_tree_operands(root: ExprTreeNode, nums_a: list[int], nums_b: list[int]) -> None:
+    """
+    Assign a value to each leaf of `root`, in place.
+
+    The leftmost leaf draws from `nums_a`; every other leaf draws from
+    `nums_b` -- generalizing --use-parentheses's former `nums_c = nums_b`
+    convention (the 3rd operand reusing the -b/--b-value range) to
+    arbitrary N (see docs/L3_implementation/nuts_calc_tex.py.md).
+    """
+    leaves = collect_leaves(root)
+    for index, leaf in enumerate(leaves):
+        leaf.value = random.choice(nums_a) if index == 0 else random.choice(nums_b)
+
+
+def assign_tree_operators(
+        node: ExprTreeNode, effective_operators: list[str], mixed: bool, shared_operator: str | None,
+    ) -> None:
+    """
+    Assign an operator to each internal node of `node`, in place.
+
+    One operator for the whole tree when `mixed` is False (`shared_operator`,
+    chosen once by the caller); an independently-drawn operator per internal
+    node when `mixed` is True.
+    """
+    if node.is_leaf:
+        return
+    node.operator = random.choice(effective_operators) if mixed else shared_operator
+    assign_tree_operators(node.left, effective_operators, mixed, shared_operator)
+    assign_tree_operators(node.right, effective_operators, mixed, shared_operator)
+
+
+def evaluate_expr_tree(node: ExprTreeNode) -> int | None:
+    """
+    Evaluate `node` bottom-up (post-order), reusing PAREN_STAGE_FUNCTIONS's
+    per-node validity check (positive subtraction, exact division).
+
+    Returns None as soon as any subtree is invalid, propagated up for the
+    caller to redraw and retry the whole tree (shape + operators +
+    operands) -- generalizing generate_paren_ope_problems's former
+    no-deterministic-fallback convention.
+    """
+    if node.is_leaf:
+        return node.value
+    left = evaluate_expr_tree(node.left)
+    if left is None:
+        return None
+    right = evaluate_expr_tree(node.right)
+    if right is None:
+        return None
+    result = PAREN_STAGE_FUNCTIONS[node.operator](left, right)
+    if result is not None:
+        node.value = result
+    return result
+
+
+def flatten_tree(node: ExprTreeNode) -> tuple[list[int], list[str]]:
+    """
+    Flatten a tree into (leaves left-to-right, internal-node operators
+    pre-order). Convenience-only view for TreeOpeProblem.operands/
+    operators; does not by itself encode the tree shape (`tree` does).
+    """
+    if node.is_leaf:
+        return [node.value], []
+    left_operands, left_operators = flatten_tree(node.left)
+    right_operands, right_operators = flatten_tree(node.right)
+    return left_operands + right_operands, [node.operator] + left_operators + right_operators
+
+
+def generate_tree_ope_problems(
+        nums_a: list[int], nums_b: list[int], operators: list[str], mixed: bool,
+        terms_min: int, terms_max: int, order: int, start_index: int,
+    ) -> list[TreeOpeProblem]:
+    """
+    Generate `order` parenthesized N-term problems starting at `start_index`,
+    each problem independently drawing its term count from
+    [terms_min, terms_max].
+
+    For each problem, the tree shape, every node's operator, and every
+    leaf's value are redrawn together on each retry (bounded by
+    MAX_OPERAND_RETRY_ATTEMPTS) until evaluate_expr_tree succeeds --
+    simpler than (and a behavior change from) the former
+    generate_paren_ope_problems, which fixed op_left/op_right/position once
+    and only redrew a/b/c. Like that function, there is no deterministic
+    fallback: an exhausted retry budget raises ValueError. Larger/deeper
+    trees have strictly more nodes that can each independently fail
+    validity, so the odds of exhausting the budget are worse than the
+    former fixed-3-term case.
     """
     effective_operators = MIX_OPERATORS if 'mix' in operators else operators
     problems = []
     for offset in range(order):
-        op_left = random.choice(effective_operators)
-        op_right = random.choice(effective_operators)
-        position = random.choice(PAREN_POSITIONS)
+        leaf_count = random.randint(terms_min, terms_max)
         for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
-            a = random.choice(nums_a)
-            b = random.choice(nums_b)
-            c = random.choice(nums_c)
-            if position == 'left':
-                inner = PAREN_STAGE_FUNCTIONS[op_left](a, b)
-                result = None if inner is None else PAREN_STAGE_FUNCTIONS[op_right](inner, c)
-            else:
-                inner = PAREN_STAGE_FUNCTIONS[op_right](b, c)
-                result = None if inner is None else PAREN_STAGE_FUNCTIONS[op_left](a, inner)
-            if inner is None or result is None:
-                continue
-            problems.append(ParenOpeProblem(
-                index=start_index + offset, a=a, b=b, c=c,
-                op_left=op_left, op_right=op_right, position=position,
-                inner=inner, result=result,
-            ))
-            break
+            shared_operator = None if mixed else random.choice(effective_operators)
+            tree = build_tree_shape(leaf_count)
+            assign_tree_operands(tree, nums_a, nums_b)
+            assign_tree_operators(tree, effective_operators, mixed, shared_operator)
+            result = evaluate_expr_tree(tree)
+            if result is not None:
+                operands, tree_operators = flatten_tree(tree)
+                problems.append(TreeOpeProblem(
+                    index=start_index + offset, operands=operands,
+                    operators=tree_operators, tree=tree, result=result,
+                ))
+                break
         else:
             raise ValueError(
-                f"No valid (a, b, c) triple found for op_left={op_left!r}, "
-                f"op_right={op_right!r}, position={position!r} within the given number ranges."
+                f"No valid {leaf_count}-term expression tree found within the given number ranges."
             )
     return problems
 
 
-def build_paren_ope_block_tex(problem: ParenOpeProblem, show_answer: bool) -> str:
+def render_expr_tree(node: ExprTreeNode, symbol_for_operator: Callable[[str], str], is_root: bool = True) -> str:
     """
-    Render one `ope --use-parentheses` problem: `n) $(a op b) op c = result$`
-    or `n) $a op (b op c) = result$`, depending on `problem.position`.
+    Recursively render `node`, wrapping every internal node except the root
+    in parentheses.
+
+    Reproduces the former fixed-3-term renderer exactly for N=3: for
+    position='left' (`(a op_left b) op_right c`), the tree is
+    root=op_right(internal(op_left, a, b), leaf c); rendering the left
+    child (not root) yields "(a op_left b)", giving
+    "(a op_left b) op_right c" overall. position='right' is symmetric.
     """
-    left_symbol = OPERATOR_TEX_SYMBOLS[problem.op_left]
-    right_symbol = OPERATOR_TEX_SYMBOLS[problem.op_right]
+    if node.is_leaf:
+        return str(node.value)
+    inner = (
+        f"{render_expr_tree(node.left, symbol_for_operator, False)} "
+        f"{symbol_for_operator(node.operator)} "
+        f"{render_expr_tree(node.right, symbol_for_operator, False)}"
+    )
+    return inner if is_root else f"({inner})"
+
+
+def build_tree_ope_expression_tex(tree: ExprTreeNode) -> str:
+    return render_expr_tree(tree, lambda operator: OPERATOR_TEX_SYMBOLS[operator])
+
+
+def build_tree_ope_structure_text(tree: ExprTreeNode) -> str:
+    """Render-agnostic structure string for CSV output, e.g. "(5 add 3) mul 2"."""
+    return render_expr_tree(tree, lambda operator: operator)
+
+
+def build_tree_ope_block_tex(problem: TreeOpeProblem, show_answer: bool) -> str:
+    """Render one `ope --use-parentheses` problem: `n) $<expression> = result$`."""
     result_tex = str(problem.result) if show_answer else BLANK_ANSWER_TEX
-    if problem.position == 'left':
-        expression = f"({problem.a} {left_symbol} {problem.b}) {right_symbol} {problem.c}"
-    else:
-        expression = f"{problem.a} {left_symbol} ({problem.b} {right_symbol} {problem.c})"
-    return f"{problem.index}) ${expression} = {result_tex}$"
+    return f"{problem.index}) ${build_tree_ope_expression_tex(problem.tree)} = {result_tex}$"
 
 
-def build_paren_ope_page_pair(problems: list[ParenOpeProblem], columns: int) -> tuple[Page, Page]:
+def build_tree_ope_page_pair(problems: list[TreeOpeProblem], columns: int) -> tuple[Page, Page]:
     """Build the (blank, filled) Page pair for one page's worth of parenthesized `ope` problems."""
     blank_page = Page(
-        blocks=[build_paren_ope_block_tex(problem, show_answer=False) for problem in problems],
+        blocks=[build_tree_ope_block_tex(problem, show_answer=False) for problem in problems],
         columns=columns, layout='inline',
     )
     filled_page = Page(
-        blocks=[build_paren_ope_block_tex(problem, show_answer=True) for problem in problems],
+        blocks=[build_tree_ope_block_tex(problem, show_answer=True) for problem in problems],
         columns=columns, layout='inline',
     )
     return blank_page, filled_page
 
 
-def build_paren_ope_bottom_answer_tex(problems: list[ParenOpeProblem]) -> str:
+def build_tree_ope_bottom_answer_tex(problems: list[TreeOpeProblem]) -> str:
     return ' \\quad '.join(f"({problem.index}) {problem.result}" for problem in problems)
 
 
-def build_paren_ope_csv_rows(pages_problems: list[list[ParenOpeProblem]]) -> list[list[object]]:
+def build_tree_ope_csv_rows(pages_problems: list[list[TreeOpeProblem]]) -> list[list[object]]:
+    """
+    One row per problem: [page_number, index, terms, structure, result].
+
+    `structure` is a single self-describing string (e.g. "(5 add 3) mul 2")
+    encoding nesting, values, and operators together, replacing the former
+    fixed 10-column [a, op_left, b, op_right, c, position, inner] shape
+    which cannot scale to a variable number of operands.
+    """
     rows: list[list[object]] = []
     for page_number, problems in enumerate(pages_problems, start=1):
         for problem in problems:
             rows.append([
-                page_number, problem.index, problem.a, problem.op_left, problem.b,
-                problem.op_right, problem.c, problem.position, problem.inner, problem.result,
+                page_number, problem.index, len(problem.operands),
+                build_tree_ope_structure_text(problem.tree), problem.result,
             ])
     return rows
 
 
-def build_paren_ope_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], list[list[ParenOpeProblem]]]:
+def build_tree_ope_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], list[list[TreeOpeProblem]]]:
     """Generate real `ope --use-parentheses` problems and their blank/filled Page pairs for every page."""
     nums_a = list(range(ini.a_min, ini.a_max + 1))
     nums_b = list(range(ini.b_min, ini.b_max + 1))
-    nums_c = nums_b
     order = ini.rows * ini.columns
 
     blank_pages = []
@@ -930,15 +1179,196 @@ def build_paren_ope_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Pag
     pages_problems = []
     for page_number in range(1, ini.page + 1):
         start_index = (page_number - 1) * order + 1
-        problems = generate_paren_ope_problems(nums_a, nums_b, nums_c, ini.operator, order, start_index)
-        blank_page, filled_page = build_paren_ope_page_pair(problems, ini.columns)
+        problems = generate_tree_ope_problems(
+            nums_a, nums_b, ini.operator, ini.mixed_operators,
+            ini.terms_min, ini.terms_max, order, start_index,
+        )
+        blank_page, filled_page = build_tree_ope_page_pair(problems, ini.columns)
         pages_problems.append(problems)
         blank_pages.append(blank_page)
         filled_pages.append(filled_page)
 
     if ini.with_bottom_answer:
         for problems, blank_page in zip(pages_problems, blank_pages):
-            blank_page.bottom_answer_tex = build_paren_ope_bottom_answer_tex(problems)
+            blank_page.bottom_answer_tex = build_tree_ope_bottom_answer_tex(problems)
+
+    return blank_pages, filled_pages, pages_problems
+
+
+def evaluate_left_to_right(operands: list[int], operators: list[str]) -> int | None:
+    """
+    Fold `operands`/`operators` strictly left-to-right, applying
+    PAREN_STAGE_FUNCTIONS's per-step validity check at every step (e.g. for
+    "a sub b sub c", both "a - b" and "(a - b) - c" must independently stay
+    positive, not just the final result) -- generalizes calc_sub/calc_div's
+    single-step check to an arbitrary-length chain. Returns None as soon as
+    any step is invalid.
+    """
+    accumulator = operands[0]
+    for operand, operator in zip(operands[1:], operators):
+        accumulator = PAREN_STAGE_FUNCTIONS[operator](accumulator, operand)
+        if accumulator is None:
+            return None
+    return accumulator
+
+
+def split_into_precedence_groups(
+        operands: list[int], operators: list[str],
+    ) -> tuple[list[list[int]], list[list[str]], list[str]]:
+    """
+    Split a flat operand/operator sequence into standard-precedence groups:
+    consecutive 'mul'/'div' operators extend the current group, 'add'/'sub'
+    operators start a new group and are collected as connecting operators
+    between groups. Returns (groups, per-group operators, connecting
+    operators) for evaluate_mixed_expression to fold in two passes.
+    """
+    groups: list[list[int]] = [[operands[0]]]
+    group_operators: list[list[str]] = [[]]
+    connecting_operators: list[str] = []
+    for operand, operator in zip(operands[1:], operators):
+        if operator in ('mul', 'div'):
+            groups[-1].append(operand)
+            group_operators[-1].append(operator)
+        else:
+            connecting_operators.append(operator)
+            groups.append([operand])
+            group_operators.append([])
+    return groups, group_operators, connecting_operators
+
+
+def evaluate_mixed_expression(operands: list[int], operators: list[str]) -> int | None:
+    """
+    Evaluate a flat expression with standard operator precedence (* / bind
+    tighter than + -, left-to-right within the same tier), without building
+    an explicit tree: group consecutive mul/div operators via
+    split_into_precedence_groups, evaluate each group with
+    evaluate_left_to_right, then fold the group results together with
+    evaluate_left_to_right again. Returns None if any group or the final
+    fold is invalid.
+    """
+    groups, group_operators, connecting_operators = split_into_precedence_groups(operands, operators)
+    group_results = []
+    for group_operands, operators_in_group in zip(groups, group_operators):
+        group_result = evaluate_left_to_right(group_operands, operators_in_group)
+        if group_result is None:
+            return None
+        group_results.append(group_result)
+    return evaluate_left_to_right(group_results, connecting_operators)
+
+
+def generate_multi_term_ope_problems(
+        nums_a: list[int], nums_b: list[int], operators: list[str], mixed: bool,
+        terms_min: int, terms_max: int, order: int, start_index: int,
+    ) -> list[MultiTermOpeProblem]:
+    """
+    Generate `order` flat (non-parenthesized) N-term problems starting at
+    `start_index`, each problem independently drawing its term count from
+    [terms_min, terms_max].
+
+    When `mixed` is False, one operator is chosen per problem and applied
+    to every gap (evaluated via evaluate_left_to_right); when True, each gap
+    gets an independently chosen operator (evaluated via
+    evaluate_mixed_expression, standard precedence). All operands and
+    operators are redrawn together on each retry (bounded by
+    MAX_OPERAND_RETRY_ATTEMPTS); an exhausted budget raises ValueError, with
+    no deterministic fallback (same convention as generate_tree_ope_problems).
+    """
+    effective_operators = MIX_OPERATORS if 'mix' in operators else operators
+    problems = []
+    for offset in range(order):
+        term_count = random.randint(terms_min, terms_max)
+        gap_count = term_count - 1
+        for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
+            operands = [random.choice(nums_a)] + [random.choice(nums_b) for _ in range(gap_count)]
+            if mixed:
+                problem_operators = [random.choice(effective_operators) for _ in range(gap_count)]
+                result = evaluate_mixed_expression(operands, problem_operators)
+            else:
+                shared_operator = random.choice(effective_operators)
+                problem_operators = [shared_operator] * gap_count
+                result = evaluate_left_to_right(operands, problem_operators)
+            if result is not None:
+                problems.append(MultiTermOpeProblem(
+                    index=start_index + offset, operands=operands,
+                    operators=problem_operators, mixed=mixed, result=result,
+                ))
+                break
+        else:
+            raise ValueError(
+                f"No valid {term_count}-term expression found within the given number ranges (mixed={mixed})."
+            )
+    return problems
+
+
+def build_multi_term_ope_expression_text(problem: MultiTermOpeProblem) -> str:
+    """Render-agnostic expression string for CSV output, e.g. "5 sub 3 mul 2"."""
+    parts = [str(problem.operands[0])]
+    for operand, operator in zip(problem.operands[1:], problem.operators):
+        parts += [operator, str(operand)]
+    return ' '.join(parts)
+
+
+def build_multi_term_ope_block_tex(problem: MultiTermOpeProblem, show_answer: bool) -> str:
+    """Render one flat multi-term `ope` problem: `n) $a op1 b op2 c ... = result$` (no parentheses)."""
+    parts = [str(problem.operands[0])]
+    for operand, operator in zip(problem.operands[1:], problem.operators):
+        parts += [OPERATOR_TEX_SYMBOLS[operator], str(operand)]
+    result_tex = str(problem.result) if show_answer else BLANK_ANSWER_TEX
+    return f"{problem.index}) ${' '.join(parts)} = {result_tex}$"
+
+
+def build_multi_term_ope_page_pair(problems: list[MultiTermOpeProblem], columns: int) -> tuple[Page, Page]:
+    """Build the (blank, filled) Page pair for one page's worth of flat multi-term `ope` problems."""
+    blank_page = Page(
+        blocks=[build_multi_term_ope_block_tex(problem, show_answer=False) for problem in problems],
+        columns=columns, layout='inline',
+    )
+    filled_page = Page(
+        blocks=[build_multi_term_ope_block_tex(problem, show_answer=True) for problem in problems],
+        columns=columns, layout='inline',
+    )
+    return blank_page, filled_page
+
+
+def build_multi_term_ope_bottom_answer_tex(problems: list[MultiTermOpeProblem]) -> str:
+    return ' \\quad '.join(f"({problem.index}) {problem.result}" for problem in problems)
+
+
+def build_multi_term_ope_csv_rows(pages_problems: list[list[MultiTermOpeProblem]]) -> list[list[object]]:
+    """One row per problem: [page_number, index, terms, mixed, expression, result]."""
+    rows: list[list[object]] = []
+    for page_number, problems in enumerate(pages_problems, start=1):
+        for problem in problems:
+            rows.append([
+                page_number, problem.index, len(problem.operands), problem.mixed,
+                build_multi_term_ope_expression_text(problem), problem.result,
+            ])
+    return rows
+
+
+def build_multi_term_ope_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], list[list[MultiTermOpeProblem]]]:
+    """Generate real flat multi-term `ope` problems and their blank/filled Page pairs for every page."""
+    nums_a = list(range(ini.a_min, ini.a_max + 1))
+    nums_b = list(range(ini.b_min, ini.b_max + 1))
+    order = ini.rows * ini.columns
+
+    blank_pages = []
+    filled_pages = []
+    pages_problems = []
+    for page_number in range(1, ini.page + 1):
+        start_index = (page_number - 1) * order + 1
+        problems = generate_multi_term_ope_problems(
+            nums_a, nums_b, ini.operator, ini.mixed_operators,
+            ini.terms_min, ini.terms_max, order, start_index,
+        )
+        blank_page, filled_page = build_multi_term_ope_page_pair(problems, ini.columns)
+        pages_problems.append(problems)
+        blank_pages.append(blank_page)
+        filled_pages.append(filled_page)
+
+    if ini.with_bottom_answer:
+        for problems, blank_page in zip(pages_problems, blank_pages):
+            blank_page.bottom_answer_tex = build_multi_term_ope_bottom_answer_tex(problems)
 
     return blank_pages, filled_pages, pages_problems
 
@@ -1532,25 +1962,43 @@ def build_squ_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], li
     return blank_pages, filled_pages, pages_problems
 
 
+def _ope_uses_multi_term(ini: argparse.Namespace) -> bool:
+    """Whether `ope` should use the flat multi-term path (any term-count/mixed-operator option given)."""
+    return (
+        ini.terms_min != TERM_COUNT_FLOOR_DEFAULT
+        or ini.terms_max != TERM_COUNT_FLOOR_DEFAULT
+        or ini.mixed_operators
+    )
+
+
 def build_ope_pages(
         ini: argparse.Namespace
     ) -> tuple[
         list[Page], list[Page],
-        list[list[OpeProblem]] | list[list[ParenOpeProblem]] | list[list[MissingValueProblem]],
+        list[list[OpeProblem]] | list[list[TreeOpeProblem]]
+        | list[list[MultiTermOpeProblem]] | list[list[MissingValueProblem]],
     ]:
     """
     Generate real `ope` problems and their blank/filled Page pairs for every page.
 
-    Delegates to build_paren_ope_pages() when --use-parentheses is set, and
-    to build_missing_value_pages() when --missing-value is set, since both
-    modes use a distinct problem shape and generation/rendering path from
-    plain `ope` (and are mutually exclusive, enforced in _init()).
+    Delegates to build_tree_ope_pages() when --use-parentheses is set, to
+    build_missing_value_pages() when --missing-value is set, and to
+    build_multi_term_ope_pages() when any term-count/--mixed-operators
+    option is given, since each mode uses a distinct problem shape and
+    generation/rendering path from plain 2-term `ope` (and are mutually
+    exclusive, enforced in _init()). --use-parentheses always implies
+    terms_min/terms_max >= 3 (floor-clamped in _init()), so the legacy
+    2-term path below is reached only when no new option is given at all --
+    a default `ope` invocation runs through this exact unmodified code.
     """
     if ini.use_parentheses:
-        return build_paren_ope_pages(ini)
+        return build_tree_ope_pages(ini)
 
     if ini.missing_value:
         return build_missing_value_pages(ini)
+
+    if _ope_uses_multi_term(ini):
+        return build_multi_term_ope_pages(ini)
 
     nums_a = list(range(ini.a_min, ini.a_max + 1))
     nums_b = list(range(ini.b_min, ini.b_max + 1))
@@ -1844,7 +2292,8 @@ def main(ini: argparse.Namespace) -> None:
         )
 
     ope_pages_problems: list[list[OpeProblem]] | None = None
-    paren_ope_pages_problems: list[list[ParenOpeProblem]] | None = None
+    tree_ope_pages_problems: list[list[TreeOpeProblem]] | None = None
+    multi_term_ope_pages_problems: list[list[MultiTermOpeProblem]] | None = None
     missing_value_pages_problems: list[list[MissingValueProblem]] | None = None
     com_pages_problems: list[list[ComProblem]] | None = None
     hundred_square_pages_tables: list[HundredSquareTable] | None = None
@@ -1854,9 +2303,11 @@ def main(ini: argparse.Namespace) -> None:
     pi_pages_problems: list[list[PiProblem]] | None = None
     fraction_pages_problems: list[list[FractionProblem]] | None = None
     if ini.command == 'ope' and ini.use_parentheses:
-        blank_pages, filled_pages, paren_ope_pages_problems = build_ope_pages(ini)
+        blank_pages, filled_pages, tree_ope_pages_problems = build_ope_pages(ini)
     elif ini.command == 'ope' and ini.missing_value:
         blank_pages, filled_pages, missing_value_pages_problems = build_ope_pages(ini)
+    elif ini.command == 'ope' and _ope_uses_multi_term(ini):
+        blank_pages, filled_pages, multi_term_ope_pages_problems = build_ope_pages(ini)
     elif ini.command == 'ope':
         blank_pages, filled_pages, ope_pages_problems = build_ope_pages(ini)
     elif ini.command == 'com':
@@ -1888,8 +2339,10 @@ def main(ini: argparse.Namespace) -> None:
     if ini.csv:
         if ope_pages_problems is not None:
             rows = build_ope_csv_rows(ope_pages_problems)
-        elif paren_ope_pages_problems is not None:
-            rows = build_paren_ope_csv_rows(paren_ope_pages_problems)
+        elif tree_ope_pages_problems is not None:
+            rows = build_tree_ope_csv_rows(tree_ope_pages_problems)
+        elif multi_term_ope_pages_problems is not None:
+            rows = build_multi_term_ope_csv_rows(multi_term_ope_pages_problems)
         elif missing_value_pages_problems is not None:
             rows = build_missing_value_csv_rows(missing_value_pages_problems)
         elif com_pages_problems is not None:

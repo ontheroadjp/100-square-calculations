@@ -28,6 +28,7 @@ from nuts_calc_tex import (
     build_page_tex,
     build_preamble_tex,
     build_tabular_grid_tex,
+    evaluate_mixed_expression,
 )
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -354,15 +355,158 @@ def test_cli_ope_use_parentheses_csv_rows_contain_real_problem_data(run_tex_cli,
     )
     assert result.returncode == 0, result.stderr
 
-    stage_fn = {"sub": lambda x, y: x - y, "mul": lambda x, y: x * y}
+    csv_path = tmp_path / "result.csv"
+    lines = csv_path.read_text().strip().splitlines()
+    assert len(lines) == 4
+    for line in lines:
+        page_number, index, terms, structure, result_value = line.split(",")
+        assert terms == "3"
+        # N=3 has exactly one non-root internal node, so exactly one
+        # parenthesized group appears in the self-describing structure text.
+        assert structure.count("(") == 1
+        assert structure.count(")") == 1
+        assert result_value.lstrip("-").isdigit()
+    page_number, index, terms, structure, result_value = lines[0].split(",")
+    assert (page_number, index) == ("1", "1")
+
+
+def test_cli_ope_use_parentheses_terms_five_produces_deeper_trees(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "mul", "--use-parentheses", "--terms", "5",
+        "--a-value", "1", "--b-value", "1",
+        "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
 
     csv_path = tmp_path / "result.csv"
     lines = csv_path.read_text().strip().splitlines()
     assert len(lines) == 4
-    page_number, index, a, op_left, b, op_right, c, position, inner, res = lines[0].split(",")
-    assert (page_number, index) == ("1", "1")
-    assert op_left in stage_fn
-    assert op_right in stage_fn
+    for line in lines:
+        page_number, index, terms, structure, result_value = line.split(",")
+        assert terms == "5"
+        # N=5 has 4 internal nodes, 3 of which are non-root (parenthesized).
+        assert structure.count("(") == 3
+
+
+def test_cli_ope_terms_produces_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "--terms", "4",
+        "-r", "2", "-c", "2", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+def test_cli_ope_terms_min_max_produces_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "--terms-min", "3", "--terms-max", "6",
+        "-r", "2", "-c", "2", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
+def test_cli_ope_mixed_operators_produces_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "mul", "--terms", "4", "--mixed-operators",
+        "-r", "2", "-c", "2", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
+def test_cli_ope_mixed_operators_with_use_parentheses_produces_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "mul", "--terms", "5", "--use-parentheses", "--mixed-operators",
+        "--a-value", "1", "--b-value", "1",
+        "-r", "2", "-c", "2", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
+def test_cli_ope_terms_below_floor_clamps_instead_of_failing(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "--terms", "1",
+        "-r", "2", "-c", "2", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
+def test_cli_ope_terms_below_floor_with_use_parentheses_clamps_to_three(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "--terms", "2", "--use-parentheses",
+        "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+
+    csv_path = tmp_path / "result.csv"
+    lines = csv_path.read_text().strip().splitlines()
+    for line in lines:
+        _page_number, _index, terms, _structure, _result_value = line.split(",")
+        assert terms == "3"
+
+
+def test_cli_ope_terms_min_greater_than_max_rejected(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "--terms-min", "6", "--terms-max", "3", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_terms_rejects_vertical_combo(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "--terms", "4", "--vertical", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_terms_rejects_intermediate_combo(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "mul", "--intermediate", "--terms", "4", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_terms_rejects_missing_value_combo(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "--missing-value", "--terms", "4", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_terms_rejects_non_ope_command(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "99", "-a", "2", "--terms", "4", "--out-file", "result.pdf")
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_multi_term_csv_rows_contain_real_problem_data(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "mul", "--terms", "4", "--mixed-operators",
+        "--a-value", "1", "--b-value", "1",
+        "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+
+    csv_path = tmp_path / "result.csv"
+    lines = csv_path.read_text().strip().splitlines()
+    assert len(lines) == 4
+    for line in lines:
+        page_number, index, terms, mixed, expression, result_value = line.split(",")
+        assert terms == "4"
+        assert mixed == "True"
+        tokens = expression.split(" ")
+        operands = [int(token) for token in tokens[0::2]]
+        operators = tokens[1::2]
+        assert evaluate_mixed_expression(operands, operators) == int(result_value)
 
 
 def test_cli_ope_missing_value_produces_pdfs(run_tex_cli, tmp_path):
