@@ -25,6 +25,10 @@ class RendererRequest(TypedDict, total=False):
     vertical: bool
     use_parentheses: bool
     missing_value: bool
+    terms: int
+    terms_min: int
+    terms_max: int
+    mixed_operators: bool
     same_denominator: bool
     different_denominators: bool
     proper_operands: bool
@@ -70,17 +74,20 @@ def build_command(renderer_name: str, params: RendererRequest, out_file: str) ->
     Translate a request's params into CLI arguments for the given renderer.
 
     nuts_calc.py and nuts_calc_tex.py share the same CLI argument surface
-    (paper_size/command/-a/-b/--rows/--descend/etc.) with three exceptions:
+    (paper_size/command/-a/-b/--rows/--descend/etc.) with four exceptions:
     `--vertical` (written-calculation / hissan format, issue #46),
     `--use-parentheses` (parenthesized "(a op1 b) op2 c" expressions, issue
-    #67), and `--missing-value` (missing-number "a op b = c" expressions with
-    one operand boxed out, issue #69) are latex-only -- nuts_calc.py does not
-    accept any of them. This command-building logic still translates
-    `params["vertical"]`/`params["use_parentheses"]`/`params["missing_value"]`
-    unconditionally for both renderers; callers must only set them when the
-    active renderer is `latex` (see `GET /renderer-info`), otherwise
-    nuts_calc.py will reject the resulting CLI invocation as an unrecognized
-    argument.
+    #67), `--missing-value` (missing-number "a op b = c" expressions with
+    one operand boxed out, issue #69), and `--terms`/`--terms-min`/
+    `--terms-max`/`--mixed-operators` (N-term expressions with optional
+    per-gap operator mixing, issue #71) are latex-only -- nuts_calc.py does
+    not accept any of them. This command-building logic still translates
+    `params["vertical"]`/`params["use_parentheses"]`/`params["missing_value"]`/
+    `params["terms"]`/`params["terms_min"]`/`params["terms_max"]`/
+    `params["mixed_operators"]` unconditionally for both renderers; callers
+    must only set them when the active renderer is `latex` (see `GET
+    /renderer-info`), otherwise nuts_calc.py will reject the resulting CLI
+    invocation as an unrecognized argument.
     """
     script_path = RENDERER_SCRIPTS[renderer_name]
     command = [sys.executable, str(script_path)]
@@ -125,6 +132,14 @@ def build_command(renderer_name: str, params: RendererRequest, out_file: str) ->
         command.append("--use-parentheses")
     if params.get("missing_value"):
         command.append("--missing-value")
+    if "terms" in params:
+        command.extend(["--terms", str(params["terms"])])
+    if "terms_min" in params:
+        command.extend(["--terms-min", str(params["terms_min"])])
+    if "terms_max" in params:
+        command.extend(["--terms-max", str(params["terms_max"])])
+    if params.get("mixed_operators"):
+        command.append("--mixed-operators")
     if params.get("same_denominator"):
         command.append("--same-denominator")
     if params.get("different_denominators"):

@@ -158,3 +158,38 @@ def test_build_command_omits_missing_value_when_false() -> None:
     }
     command = renderers.build_command("latex", params, "out.pdf")
     assert "--missing-value" not in command
+
+
+def test_build_command_translates_terms_params() -> None:
+    params = {
+        "paper_size": "A4",
+        "command_type": "ope",
+        "operator": ["mix"],
+        "terms": 4,
+        "mixed_operators": True,
+    }
+    command = renderers.build_command("latex", params, "out.pdf")
+    assert command[command.index("--terms") + 1] == "4"
+    assert "--mixed-operators" in command
+
+
+def test_build_command_translates_terms_min_max() -> None:
+    params = {
+        "paper_size": "A4",
+        "command_type": "ope",
+        "terms_min": 3,
+        "terms_max": 5,
+    }
+    command = renderers.build_command("latex", params, "out.pdf")
+    assert command[command.index("--terms-min") + 1] == "3"
+    assert command[command.index("--terms-max") + 1] == "5"
+
+
+def test_build_command_omits_mixed_operators_when_false() -> None:
+    params = {
+        "paper_size": "A4",
+        "command_type": "ope",
+        "mixed_operators": False,
+    }
+    command = renderers.build_command("latex", params, "out.pdf")
+    assert "--mixed-operators" not in command

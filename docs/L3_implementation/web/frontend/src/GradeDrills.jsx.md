@@ -2,7 +2,7 @@
 
 ## 目的・役割
 
-サイトのメイン画面。学年(1〜6年生)+「無学年」+「カスタム」をリンク風ボタンのナビゲーションとして表示する。学年(または無学年)選択時は、通常形式のプリセット一覧グリッドと、その下部にインライン表示される「筆算」セクション(その学年に `written` プリセットがある場合のみ)を表示する。いずれかのプリセットの「PDFを生成」を押すと、同じ画面内で詳細ページ(プレビュー+設定+ダウンロード)に切り替わる。「カスタム」選択時は `CustomGenerator` をそのまま表示する。
+サイトのメイン画面。学年(1〜6年生)+「無学年」+「カスタム」をリンク風ボタンのナビゲーションとして表示する。学年(または無学年)選択時は、通常形式のプリセット一覧グリッドと、その下部にインライン表示される「筆算」セクション(その学年に `written` プリセットがある場合のみ)、さらにその下の「中学受験」セクション(学年4〜6のみ、issue #73)を表示する。いずれかのプリセットの「PDFを生成」を押すと、同じ画面内で詳細ページ(プレビュー+設定+ダウンロード)に切り替わる。「カスタム」選択時は `CustomGenerator` をそのまま表示する。
 
 ## 動作の概要
 
@@ -11,6 +11,7 @@
 - **LaTeX専用プリセット(issue #65)**: `normalPresets` は `preset.latexOnly` が真のカードを `activeRenderer === 'latex'` の場合だけ残す。これにより `nuts_calc_tex.py` 固有の `frac` カードがReportLab環境で表示・送信されることを防ぐ。レンダラー取得失敗時も `reportlab` に戻る安全側の挙動である(`web/frontend/src/GradeDrills.jsx:201-239,264-268`)。
 - `NAV_GRADES`: `[...GRADES, UNGRADED]`。学年ナビの「カスタム」ボタン手前に並べる項目(数値学年1〜6 → 無学年)。`presetsByGrade` のキー(`drillPresets.js`)がすべて `{ normal, written }` の同一構造を持つため、`UNGRADED` も数値学年と全く同じ描画ロジックで扱える。
 - 筆算(`written`)は独立したタブではなく、通常グリッドの直後に `<section className="written-section">` として常時インライン表示する。`writtenPresets` は `!isCustom && supportsWritten` の場合のみ `presetsByGrade[selectedGrade].written` を参照し、それ以外(`isCustom`、または `supportsWritten` が `false`)は空配列にする(issue #46)。`presetsByGrade[selectedGrade].written` が空配列の学年(現状は1年生のみ)ではいずれにせよセクション自体を描画しない。以前は「通常形式/筆算形式」タブ切り替えだったが、筆算を隠さず常に見える位置に置きたいという要望により変更した。
+- **中学受験(`examPrep`、issue #73)**: 筆算セクションの直後に `<section className="exam-prep-section">` として学年4〜6のみ表示する。`examPrepPresets` は `writtenPresets` と全く同じゲート(`!isCustom && supportsWritten`)で `presetsByGrade[selectedGrade].examPrep` を参照する。`drillPresets.js` の27カード全てが `latexOnly: true` のため、このゲートは実質的に `normalPresets` のようなプリセットごとの `latexOnly` フィルタと等価であり、追加のフィルタ処理は行っていない。学年1〜3・`UNGRADED`・カスタムでは `presetsByGrade[selectedGrade].examPrep` が空配列(または未参照)のためセクション自体が描画されない。
 - `PresetCard`(グリッド側): タイトル・説明・「PDFを生成」ボタンのみを持つ。クリックで親の `openPreset` にそのプリセットをセットする。通常セクション・筆算セクションのどちらでも同じコンポーネントを再利用する。
 - `PresetDetail`(詳細ページ側): プリセットごとの生成設定(用紙サイズ・ページ数・問題数、`numberInput` を持つプリセットは段/開始する数も)・生成状態(`status`/`pdfUrl`/`error`)を保持する。マウント時に `useEffect` で1回 `generatePdf()` を実行し、詳細ページを開いた瞬間にプレビューを表示する。`written`(筆算)プリセットは `verticalLayout.js` の用紙別行数と2列を送るため、通常の問題密度セレクタは表示しない。通常プリセットだけが固定の問題密度(5×2 / 10×2 / 10×4)を使う。`writtenPresets` が `supportsWritten` でガードされているため、`PresetDetail` に到達する `written` プリセットは常に `latex` レンダラーが有効な状態になる。
 - `<CustomGenerator supportsVertical={supportsWritten} />`: カスタム画面にも同じ `supportsWritten` 値をそのまま渡し、筆算チェックボックスの表示可否を揃える([[CustomGenerator.jsx]] 参照)。
@@ -32,15 +33,16 @@
 ## 統合ポイント
 
 - 呼び出し元: `App.jsx`
-- 呼び出し先: `drillPresets.js`(`GRADES`/`UNGRADED`/`CUSTOM_GRADE`/`presetsByGrade`)、`CustomGenerator.jsx`(カスタム選択時、`supportsVertical` prop を渡す)、`GET http://127.0.0.1:5000/renderer-info`(マウント時、issue #46)、`POST http://127.0.0.1:5000/generate-pdf`(`web/backend/app.py`、実際のレンダラーは `web/backend/renderers.py` が `NUTS_CALC_RENDERER` で `nuts_calc.py`/`nuts_calc_tex.py` を切り替える)
+- 呼び出し先: `drillPresets.js`(`GRADES`/`UNGRADED`/`CUSTOM_GRADE`/`presetsByGrade`、`presetsByGrade[grade].examPrep` を含む)、`CustomGenerator.jsx`(カスタム選択時、`supportsVertical` prop を渡す)、`GET http://127.0.0.1:5000/renderer-info`(マウント時、issue #46)、`POST http://127.0.0.1:5000/generate-pdf`(`web/backend/app.py`、実際のレンダラーは `web/backend/renderers.py` が `NUTS_CALC_RENDERER` で `nuts_calc.py`/`nuts_calc_tex.py` を切り替える)
 
 ## 注意事項・既知の制限
 
 - backend の URL はハードコード(`CustomGenerator.jsx` と同様、既存の制約を踏襲。`/renderer-info` も同じホストにハードコード)。
 - ダウンロード後に `URL.revokeObjectURL` は呼んでいない(`CustomGenerator.jsx` の既存挙動に合わせた)。SPA として長時間・多数のプリセットを生成し続けるとメモリ上に objectURL が残り続けるが、通常の利用では実用上問題にならない。
 - 「問題数」(少なめ/標準/多め)は `nuts_calc.py`/`nuts_calc_tex.py` の `rows`/`columns` にマッピングされる固定値(5×2 / 10×2 / 10×4)。100マス計算プリセット(`command_type === '100'`)は `rows`/`columns` を使わない固定10×10グリッドのため、`PresetDetail` はこのプリセットに限り問題数セレクタを表示しない。
-- モバイルファーストのCSSは `web/frontend/src/App.css` の `.grade-nav`/`.preset-card-grid`/`.written-section`/`.preset-detail-*` などのセクションに実装している。
+- モバイルファーストのCSSは `web/frontend/src/App.css` の `.grade-nav`/`.preset-card-grid`/`.written-section`/`.exam-prep-section`/`.preset-detail-*` などのセクションに実装している。
 - `written` の内容・件数は学年によって異なる(`drillPresets.js.md` 参照)。1年生は0件(セクション非表示)。加えて issue #46 以降は `supportsWritten`(バックエンドが `latex` レンダラーの場合のみ `true`)が `false` の間、`written` を持つ学年でもセクションごと非表示になる。
+- `examPrep` は学年4〜6のみ9件(`drillPresets.js.md` 参照)。`written` と同じく `supportsWritten` が `false` の間はセクションごと非表示になる。
 
 ## 変更履歴(git log より自動生成)
 

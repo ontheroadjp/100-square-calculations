@@ -386,6 +386,25 @@ body {
   margin: 0 0 16px;
 }
 
+.exam-prep-section {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.exam-prep-section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #333;
+  margin: 0 0 8px;
+}
+
+.exam-prep-section-desc {
+  font-size: 0.9rem;
+  color: #555;
+  margin: 0 0 16px;
+}
+
 .preset-card-grid {
   display: grid;
   grid-template-columns: 1fr;

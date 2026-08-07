@@ -237,6 +237,10 @@ function GradeDrills() {
       (preset) => !preset.latexOnly || activeRenderer === 'latex',
     )
     : [];
+  // All examPrep presets are latexOnly (issue #71's --terms/--mixed-operators
+  // are latex-only), so gating on supportsWritten (== latex renderer active)
+  // is equivalent to per-preset filtering and needs no extra filter step.
+  const examPrepPresets = !isCustom && supportsWritten ? presetsByGrade[selectedGrade].examPrep : [];
 
   return (
     <div className="grade-drills">
@@ -278,6 +282,18 @@ function GradeDrills() {
               <h3 className="written-section-title">{t('written_section_title')}</h3>
               <div className="preset-card-grid">
                 {writtenPresets.map((preset) => (
+                  <PresetCard key={preset.id} preset={preset} onOpen={setOpenPreset} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {examPrepPresets.length > 0 && (
+            <section className="exam-prep-section">
+              <h3 className="exam-prep-section-title">{t('examprep_section_title')}</h3>
+              <p className="exam-prep-section-desc">{t('examprep_section_desc')}</p>
+              <div className="preset-card-grid">
+                {examPrepPresets.map((preset) => (
                   <PresetCard key={preset.id} preset={preset} onOpen={setOpenPreset} />
                 ))}
               </div>
