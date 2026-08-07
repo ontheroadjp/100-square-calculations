@@ -46,6 +46,7 @@
 
 ## 変更履歴(git log より自動生成)
 
+- 7290008 feat(#73): add entrance-exam-prep drill section for grades 4-6
 - fd449c7 fix(#57): apply vertical layout in web UI
 - 9ead364 refactor(#46): remove --vertical from nuts_calc.py; gate written-calculation UI on active renderer
 - 5211d63 feat(#44): rework grade-based drill menu per curriculum, inline written-calculation section, add Ungraded category

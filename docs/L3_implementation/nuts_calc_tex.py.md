@@ -192,7 +192,7 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 
 ### 数値レンジと演算子/構造の組み合わせによる `ValueError` リスクを軽減する設計
 
-`generate_tree_ope_problems`(旧 `generate_paren_ope_problems`)はランダムな木構造・演算子の組み合わせに対してオペランドを再抽選するだけで、`calc_sub`/`calc_div` のような決定的フォールバックは持たない。実装時のシミュレーション(`a`/`b`/`c` を全て2桁(10〜99)にした場合)で、例えば `position='right'`, `op_right='mul'`, `op_left='sub'`(`a - (b × c)`)のような組み合わせは `b × c` が `a` の取りうる最大値を大きく超えるため、1000回の再抽選内で正の結果が一度も得られず確実に失敗することを確認した(旧3項固定実装での検証結果)。この失敗を避けるため、Web プリセット(`drillPresets.js` の `g4/g5/g6-parentheses*`)は `a` の桁数だけを学年で増やし(1桁→2桁→3桁)、`b`/`c` は常に1桁のレンジに留める設計にしている。この組み合わせは全32通り(演算子4×4×位置2)がシミュレーション上安定して解を持つことを確認済み。issue #71 のN項一般化では、木のノード数がN-1個に増えるほど各ノードが独立に無効化しうる箇所も増えるため、**同じ桁数レンジでも項数が増えるほど `ValueError` のリスクは旧3項固定実装より悪化する**(既知の制限、後述)。現状、この一般化に伴うWebプリセット側の桁数レンジ再検証は行っていない(Web層はissue #71のスコープ外、別issueで対応予定)。
+`generate_tree_ope_problems`(旧 `generate_paren_ope_problems`)はランダムな木構造・演算子の組み合わせに対してオペランドを再抽選するだけで、`calc_sub`/`calc_div` のような決定的フォールバックは持たない。実装時のシミュレーション(`a`/`b`/`c` を全て2桁(10〜99)にした場合)で、例えば `position='right'`, `op_right='mul'`, `op_left='sub'`(`a - (b × c)`)のような組み合わせは `b × c` が `a` の取りうる最大値を大きく超えるため、1000回の再抽選内で正の結果が一度も得られず確実に失敗することを確認した(旧3項固定実装での検証結果)。この失敗を避けるため、Web プリセット(`drillPresets.js` の `g4/g5/g6-parentheses*`)は `a` の桁数だけを学年で増やし(1桁→2桁→3桁)、`b`/`c` は常に1桁のレンジに留める設計にしている。この組み合わせは全32通り(演算子4×4×位置2)がシミュレーション上安定して解を持つことを確認済み。issue #71 のN項一般化では、木のノード数がN-1個に増えるほど各ノードが独立に無効化しうる箇所も増えるため、**同じ桁数レンジでも項数が増えるほど `ValueError` のリスクは旧3項固定実装より悪化する**(既知の制限、後述)。issue #73 でWeb層(`drillPresets.js` の `examPrep` プリセット、27通り)を配線する際にこのリスクを再検証しており、`a`(最初の項)だけ学年で桁数を上げ(1桁→2桁→3桁)、残りの全項は1桁に留める設計(既存の `g4/g5/g6-parentheses*` と同じ規約)を項数5・かっこ+演算子混合まで拡張した上で、600〜4000問のシミュレーションで失敗ゼロを確認済み(`tests/test_nuts_calc_tex_exam_prep_presets.py`)。
 
 ### `--missing-value` の blank 候補から答え `c` を除外する理由(issue #69)
 
@@ -221,7 +221,7 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 - **`ope --terms`/`--terms-min`/`--terms-max`/`--mixed-operators` の項数floor/上限は `failure()`/`exit(1)` ではなくクランプする**(issue #71、意図的な例外): 通常の `ope` では2項未満、`--use-parentheses` 使用時は3項未満を要求してもエラーにならず、該当する下限(2または3)に自動的に引き上げられる。`MAX_OPE_TERMS`(12)を超える値も上限にクランプされる。本ファイルの他の数値バリデーションはすべて `failure()` による即時エラーであり、この挙動は唯一の例外(`resolve_term_range()` 参照)。
 - **`ope --use-parentheses`/`--terms`系は `--vertical`/`--intermediate` 非対応**: `_init()` が明示的に拒否する(`command != 'ope'` の場合も同様)。`Page.layout` は常に `'inline'`。
 - **`ope --missing-value` は `--vertical`/`--intermediate`/`--use-parentheses`/`--terms`系いずれとも併用不可**: `_init()` が明示的に拒否する(`command != 'ope'` の場合も同様)。`Page.layout` は常に `'inline'`。決定的フォールバックを持つ既存の `CALC_FUNCTIONS` をそのまま再利用しているため、`ope --use-parentheses`/`--terms`系と異なり `ValueError` のリスクはない(常に `a op b = c` が先に確定してから隠す位置を選ぶだけのため)。
-- **Web層(`web/backend/renderers.py`、`web/frontend/src/drillPresets.js`)は issue #71 の新オプションに未対応**: `--terms`/`--terms-min`/`--terms-max`/`--mixed-operators` は CLI 直接実行でのみ利用可能で、Webからの配線は別issueで対応予定。
+- **Web層(`web/backend/renderers.py`、`web/frontend/src/drillPresets.js`)は issue #73 で issue #71 の新オプションに対応済み**: `--terms`/`--terms-min`/`--terms-max`/`--mixed-operators` は `RendererRequest`/`build_command()` で変換され、学年4〜6の「中学受験」プリセット27件(`drillPresets.js` の `examPrep`)から利用される。詳細は [[web/backend/renderers.py]]/[[web/frontend/src/drillPresets.js]] を参照。
 
 ## 変更履歴(git log より自動生成)
 
