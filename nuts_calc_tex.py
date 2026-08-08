@@ -36,7 +36,7 @@ import subprocess
 import tempfile
 from dataclasses import dataclass, field
 from fractions import Fraction
-from typing import Callable
+from typing import Callable, TypeVar
 
 
 MIN_ROWS_OR_COLUMNS = 1
@@ -69,6 +69,9 @@ MIN_FRACTION_DIGITS = 1
 MAX_FRACTION_DIGITS = 3
 BLANK_ANSWER_TEX = '\\hspace{1.5em}'
 BOXED_BLANK_TEX = '\\vcenter{\\hbox{\\fbox{\\rule{0pt}{1em}\\hspace{1em}}}}'
+MIN_DECIMAL_PLACES = 0
+MAX_DECIMAL_PLACES = 2
+MIXED_OPERAND_KINDS = ('int', 'decimal', 'fraction')
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 VENDOR_TEXMF_DIR = os.path.join(SCRIPT_DIR, 'vendor', 'texmf')
@@ -121,8 +124,8 @@ def _init() -> argparse.Namespace:
     )
     parser.add_argument('command'
         , type = str
-        , choices = ['ope', 'com', '100', '99', 'aBc', 'squ', 'pi', 'frac']
-        , help = 'Type of formula to output (including "frac" for fraction arithmetic)'
+        , choices = ['ope', 'com', '100', '99', 'aBc', 'squ', 'pi', 'frac', 'mixed']
+        , help = 'Type of formula to output (including "frac" for fraction arithmetic and "mixed" for int/decimal/fraction arithmetic)'
     )
     parser.add_argument('-a', '--a-value'
         , type = int
@@ -187,6 +190,42 @@ def _init() -> argparse.Namespace:
         , default = False
         , action = 'store_true'
         , help = 'Only generate positive proper-fraction answers (frac only)'
+    )
+    parser.add_argument('--a-decimal-places'
+        , type = int
+        , default = MIN_DECIMAL_PLACES
+        , help = (
+            f'Number of digits after the decimal point for the first "ope" '
+            f'operand (0-{MAX_DECIMAL_PLACES}, ope only). The operand range '
+            '(-a/--a-min/--a-max) is interpreted as a scaled integer and '
+            'divided by 10^places for display, so the result is always an '
+            'exact, finite decimal (no floating point involved).'
+        )
+    )
+    parser.add_argument('--b-decimal-places'
+        , type = int
+        , default = MIN_DECIMAL_PLACES
+        , help = 'Number of digits after the decimal point for the second "ope" operand (0-%d, ope only)' % MAX_DECIMAL_PLACES
+    )
+    parser.add_argument('--decimal-places'
+        , type = int
+        , default = 1
+        , help = (
+            f'Number of digits after the decimal point used for '
+            f'decimal-kind operands (0-{MAX_DECIMAL_PLACES}, mixed only)'
+        )
+    )
+    parser.add_argument('--a-kind'
+        , default = list(MIXED_OPERAND_KINDS)
+        , choices = list(MIXED_OPERAND_KINDS)
+        , nargs = '*'
+        , help = 'Allowed operand kinds for the first "mixed" term, chosen per problem (mixed only)'
+    )
+    parser.add_argument('--b-kind'
+        , default = list(MIXED_OPERAND_KINDS)
+        , choices = list(MIXED_OPERAND_KINDS)
+        , nargs = '*'
+        , help = 'Allowed operand kinds for the second and later "mixed" terms, chosen per problem (mixed only)'
     )
     parser.add_argument('--descend'
         , default = False
@@ -413,8 +452,8 @@ def _init() -> argparse.Namespace:
         args.terms is not None or args.terms_min != TERM_COUNT_FLOOR_DEFAULT
         or args.terms_max != TERM_COUNT_FLOOR_DEFAULT or args.mixed_operators
     )
-    if terms_options_given and args.command != 'ope':
-        failure("--terms/--terms-min/--terms-max/--mixed-operators are only supported for the 'ope' command.")
+    if terms_options_given and args.command not in ('ope', 'mixed'):
+        failure("--terms/--terms-min/--terms-max/--mixed-operators are only supported for the 'ope' and 'mixed' commands.")
 
     if args.command == 'ope' and terms_options_given:
         if args.terms_min > args.terms_max:
@@ -426,10 +465,56 @@ def _init() -> argparse.Namespace:
         if args.missing_value:
             failure("--terms/--terms-min/--terms-max/--mixed-operators cannot be combined with --missing-value.")
 
-    if args.command == 'ope':
+    if args.command == 'mixed' and terms_options_given and args.terms_min > args.terms_max:
+        failure("--terms-min must be less than or equal to --terms-max.")
+
+    if args.command in ('ope', 'mixed'):
         args.terms_min, args.terms_max = resolve_term_range(
             args.terms_min, args.terms_max, args.use_parentheses,
         )
+
+    if args.a_decimal_places != MIN_DECIMAL_PLACES or args.b_decimal_places != MIN_DECIMAL_PLACES:
+        if args.command != 'ope':
+            failure("--a-decimal-places/--b-decimal-places are only supported for the 'ope' command.")
+        for option_name, value in (
+            ('--a-decimal-places', args.a_decimal_places),
+            ('--b-decimal-places', args.b_decimal_places),
+        ):
+            if not MIN_DECIMAL_PLACES <= value <= MAX_DECIMAL_PLACES:
+                failure(f"{option_name} must be between {MIN_DECIMAL_PLACES} and {MAX_DECIMAL_PLACES}.")
+        if args.vertical:
+            failure("--a-decimal-places/--b-decimal-places cannot be combined with --vertical.")
+        if args.intermediate:
+            failure("--a-decimal-places/--b-decimal-places cannot be combined with --intermediate.")
+        if args.use_parentheses or args.missing_value or terms_options_given:
+            failure(
+                "--a-decimal-places/--b-decimal-places cannot be combined with "
+                "--use-parentheses/--missing-value/--terms family."
+            )
+        if args.a_decimal_places != args.b_decimal_places and args.operator not in (['mul'], ['div']):
+            failure(
+                "When --a-decimal-places and --b-decimal-places differ, "
+                "-o/--operator must be exactly 'mul' or exactly 'div' "
+                "(decimal-by-integer multiplication/division)."
+            )
+        if 'div' in args.operator and args.a_decimal_places < args.b_decimal_places:
+            failure(
+                "--a-decimal-places must be greater than or equal to "
+                "--b-decimal-places when dividing (the quotient's decimal "
+                "places are a_decimal_places - b_decimal_places, which must "
+                "not be negative)."
+            )
+
+    mixed_only_options_given = (
+        args.decimal_places != 1
+        or args.a_kind != list(MIXED_OPERAND_KINDS)
+        or args.b_kind != list(MIXED_OPERAND_KINDS)
+    )
+    if args.command == 'mixed':
+        if not MIN_DECIMAL_PLACES <= args.decimal_places <= MAX_DECIMAL_PLACES:
+            failure(f"--decimal-places must be between {MIN_DECIMAL_PLACES} and {MAX_DECIMAL_PLACES} for the 'mixed' command.")
+    elif mixed_only_options_given:
+        failure("--decimal-places/--a-kind/--b-kind are only supported for the 'mixed' command.")
 
     return args
 
@@ -654,12 +739,55 @@ def write_csv(rows: list[list[object]], csv_path: str) -> None:
 
 @dataclass
 class OpeProblem:
-    """One generated `ope` (add/sub/mul/div) arithmetic problem."""
+    """
+    One generated `ope` (add/sub/mul/div) arithmetic problem.
+
+    a/b/c always remain the raw (unscaled) integers `calc_add`/`calc_sub`/
+    `calc_mul`/`calc_div` produce -- a_decimal_places/b_decimal_places (0 by
+    default, meaning "plain integer") record where a decimal point should be
+    displayed when rendering, via format_decimal_value/
+    ope_result_decimal_places. This keeps all arithmetic in exact integers
+    (never floats), so a decimal result is always exact and finite by
+    construction -- see nuts_calc_tex.py.md's decimal-arithmetic design note.
+    """
     index: int
     a: int
     b: int
     operator: str
     c: int
+    a_decimal_places: int = MIN_DECIMAL_PLACES
+    b_decimal_places: int = MIN_DECIMAL_PLACES
+
+
+def format_decimal_value(raw: int, places: int) -> str:
+    """
+    Format a raw scaled integer as a decimal string with `places` digits
+    after the decimal point (places <= 0 returns the plain integer string,
+    unchanged from pre-decimal-support behavior).
+    """
+    if places <= 0:
+        return str(raw)
+    digits = str(raw).zfill(places + 1)
+    return f"{digits[:-places]}.{digits[-places:]}"
+
+
+def ope_result_decimal_places(operator: str, a_places: int, b_places: int) -> int:
+    """
+    Decimal places of an `ope` result, derived from the operator and the
+    operands' decimal places (which _init() guarantees are equal for
+    add/sub/mix, and a_places >= b_places for div):
+    - add/sub (and mix, which requires equal places): same as the operands.
+    - mul: a_places + b_places (e.g. 3.6 x 2.4 -> 2 places).
+    - div: a_places - b_places (aligning decimal points before dividing, as
+      taught in the course of study -- e.g. 6.4 / 1.6 has 0 places, 6.4 / 2
+      has 1). Always >= 0 (enforced by _init()), and exact because calc_div
+      only accepts a raw a % b == 0.
+    """
+    if operator == 'mul':
+        return a_places + b_places
+    if operator == 'div':
+        return a_places - b_places
+    return a_places
 
 
 def calc_add(a: int, b: int, nums_a: list[int], nums_b: list[int]) -> tuple[int, int, int]:
@@ -751,13 +879,20 @@ CALC_FUNCTIONS: dict[str, Callable[[int, int, list[int], list[int]], tuple[int, 
 
 def generate_ope_problems(
         nums_a: list[int], nums_b: list[int], operators: list[str],
-        order: int, start_index: int
+        order: int, start_index: int,
+        a_decimal_places: int = MIN_DECIMAL_PLACES, b_decimal_places: int = MIN_DECIMAL_PLACES,
     ) -> list[OpeProblem]:
     """
     Generate `order` arithmetic problems starting at `start_index`.
 
     `operators=['mix']` picks a random operator (add/sub/mul/div) per
     problem; otherwise one operator is picked per problem from `operators`.
+
+    a_decimal_places/b_decimal_places (0 by default) do not change how
+    nums_a/nums_b/CALC_FUNCTIONS are sampled or validated -- they are only
+    recorded on the resulting OpeProblem for display (see
+    ope_result_decimal_places/format_decimal_value). _init() guarantees the
+    operand/operator combination keeps every result an exact, finite value.
     """
     effective_operators = MIX_OPERATORS if 'mix' in operators else operators
     problems = []
@@ -766,15 +901,24 @@ def generate_ope_problems(
         b = random.choice(nums_b)
         operator = random.choice(effective_operators)
         a, b, c = CALC_FUNCTIONS[operator](a, b, nums_a, nums_b)
-        problems.append(OpeProblem(index=start_index + offset, a=a, b=b, operator=operator, c=c))
+        problems.append(OpeProblem(
+            index=start_index + offset, a=a, b=b, operator=operator, c=c,
+            a_decimal_places=a_decimal_places, b_decimal_places=b_decimal_places,
+        ))
     return problems
 
 
 def build_horizontal_block_tex(problem: OpeProblem, show_answer: bool) -> str:
     """Render one `ope` problem in horizontal format: `n) $a op b = c$`."""
     symbol = OPERATOR_TEX_SYMBOLS[problem.operator]
-    result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
-    return f"{problem.index}) ${problem.a} {symbol} {problem.b} = {result_tex}$"
+    a_tex = format_decimal_value(problem.a, problem.a_decimal_places)
+    b_tex = format_decimal_value(problem.b, problem.b_decimal_places)
+    if show_answer:
+        c_places = ope_result_decimal_places(problem.operator, problem.a_decimal_places, problem.b_decimal_places)
+        result_tex = format_decimal_value(problem.c, c_places)
+    else:
+        result_tex = BLANK_ANSWER_TEX
+    return f"{problem.index}) ${a_tex} {symbol} {b_tex} = {result_tex}$"
 
 
 def build_intermediate_memo(a: int, b: int) -> str:
@@ -855,14 +999,34 @@ def build_ope_page_pair(problems: list[OpeProblem], columns: int, vertical: bool
 
 
 def build_ope_bottom_answer_tex(problems: list[OpeProblem]) -> str:
-    return ' \\quad '.join(f"({problem.index}) {problem.c}" for problem in problems)
+    parts = []
+    for problem in problems:
+        c_places = ope_result_decimal_places(problem.operator, problem.a_decimal_places, problem.b_decimal_places)
+        parts.append(f"({problem.index}) {format_decimal_value(problem.c, c_places)}")
+    return ' \\quad '.join(parts)
 
 
 def build_ope_csv_rows(pages_problems: list[list[OpeProblem]]) -> list[list[object]]:
+    """
+    One row per problem: [page_number, index, a, operator, b, c].
+
+    a/b/c stay plain int when a_decimal_places/b_decimal_places are both 0
+    (the pre-decimal-support default, so existing CSV output is byte-for-byte
+    unchanged); with decimal places, they are formatted decimal strings.
+    """
     rows: list[list[object]] = []
     for page_number, problems in enumerate(pages_problems, start=1):
         for problem in problems:
-            rows.append([page_number, problem.index, problem.a, problem.operator, problem.b, problem.c])
+            if problem.a_decimal_places == MIN_DECIMAL_PLACES and problem.b_decimal_places == MIN_DECIMAL_PLACES:
+                a_value: object = problem.a
+                b_value: object = problem.b
+                c_value: object = problem.c
+            else:
+                c_places = ope_result_decimal_places(problem.operator, problem.a_decimal_places, problem.b_decimal_places)
+                a_value = format_decimal_value(problem.a, problem.a_decimal_places)
+                b_value = format_decimal_value(problem.b, problem.b_decimal_places)
+                c_value = format_decimal_value(problem.c, c_places)
+            rows.append([page_number, problem.index, a_value, problem.operator, b_value, c_value])
     return rows
 
 
@@ -952,6 +1116,38 @@ PAREN_STAGE_FUNCTIONS: dict[str, Callable[[int, int], int | None]] = {
     'sub': paren_stage_sub,
     'mul': paren_stage_mul,
     'div': paren_stage_div,
+}
+
+
+def mixed_stage_add(x: Fraction, y: Fraction) -> Fraction | None:
+    return x + y
+
+
+def mixed_stage_sub(x: Fraction, y: Fraction) -> Fraction | None:
+    result = x - y
+    return result if result > 0 else None
+
+
+def mixed_stage_mul(x: Fraction, y: Fraction) -> Fraction | None:
+    return x * y
+
+
+def mixed_stage_div(x: Fraction, y: Fraction) -> Fraction | None:
+    # y is always > 0 (every MixedOperand kind generates a positive value),
+    # and Fraction division is always exact -- no repeating/infinite-decimal
+    # risk, since the "mixed" command renders answers as fractions, never
+    # decimal notation (see build_mixed_block_tex).
+    return x / y
+
+
+# Fraction counterpart of PAREN_STAGE_FUNCTIONS, used by the "mixed" command
+# (int/decimal/fraction operands, all resolved to exact Fraction values) via
+# evaluate_left_to_right/evaluate_mixed_expression's stage_functions param.
+MIXED_STAGE_FUNCTIONS: dict[str, Callable[[Fraction, Fraction], Fraction | None]] = {
+    'add': mixed_stage_add,
+    'sub': mixed_stage_sub,
+    'mul': mixed_stage_mul,
+    'div': mixed_stage_div,
 }
 
 
@@ -1195,34 +1391,47 @@ def build_tree_ope_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page
     return blank_pages, filled_pages, pages_problems
 
 
-def evaluate_left_to_right(operands: list[int], operators: list[str]) -> int | None:
+StageValue = TypeVar('StageValue')
+
+
+def evaluate_left_to_right(
+        operands: list[StageValue], operators: list[str],
+        stage_functions: dict[str, Callable[[StageValue, StageValue], StageValue | None]] = PAREN_STAGE_FUNCTIONS,
+    ) -> StageValue | None:
     """
     Fold `operands`/`operators` strictly left-to-right, applying
-    PAREN_STAGE_FUNCTIONS's per-step validity check at every step (e.g. for
+    `stage_functions`'s per-step validity check at every step (e.g. for
     "a sub b sub c", both "a - b" and "(a - b) - c" must independently stay
     positive, not just the final result) -- generalizes calc_sub/calc_div's
     single-step check to an arbitrary-length chain. Returns None as soon as
     any step is invalid.
+
+    `stage_functions` defaults to PAREN_STAGE_FUNCTIONS (plain-int `ope`
+    problems); the "mixed" command passes MIXED_STAGE_FUNCTIONS instead to
+    evaluate exact Fraction values.
     """
     accumulator = operands[0]
     for operand, operator in zip(operands[1:], operators):
-        accumulator = PAREN_STAGE_FUNCTIONS[operator](accumulator, operand)
+        accumulator = stage_functions[operator](accumulator, operand)
         if accumulator is None:
             return None
     return accumulator
 
 
 def split_into_precedence_groups(
-        operands: list[int], operators: list[str],
-    ) -> tuple[list[list[int]], list[list[str]], list[str]]:
+        operands: list[StageValue], operators: list[str],
+    ) -> tuple[list[list[StageValue]], list[list[str]], list[str]]:
     """
     Split a flat operand/operator sequence into standard-precedence groups:
     consecutive 'mul'/'div' operators extend the current group, 'add'/'sub'
     operators start a new group and are collected as connecting operators
     between groups. Returns (groups, per-group operators, connecting
     operators) for evaluate_mixed_expression to fold in two passes.
+
+    Operand-value-agnostic (only inspects operator names), so it is shared
+    unchanged by both plain-int `ope` and Fraction-valued "mixed" problems.
     """
-    groups: list[list[int]] = [[operands[0]]]
+    groups: list[list[StageValue]] = [[operands[0]]]
     group_operators: list[list[str]] = [[]]
     connecting_operators: list[str] = []
     for operand, operator in zip(operands[1:], operators):
@@ -1236,7 +1445,10 @@ def split_into_precedence_groups(
     return groups, group_operators, connecting_operators
 
 
-def evaluate_mixed_expression(operands: list[int], operators: list[str]) -> int | None:
+def evaluate_mixed_expression(
+        operands: list[StageValue], operators: list[str],
+        stage_functions: dict[str, Callable[[StageValue, StageValue], StageValue | None]] = PAREN_STAGE_FUNCTIONS,
+    ) -> StageValue | None:
     """
     Evaluate a flat expression with standard operator precedence (* / bind
     tighter than + -, left-to-right within the same tier), without building
@@ -1244,16 +1456,17 @@ def evaluate_mixed_expression(operands: list[int], operators: list[str]) -> int 
     split_into_precedence_groups, evaluate each group with
     evaluate_left_to_right, then fold the group results together with
     evaluate_left_to_right again. Returns None if any group or the final
-    fold is invalid.
+    fold is invalid. `stage_functions` is forwarded to both folding passes
+    (see evaluate_left_to_right).
     """
     groups, group_operators, connecting_operators = split_into_precedence_groups(operands, operators)
     group_results = []
     for group_operands, operators_in_group in zip(groups, group_operators):
-        group_result = evaluate_left_to_right(group_operands, operators_in_group)
+        group_result = evaluate_left_to_right(group_operands, operators_in_group, stage_functions)
         if group_result is None:
             return None
         group_results.append(group_result)
-    return evaluate_left_to_right(group_results, connecting_operators)
+    return evaluate_left_to_right(group_results, connecting_operators, stage_functions)
 
 
 def generate_multi_term_ope_problems(
@@ -2009,7 +2222,10 @@ def build_ope_pages(
     pages_problems = []
     for page_number in range(1, ini.page + 1):
         start_index = (page_number - 1) * order + 1
-        problems = generate_ope_problems(nums_a, nums_b, ini.operator, order, start_index)
+        problems = generate_ope_problems(
+            nums_a, nums_b, ini.operator, order, start_index,
+            ini.a_decimal_places, ini.b_decimal_places,
+        )
         blank_page, filled_page = build_ope_page_pair(problems, ini.columns, ini.vertical, ini.intermediate)
         pages_problems.append(problems)
         blank_pages.append(blank_page)
@@ -2284,6 +2500,170 @@ def build_fraction_pages(
     return blank_pages, filled_pages, pages_problems
 
 
+@dataclass(frozen=True)
+class MixedOperand:
+    """One "mixed"-command operand: its kind, ready-to-embed TeX, and exact value."""
+    kind: str  # 'int' | 'decimal' | 'fraction'
+    display: str
+    value: Fraction
+
+
+@dataclass(frozen=True)
+class MixedProblem:
+    """One "mixed" (int/decimal/fraction) arithmetic problem, 2+ terms."""
+    index: int
+    operands: list[MixedOperand]
+    operators: list[str]
+    mixed: bool
+    result: Fraction
+
+
+def random_mixed_operand(
+        kind: str, numerator_digits: int, denominator_digits: int, decimal_places: int,
+    ) -> MixedOperand:
+    """
+    Generate one operand of the given kind, all resolved to an exact
+    Fraction value (never a float):
+    - 'int': a plain integer, digit-range sized by numerator_digits.
+    - 'decimal': a scaled integer (same digit range) divided by
+      10^decimal_places -- an exact, finite decimal by construction, the
+      same technique format_decimal_value/OpeProblem use for `ope`.
+    - 'fraction': reuses random_fraction_operand (frac command).
+    """
+    if kind == 'int':
+        value = random.randint(*digit_range(numerator_digits))
+        return MixedOperand('int', str(value), Fraction(value))
+    if kind == 'decimal':
+        scaled = random.randint(*digit_range(numerator_digits))
+        return MixedOperand('decimal', format_decimal_value(scaled, decimal_places), Fraction(scaled, 10 ** decimal_places))
+    fraction_operand = random_fraction_operand(numerator_digits, denominator_digits, proper=False)
+    return MixedOperand('fraction', fraction_to_tex(fraction_operand), fraction_operand.value)
+
+
+def generate_mixed_problems(
+        a_kinds: list[str], b_kinds: list[str], operators: list[str], mixed: bool,
+        numerator_digits: int, denominator_digits: int, decimal_places: int,
+        terms_min: int, terms_max: int, order: int, start_index: int,
+    ) -> list[MixedProblem]:
+    """
+    Generate `order` flat (non-parenthesized) N-term "mixed" problems, each
+    independently drawing its term count from [terms_min, terms_max] --
+    mirrors generate_multi_term_ope_problems's shape/retry convention, but
+    operands are MixedOperand (int/decimal/fraction) resolved to exact
+    Fraction values and evaluated via MIXED_STAGE_FUNCTIONS, so every
+    intermediate and final result is exact (no floats, no infinite
+    decimals): a division whose Fraction result doesn't terminate as a
+    decimal is still rendered exactly as a fraction (see
+    build_mixed_block_tex), never coerced into decimal notation.
+
+    The first term is drawn from a_kinds, every later term from b_kinds
+    (mirrors generate_multi_term_ope_problems's nums_a/nums_b convention).
+    """
+    effective_operators = MIX_OPERATORS if 'mix' in operators else operators
+    problems = []
+    for offset in range(order):
+        term_count = random.randint(terms_min, terms_max)
+        gap_count = term_count - 1
+        for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
+            operands = [random_mixed_operand(random.choice(a_kinds), numerator_digits, denominator_digits, decimal_places)]
+            operands += [
+                random_mixed_operand(random.choice(b_kinds), numerator_digits, denominator_digits, decimal_places)
+                for _ in range(gap_count)
+            ]
+            values = [operand.value for operand in operands]
+            if mixed:
+                problem_operators = [random.choice(effective_operators) for _ in range(gap_count)]
+                result = evaluate_mixed_expression(values, problem_operators, MIXED_STAGE_FUNCTIONS)
+            else:
+                shared_operator = random.choice(effective_operators)
+                problem_operators = [shared_operator] * gap_count
+                result = evaluate_left_to_right(values, problem_operators, MIXED_STAGE_FUNCTIONS)
+            if result is not None:
+                problems.append(MixedProblem(
+                    index=start_index + offset, operands=operands,
+                    operators=problem_operators, mixed=mixed, result=result,
+                ))
+                break
+        else:
+            raise ValueError(
+                f"No valid {term_count}-term mixed expression found within the requested kinds/digits (mixed={mixed})."
+            )
+    return problems
+
+
+def build_mixed_expression_text(problem: MixedProblem) -> str:
+    """Render-agnostic expression string for CSV output, e.g. "3 mul 0.5 div 2/3"."""
+    parts = [problem.operands[0].display]
+    for operand, operator in zip(problem.operands[1:], problem.operators):
+        parts += [operator, operand.display]
+    return ' '.join(parts)
+
+
+def build_mixed_block_tex(problem: MixedProblem, show_answer: bool) -> str:
+    """
+    Render one flat multi-term "mixed" problem: `n) $a op1 b op2 c ... =
+    result$` (no parentheses). The answer is always an exact reduced
+    fraction (fraction_to_tex(Fraction)), never decimal notation -- see
+    MIXED_STAGE_FUNCTIONS's div and this file's decimal-arithmetic design
+    note (no infinite/repeating decimals anywhere in generated output).
+    """
+    parts = [problem.operands[0].display]
+    for operand, operator in zip(problem.operands[1:], problem.operators):
+        parts += [OPERATOR_TEX_SYMBOLS[operator], operand.display]
+    result_tex = fraction_to_tex(problem.result) if show_answer else BLANK_ANSWER_TEX
+    return f"{problem.index}) $\\displaystyle {' '.join(parts)} = {result_tex}$"
+
+
+def build_mixed_page_pair(problems: list[MixedProblem], columns: int) -> tuple[Page, Page]:
+    return (
+        Page([build_mixed_block_tex(problem, False) for problem in problems], columns),
+        Page([build_mixed_block_tex(problem, True) for problem in problems], columns),
+    )
+
+
+def build_mixed_bottom_answer_tex(problems: list[MixedProblem]) -> str:
+    return ' \\quad '.join(
+        f"({problem.index}) $\\displaystyle {fraction_to_tex(problem.result)}$"
+        for problem in problems
+    )
+
+
+def build_mixed_csv_rows(pages_problems: list[list[MixedProblem]]) -> list[list[object]]:
+    """One row per problem: [page_number, index, terms, mixed, expression, result_numerator, result_denominator]."""
+    rows: list[list[object]] = []
+    for page_number, problems in enumerate(pages_problems, start=1):
+        for problem in problems:
+            rows.append([
+                page_number, problem.index, len(problem.operands), problem.mixed,
+                build_mixed_expression_text(problem),
+                problem.result.numerator, problem.result.denominator,
+            ])
+    return rows
+
+
+def build_mixed_pages(
+        ini: argparse.Namespace,
+    ) -> tuple[list[Page], list[Page], list[list[MixedProblem]]]:
+    """Generate real "mixed" problems and their blank/filled Page pairs for every page."""
+    order = ini.rows * ini.columns
+    blank_pages = []
+    filled_pages = []
+    pages_problems = []
+    for page_number in range(1, ini.page + 1):
+        problems = generate_mixed_problems(
+            ini.a_kind, ini.b_kind, ini.operator, ini.mixed_operators,
+            ini.numerator_digits, ini.denominator_digits, ini.decimal_places,
+            ini.terms_min, ini.terms_max, order, (page_number - 1) * order + 1,
+        )
+        blank_page, filled_page = build_mixed_page_pair(problems, ini.columns)
+        if ini.with_bottom_answer:
+            blank_page.bottom_answer_tex = build_mixed_bottom_answer_tex(problems)
+        pages_problems.append(problems)
+        blank_pages.append(blank_page)
+        filled_pages.append(filled_page)
+    return blank_pages, filled_pages, pages_problems
+
+
 def main(ini: argparse.Namespace) -> None:
     if shutil.which('pdflatex') is None:
         failure(
@@ -2302,6 +2682,7 @@ def main(ini: argparse.Namespace) -> None:
     squ_pages_problems: list[list[SquProblem]] | None = None
     pi_pages_problems: list[list[PiProblem]] | None = None
     fraction_pages_problems: list[list[FractionProblem]] | None = None
+    mixed_pages_problems: list[list[MixedProblem]] | None = None
     if ini.command == 'ope' and ini.use_parentheses:
         blank_pages, filled_pages, tree_ope_pages_problems = build_ope_pages(ini)
     elif ini.command == 'ope' and ini.missing_value:
@@ -2322,6 +2703,8 @@ def main(ini: argparse.Namespace) -> None:
         blank_pages, filled_pages, squ_pages_problems = build_squ_pages(ini)
     elif ini.command == 'pi':
         blank_pages, filled_pages, pi_pages_problems = build_pi_pages(ini)
+    elif ini.command == 'mixed':
+        blank_pages, filled_pages, mixed_pages_problems = build_mixed_pages(ini)
     else:
         blank_pages, filled_pages, fraction_pages_problems = build_fraction_pages(ini)
 
@@ -2357,6 +2740,8 @@ def main(ini: argparse.Namespace) -> None:
             rows = build_squ_csv_rows(squ_pages_problems)
         elif pi_pages_problems is not None:
             rows = build_pi_csv_rows(pi_pages_problems)
+        elif mixed_pages_problems is not None:
+            rows = build_mixed_csv_rows(mixed_pages_problems)
         else:
             rows = build_fraction_csv_rows(fraction_pages_problems)
         write_csv(rows, outfile_csv)

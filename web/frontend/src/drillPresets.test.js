@@ -76,3 +76,62 @@ test('first-operand digit range (a_value) increases by grade, matching the simul
     }
   }
 });
+
+const DECIMAL_PRESET_IDS_BY_GRADE = {
+  3: ['g3-decimal-addsub'],
+  4: ['g4-decimal-addsub', 'g4-decimal-mul', 'g4-decimal-div'],
+  5: ['g5-decimal-mul', 'g5-decimal-div'],
+};
+
+test('decimal presets exist for grades 3-5, are latexOnly, and target the ope command', () => {
+  for (const [grade, expectedIds] of Object.entries(DECIMAL_PRESET_IDS_BY_GRADE)) {
+    const ids = presetsByGrade[grade].normal.map((preset) => preset.id);
+    for (const id of expectedIds) {
+      assert.ok(ids.includes(id), `missing ${id}`);
+    }
+    for (const preset of presetsByGrade[grade].normal) {
+      if (!expectedIds.includes(preset.id)) continue;
+      assert.equal(preset.latexOnly, true, preset.id);
+      assert.equal(preset.params.command_type, 'ope', preset.id);
+      assert.ok(
+        preset.params.a_decimal_places > 0 || preset.params.b_decimal_places > 0,
+        `${preset.id} must set at least one decimal-places param`,
+      );
+    }
+  }
+});
+
+test('decimal mul/div presets with an integer second operand omit b_decimal_places', () => {
+  for (const id of ['g4-decimal-mul', 'g4-decimal-div']) {
+    const preset = presetsByGrade[4].normal.find((candidate) => candidate.id === id);
+    assert.equal(preset.params.b_decimal_places, undefined, id);
+  }
+});
+
+test('grade-6 mixed presets exist, are latexOnly, and target the mixed command', () => {
+  const ids = presetsByGrade[6].normal.map((preset) => preset.id);
+  assert.ok(ids.includes('g6-mixed-basic'));
+  assert.ok(ids.includes('g6-mixed-advanced'));
+
+  const basic = presetsByGrade[6].normal.find((preset) => preset.id === 'g6-mixed-basic');
+  const advanced = presetsByGrade[6].normal.find((preset) => preset.id === 'g6-mixed-advanced');
+
+  for (const preset of [basic, advanced]) {
+    assert.equal(preset.latexOnly, true, preset.id);
+    assert.equal(preset.params.command_type, 'mixed', preset.id);
+    assert.deepEqual(preset.params.a_kind, ['int', 'decimal', 'fraction'], preset.id);
+    assert.deepEqual(preset.params.b_kind, ['int', 'decimal', 'fraction'], preset.id);
+  }
+
+  assert.equal(basic.params.terms, 2);
+  assert.equal(basic.params.mixed_operators, undefined);
+  assert.equal(advanced.params.terms, 3);
+  assert.equal(advanced.params.mixed_operators, true);
+});
+
+test('grades 1-2 and ungraded have no decimal or mixed presets', () => {
+  for (const grade of [1, 2]) {
+    const ids = presetsByGrade[grade].normal.map((preset) => preset.id);
+    assert.ok(!ids.some((id) => id.includes('decimal') || id.includes('mixed')));
+  }
+});

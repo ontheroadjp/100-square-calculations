@@ -28,6 +28,9 @@
   - 桁数レンジは既存の `g4/g5/g6-parentheses*` と同じ設計を踏襲: 最初の項(`a_value`)だけ学年で1→2→3桁(`buildExamPrepPresets` の第2引数)に増やし、残りの全項(`b_value`)は27パターン全てで `1`(1桁)に固定する。これは `nuts_calc_tex.py` の `assign_tree_operands()`/`generate_multi_term_ope_problems()` がいずれも「最初の葉だけ `nums_a`、残り全部が `nums_b`」という規約を持つため([[../../../../nuts_calc_tex.py]] 参照)。
   - **`ValueError` リスクの事前検証**: `ope --terms`/`--use-parentheses` は決定的フォールバックを持たず、項数が増えるほど `ValueError` のリスクが悪化することが `nuts_calc_tex.py` 側の設計判断として記録されている。本カード設計の27通り全ての(桁数レンジ×項数×段階)組み合わせは、実装前に `nuts_calc_tex.py` の生成関数を直接呼ぶシミュレーションで安全性を確認済み(600〜4000問中失敗ゼロ)。この事前確認は `tests/test_nuts_calc_tex_exam_prep_presets.py` として回帰テスト化されており、パラメータの組み合わせを変更する場合は両方(本ファイルとテスト)を同期させる必要がある。
   - 分数・かっこ付き計算カードと同じ理由で全27カードに `latexOnly: true` を付ける。
+- **小数計算カード(issue #76)は `nuts_calc_tex.py` の `ope --a-decimal-places`/`--b-decimal-places` を使い、3〜5年に配置する**: 根拠は `docs/reference/README.md` に記載した学習指導要領解説PDF(156/196/245ページ)。3年は1桁×1桁・1/10位の加減算(`g3-decimal-addsub`)、4年は3桁×3桁・1/100位の加減算(`g4-decimal-addsub`)と小数×整数/小数÷整数(`g4-decimal-mul`/`g4-decimal-div`、`b_decimal_places` は既定の0のまま=整数側)、5年は小数×小数/小数÷小数(`g5-decimal-mul`/`g5-decimal-div`、`a_decimal_places == b_decimal_places` のため除算の答えは必ず整数になる)。6年に新規の小数専用単元は見つからなかったため追加していない。分数・かっこ付き計算カードと同じ理由で全カードに `latexOnly: true` を付ける。
+- **整数・小数・分数の「混合計算」カード(`mixed`、issue #76)は6年のみに2枚配置する**: 根拠は学習指導要領解説PDF p.293-294 の「整数や小数の乗法や除法を分数の場合の計算にまとめることも取り扱うものとする」という内容の取扱い注記と、`5÷2×0.3` を分数の積にまとめる例示。`g6-mixed-basic`(2項、`operator: ['mix']`)・`g6-mixed-advanced`(3項、`mixed_operators: true`、p.294の例示と同じ3項連鎖の形)のいずれも `a_kind`/`b_kind` に `int`/`decimal`/`fraction` の3種類全てを許可し、`numerator_digits`/`denominator_digits`/`decimal_places` はいずれも `1` に固定している(桁数を広げると `mixed` 側の非決定的フォールバックにより `ValueError` のリスクが上がるため、`g4/g5/g6-parentheses*` と同じ「桁数を小さく保つ」設計方針を踏襲)。指導要領は乗法・除法のみに言及しているが、ユーザーの明示的な指示により `operator: ['mix']` は四則すべて(add/sub/mul/div)を対象にしている。答えは常に厳密な分数で表示され、無限小数になり得る除算(例: `2÷3`)でも小数表記に丸めることなく出題できる([[../../../../nuts_calc_tex.py]] 参照)。分数・かっこ付き計算カードと同じ理由で `latexOnly: true` を付ける。
+  - **`ValueError` リスクの事前検証**: 上記の小数7カード全ての param 組み合わせは、実装時に `nuts_calc_tex.py` の生成関数を直接呼ぶシミュレーションで安全性を確認済み。回帰テストは `tests/test_nuts_calc_tex_decimal_mixed_presets.py`(`examPrep` の `tests/test_nuts_calc_tex_exam_prep_presets.py` と同じ方式)。パラメータの組み合わせを変更する場合は両方(本ファイルとテスト)を同期させる必要がある。
 - **日本の学習指導要領(算数)の学年配置に沿った内容確定**(2026年見直し):
   - 1年生に `written`(筆算)セクションは存在しない。筆算という記法は指導要領上、正式には2年生から導入されるため。
   - 2年生の加減算(`normal`/`written` とも)は「2位数+2位数」(`a_value: 2, b_value: 2`)。指導要領の2年生内容「2位数の加法及び減法の計算、それらの筆算の仕方」に対応する。
@@ -52,6 +55,7 @@
 - `nuts_calc.py`/`nuts_calc_tex.py`/`web/backend/app.py` 側にパラメータの許可リストバリデーションが薄いため(`docs/L3_implementation/specification_summary.md` 既知の制約)、ここで不正な組み合わせを作らないよう注意する。特に上記のレンダラー相違(issue #41/#42/#43)が解消されるまでは、該当する組み合わせを追加しないこと。
 - `written` の内容は学年によって件数・対応演算が異なる(1年生は0件、他学年は1〜3件)。
 - `examPrep` は学年4〜6のみ9件ずつ、他は空配列。パラメータの組み合わせは `tests/test_nuts_calc_tex_exam_prep_presets.py` のシミュレーション結果に依存しているため、`buildExamPrepPresets` の桁数・項数・段階の設計を変更する場合はテストと合わせて見直すこと。
+- 小数カード(`normal` 内、3〜5年に1〜3件ずつ)・`mixed` カード(`normal` 内、6年のみ2件)はいずれも横書きのみで、`written` セクションには追加していない(`ope` の小数拡張は横書き限定、`mixed` コマンド自体が `--vertical` を持たない)。パラメータの組み合わせは `tests/test_nuts_calc_tex_decimal_mixed_presets.py` のシミュレーション結果に依存しているため、変更する場合はテストと合わせて見直すこと。
 
 ## 変更履歴(git log より自動生成)
 

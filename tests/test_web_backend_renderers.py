@@ -139,6 +139,34 @@ def test_build_command_translates_different_denominators() -> None:
     assert "--different-denominators" in command
 
 
+def test_build_command_translates_decimal_places() -> None:
+    params = {
+        "paper_size": "A4",
+        "command_type": "ope",
+        "a_decimal_places": 2,
+        "b_decimal_places": 1,
+    }
+    command = renderers.build_command("latex", params, "out.pdf")
+    assert command[command.index("--a-decimal-places") + 1] == "2"
+    assert command[command.index("--b-decimal-places") + 1] == "1"
+
+
+def test_build_command_translates_mixed_params() -> None:
+    params = {
+        "paper_size": "A4",
+        "command_type": "mixed",
+        "decimal_places": 1,
+        "a_kind": ["int", "decimal"],
+        "b_kind": ["fraction"],
+    }
+    command = renderers.build_command("latex", params, "out.pdf")
+    assert command[command.index("--decimal-places") + 1] == "1"
+    idx = command.index("--a-kind")
+    assert command[idx : idx + 3] == ["--a-kind", "int", "decimal"]
+    idx = command.index("--b-kind")
+    assert command[idx : idx + 2] == ["--b-kind", "fraction"]
+
+
 def test_build_command_translates_missing_value() -> None:
     params = {
         "paper_size": "A4",
