@@ -850,6 +850,125 @@ def test_cli_frac_csv_rows_contain_exact_fraction_data(run_tex_cli, tmp_path):
     assert len(lines[0].split(",")) == 9
 
 
+def test_cli_ope_decimal_add_sub_produces_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "sub", "--a-value", "2", "--b-value", "2",
+        "--a-decimal-places", "2", "--b-decimal-places", "2",
+        "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+    for row in (tmp_path / "result.csv").read_text().strip().splitlines():
+        fields = row.split(",")
+        assert "." in fields[2] and "." in fields[4] and "." in fields[5]
+
+
+def test_cli_ope_decimal_multiply_by_integer_produces_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "mul", "--a-value", "2", "--b-value", "1",
+        "--a-decimal-places", "1", "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
+def test_cli_ope_decimal_divide_by_decimal_produces_whole_number_answers(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "div", "--a-value", "2", "--b-value", "2",
+        "--a-decimal-places", "1", "--b-decimal-places", "1",
+        "-r", "3", "-c", "3", "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    for row in (tmp_path / "result.csv").read_text().strip().splitlines():
+        answer = row.split(",")[5]
+        assert "." not in answer  # a/b decimal places are equal -> exact integer quotient
+
+
+def test_cli_ope_decimal_rejects_vertical_combo(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "--a-decimal-places", "1", "--b-decimal-places", "1",
+        "--vertical", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_decimal_rejects_mismatched_places_with_add(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "--a-decimal-places", "2", "--b-decimal-places", "1",
+        "--out-file", "result.pdf",
+    )
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_decimal_rejects_dividend_places_below_divisor_places(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "div", "--a-decimal-places", "1", "--b-decimal-places", "2",
+        "--out-file", "result.pdf",
+    )
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_decimal_rejects_non_ope_command(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "com", "-a", "10", "--a-decimal-places", "1", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_mixed_produces_blank_and_filled_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "mixed", "-o", "mix", "--numerator-digits", "1", "--denominator-digits", "1",
+        "--decimal-places", "1", "-r", "2", "-c", "2", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+def test_cli_mixed_multi_term_mixed_operators_produces_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "mixed", "-o", "mix", "--terms", "3", "--mixed-operators",
+        "--numerator-digits", "1", "--denominator-digits", "1", "--decimal-places", "1",
+        "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    lines = (tmp_path / "result.csv").read_text().strip().splitlines()
+    assert len(lines) == 4
+    for row in lines:
+        fields = row.split(",")
+        assert fields[2] == "3"  # terms
+        assert fields[3] == "True"  # mixed
+
+
+def test_cli_mixed_csv_rows_contain_exact_fraction_result(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "mixed", "-o", "div", "--numerator-digits", "1", "--denominator-digits", "1",
+        "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    lines = (tmp_path / "result.csv").read_text().strip().splitlines()
+    assert len(lines) == 4
+    assert len(lines[0].split(",")) == 7
+
+
+def test_cli_mixed_rejects_decimal_places_out_of_range(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "mixed", "--decimal-places", "9", "--out-file", "result.pdf")
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_mixed_kind_options_rejected_on_non_mixed_command(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "frac", "--a-kind", "int", "--out-file", "result.pdf")
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
 def test_cli_fails_clearly_when_pdflatex_missing(run_tex_cli, tmp_path, monkeypatch):
     # Simulate a PATH with no pdflatex, matching the environment-detection
     # error path (rather than the argparse validation path above).

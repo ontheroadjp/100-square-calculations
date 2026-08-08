@@ -1,7 +1,9 @@
 // Curated mappings from "school grade" to /generate-pdf request params.
-// Fraction presets and parenthesized-expression presets (`use_parentheses`)
-// are curriculum-aligned and marked latexOnly because the `frac` command and
-// `--use-parentheses` flag exist only in nuts_calc_tex.py.
+// Fraction presets, parenthesized-expression presets (`use_parentheses`),
+// decimal presets (`a_decimal_places`/`b_decimal_places`), and int/decimal/
+// fraction "mixed" presets are all curriculum-aligned and marked latexOnly
+// because the `frac` command, `--use-parentheses` flag, decimal-places
+// flags, and `mixed` command all exist only in nuts_calc_tex.py.
 
 export const GRADES = [1, 2, 3, 4, 5, 6];
 
@@ -250,6 +252,21 @@ export const presetsByGrade = {
           proper_result: true,
         },
       },
+      {
+        // Matches the formal grade-3 course-of-study unit A(5) 小数の意味と表し方
+        // (elementary-course-of-study-mathematics-2017.pdf p.156): simple
+        // one-decimal-place (1/10 unit) addition/subtraction. latexOnly
+        // because --a-decimal-places/--b-decimal-places exist only in
+        // nuts_calc_tex.py (issue #76).
+        id: 'g3-decimal-addsub',
+        titleKey: 'preset_g3_decimal_addsub_title',
+        descKey: 'preset_g3_decimal_addsub_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'ope', operator: ['add', 'sub'], a_value: 1, b_value: 1,
+          a_decimal_places: 1, b_decimal_places: 1,
+        },
+      },
     ],
     written: [
       {
@@ -340,6 +357,47 @@ export const presetsByGrade = {
         params: {
           command_type: 'frac', operator: ['add', 'sub'], numerator_digits: 1,
           denominator_digits: 1, same_denominator: true,
+        },
+      },
+      {
+        // Matches the formal grade-4 course-of-study unit A(4) 小数の仕組みと
+        // その計算 (elementary-course-of-study-mathematics-2017.pdf p.196):
+        // multi-place (1/100 unit) decimal addition/subtraction. latexOnly
+        // because --a-decimal-places/--b-decimal-places exist only in
+        // nuts_calc_tex.py (issue #76).
+        id: 'g4-decimal-addsub',
+        titleKey: 'preset_g4_decimal_addsub_title',
+        descKey: 'preset_g4_decimal_addsub_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'ope', operator: ['add', 'sub'], a_value: 3, b_value: 3,
+          a_decimal_places: 2, b_decimal_places: 2,
+        },
+      },
+      {
+        // Same course-of-study unit (p.196): "乗数や除数が整数である場合の
+        // 小数の乗法" (decimal x integer). b_decimal_places is left at its
+        // default (0) so the second operand is a plain integer -- the
+        // asymmetric decimal-places case nuts_calc_tex.py restricts to a
+        // single mul/div operator (issue #76).
+        id: 'g4-decimal-mul',
+        titleKey: 'preset_g4_decimal_mul_title',
+        descKey: 'preset_g4_decimal_mul_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 1,
+          a_decimal_places: 1,
+        },
+      },
+      {
+        // Same unit (p.196): "...小数の除法" (decimal / integer).
+        id: 'g4-decimal-div',
+        titleKey: 'preset_g4_decimal_div_title',
+        descKey: 'preset_g4_decimal_div_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'ope', operator: ['div'], a_value: 2, b_value: 1,
+          a_decimal_places: 1,
         },
       },
     ],
@@ -436,6 +494,38 @@ export const presetsByGrade = {
           denominator_digits: 1, different_denominators: true, proper_operands: true,
         },
       },
+      {
+        // Matches the formal grade-5 course-of-study unit covering "小数の
+        // 乗法，除法の意味" (elementary-course-of-study-mathematics-2017.pdf
+        // p.245): decimal x decimal. Both operands use the same
+        // decimal-places value (1), which nuts_calc_tex.py requires for
+        // 'mul' to keep the product within elementary-school-appropriate
+        // range (issue #76).
+        id: 'g5-decimal-mul',
+        titleKey: 'preset_g5_decimal_mul_title',
+        descKey: 'preset_g5_decimal_mul_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 2,
+          a_decimal_places: 1, b_decimal_places: 1,
+        },
+      },
+      {
+        // Same unit (p.245): decimal / decimal. Equal decimal places make
+        // the quotient an exact whole number (aligning decimal points before
+        // dividing, as taught in the course of study) -- never a
+        // repeating/infinite decimal, since nuts_calc_tex.py's decimal
+        // division always reuses the exact-integer-division guarantee (see
+        // nuts_calc_tex.py.md's decimal-arithmetic design note).
+        id: 'g5-decimal-div',
+        titleKey: 'preset_g5_decimal_div_title',
+        descKey: 'preset_g5_decimal_div_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'ope', operator: ['div'], a_value: 2, b_value: 2,
+          a_decimal_places: 1, b_decimal_places: 1,
+        },
+      },
     ],
     written: [
       {
@@ -512,6 +602,45 @@ export const presetsByGrade = {
         params: {
           command_type: 'frac', operator: ['mul', 'div'], numerator_digits: 1,
           denominator_digits: 1, proper_operands: true,
+        },
+      },
+      {
+        // Matches the formal grade-6 course-of-study "内容の取扱い" note on
+        // 分数の乗法，除法 (elementary-course-of-study-mathematics-2017.pdf
+        // p.293): "整数や小数の乗法や除法を分数の場合の計算にまとめることも
+        // 取り扱うものとする" (integer/decimal multiplication and division
+        // shall also be handled by unifying them into fraction-form
+        // calculation) -- worked example on p.294: "5÷2×0.3" converted to a
+        // fraction product. The `mixed` command (nuts_calc_tex.py, issue
+        // #76) implements exactly this: int/decimal/fraction operands,
+        // computed exactly via fractions.Fraction and always answered as a
+        // fraction (never decimal notation), so a division whose quotient
+        // doesn't terminate (e.g. 2/3) is still exact, not an
+        // infinite/repeating decimal. latexOnly because the `mixed` command
+        // exists only in nuts_calc_tex.py.
+        id: 'g6-mixed-basic',
+        titleKey: 'preset_g6_mixed_basic_title',
+        descKey: 'preset_g6_mixed_basic_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'mixed', operator: ['mix'], terms: 2,
+          numerator_digits: 1, denominator_digits: 1, decimal_places: 1,
+          a_kind: ['int', 'decimal', 'fraction'], b_kind: ['int', 'decimal', 'fraction'],
+        },
+      },
+      {
+        // Same course-of-study basis as g6-mixed-basic, extended to a
+        // 3-term chained expression (matching the p.294 worked example's
+        // shape, "5÷2×0.3") via --mixed-operators (standard * / precedence
+        // over + -, nuts_calc_tex.py issue #71/#76).
+        id: 'g6-mixed-advanced',
+        titleKey: 'preset_g6_mixed_advanced_title',
+        descKey: 'preset_g6_mixed_advanced_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'mixed', operator: ['mix'], terms: 3, mixed_operators: true,
+          numerator_digits: 1, denominator_digits: 1, decimal_places: 1,
+          a_kind: ['int', 'decimal', 'fraction'], b_kind: ['int', 'decimal', 'fraction'],
         },
       },
     ],

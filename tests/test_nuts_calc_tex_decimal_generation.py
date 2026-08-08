@@ -1,0 +1,128 @@
+"""
+Pure-Python tests for `ope`'s decimal-arithmetic extension
+(--a-decimal-places/--b-decimal-places).
+
+Every test in this file exists to protect one invariant: a decimal result
+must always be exact and finite (no floating point, no infinite/repeating
+decimals anywhere) -- see nuts_calc_tex.py.md's decimal-arithmetic design
+note.
+"""
+
+from decimal import Decimal
+
+import pytest
+
+import nuts_calc_tex as tex_module
+
+
+def test_format_decimal_value_zero_places_matches_plain_int_string() -> None:
+    assert tex_module.format_decimal_value(5, 0) == "5"
+    assert tex_module.format_decimal_value(123, 0) == "123"
+
+
+def test_format_decimal_value_places_the_decimal_point() -> None:
+    assert tex_module.format_decimal_value(5, 1) == "0.5"
+    assert tex_module.format_decimal_value(360, 2) == "3.60"
+    assert tex_module.format_decimal_value(9, 2) == "0.09"
+
+
+@pytest.mark.parametrize(
+    "operator, a_places, b_places, expected",
+    [
+        ("add", 2, 2, 2),
+        ("sub", 1, 1, 1),
+        ("mul", 1, 1, 2),
+        ("mul", 2, 0, 2),
+        ("div", 2, 0, 2),
+        ("div", 1, 1, 0),
+    ],
+)
+def test_ope_result_decimal_places(operator: str, a_places: int, b_places: int, expected: int) -> None:
+    assert tex_module.ope_result_decimal_places(operator, a_places, b_places) == expected
+
+
+def test_generate_ope_problems_defaults_to_zero_decimal_places() -> None:
+    problems = tex_module.generate_ope_problems([2], [3], ["add"], 5, 1)
+    for problem in problems:
+        assert problem.a_decimal_places == 0
+        assert problem.b_decimal_places == 0
+
+
+@pytest.mark.parametrize("operator", ["add", "sub", "mul", "div"])
+def test_generate_ope_problems_decimal_add_sub_mul_are_exact(operator: str) -> None:
+    if operator in ("add", "sub"):
+        nums_a, nums_b = list(range(10, 100)), list(range(10, 100))
+        a_places = b_places = 2
+    elif operator == "mul":
+        nums_a, nums_b = list(range(10, 100)), list(range(1, 10))
+        a_places, b_places = 1, 0
+    else:
+        nums_a, nums_b = list(range(10, 100)), list(range(1, 10))
+        a_places, b_places = 1, 0
+
+    problems = tex_module.generate_ope_problems(
+        nums_a, nums_b, [operator], 50, 1, a_places, b_places,
+    )
+    assert len(problems) == 50
+    for problem in problems:
+        c_places = tex_module.ope_result_decimal_places(operator, a_places, b_places)
+        a_value = Decimal(problem.a).scaleb(-a_places) if a_places else Decimal(problem.a)
+        b_value = Decimal(problem.b).scaleb(-b_places) if b_places else Decimal(problem.b)
+        c_value = Decimal(problem.c).scaleb(-c_places) if c_places else Decimal(problem.c)
+        if operator == "add":
+            assert a_value + b_value == c_value
+        elif operator == "sub":
+            assert a_value - b_value == c_value
+            assert c_value > 0
+        elif operator == "mul":
+            assert a_value * b_value == c_value
+        else:
+            assert b_value != 0
+            assert a_value / b_value == c_value
+
+
+def test_generate_ope_problems_decimal_divide_by_decimal_yields_whole_number() -> None:
+    nums_a = list(range(10, 100))
+    nums_b = list(range(10, 100))
+    problems = tex_module.generate_ope_problems(
+        nums_a, nums_b, ["div"], 50, 1, a_decimal_places=1, b_decimal_places=1,
+    )
+    for problem in problems:
+        c_places = tex_module.ope_result_decimal_places("div", 1, 1)
+        assert c_places == 0
+        # An exact integer quotient -- never a repeating/infinite decimal.
+        assert problem.a % problem.b == 0
+        assert problem.c == problem.a // problem.b
+
+
+def test_build_horizontal_block_tex_renders_decimal_points() -> None:
+    problem = tex_module.OpeProblem(
+        index=1, a=360, b=280, operator="add", c=640,
+        a_decimal_places=2, b_decimal_places=2,
+    )
+    filled = tex_module.build_horizontal_block_tex(problem, show_answer=True)
+    blank = tex_module.build_horizontal_block_tex(problem, show_answer=False)
+    assert "3.60 + 2.80 = 6.40" in filled
+    assert "3.60 + 2.80" in blank
+    assert "6.40" not in blank
+
+
+def test_build_ope_bottom_answer_tex_formats_decimal_result() -> None:
+    problem = tex_module.OpeProblem(
+        index=1, a=50, b=8, operator="mul", c=400,
+        a_decimal_places=1, b_decimal_places=0,
+    )
+    assert tex_module.build_ope_bottom_answer_tex([problem]) == "(1) 40.0"
+
+
+def test_build_ope_csv_rows_keeps_plain_ints_when_no_decimal_places() -> None:
+    problem = tex_module.OpeProblem(index=1, a=2, b=3, operator="add", c=5)
+    assert tex_module.build_ope_csv_rows([[problem]]) == [[1, 1, 2, "add", 3, 5]]
+
+
+def test_build_ope_csv_rows_formats_decimal_values() -> None:
+    problem = tex_module.OpeProblem(
+        index=1, a=50, b=8, operator="mul", c=400,
+        a_decimal_places=1, b_decimal_places=0,
+    )
+    assert tex_module.build_ope_csv_rows([[problem]]) == [[1, 1, "5.0", "mul", "8", "40.0"]]

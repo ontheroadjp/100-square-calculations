@@ -17,6 +17,11 @@ class RendererRequest(TypedDict, total=False):
     b_max: int
     numerator_digits: int
     denominator_digits: int
+    a_decimal_places: int
+    b_decimal_places: int
+    decimal_places: int
+    a_kind: list[str]
+    b_kind: list[str]
     operator: list[str]
     descend: bool
     reverse: bool
@@ -74,20 +79,21 @@ def build_command(renderer_name: str, params: RendererRequest, out_file: str) ->
     Translate a request's params into CLI arguments for the given renderer.
 
     nuts_calc.py and nuts_calc_tex.py share the same CLI argument surface
-    (paper_size/command/-a/-b/--rows/--descend/etc.) with four exceptions:
-    `--vertical` (written-calculation / hissan format, issue #46),
+    (paper_size/command/-a/-b/--rows/--descend/etc.) with several
+    exceptions that are latex-only -- nuts_calc.py does not accept any of
+    them: `--vertical` (written-calculation / hissan format, issue #46),
     `--use-parentheses` (parenthesized "(a op1 b) op2 c" expressions, issue
     #67), `--missing-value` (missing-number "a op b = c" expressions with
-    one operand boxed out, issue #69), and `--terms`/`--terms-min`/
+    one operand boxed out, issue #69), `--terms`/`--terms-min`/
     `--terms-max`/`--mixed-operators` (N-term expressions with optional
-    per-gap operator mixing, issue #71) are latex-only -- nuts_calc.py does
-    not accept any of them. This command-building logic still translates
-    `params["vertical"]`/`params["use_parentheses"]`/`params["missing_value"]`/
-    `params["terms"]`/`params["terms_min"]`/`params["terms_max"]`/
-    `params["mixed_operators"]` unconditionally for both renderers; callers
-    must only set them when the active renderer is `latex` (see `GET
-    /renderer-info`), otherwise nuts_calc.py will reject the resulting CLI
-    invocation as an unrecognized argument.
+    per-gap operator mixing, issue #71), and `--a-decimal-places`/
+    `--b-decimal-places`/`--decimal-places`/`--a-kind`/`--b-kind` (decimal
+    `ope` arithmetic and the `mixed` int/decimal/fraction command, issue
+    #76). This command-building logic still translates all of these params
+    unconditionally for both renderers; callers must only set them when the
+    active renderer is `latex` (see `GET /renderer-info`), otherwise
+    nuts_calc.py will reject the resulting CLI invocation as an unrecognized
+    argument.
     """
     script_path = RENDERER_SCRIPTS[renderer_name]
     command = [sys.executable, str(script_path)]
@@ -116,6 +122,16 @@ def build_command(renderer_name: str, params: RendererRequest, out_file: str) ->
         command.extend(["--numerator-digits", str(params["numerator_digits"])])
     if "denominator_digits" in params:
         command.extend(["--denominator-digits", str(params["denominator_digits"])])
+    if "a_decimal_places" in params:
+        command.extend(["--a-decimal-places", str(params["a_decimal_places"])])
+    if "b_decimal_places" in params:
+        command.extend(["--b-decimal-places", str(params["b_decimal_places"])])
+    if "decimal_places" in params:
+        command.extend(["--decimal-places", str(params["decimal_places"])])
+    if params.get("a_kind"):
+        command.extend(["--a-kind", *params["a_kind"]])
+    if params.get("b_kind"):
+        command.extend(["--b-kind", *params["b_kind"]])
     if params.get("operator"):
         command.extend(["--operator", *params["operator"]])
     if params.get("descend"):
