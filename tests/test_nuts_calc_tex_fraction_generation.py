@@ -74,3 +74,60 @@ def test_build_fraction_csv_rows_keeps_operands_and_reduced_answer() -> None:
     assert tex_module.build_fraction_csv_rows([[problem]]) == [
         [1, 1, 2, 4, "add", 1, 4, 3, 4],
     ]
+
+
+@pytest.mark.parametrize(
+    ("pattern", "a_form", "b_form"),
+    [
+        ("same-denominator", "proper", "proper"),
+        ("same-numerator", "proper", "proper"),
+        ("different-denominators", "proper", "proper"),
+        ("different-denominators", "mixed", "proper"),
+        ("different-denominators", "improper", "mixed"),
+        ("different-denominators", "mix", "mix"),
+    ],
+)
+def test_generate_fraction_comparison_problems_matches_pattern_and_forms(
+        pattern: str, a_form: str, b_form: str,
+    ) -> None:
+    problems = tex_module.generate_fraction_comparison_problems(
+        pattern, a_form, b_form, 1, 1, 30, 1,
+    )
+
+    assert len(problems) == 30
+    for problem in problems:
+        assert problem.a.value != problem.b.value
+        assert problem.relation in ("<", ">")
+        if pattern == "same-denominator":
+            assert problem.a.denominator == problem.b.denominator
+            assert problem.a.numerator != problem.b.numerator
+        elif pattern == "same-numerator":
+            assert problem.a.numerator == problem.b.numerator
+            assert problem.a.denominator != problem.b.denominator
+        else:
+            assert problem.a.denominator != problem.b.denominator
+
+
+def test_comparison_tex_uses_box_for_question_and_relation_for_answer() -> None:
+    problem = tex_module.FractionComparisonProblem(
+        1,
+        tex_module.FractionComparisonOperand(1, 2),
+        tex_module.FractionComparisonOperand(1, 3, 2),
+    )
+    blank = tex_module.build_fraction_comparison_block_tex(problem, False)
+    filled = tex_module.build_fraction_comparison_block_tex(problem, True)
+
+    assert tex_module.BOXED_BLANK_TEX in blank
+    assert r"2\frac{1}{3}" in blank
+    assert " < " in filled
+
+
+def test_comparison_csv_rows_include_displayed_operands_and_relation() -> None:
+    problem = tex_module.FractionComparisonProblem(
+        1,
+        tex_module.FractionComparisonOperand(3, 2),
+        tex_module.FractionComparisonOperand(1, 2, 1),
+    )
+    assert tex_module.build_fraction_comparison_csv_rows([[problem]]) == [
+        [1, 1, 0, 3, 2, ">", 1, 1, 2],
+    ]

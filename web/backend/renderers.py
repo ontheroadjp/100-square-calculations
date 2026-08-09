@@ -39,6 +39,9 @@ class RendererRequest(TypedDict, total=False):
     different_denominators: bool
     proper_operands: bool
     proper_result: bool
+    comparison_pattern: Literal["same-denominator", "same-numerator", "different-denominators"]
+    a_fraction_form: Literal["proper", "improper", "mixed", "mix"]
+    b_fraction_form: Literal["proper", "improper", "mixed", "mix"]
     rows: int
     columns: int
     with_bottom_answer: bool
@@ -178,6 +181,12 @@ def build_command(renderer_name: str, params: RendererRequest, out_file: str) ->
         command.append("--proper-operands")
     if params.get("proper_result"):
         command.append("--proper-result")
+    if "comparison_pattern" in params:
+        command.extend(["--comparison-pattern", params["comparison_pattern"]])
+    if "a_fraction_form" in params:
+        command.extend(["--a-fraction-form", params["a_fraction_form"]])
+    if "b_fraction_form" in params:
+        command.extend(["--b-fraction-form", params["b_fraction_form"]])
     if "rows" in params:
         command.extend(["--rows", str(params["rows"])])
     if "columns" in params:

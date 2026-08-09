@@ -22,6 +22,13 @@
 - 問題・解答は `\frac` と `\displaystyle` で横書き表示する。通常の問題PDF、`_read.pdf`、`--merge`、`--with-bottom-answer`、`--csv` の全出力経路に対応する。答えの文字色は既存コマンドと同じ黒である(`nuts_calc_tex.py:1441-1500,1510-1565`)。
 - 学年別配置の根拠となる文部科学省資料は `docs/reference/` に保存する。Webカードは LaTeX レンダラー時のみ表示される([[web/frontend/src/drillPresets.js]]、[[web/frontend/src/GradeDrills.jsx]])。
 
+### `compare` コマンド(issue #83)
+
+- 分数2つの間にある枠へ不等号を書く比較ドリルを生成するLaTeX専用コマンド。`--comparison-pattern` は `same-denominator`（同分母・異分子）、`same-numerator`（同分子・異分母）、`different-denominators`（異分母）を選ぶ。分子・分母の桁数は既存の `--numerator-digits`/`--denominator-digits`（各1〜3）を共用する（`nuts_calc_tex.py:130-233,439-473`）。
+- 左右の表示形式は `--a-fraction-form`/`--b-fraction-form` で独立に `proper`/`improper`/`mixed`/`mix` から選ぶ。`mixed` は整数部1〜9と真分数部を持つ帯分数、`mix` は問題ごとに3形式から抽選する。標準ライブラリ `Fraction` により帯分数を含む値を厳密に比較し、等値は出題しない（`nuts_calc_tex.py:2674-2758`）。
+- blank PDF は既存の `BOXED_BLANK_TEX` を比較記号位置に置き、解答PDFは `<` または `>` を出力する。CSVは整数部・分子・分母・関係記号を左右それぞれ保存する。`main()` は専用ページ生成・CSV出力へ分岐する（`nuts_calc_tex.py:2761-2816,3001-3065`）。
+- 分数四則専用フラグと比較専用フラグは `_init()` で相互に拒否し、既存の `frac`/`mixed` の挙動を変えない（`nuts_calc_tex.py:452-473`）。
+
 ### `ope --a-decimal-places`/`--b-decimal-places`(issue #76)
 
 - `_init()` は `command == 'ope'` のときのみこれらを許可する(`command != 'ope'` の場合は拒否)。横書きのみ対応で、`--vertical`/`--intermediate`/`--use-parentheses`/`--missing-value`/`--terms`系との併用は全て拒否する(N項系の infra を一切共有しない、独立した拡張)。値域は `MIN_DECIMAL_PLACES`(0)〜`MAX_DECIMAL_PLACES`(2)。

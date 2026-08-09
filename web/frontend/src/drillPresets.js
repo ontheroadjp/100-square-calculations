@@ -402,6 +402,48 @@ export const presetsByGrade = {
         },
       },
       {
+        id: 'g4-fraction-compare-same-denominator',
+        titleKey: 'preset_g4_fraction_compare_same_denominator_title',
+        descKey: 'preset_g4_fraction_compare_same_denominator_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'compare', comparison_pattern: 'same-denominator',
+          numerator_digits: 1, denominator_digits: 1,
+        },
+      },
+      {
+        id: 'g4-fraction-compare-same-numerator',
+        titleKey: 'preset_g4_fraction_compare_same_numerator_title',
+        descKey: 'preset_g4_fraction_compare_same_numerator_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'compare', comparison_pattern: 'same-numerator',
+          numerator_digits: 1, denominator_digits: 1,
+        },
+      },
+      {
+        id: 'g4-fraction-compare-same-denominator-advanced',
+        titleKey: 'preset_g4_fraction_compare_same_denominator_advanced_title',
+        descKey: 'preset_g4_fraction_compare_same_denominator_advanced_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'compare', comparison_pattern: 'same-denominator',
+          a_fraction_form: 'mix', b_fraction_form: 'mix',
+          numerator_digits: 1, denominator_digits: 1,
+        },
+      },
+      {
+        id: 'g4-fraction-compare-same-numerator-advanced',
+        titleKey: 'preset_g4_fraction_compare_same_numerator_advanced_title',
+        descKey: 'preset_g4_fraction_compare_same_numerator_advanced_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'compare', comparison_pattern: 'same-numerator',
+          a_fraction_form: 'mix', b_fraction_form: 'mix',
+          numerator_digits: 1, denominator_digits: 1,
+        },
+      },
+      {
         // Matches the formal grade-4 course-of-study unit A(4) 小数の仕組みと
         // その計算 (elementary-course-of-study-mathematics-2017.pdf p.196):
         // multi-place (1/100 unit) decimal addition/subtraction. latexOnly
@@ -534,6 +576,27 @@ export const presetsByGrade = {
         params: {
           command_type: 'frac', operator: ['add', 'sub'], numerator_digits: 1,
           denominator_digits: 1, different_denominators: true, proper_operands: true,
+        },
+      },
+      {
+        id: 'g5-fraction-compare-different-denominators',
+        titleKey: 'preset_g5_fraction_compare_different_denominators_title',
+        descKey: 'preset_g5_fraction_compare_different_denominators_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'compare', comparison_pattern: 'different-denominators',
+          numerator_digits: 1, denominator_digits: 1,
+        },
+      },
+      {
+        id: 'g5-fraction-compare-different-denominators-advanced',
+        titleKey: 'preset_g5_fraction_compare_different_denominators_advanced_title',
+        descKey: 'preset_g5_fraction_compare_different_denominators_advanced_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'compare', comparison_pattern: 'different-denominators',
+          a_fraction_form: 'mix', b_fraction_form: 'mix',
+          numerator_digits: 1, denominator_digits: 1,
         },
       },
       {

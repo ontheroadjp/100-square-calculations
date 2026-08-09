@@ -129,8 +129,8 @@ def _init() -> argparse.Namespace:
     )
     parser.add_argument('command'
         , type = str
-        , choices = ['ope', 'com', '100', '99', 'aBc', 'squ', 'pi', 'frac', 'mixed']
-        , help = 'Type of formula to output (including "frac" for fraction arithmetic and "mixed" for int/decimal/fraction arithmetic)'
+        , choices = ['ope', 'com', '100', '99', 'aBc', 'squ', 'pi', 'frac', 'mixed', 'compare']
+        , help = 'Type of formula to output (including "frac" for fraction arithmetic, "compare" for fraction comparison, and "mixed" for int/decimal/fraction arithmetic)'
     )
     parser.add_argument('-a', '--a-value'
         , type = int
@@ -189,12 +189,12 @@ def _init() -> argparse.Namespace:
     parser.add_argument('--numerator-digits'
         , type = int
         , default = 1
-        , help = 'Number of digits in fraction numerators (frac only)'
+        , help = 'Number of digits in fraction numerators (frac, compare, mixed)'
     )
     parser.add_argument('--denominator-digits'
         , type = int
         , default = 1
-        , help = 'Number of digits in fraction denominators (frac only)'
+        , help = 'Number of digits in fraction denominators (frac, compare, mixed)'
     )
     parser.add_argument('--same-denominator'
         , default = False
@@ -215,6 +215,21 @@ def _init() -> argparse.Namespace:
         , default = False
         , action = 'store_true'
         , help = 'Only generate positive proper-fraction answers (frac only)'
+    )
+    parser.add_argument('--comparison-pattern'
+        , choices = ['same-denominator', 'same-numerator', 'different-denominators']
+        , default = 'different-denominators'
+        , help = 'Fraction comparison pattern (compare only)'
+    )
+    parser.add_argument('--a-fraction-form'
+        , choices = ['proper', 'improper', 'mixed', 'mix']
+        , default = 'proper'
+        , help = 'Form of the left comparison operand (compare only; mix chooses per problem)'
+    )
+    parser.add_argument('--b-fraction-form'
+        , choices = ['proper', 'improper', 'mixed', 'mix']
+        , default = 'proper'
+        , help = 'Form of the right comparison operand (compare only; mix chooses per problem)'
     )
     parser.add_argument('--a-decimal-places'
         , type = int
@@ -421,9 +436,9 @@ def _init() -> argparse.Namespace:
         if args.a_value is None:
             failure("-a/--a-value (starting multiplicand) is required for the 'pi' command.")
 
-    if args.command == 'frac':
-        if args.same_denominator and args.different_denominators:
-            failure("--same-denominator and --different-denominators cannot be combined.")
+    if args.command in ('frac', 'compare', 'mixed'):
+        # All three commands create fraction operands; the digit options are
+        # shared so comparison worksheets can use the same familiar controls.
         for option_name, value in (
             ('--numerator-digits', args.numerator_digits),
             ('--denominator-digits', args.denominator_digits),
@@ -431,13 +446,31 @@ def _init() -> argparse.Namespace:
             if not MIN_FRACTION_DIGITS <= value <= MAX_FRACTION_DIGITS:
                 failure(
                     f"{option_name} must be between {MIN_FRACTION_DIGITS} "
-                    f"and {MAX_FRACTION_DIGITS} for the 'frac' command."
+                    f"and {MAX_FRACTION_DIGITS} for the '{args.command}' command."
                 )
+
+    if args.command == 'frac':
+        if args.same_denominator and args.different_denominators:
+            failure("--same-denominator and --different-denominators cannot be combined.")
         if args.proper_operands and args.numerator_digits > args.denominator_digits:
             failure(
                 "--proper-operands requires --numerator-digits to be no greater "
                 "than --denominator-digits."
             )
+
+    fraction_arithmetic_options_given = (
+        args.same_denominator or args.different_denominators
+        or args.proper_operands or args.proper_result
+    )
+    if args.command != 'frac' and fraction_arithmetic_options_given:
+        failure("--same-denominator/--different-denominators/--proper-operands/--proper-result are only supported for the 'frac' command.")
+
+    comparison_options_given = (
+        args.comparison_pattern != 'different-denominators'
+        or args.a_fraction_form != 'proper' or args.b_fraction_form != 'proper'
+    )
+    if args.command != 'compare' and comparison_options_given:
+        failure("--comparison-pattern/--a-fraction-form/--b-fraction-form are only supported for the 'compare' command.")
 
     if args.intermediate:
         if args.command != 'ope':
@@ -2638,6 +2671,151 @@ def build_fraction_pages(
     return blank_pages, filled_pages, pages_problems
 
 
+COMPARISON_FORMS = ('proper', 'improper', 'mixed')
+
+
+@dataclass(frozen=True)
+class FractionComparisonOperand:
+    """One displayed comparison operand, optionally written as a mixed number."""
+    numerator: int
+    denominator: int
+    whole: int = 0
+
+    @property
+    def value(self) -> Fraction:
+        return Fraction(self.whole * self.denominator + self.numerator, self.denominator)
+
+
+@dataclass(frozen=True)
+class FractionComparisonProblem:
+    """One fraction comparison whose answer is the relation symbol."""
+    index: int
+    a: FractionComparisonOperand
+    b: FractionComparisonOperand
+
+    @property
+    def relation(self) -> str:
+        return '<' if self.a.value < self.b.value else '>'
+
+
+def random_comparison_operand(
+        form: str, numerator_digits: int, denominator_digits: int,
+    ) -> FractionComparisonOperand:
+    """Create one proper, improper, or mixed-number comparison operand."""
+    if form == 'mix':
+        form = random.choice(COMPARISON_FORMS)
+    numerator_min, numerator_max = digit_range(numerator_digits)
+    denominator_min, denominator_max = digit_range(denominator_digits)
+    denominator_min = max(2, denominator_min)
+    denominator = random.randint(denominator_min, denominator_max)
+
+    if form in ('proper', 'mixed'):
+        numerator_max = min(numerator_max, denominator - 1)
+        if numerator_min > numerator_max:
+            raise ValueError(f"No {form} fraction satisfies the requested digit constraints.")
+        numerator = random.randint(numerator_min, numerator_max)
+        return FractionComparisonOperand(numerator, denominator, random.randint(1, 9) if form == 'mixed' else 0)
+
+    numerator_min = max(numerator_min, denominator + 1)
+    if numerator_min > numerator_max:
+        raise ValueError("No improper fraction satisfies the requested digit constraints.")
+    return FractionComparisonOperand(random.randint(numerator_min, numerator_max), denominator)
+
+
+def generate_fraction_comparison_problems(
+        pattern: str, a_form: str, b_form: str, numerator_digits: int,
+        denominator_digits: int, order: int, start_index: int,
+    ) -> list[FractionComparisonProblem]:
+    """Generate non-equal comparison problems matching a display pattern."""
+    problems = []
+    for offset in range(order):
+        for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
+            try:
+                a = random_comparison_operand(a_form, numerator_digits, denominator_digits)
+                b = random_comparison_operand(b_form, numerator_digits, denominator_digits)
+            except ValueError:
+                continue
+            if a.value == b.value:
+                continue
+            if pattern == 'same-denominator':
+                if a.denominator != b.denominator or a.numerator == b.numerator:
+                    continue
+            elif pattern == 'same-numerator':
+                if a.numerator != b.numerator or a.denominator == b.denominator:
+                    continue
+            elif pattern == 'different-denominators':
+                if a.denominator == b.denominator:
+                    continue
+            else:
+                raise ValueError(f"Unknown comparison pattern: {pattern}")
+            problems.append(FractionComparisonProblem(start_index + offset, a, b))
+            break
+        else:
+            raise ValueError(
+                "Unable to generate fraction comparison problems with the requested "
+                "pattern, forms, and digit constraints."
+            )
+    return problems
+
+
+def comparison_operand_to_tex(operand: FractionComparisonOperand) -> str:
+    """Render a comparison operand, retaining its requested fraction form."""
+    fraction_tex = f"\\frac{{{operand.numerator}}}{{{operand.denominator}}}"
+    return f"{operand.whole}{fraction_tex}" if operand.whole else fraction_tex
+
+
+def build_fraction_comparison_block_tex(problem: FractionComparisonProblem, show_answer: bool) -> str:
+    relation_tex = problem.relation if show_answer else BOXED_BLANK_TEX
+    return (
+        f"{problem.index}) $\\displaystyle {comparison_operand_to_tex(problem.a)} "
+        f"{relation_tex} {comparison_operand_to_tex(problem.b)}$"
+    )
+
+
+def build_fraction_comparison_page_pair(
+        problems: list[FractionComparisonProblem], columns: int,
+    ) -> tuple[Page, Page]:
+    return (
+        Page([build_fraction_comparison_block_tex(problem, False) for problem in problems], columns),
+        Page([build_fraction_comparison_block_tex(problem, True) for problem in problems], columns),
+    )
+
+
+def build_fraction_comparison_csv_rows(
+        pages_problems: list[list[FractionComparisonProblem]],
+    ) -> list[list[object]]:
+    return [
+        [
+            page_number, problem.index,
+            problem.a.whole, problem.a.numerator, problem.a.denominator,
+            problem.relation,
+            problem.b.whole, problem.b.numerator, problem.b.denominator,
+        ]
+        for page_number, problems in enumerate(pages_problems, start=1)
+        for problem in problems
+    ]
+
+
+def build_fraction_comparison_pages(
+        ini: argparse.Namespace,
+    ) -> tuple[list[Page], list[Page], list[list[FractionComparisonProblem]]]:
+    order = ini.rows * ini.columns
+    blank_pages = []
+    filled_pages = []
+    pages_problems = []
+    for page_number in range(1, ini.page + 1):
+        problems = generate_fraction_comparison_problems(
+            ini.comparison_pattern, ini.a_fraction_form, ini.b_fraction_form,
+            ini.numerator_digits, ini.denominator_digits, order,
+            (page_number - 1) * order + 1,
+        )
+        blank_page, filled_page = build_fraction_comparison_page_pair(problems, ini.columns)
+        pages_problems.append(problems)
+        blank_pages.append(blank_page)
+        filled_pages.append(filled_page)
+    return blank_pages, filled_pages, pages_problems
+
+
 @dataclass(frozen=True)
 class MixedOperand:
     """One "mixed"-command operand: its kind, ready-to-embed TeX, and exact value."""
@@ -2820,6 +2998,7 @@ def main(ini: argparse.Namespace) -> None:
     squ_pages_problems: list[list[SquProblem]] | None = None
     pi_pages_problems: list[list[PiProblem]] | None = None
     fraction_pages_problems: list[list[FractionProblem]] | None = None
+    comparison_pages_problems: list[list[FractionComparisonProblem]] | None = None
     mixed_pages_problems: list[list[MixedProblem]] | None = None
     if ini.command == 'ope' and ini.use_parentheses:
         blank_pages, filled_pages, tree_ope_pages_problems = build_ope_pages(ini)
@@ -2843,6 +3022,8 @@ def main(ini: argparse.Namespace) -> None:
         blank_pages, filled_pages, pi_pages_problems = build_pi_pages(ini)
     elif ini.command == 'mixed':
         blank_pages, filled_pages, mixed_pages_problems = build_mixed_pages(ini)
+    elif ini.command == 'compare':
+        blank_pages, filled_pages, comparison_pages_problems = build_fraction_comparison_pages(ini)
     else:
         blank_pages, filled_pages, fraction_pages_problems = build_fraction_pages(ini)
 
@@ -2880,6 +3061,8 @@ def main(ini: argparse.Namespace) -> None:
             rows = build_pi_csv_rows(pi_pages_problems)
         elif mixed_pages_problems is not None:
             rows = build_mixed_csv_rows(mixed_pages_problems)
+        elif comparison_pages_problems is not None:
+            rows = build_fraction_comparison_csv_rows(comparison_pages_problems)
         else:
             rows = build_fraction_csv_rows(fraction_pages_problems)
         write_csv(rows, outfile_csv)
