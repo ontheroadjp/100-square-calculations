@@ -6,9 +6,10 @@
 
 `nuts_calc.py` とは import 等のコード共有を一切行わない(`nuts_calc.py` 側も変更しない)。将来的に両者を同じ CLI 契約で切り替えられるラッパーを作る前提のため、引数体系は `nuts_calc.py` の `_init()` に似せているが、実装は完全に別物。問題生成ロジック(`calc_add`/`calc_sub`/`calc_mul`/`calc_div`/`generate_ope_problems`)も `nuts_calc.py` の `get_operation_data` 等とは独立に再実装している(意味論は似せているが、コードは共有しない)。issue #65 では LaTeX 固有の8番目のコマンド `frac` を追加し、分数の四則演算を実装した。issue #67 では `ope` コマンドに LaTeX 固有のオプション `--use-parentheses` を追加し、かっこ付き3項式(`(a op b) op c` または `a op (b op c)`)の出題を実装した。issue #69 では `ope` コマンドに LaTeX 固有のオプション `--missing-value` を追加し、`a op b = c` のうち `a`/`b`(演算子の両オペランド)いずれか1つを枠で隠す虫食い算(missing-number)の出題を実装した。issue #71 では `ope` コマンドに `--terms`/`--terms-min`/`--terms-max`/`--mixed-operators` を追加して2項固定だった `ope` を任意項数(2〜12)の多項演算に一般化するとともに、`--use-parentheses` を固定3項・2形状(`(a op b) op c`/`a op (b op c)`)からN項(N>=3)のランダムな2分木構造に一般化した。issue #76 では `ope` コマンドに `--a-decimal-places`/`--b-decimal-places` を追加して小数の四則演算(横書きのみ)に対応するとともに、LaTeX 固有の9番目のコマンド `mixed` を追加し、整数・小数・分数を混在させた任意項数の四則演算(答えは常に厳密な分数)を実装した。issue #78 では2項整数 `ope` の加減算へ繰り上がり・繰り下がり条件を追加し、1年生向けWebカードから利用できるようにした。
 
-### `ope --carry`/`--no-carry`/`--mixed-carry`(issue #78)
+### `ope --carry-borrow`/`--no-carry-borrow`/`--mixed-carry-borrow`(issue #78, #81)
 
-- 3フラグは argparse の排他グループで、内部では `carry_mode='required'|'none'|'mixed'` に正規化する。2項・整数の `ope` と `add`/`sub` のみ対応し、`--mixed-carry` は `-o add sub` の両方を必須とする。かっこ・虫食い算・多項・小数との併用は `_init()` が拒否する(`nuts_calc_tex.py:168-186,492-507`)。
+- 3フラグは argparse の排他グループで、内部では `carry_mode='required'|'none'|'mixed'` に正規化する。2項・整数の `ope` と `add`/`sub` のみ対応し、`--mixed-carry-borrow` は `-o add sub` の両方を必須とする。かっこ・虫食い算・多項・小数との併用は `_init()` が拒否する(`nuts_calc_tex.py:169-187,493-508`)。
+- issue #81 で旧 `--carry`/`--no-carry`/`--mixed-carry` は後方互換エイリアスを設けず削除した。`ArgumentParser(allow_abbrev=False)` により、旧名が新フラグの省略として受理されることも防ぐ(`nuts_calc_tex.py:115-123`)。
 - `addition_has_carry()`/`subtraction_has_borrow()` が各桁を下位から調べる。`calc_add(..., carry)` は指定範囲を最大1000回優先し、成立しなければ範囲を無視して元レンジの桁幅を保つ代表値を合成する。フラグ未指定(`carry=None`)では受け取った初回抽選値を即座に返し、従来の乱数消費と結果を変えない(`nuts_calc_tex.py:834-897`)。
 - `calc_sub(..., borrow=True)` はユーザー指定範囲より学習条件を優先し、被減数10〜19・減数1〜9かつ実際に繰り下がる組だけを返す。`borrow=False` は指定範囲を優先後、正で繰り下がらない代表値へフォールバックする。`borrow=None` は従来の「答えが正」だけを保証する経路である(`nuts_calc_tex.py:846-940`)。
 - `generate_ope_problems()` は `required` なら各加算で繰り上がり、各減算で繰り下がりを必須にし、`none` なら両方を禁止する。`mixed` は1桁加算を無条件抽選して繰り上がりあり/なしを混ぜ、減算ごとに1桁同士の繰り下がりなし、または10〜19−1桁の繰り下がりありを抽選する(`nuts_calc_tex.py:1004-1045`)。
@@ -79,7 +80,7 @@
 ### `ope` コマンド(Phase 2)
 
 - `OpeProblem` データクラス(`index`/`a`/`b`/`operator`/`c`)が1問を表す。
-- フラグ未指定時の `calc_add`/`calc_mul` は単純計算。`calc_sub`/`calc_div` は `nuts_calc.py` の同名関数と同じ意味論(結果が正になるまで/割り切れるまで、最大 `MAX_OPERAND_RETRY_ATTEMPTS`(1000)回オペランドを再抽選)をベースに独立に再実装し、再抽選後は `calc_sub` が `(max(nums_a), min(nums_b))`、`calc_div` が `find_exact_division_pair` へ決定的にフォールバックする。`--carry`系指定時だけ、上記issue #78の条件付き経路へ分岐する(`nuts_calc_tex.py:874-999`)。
+- フラグ未指定時の `calc_add`/`calc_mul` は単純計算。`calc_sub`/`calc_div` は `nuts_calc.py` の同名関数と同じ意味論(結果が正になるまで/割り切れるまで、最大 `MAX_OPERAND_RETRY_ATTEMPTS`(1000)回オペランドを再抽選)をベースに独立に再実装し、再抽選後は `calc_sub` が `(max(nums_a), min(nums_b))`、`calc_div` が `find_exact_division_pair` へ決定的にフォールバックする。`--carry-borrow`系指定時だけ、上記issue #78の条件付き経路へ分岐する(`nuts_calc_tex.py:874-999`)。
 - `generate_ope_problems`(`nuts_calc_tex.py:433-451`): `operators` に `'mix'` が含まれる場合は `add`/`sub`/`mul`/`div` の4種から**問題ごとに**ランダムな演算子を選ぶ(`nuts_calc.py` の `mix` 展開と同じ意味論)。
 - 横書き: `build_horizontal_block_tex` が `n) $a op b = c$` を生成する。blank 版は `c` の代わりに、下線を伴わない固定幅の `\hspace{1.5em}` を出力する。`--intermediate` 指定時は `build_horizontal_intermediate_block_tex` が代わりに使われ、`build_intermediate_memo`(`memo.md` STEP 1 の2桁×1桁暗算メモ技法: `a` の十の位×`b` と一の位×`b` をそれぞれ2桁ゼロ埋めして連結)を挟んだ `n) $a \times b \Rightarrow memo \Rightarrow c$` を出力する。同じ固定幅の空欄を使うため、通常・途中式とも解答欄のレイアウトを維持する。
 - `--vertical`(筆算): `build_vertical_block_tex`(`nuts_calc_tex.py:478-505`)が問題の `operator` に応じて分岐する。
@@ -252,6 +253,8 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 
 ## 変更履歴(git log より自動生成)
 
+- bf720ce feat(#81): clarify carry-borrow CLI options
+- 1186039 feat(#78): add carry-aware grade 1 drills
 - 8ae1b1f feat(#71): add multi-term ope support and generalize parentheses to N terms
 - 6c2ee20 feat(#69): add ope --missing-value option with grade menu cards
 - 1b7e795 feat(#67): add ope --use-parentheses option with grade menu cards
@@ -259,7 +262,3 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 - 5acfc32 fix(#63): box complement worksheet blanks
 - 04d9a60 fix(#59): distribute horizontal worksheet layout
 - cf3603c fix(#55): preserve vertical worksheet page counts
-- 88eefba fix: tighten written calculation operator spacing
-- ab83032 fix: align written calculation operators
-- fbb0f27 fix(#53): arrange worksheet problems in column order
-- 99352fd fix(#51): remove latex answer underlines

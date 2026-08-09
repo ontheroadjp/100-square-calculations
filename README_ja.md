@@ -76,11 +76,11 @@ python nuts_calc.py -h
 
 ### `nuts_calc_tex.py` のLaTeX専用ドリル
 
-`frac` は厳密な分数計算、`mixed` は整数・小数・分数の混合計算を生成します。2項整数の加減算では `--carry`、`--no-carry`、`--mixed-carry` を指定できます。これらの条件は数値範囲指定より優先され、繰り下がりありの減算は10〜19−1桁に限定されます。
+`frac` は厳密な分数計算、`mixed` は整数・小数・分数の混合計算を生成します。2項整数の加減算では `--carry-borrow`、`--no-carry-borrow`、`--mixed-carry-borrow` を指定できます。これらの条件は数値範囲指定より優先され、繰り下がりありの減算は10〜19−1桁に限定されます。
 
 ```bash
 python3 nuts_calc_tex.py A4 frac --numerator-digits 1 --denominator-digits 1 -o add sub --out-file fractions.pdf
-python3 nuts_calc_tex.py A4 ope -o add sub --mixed-carry --out-file grade1-mixed.pdf
+python3 nuts_calc_tex.py A4 ope -o add sub --mixed-carry-borrow --out-file grade1-mixed.pdf
 ```
 
 ### `factory.sh`を使った一括生成

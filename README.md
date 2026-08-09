@@ -103,8 +103,8 @@ candidate ranges; borrowing-required subtraction is limited to 10-19 minus one
 digit.
 
 ```bash
-python3 nuts_calc_tex.py A4 ope -o add --carry --out-file carrying.pdf
-python3 nuts_calc_tex.py A4 ope -o add sub --mixed-carry --out-file mixed-carry.pdf
+python3 nuts_calc_tex.py A4 ope -o add --carry-borrow --out-file carrying.pdf
+python3 nuts_calc_tex.py A4 ope -o add sub --mixed-carry-borrow --out-file mixed-carry.pdf
 ```
 
 ### Batch Generation with `factory.sh`

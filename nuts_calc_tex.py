@@ -119,6 +119,7 @@ def _init() -> argparse.Namespace:
             (independent reimplementation of nuts_calc.py).
         """,
         add_help=True,
+        allow_abbrev=False,
         epilog="end"
     )
     parser.add_argument('paper_size'
@@ -166,20 +167,20 @@ def _init() -> argparse.Namespace:
         , help = 'Types of operations included in formulas'
     )
     carry_group = parser.add_mutually_exclusive_group()
-    carry_group.add_argument('--carry'
+    carry_group.add_argument('--carry-borrow'
         , dest = 'carry_mode'
         , action = 'store_const'
         , const = 'required'
         , default = None
         , help = 'Require carrying in addition or borrowing in subtraction (two-term ope add/sub only)'
     )
-    carry_group.add_argument('--no-carry'
+    carry_group.add_argument('--no-carry-borrow'
         , dest = 'carry_mode'
         , action = 'store_const'
         , const = 'none'
         , help = 'Require no carrying in addition and no borrowing in subtraction (two-term ope add/sub only)'
     )
-    carry_group.add_argument('--mixed-carry'
+    carry_group.add_argument('--mixed-carry-borrow'
         , dest = 'carry_mode'
         , action = 'store_const'
         , const = 'mixed'
@@ -495,16 +496,16 @@ def _init() -> argparse.Namespace:
                 args.command != 'ope' or not args.operator
                 or not set(args.operator) <= allowed_carry_operators
             ):
-            failure("--carry/--no-carry/--mixed-carry only support two-term 'ope' add/sub operators.")
+            failure("--carry-borrow/--no-carry-borrow/--mixed-carry-borrow only support two-term 'ope' add/sub operators.")
         if args.carry_mode == 'mixed' and set(args.operator) != allowed_carry_operators:
-            failure("--mixed-carry requires both addition and subtraction (use -o add sub).")
+            failure("--mixed-carry-borrow requires both addition and subtraction (use -o add sub).")
         if args.use_parentheses or args.missing_value or terms_options_given:
             failure(
-                "--carry/--no-carry/--mixed-carry cannot be combined with "
+                "--carry-borrow/--no-carry-borrow/--mixed-carry-borrow cannot be combined with "
                 "--use-parentheses/--missing-value/--terms family."
             )
         if args.a_decimal_places != MIN_DECIMAL_PLACES or args.b_decimal_places != MIN_DECIMAL_PLACES:
-            failure("--carry/--no-carry/--mixed-carry only support integer operands.")
+            failure("--carry-borrow/--no-carry-borrow/--mixed-carry-borrow only support integer operands.")
 
     if args.command == 'mixed' and terms_options_given and args.terms_min > args.terms_max:
         failure("--terms-min must be less than or equal to --terms-max.")
