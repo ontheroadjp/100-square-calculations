@@ -13,7 +13,7 @@
 ├── README_ja.md         # 利用者向け説明(日本語、README.md の対訳。下記「未確認事項」参照)
 ├── pytest.ini           # pytest 設定(testpaths=tests, pythonpath=.)
 ├── .gitignore
-├── tests/               # pytestテストスイート(15ファイル)。nuts_calc.py/nuts_calc_tex.py/web/backendを対象
+├── tests/               # pytestテストスイート(18個のtest_*.py)。nuts_calc.py/nuts_calc_tex.py/web/backendを対象
 ├── vendor/
 │   └── texmf/tex/latex/longdivision/  # CTAN 'longdivision' パッケージのvendoring(nuts_calc_tex.pyの--vertical divで使用)
 ├── web/
@@ -26,7 +26,7 @@
 │       │   ├── App.jsx            # ヘッダー(タイトル・言語切替)+ GradeDrills を描画するシェル
 │       │   ├── GradeDrills.jsx    # 学年別(1-6+無学年+カスタム)ドリルPDF選択画面(メインUI)
 │       │   ├── CustomGenerator.jsx # 詳細パラメータ指定フォーム(「カスタム」選択時)
-│       │   ├── drillPresets.js    # 学年→/generate-pdf パラメータのプリセット定義(中学受験準備を含む)
+│       │   ├── drillPresets.js    # 学年→/generate-pdf パラメータのプリセット定義(1年生条件付き加減算・中学受験準備等)
 │       │   ├── drillPresets.test.js # node:test によるプリセット構造テスト
 │       │   ├── verticalLayout.js / verticalLayout.test.js # 筆算行数の純粋関数と node:test
 │       │   ├── App.css
@@ -42,12 +42,12 @@
 ## 各ファイル/ディレクトリの責務(実装から確認)
 
 - `nuts_calc.py`: CLI エントリポイント兼ロジック全体。ファイル冒頭のヘッダーコメント(`nuts_calc.py:4-13`)は "Script: 100masu.py" のままリネーム前の名称を残しており、実際のファイル名(`nuts_calc.py`)と食い違っている(ドキュメンテーションの取り残し、実害はない)。内部構成(引数パース、7種のデータ生成関数、ReportLab レイアウト構築、`main()`)は旧 `100masu.py` から機能的に踏襲。
-- `nuts_calc_tex.py`: 7つの互換コマンドとLaTeX専用 `frac` の計8コマンドをレンダリングする独立プロトタイプ(`nuts_calc_tex.py:96-328,1339-1565`)。
+- `nuts_calc_tex.py`: 7つの互換コマンドとLaTeX専用 `frac`/`mixed` の計9コマンドをレンダリングする独立プロトタイプ。`ope` は小数と繰り上がり・繰り下がり条件付き加減算にも対応する。
 - `factory.sh`: `_basic`/`_kuku`系関数で用紙サイズ・分量違いの複数パターンを `dist/` 以下に一括生成。呼び出し方法が `100masu.py ...`(裸のコマンド名)から `python nuts_calc.py ...` に変更され(`factory.sh:127` 等)、`nuts_calc.py` がリポジトリルートにあり `python`(`python3` ではない)が `PATH` 上にあることを前提にしている。`nuts_calc_tex.py` は呼び出さない。
 - `memo.md`: コードではなく、暗算指導法・学習ステップ・受験算数における計算力の重要性を説明する日本語の教育コンテンツ。`dev` ブランチのマージで一度削除されたが、ユーザーの指示によりマージ後に `main` の内容から復元済み(2026-07-22)。
 - `LICENSE`: MIT License(`LICENSE:1-21`、Copyright (c) 2025 ontheroadjp)。`dev` ブランチのマージで新規追加。
 - `README.md` / `README_ja.md`: 英語/日本語で内容が対応した利用者向け説明。CLI・`factory.sh`・Web UI(バックエンド/フロントエンド起動手順)をカバーしている。README.md には `Architecture`/`Design Principles` セクションがあるが README_ja.md には対応するセクションがなく、両者は完全な対訳ではなくなっている(下記「未確認事項」参照)。
-- `tests/`: pytestテストスイート(15ファイル)。分数生成と4〜6年生の中学受験プリセットを生成関数へ通す `test_nuts_calc_tex_exam_prep_presets.py` を含む。frontend には別途 `node:test` 形式の2ファイルがある(`web/frontend/src/*.test.js`)。詳細は [[../L2_development/test]]。
+- `tests/`: pytestテストスイート(18個の `test_*.py`)。分数・小数・整数/小数/分数混合、繰り上がり条件付き加減算、4〜6年生の中学受験プリセットを検証する。frontend には別途 `node:test` 形式の2ファイルがある(`web/frontend/src/*.test.js`)。詳細は [[../L2_development/test]]。
 - `docs/reference/`: 教材仕様の根拠となる一次資料を出典・取得日・SHA-256と共に保存する(`docs/reference/README.md:1-24`)。
 - `vendor/texmf/tex/latex/longdivision/`: CTAN の `longdivision` パッケージ(LPPLライセンス)を vendoring したもの。Ubuntu の `texlive-latex-extra` に同梱されていないため、`nuts_calc_tex.py` が `TEXINPUTS` 経由でこのパスを解決する([[../L3_implementation/nuts_calc_tex.py]] 参照)。
 - `web/backend/app.py`: Flask アプリ。`POST /generate-pdf`(PDF生成)と `GET /renderer-info`(有効レンダラー名の取得)の2エンドポイント。コマンド構築・レンダラー選択・subprocess実行は `web/backend/renderers.py` に切り出されている(詳細は [[../L1_project/project_overview]])。
