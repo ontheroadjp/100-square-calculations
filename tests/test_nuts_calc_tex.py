@@ -192,8 +192,8 @@ def test_cli_ope_horizontal_all_operators_produces_pdfs(run_tex_cli, tmp_path):
 @pytest.mark.parametrize(
     ("carry_flag", "range_args", "expected_carry"),
     [
-        ("--carry", ("--a-min", "1", "--a-max", "4", "--b-min", "1", "--b-max", "4"), True),
-        ("--no-carry", ("--a-min", "9", "--a-max", "9", "--b-min", "9", "--b-max", "9"), False),
+        ("--carry-borrow", ("--a-min", "1", "--a-max", "4", "--b-min", "1", "--b-max", "4"), True),
+        ("--no-carry-borrow", ("--a-min", "9", "--a-max", "9", "--b-min", "9", "--b-max", "9"), False),
     ],
 )
 def test_cli_ope_add_carry_flags_override_impossible_ranges(
@@ -215,7 +215,7 @@ def test_cli_ope_add_carry_flags_override_impossible_ranges(
 
 def test_cli_ope_add_rejects_combining_carry_flags(run_tex_cli, tmp_path):
     result = run_tex_cli(
-        "A4", "ope", "-o", "add", "--carry", "--no-carry",
+        "A4", "ope", "-o", "add", "--carry-borrow", "--no-carry-borrow",
         "--out-file", "result.pdf",
     )
 
@@ -225,7 +225,7 @@ def test_cli_ope_add_rejects_combining_carry_flags(run_tex_cli, tmp_path):
 
 @pytest.mark.parametrize(
     ("carry_flag", "expected_borrow"),
-    [("--carry", True), ("--no-carry", False)],
+    [("--carry-borrow", True), ("--no-carry-borrow", False)],
 )
 def test_cli_ope_sub_carry_flags_control_borrowing(
         run_tex_cli, tmp_path, carry_flag, expected_borrow,
@@ -249,7 +249,7 @@ def test_cli_ope_sub_carry_flags_control_borrowing(
 
 def test_cli_ope_mixed_carry_accepts_add_sub(run_tex_cli, tmp_path):
     result = run_tex_cli(
-        "A4", "ope", "-o", "add", "sub", "--mixed-carry",
+        "A4", "ope", "-o", "add", "sub", "--mixed-carry-borrow",
         "-r", "2", "-c", "2", "--out-file", "result.pdf",
     )
 
@@ -257,11 +257,19 @@ def test_cli_ope_mixed_carry_accepts_add_sub(run_tex_cli, tmp_path):
     _assert_is_pdf(tmp_path / "result.pdf")
 
 
-@pytest.mark.parametrize("invalid_args", [("-o", "mul", "--carry"), ("-o", "add", "--mixed-carry")])
+@pytest.mark.parametrize("invalid_args", [("-o", "mul", "--carry-borrow"), ("-o", "add", "--mixed-carry-borrow")])
 def test_cli_ope_carry_modes_reject_invalid_operators(run_tex_cli, tmp_path, invalid_args):
     result = run_tex_cli("A4", "ope", *invalid_args, "--out-file", "result.pdf")
 
     assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+@pytest.mark.parametrize("legacy_flag", ["--carry", "--no-carry", "--mixed-carry"])
+def test_cli_ope_rejects_legacy_carry_flags(run_tex_cli, tmp_path, legacy_flag):
+    result = run_tex_cli("A4", "ope", legacy_flag, "--out-file", "result.pdf")
+
+    assert result.returncode == 2
     assert not (tmp_path / "result.pdf").exists()
 
 

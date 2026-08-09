@@ -112,9 +112,9 @@ def test_build_command_passes_operator_list_once() -> None:
 @pytest.mark.parametrize(
     ("carry_mode", "expected_flag"),
     [
-        ("required", "--carry"),
-        ("none", "--no-carry"),
-        ("mixed", "--mixed-carry"),
+        ("required", "--carry-borrow"),
+        ("none", "--no-carry-borrow"),
+        ("mixed", "--mixed-carry-borrow"),
     ],
 )
 def test_build_command_translates_carry_mode(carry_mode: str, expected_flag: str) -> None:

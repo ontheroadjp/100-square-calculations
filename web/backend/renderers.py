@@ -60,9 +60,9 @@ RENDERER_SCRIPTS: dict[str, Path] = {
 }
 
 CARRY_MODE_FLAGS = {
-    "required": "--carry",
-    "none": "--no-carry",
-    "mixed": "--mixed-carry",
+    "required": "--carry-borrow",
+    "none": "--no-carry-borrow",
+    "mixed": "--mixed-carry-borrow",
 }
 
 
@@ -101,7 +101,7 @@ def build_command(renderer_name: str, params: RendererRequest, out_file: str) ->
     active renderer is `latex` (see `GET /renderer-info`), otherwise
     nuts_calc.py will reject the resulting CLI invocation as an unrecognized
     argument. `carry_mode` is likewise translated to the LaTeX-only
-    `--carry`/`--no-carry`/`--mixed-carry` flags.
+    `--carry-borrow`/`--no-carry-borrow`/`--mixed-carry-borrow` flags.
     """
     script_path = RENDERER_SCRIPTS[renderer_name]
     command = [sys.executable, str(script_path)]
