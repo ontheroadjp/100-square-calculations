@@ -36,7 +36,7 @@ import subprocess
 import tempfile
 from dataclasses import dataclass, field
 from fractions import Fraction
-from typing import Callable, TypeVar
+from typing import Callable, Literal, TypeVar
 
 
 MIN_ROWS_OR_COLUMNS = 1
@@ -72,6 +72,10 @@ BOXED_BLANK_TEX = '\\vcenter{\\hbox{\\fbox{\\rule{0pt}{1em}\\hspace{1em}}}}'
 MIN_DECIMAL_PLACES = 0
 MAX_DECIMAL_PLACES = 2
 MIXED_OPERAND_KINDS = ('int', 'decimal', 'fraction')
+BORROWING_MINUENDS = tuple(range(10, 20))
+BORROWING_SUBTRAHENDS = tuple(range(1, 10))
+
+CarryMode = Literal['required', 'none', 'mixed']
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 VENDOR_TEXMF_DIR = os.path.join(SCRIPT_DIR, 'vendor', 'texmf')
@@ -160,6 +164,26 @@ def _init() -> argparse.Namespace:
         , choices = ['add', 'sub', 'mul', 'div', 'mix']
         , nargs="*"
         , help = 'Types of operations included in formulas'
+    )
+    carry_group = parser.add_mutually_exclusive_group()
+    carry_group.add_argument('--carry'
+        , dest = 'carry_mode'
+        , action = 'store_const'
+        , const = 'required'
+        , default = None
+        , help = 'Require carrying in addition or borrowing in subtraction (two-term ope add/sub only)'
+    )
+    carry_group.add_argument('--no-carry'
+        , dest = 'carry_mode'
+        , action = 'store_const'
+        , const = 'none'
+        , help = 'Require no carrying in addition and no borrowing in subtraction (two-term ope add/sub only)'
+    )
+    carry_group.add_argument('--mixed-carry'
+        , dest = 'carry_mode'
+        , action = 'store_const'
+        , const = 'mixed'
+        , help = 'Mix addition/subtraction with and without carrying/borrowing (two-term ope -o add sub only)'
     )
     parser.add_argument('--numerator-digits'
         , type = int
@@ -464,6 +488,23 @@ def _init() -> argparse.Namespace:
             failure("--terms/--terms-min/--terms-max/--mixed-operators cannot be combined with --intermediate.")
         if args.missing_value:
             failure("--terms/--terms-min/--terms-max/--mixed-operators cannot be combined with --missing-value.")
+
+    if args.carry_mode is not None:
+        allowed_carry_operators = {'add', 'sub'}
+        if (
+                args.command != 'ope' or not args.operator
+                or not set(args.operator) <= allowed_carry_operators
+            ):
+            failure("--carry/--no-carry/--mixed-carry only support two-term 'ope' add/sub operators.")
+        if args.carry_mode == 'mixed' and set(args.operator) != allowed_carry_operators:
+            failure("--mixed-carry requires both addition and subtraction (use -o add sub).")
+        if args.use_parentheses or args.missing_value or terms_options_given:
+            failure(
+                "--carry/--no-carry/--mixed-carry cannot be combined with "
+                "--use-parentheses/--missing-value/--terms family."
+            )
+        if args.a_decimal_places != MIN_DECIMAL_PLACES or args.b_decimal_places != MIN_DECIMAL_PLACES:
+            failure("--carry/--no-carry/--mixed-carry only support integer operands.")
 
     if args.command == 'mixed' and terms_options_given and args.terms_min > args.terms_max:
         failure("--terms-min must be less than or equal to --terms-max.")
@@ -790,27 +831,110 @@ def ope_result_decimal_places(operator: str, a_places: int, b_places: int) -> in
     return a_places
 
 
-def calc_add(a: int, b: int, nums_a: list[int], nums_b: list[int]) -> tuple[int, int, int]:
+def addition_has_carry(a: int, b: int) -> bool:
+    """Whether adding two non-negative integers produces a carry in any digit."""
+    a = abs(a)
+    b = abs(b)
+    while a > 0 or b > 0:
+        if a % 10 + b % 10 >= 10:
+            return True
+        a //= 10
+        b //= 10
+    return False
+
+
+def subtraction_has_borrow(a: int, b: int) -> bool:
+    """Whether subtracting two non-negative integers borrows in any digit."""
+    a = abs(a)
+    b = abs(b)
+    while a > 0 or b > 0:
+        if a % 10 < b % 10:
+            return True
+        a //= 10
+        b //= 10
+    return False
+
+
+def operand_digit_width(values: list[int]) -> int:
+    """Return the widest decimal digit count represented by an operand range."""
+    return max(1, max(len(str(abs(value))) for value in values))
+
+
+def build_addition_fallback(carry: bool, a_width: int, b_width: int) -> tuple[int, int]:
+    """Build positive operands of the requested widths that satisfy `carry`."""
+    if carry:
+        a = 1 if a_width == 1 else 10 ** (a_width - 1) + 1
+        b = 9 if b_width == 1 else 10 ** (b_width - 1) + 9
+        return a, b
+    a = (10 ** a_width - 1) // 9
+    b = (10 ** b_width - 1) // 9
+    return a, b
+
+
+def calc_add(
+        a: int, b: int, nums_a: list[int], nums_b: list[int],
+        carry: bool | None = None,
+    ) -> tuple[int, int, int]:
+    """
+    Add two operands, optionally requiring or forbidding digit-wise carrying.
+
+    A carry condition takes precedence over the configured operand bounds.
+    Random samples prefer those bounds, but after the retry budget is
+    exhausted a matching pair is synthesized with the same operand digit
+    widths instead of failing. With carry=None, the original operands are
+    returned immediately, preserving the pre-option behavior exactly.
+    """
+    if carry is None:
+        return a, b, a + b
+    for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
+        if addition_has_carry(a, b) is carry:
+            return a, b, a + b
+        a = random.choice(nums_a)
+        b = random.choice(nums_b)
+    a, b = build_addition_fallback(
+        carry, operand_digit_width(nums_a), operand_digit_width(nums_b),
+    )
     return a, b, a + b
 
 
-def calc_sub(a: int, b: int, nums_a: list[int], nums_b: list[int]) -> tuple[int, int, int]:
-    """
-    Retry with freshly-sampled operands until the result is positive.
+def build_subtraction_fallback(a_width: int, b_width: int) -> tuple[int, int]:
+    """Build positive, borrow-free operands while preserving widths where possible."""
+    a_width = max(a_width, b_width)
+    a = 8 * ((10 ** a_width - 1) // 9)
+    b = (10 ** b_width - 1) // 9
+    return a, b
 
-    Random sampling alone can fail within MAX_OPERAND_RETRY_ATTEMPTS even
-    when a valid pair exists, if the valid-pair space is a small fraction
-    of nums_a x nums_b (e.g. nums_a=[1..1000], nums_b=[999, 1000] has only
-    one positive-result pair). Falling back to the extreme pair
-    (max(nums_a), min(nums_b)) -- the easiest positive-result pair to
-    construct -- guarantees success whenever any solution exists, while
-    keeping the random attempts for the common case's variety.
+
+def calc_sub(
+        a: int, b: int, nums_a: list[int], nums_b: list[int],
+        borrow: bool | None = None,
+    ) -> tuple[int, int, int]:
     """
+    Subtract with a positive result, optionally requiring/forbidding borrowing.
+
+    borrow=True deliberately overrides configured ranges and restricts the
+    problem to 10-19 minus a one-digit operand. borrow=False prefers the
+    configured ranges, then synthesizes a positive borrow-free pair instead
+    of failing. borrow=None preserves the original retry/fallback behavior.
+    """
+    if borrow is True:
+        for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
+            a = random.choice(BORROWING_MINUENDS)
+            b = random.choice(BORROWING_SUBTRAHENDS)
+            if subtraction_has_borrow(a, b):
+                return a, b, a - b
+        return 10, 1, 9
+
     for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
-        if a - b > 0:
+        if a - b > 0 and (borrow is None or not subtraction_has_borrow(a, b)):
             return a, b, a - b
         a = random.choice(nums_a)
         b = random.choice(nums_b)
+    if borrow is False:
+        a, b = build_subtraction_fallback(
+            operand_digit_width(nums_a), operand_digit_width(nums_b),
+        )
+        return a, b, a - b
     a, b = max(nums_a), min(nums_b)
     if a - b > 0:
         return a, b, a - b
@@ -881,12 +1005,18 @@ def generate_ope_problems(
         nums_a: list[int], nums_b: list[int], operators: list[str],
         order: int, start_index: int,
         a_decimal_places: int = MIN_DECIMAL_PLACES, b_decimal_places: int = MIN_DECIMAL_PLACES,
+        carry_mode: CarryMode | None = None,
     ) -> list[OpeProblem]:
     """
     Generate `order` arithmetic problems starting at `start_index`.
 
     `operators=['mix']` picks a random operator (add/sub/mul/div) per
     problem; otherwise one operator is picked per problem from `operators`.
+
+    carry_mode='required' requires carrying for add and borrowing for sub;
+    'none' forbids both. 'mixed' leaves one-digit addition unrestricted and
+    chooses borrow-free one-digit or borrowing 10-19-minus-one-digit
+    subtraction per subtraction problem.
 
     a_decimal_places/b_decimal_places (0 by default) do not change how
     nums_a/nums_b/CALC_FUNCTIONS are sampled or validated -- they are only
@@ -900,7 +1030,14 @@ def generate_ope_problems(
         a = random.choice(nums_a)
         b = random.choice(nums_b)
         operator = random.choice(effective_operators)
-        a, b, c = CALC_FUNCTIONS[operator](a, b, nums_a, nums_b)
+        if operator == 'add':
+            carry = None if carry_mode in (None, 'mixed') else carry_mode == 'required'
+            a, b, c = calc_add(a, b, nums_a, nums_b, carry)
+        elif operator == 'sub' and carry_mode is not None:
+            borrow = random.choice((False, True)) if carry_mode == 'mixed' else carry_mode == 'required'
+            a, b, c = calc_sub(a, b, nums_a, nums_b, borrow)
+        else:
+            a, b, c = CALC_FUNCTIONS[operator](a, b, nums_a, nums_b)
         problems.append(OpeProblem(
             index=start_index + offset, a=a, b=b, operator=operator, c=c,
             a_decimal_places=a_decimal_places, b_decimal_places=b_decimal_places,
@@ -2224,7 +2361,7 @@ def build_ope_pages(
         start_index = (page_number - 1) * order + 1
         problems = generate_ope_problems(
             nums_a, nums_b, ini.operator, order, start_index,
-            ini.a_decimal_places, ini.b_decimal_places,
+            ini.a_decimal_places, ini.b_decimal_places, ini.carry_mode,
         )
         blank_page, filled_page = build_ope_page_pair(problems, ini.columns, ini.vertical, ini.intermediate)
         pages_problems.append(problems)

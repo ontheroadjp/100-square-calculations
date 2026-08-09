@@ -23,12 +23,14 @@ import pytest
 
 from nuts_calc_tex import (
     Page,
+    addition_has_carry,
     build_block_grid_tex,
     build_inline_grid_tex,
     build_page_tex,
     build_preamble_tex,
     build_tabular_grid_tex,
     evaluate_mixed_expression,
+    subtraction_has_borrow,
 )
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -185,6 +187,82 @@ def test_cli_ope_horizontal_all_operators_produces_pdfs(run_tex_cli, tmp_path):
     _assert_is_pdf(tmp_path / "result.pdf")
     _assert_is_pdf(tmp_path / "result_read.pdf")
     assert (tmp_path / "result.csv").exists()
+
+
+@pytest.mark.parametrize(
+    ("carry_flag", "range_args", "expected_carry"),
+    [
+        ("--carry", ("--a-min", "1", "--a-max", "4", "--b-min", "1", "--b-max", "4"), True),
+        ("--no-carry", ("--a-min", "9", "--a-max", "9", "--b-min", "9", "--b-max", "9"), False),
+    ],
+)
+def test_cli_ope_add_carry_flags_override_impossible_ranges(
+        run_tex_cli, tmp_path, carry_flag, range_args, expected_carry,
+    ):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", carry_flag, *range_args,
+        "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
+    )
+
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    for row in (tmp_path / "result.csv").read_text().strip().splitlines():
+        _, _, a, operator, b, result_value = row.split(",")
+        assert operator == "add"
+        assert addition_has_carry(int(a), int(b)) is expected_carry
+        assert int(result_value) == int(a) + int(b)
+
+
+def test_cli_ope_add_rejects_combining_carry_flags(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "--carry", "--no-carry",
+        "--out-file", "result.pdf",
+    )
+
+    assert result.returncode == 2
+    assert not (tmp_path / "result.pdf").exists()
+
+
+@pytest.mark.parametrize(
+    ("carry_flag", "expected_borrow"),
+    [("--carry", True), ("--no-carry", False)],
+)
+def test_cli_ope_sub_carry_flags_control_borrowing(
+        run_tex_cli, tmp_path, carry_flag, expected_borrow,
+    ):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "sub", carry_flag,
+        "--a-min", "1", "--a-max", "9", "--b-min", "1", "--b-max", "9",
+        "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
+    )
+
+    assert result.returncode == 0, result.stderr
+    for row in (tmp_path / "result.csv").read_text().strip().splitlines():
+        _, _, a, operator, b, result_value = row.split(",")
+        assert operator == "sub"
+        assert subtraction_has_borrow(int(a), int(b)) is expected_borrow
+        if expected_borrow:
+            assert 10 <= int(a) <= 19
+            assert 1 <= int(b) <= 9
+        assert int(result_value) == int(a) - int(b) > 0
+
+
+def test_cli_ope_mixed_carry_accepts_add_sub(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "sub", "--mixed-carry",
+        "-r", "2", "-c", "2", "--out-file", "result.pdf",
+    )
+
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
+@pytest.mark.parametrize("invalid_args", [("-o", "mul", "--carry"), ("-o", "add", "--mixed-carry")])
+def test_cli_ope_carry_modes_reject_invalid_operators(run_tex_cli, tmp_path, invalid_args):
+    result = run_tex_cli("A4", "ope", *invalid_args, "--out-file", "result.pdf")
+
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
 
 
 def test_cli_ope_vertical_add_sub_mul_produces_pdfs(run_tex_cli, tmp_path):

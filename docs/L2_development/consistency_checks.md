@@ -1,18 +1,18 @@
 # Consistency Checks
 
-CI 定義が存在しないため、整合性はローカルで再現可能なコマンドと実装参照で保証する。以下は `/init-docs` 再実行(2026-08-07)の結果である。
+CI 定義が存在しないため、整合性はローカルで再現可能なコマンドと実装参照で保証する。以下は `/init-docs` 再実行(2026-08-09)の結果である。
 
 ## 実体に対する検証
 
 | 観点 | 検証 | 結果・根拠 |
 |---|---|---|
 | ReportLab CLI | `nuts_calc.py` の7コマンドを1問ずつ repo-local `venv/` で実行 | 全て PDF と回答 PDF を生成して成功。コマンド定義は `nuts_calc.py:114-217` |
-| LaTeX CLI | `nuts_calc_tex.py A4 frac ...` を `pdflatex` 付きで実行 | PDF と回答 PDF を生成して成功。compile は `nuts_calc_tex.py:633-646` |
-| Python tests | `python3 -m pytest -q --ignore=tests/test_nuts_calc_init.py` | 297 passed。全体は319件、除外ファイルは既知どおり9 failed / 13 passed |
-| Frontend tests | `node --test web/frontend/src/drillPresets.test.js web/frontend/src/verticalLayout.test.js` | 7 passed |
+| LaTeX CLI | `nuts_calc_tex.py` の `pdflatex` 依存テストを含む pytest を実行 | `frac`/`mixed`/小数/繰り上がり条件付き加減算を含め成功。`pdflatex` は TeX Live 2023 |
+| Python tests | `python3 -m pytest -q --ignore=tests/test_nuts_calc_init.py` | 386 passed。全体は408件、除外ファイルは既知どおり9 failed / 13 passed |
+| Frontend tests | `node --test web/frontend/src/drillPresets.test.js web/frontend/src/verticalLayout.test.js` | 12 passed |
 | Frontend build | `cd web/frontend && npm run build` | 成功、Vite 7.1.5、68 modules transformed |
-| Frontend lint | `cd web/frontend && npm run lint` | 1失敗。`drillPresets.js:304` の全角空白を `no-irregular-whitespace` が拒否 |
-| API | ルートと renderer 変換をソース/pytest で照合 | `POST /generate-pdf` と `GET /renderer-info` の2本(`web/backend/app.py:15-58`)。backend テストは上記297件に含まれ成功 |
+| Frontend lint | `cd web/frontend && npm run lint` | 1失敗。`drillPresets.js:363` の全角空白を `no-irregular-whitespace` が拒否 |
+| API | ルートと renderer 変換をソース/pytest で照合 | `POST /generate-pdf` と `GET /renderer-info` の2本。`carry_mode` を含む backend テストは上記386件に含まれ成功 |
 
 ## docs → 実体
 
@@ -35,7 +35,7 @@ CI 定義が存在しないため、整合性はローカルで再現可能な�
 
 - `nuts_calc.py:5,13` は旧名 `100masu.py` をコメントに残す。実害はないが実ファイル名と不一致。
 - `.gitignore:33` は存在しない `example_result.pdf` の除外例外を残す。
-- `npm run lint` は `web/frontend/src/drillPresets.js:304` のコメント内全角空白で失敗する。修正方針は未決定であり、対象ソースと `web/frontend/eslint.config.js` を確認する必要がある。
+- `npm run lint` は `web/frontend/src/drillPresets.js:363` のコメント内全角空白で失敗する。修正方針は未決定であり、対象ソースと `web/frontend/eslint.config.js` を確認する必要がある。
 - `factory.sh` の全量実行、Flask と frontend の実プロセス結合、production deploy、`web/backend/generated_pdfs/` の清掃運用は未確認。確定には運用設定または E2E/deploy 定義が必要だが、現行リポジトリには存在しない。
 - README.md と README_ja.md は `Architecture`/`Design Principles` の有無などで完全な対訳ではない。日本語版同期が意図的かはリポジトリから確定できない。
 

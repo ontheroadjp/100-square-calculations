@@ -10,11 +10,11 @@ Flask backend は worksheet 生成と renderer 能力確認の2エンドポイ�
 
 任意フィールドは `RendererRequest` に列挙される(`web/backend/renderers.py:9-42`)。
 
-- 数値/範囲: `a_value`, `b_value`, `a_min`, `a_max`, `b_min`, `b_max`, `numerator_digits`, `denominator_digits`, `terms`, `terms_min`, `terms_max`, `rows`, `columns`, `page`
-- 演算: `operator`(文字列配列)
+- 数値/範囲: `a_value`, `b_value`, `a_min`, `a_max`, `b_min`, `b_max`, `numerator_digits`, `denominator_digits`, `a_decimal_places`, `b_decimal_places`, `decimal_places`, `terms`, `terms_min`, `terms_max`, `rows`, `columns`, `page`
+- 演算: `operator`, `a_kind`, `b_kind`(いずれも文字列配列)、`carry_mode`(`required`|`none`|`mixed`)
 - flag: `descend`, `reverse`, `shuffle`, `intermediate`, `vertical`, `use_parentheses`, `missing_value`, `mixed_operators`, `same_denominator`, `different_denominators`, `proper_operands`, `proper_result`, `with_bottom_answer`, `merge`, `csv`, `debug`
 
-backend は値の allowlist や renderer 互換性を事前検証せず、値を CLI option へ変換する(`web/backend/renderers.py:72-167`)。`vertical`、`use_parentheses`、`missing_value`、`terms` 系は LaTeX 専用だが、reportlab 選択時にも request に含まれればそのまま渡され、`nuts_calc.py` が unknown option として失敗する(`web/backend/renderers.py:76-90`)。frontend が `GET /renderer-info` で機能を gate する理由はこの差にある。
+backend は renderer 互換性を事前検証せず、値を CLI option へ変換する。`carry_mode` だけは3値を allowlist 検証し、それぞれ `--carry`/`--no-carry`/`--mixed-carry` へ変換する。`vertical`、`use_parentheses`、`missing_value`、`terms` 系、小数・mixed 系、`carry_mode` は LaTeX 専用だが、reportlab 選択時にも request に含まれればそのまま渡され、`nuts_calc.py` が unknown option として失敗する。frontend が `GET /renderer-info` で機能を gate する理由はこの差にある。
 
 ### Processing and response
 

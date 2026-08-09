@@ -11,7 +11,7 @@ For the pedagogical background behind the drills (the mental-arithmetic techniqu
 *   **PDF Output**: All worksheets are generated as high-quality PDF files, ready for printing.
 *   **Answer Options**: Include answers at the bottom of the page, merge answer files, or output raw problem data to CSV for further analysis.
 *   **Automated Batch Generation**: The `factory.sh` script provides an automated way to generate a wide variety of pre-configured worksheets.
-*   **Grade and exam-prep presets**: The Web UI groups drills by grades 1-6 and, with the LaTeX renderer, adds 27 entrance-exam-prep presets for grades 4-6 (three stages and three levels per grade).
+*   **Grade and exam-prep presets**: The Web UI groups drills by grades 1-6. With the LaTeX renderer, grade 1 has six addition/subtraction cards split by carrying/borrowing conditions, and grades 4-6 add 27 entrance-exam-prep presets (three stages and three levels per grade).
 
 ## Installation
 To use the ReportLab generator, you need Python 3. The Web UI additionally needs Flask, Flask-Cors, Node.js, and npm. A LaTeX environment with `pdflatex` is required when using `nuts_calc_tex.py` or `NUTS_CALC_RENDERER=latex`.
@@ -96,6 +96,17 @@ curriculum source used for their placement is preserved under `docs/reference/`.
 The same renderer exposes the grades 4-6 entrance-exam-prep section, which uses
 multi-term, mixed-operator, and parenthesized `ope` expressions.
 
+It also provides decimal `ope`, the `mixed` integer/decimal/fraction command,
+and carry-aware two-term integer addition/subtraction. Carry-aware flags take
+precedence over incompatible operand ranges by falling back to their grade-1
+candidate ranges; borrowing-required subtraction is limited to 10-19 minus one
+digit.
+
+```bash
+python3 nuts_calc_tex.py A4 ope -o add --carry --out-file carrying.pdf
+python3 nuts_calc_tex.py A4 ope -o add sub --mixed-carry --out-file mixed-carry.pdf
+```
+
 ### Batch Generation with `factory.sh`
 The `factory.sh` script automates the generation of a predefined set of worksheets, creating a structured output directory (`dist/`).
 
@@ -147,7 +158,7 @@ node --test web/frontend/src/drillPresets.test.js web/frontend/src/verticalLayou
 cd web/frontend && npm run build
 ```
 
-`tests/test_nuts_calc_init.py` is excluded above because 9 expectations still pin the old `exit()` status while the implementation correctly uses `exit(1)`; see `docs/L2_development/test.md`. `npm run lint` is also available, but currently reports one `no-irregular-whitespace` error at `web/frontend/src/drillPresets.js:304`.
+`tests/test_nuts_calc_init.py` is excluded above because 9 expectations still pin the old `exit()` status while the implementation correctly uses `exit(1)`; see `docs/L2_development/test.md`. `npm run lint` is also available, but currently reports one `no-irregular-whitespace` error at `web/frontend/src/drillPresets.js:363`.
 
 ## Dependencies
 *   Python 3
@@ -165,7 +176,7 @@ There are two user-facing ways to generate a worksheet; the Web path selects one
 
 `factory.sh` is a third, batch-oriented entry point that calls `nuts_calc.py` repeatedly to populate a `dist/` directory with a fixed set of worksheets.
 
-**Experimental**: `nuts_calc_tex.py` is independent from ReportLab and implements eight commands: the seven commands planned by issue #19 plus the LaTeX-only `frac` command. Fraction answers use exact rational arithmetic, and Web fraction cards are renderer-gated because `nuts_calc.py` does not implement `frac`. See `docs/L3_implementation/nuts_calc_tex.py.md`.
+**Experimental**: `nuts_calc_tex.py` is independent from ReportLab and implements nine commands: the seven ReportLab-compatible commands plus the LaTeX-only `frac` and `mixed` commands. It also owns decimal, written-calculation, and carry-aware drill behavior. Web cards using these features are renderer-gated because `nuts_calc.py` does not implement them. See `docs/L3_implementation/nuts_calc_tex.py.md`.
 
 See `docs/L1_project/project_overview.md` and `docs/L0_concept/concept.md` for the full breakdown and file/line references.
 

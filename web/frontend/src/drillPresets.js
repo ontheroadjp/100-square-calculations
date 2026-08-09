@@ -63,22 +63,64 @@ export const presetsByGrade = {
   1: {
     normal: [
       {
-        id: 'g1-add',
-        titleKey: 'preset_g1_add_title',
-        descKey: 'preset_g1_add_desc',
-        params: { command_type: 'ope', operator: ['add'], a_min: 1, a_max: 9, b_min: 1, b_max: 9 },
+        id: 'g1-add-no-carry',
+        titleKey: 'preset_g1_add_no_carry_title',
+        descKey: 'preset_g1_add_no_carry_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'ope', operator: ['add'], carry_mode: 'none',
+          a_min: 1, a_max: 9, b_min: 1, b_max: 9,
+        },
       },
       {
-        id: 'g1-sub',
-        titleKey: 'preset_g1_sub_title',
-        descKey: 'preset_g1_sub_desc',
-        params: { command_type: 'ope', operator: ['sub'], a_min: 1, a_max: 9, b_min: 1, b_max: 9 },
+        id: 'g1-add-carry',
+        titleKey: 'preset_g1_add_carry_title',
+        descKey: 'preset_g1_add_carry_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'ope', operator: ['add'], carry_mode: 'required',
+          a_min: 1, a_max: 9, b_min: 1, b_max: 9,
+        },
       },
       {
-        id: 'g1-addsub',
-        titleKey: 'preset_g1_addsub_title',
-        descKey: 'preset_g1_addsub_desc',
-        params: { command_type: 'ope', operator: ['add', 'sub'], a_min: 1, a_max: 9, b_min: 1, b_max: 9 },
+        id: 'g1-sub-no-borrow',
+        titleKey: 'preset_g1_sub_no_borrow_title',
+        descKey: 'preset_g1_sub_no_borrow_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'ope', operator: ['sub'], carry_mode: 'none',
+          a_min: 1, a_max: 9, b_min: 1, b_max: 9,
+        },
+      },
+      {
+        id: 'g1-sub-borrow',
+        titleKey: 'preset_g1_sub_borrow_title',
+        descKey: 'preset_g1_sub_borrow_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'ope', operator: ['sub'], carry_mode: 'required',
+          a_min: 10, a_max: 19, b_min: 1, b_max: 9,
+        },
+      },
+      {
+        id: 'g1-addsub-no-carry',
+        titleKey: 'preset_g1_addsub_no_carry_title',
+        descKey: 'preset_g1_addsub_no_carry_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'ope', operator: ['add', 'sub'], carry_mode: 'none',
+          a_min: 1, a_max: 9, b_min: 1, b_max: 9,
+        },
+      },
+      {
+        id: 'g1-addsub-all',
+        titleKey: 'preset_g1_addsub_mixed_carry_title',
+        descKey: 'preset_g1_addsub_mixed_carry_desc',
+        latexOnly: true,
+        params: {
+          command_type: 'ope', operator: ['add', 'sub'], carry_mode: 'mixed',
+          a_min: 1, a_max: 9, b_min: 1, b_max: 9,
+        },
       },
       {
         id: 'g1-complement10',

@@ -7,13 +7,14 @@
 ## 動作の概要
 
 - `presetsByGrade[grade]`(`grade` は `1`〜`6` の数値、または `UNGRADED`(`'ungraded'`))は `{ normal: [...], written: [...], examPrep: [...] }` の形。`normal` は横書き(`a + b = c`)形式、`written` は筆算(縦書き/`vertical: true`)形式、`examPrep` は中学受験対策(issue #73、後述)のプリセット配列。`examPrep` を持つのは学年4〜6のみで、それ以外(1〜3、`UNGRADED`)は空配列。各 preset は `{ id, titleKey, descKey, params, numberInput? }` の形。
-  - `params`: `/generate-pdf` にそのまま渡す固定パラメータ(例: `{ command_type: 'ope', operator: ['add', 'sub'], a_min: 1, a_max: 9, b_min: 1, b_max: 9 }`)。既存の加減算プリセットには、同じ桁数条件で `operator: ['add']` と `operator: ['sub']` を指定する単独プリセットが先行し、順に加算・減算・加減算が表示される(`drillPresets.js:22-42`)。
+  - `params`: `/generate-pdf` にそのまま渡す固定パラメータ。1年生の加減算6カードは `carry_mode: 'required'|'none'|'mixed'` を含み、それ以外の既存カードは演算子・桁数等を固定する。
   - `numberInput`: ユーザーがカードごとに変更できる追加パラメータがある場合のみ存在。`{ param, labelKey, min, max, default }` で、`param` が `params` にマージされる対象キー(例: 九九の「段」は `a_value`)。
 - `titleKey`/`descKey` は `public/locales/{en,ja}/translation.json` のキー。
 - `UNGRADED`(`presetsByGrade['ungraded']`)は他の学年キーと完全に同じ `{ normal, written }` 構造を持つため、`GradeDrills.jsx` 側は数値学年と区別せず同じロジックで扱える(`CUSTOM_GRADE` のみ別 UI として分岐)。
 
 ## 重要な設計判断
 
+- **1年生の加減算は繰り上がり・繰り下がり条件で6カードに分割する(issue #78)**: 加算は1桁同士の「なし/あり」、減算は1桁同士の「繰り下がりなし」と10〜19−1桁の「あり」、加減算混合は「両方なし」と「全条件混合」を配置する。全条件混合には、繰り上がりあり/なしの1桁加算、繰り下がりなしの1桁減算、繰り下がりありの10〜19−1桁減算の4種類を含む。6カードはいずれも `nuts_calc_tex.py` 固有フラグを使うため `latexOnly: true` である(`drillPresets.js:63-124`)。
 - **分数カードは学習指導要領に沿って配置する**: `nuts_calc_tex.py` の `frac` コマンド(issue #65)を使い、3年は簡単な同分母加減(真分数かつ答えも真分数)、4年は同分母加減、5年は異分母加減、6年は分数の乗除を配置する。根拠資料は `docs/reference/elementary-course-of-study-mathematics-2017.pdf` と同READMEに保存している(`drillPresets.js:139-149,207-216,267-276,318-327`)。
 - **分数カードはLaTeX専用**: 各カードに `latexOnly: true` を付ける。`GradeDrills.jsx` が `GET /renderer-info` の結果で除外するため、`frac` 非対応の `nuts_calc.py` へ誤送信されない。
 - **かっこ付き計算カードも学習指導要領に沿って配置する(issue #67)**: `nuts_calc_tex.py` の `ope --use-parentheses`(issue #67)を使い、4年生に基本形、5・6年生に発展形(指導要領上の正式単元ではない応用ドリル)を配置する。根拠資料は分数カードと同じ `docs/reference/elementary-course-of-study-mathematics-2017.pdf`(196ページ、第４学年 A(6) 数量の関係を表す式「四則の混合した式や（　）を用いた式」)。分数カードと同じ理由で `latexOnly: true` を付ける。
@@ -38,7 +39,7 @@
   - 4年生の `written` に掛け算(3桁×2桁、`g4-mul-written`)・わり算(3桁÷2桁、長除法、`g4-div-written`)を追加。指導要領4年の「乗法・除法の筆算」に対応する。`nuts_calc.py`/`nuts_calc_tex.py` 側は既に対応済み(掛け算の複数桁乗数は issue #10、わり算の長除法は issue #11)だったが、フロントエンドのプリセットには未反映だった。
   - `aBc`(4桁数の分解暗算)・`squ`(平方数)は、指導要領上どの学年にも対応する明示的な単元が無い発展的な暗算ドリルのため、`UNGRADED`(無学年)に分類する(以前はそれぞれ6年生・5年生に割り当てていたが、根拠のない学年紐付けだったため移動した)。対照的に `pi`(×3.14)は5年生で正式に指導される円周率の定数(3.14)に直結するため、5・6年生に残している。
 - **`com` コマンドの `a_value` は「桁数」ではなく補数の対象(target)そのもの**(`nuts_calc.py` の `main()` 内 `target = ini.a_value` を参照)。そのため `g1-complement10` は `a_value: 10`、`g2-complement100` は `a_value: 100` としている(桁数ではない点に注意)。
-- **加減算の単独・混合プリセットはすべて併存する**: 加算のみ・減算のみを選びたい利用者に対応するため、既存の `operator: ['add', 'sub']` プリセットを削除せず、同一の難易度条件と `vertical` 設定を持つ `['add']`・`['sub']` プリセットを直前に配置する。これによりカード配列の描画順が「加算 → 減算 → 加減算」となる(`drillPresets.js:22-42`, `drillPresets.js:89-117`, `drillPresets.js:153-181`)。
+- **加減算の単独・混合プリセットは併存する**: 1年生は上記6カードを「加算2→減算2→混合2」の順に置く。2年生以降も加算のみ・減算のみ・加減算混合の既存3カードを保持するため、単独演算を選びたい利用者と混合練習の双方に対応する。
 - **`99`/`squ`/`pi` コマンドの `a_value` は「開始する数」**(`get_fixed_format_data` で `start_num = ini.a_value` として使われる)。九九は段そのもの(1〜9)なので `numberInput.default: 2` かつ `max: 9`、`squ`/`pi` は連番の開始位置なので `numberInput.default: 1` かつ `max: 20`。
 - **`nuts_calc.py`/`nuts_calc_tex.py` 間のレンダラー相違を踏まえた除外**: `web/backend/renderers.py` は `NUTS_CALC_RENDERER` 環境変数でどちらのスクリプトにも切り替えられ、両者が同一の CLI サーフェスを持つ前提で実装されている。しかし調査の結果、3箇所で挙動が食い違うことが判明し、それぞれ別issueとして追跡している:
   - `--vertical` + `operator: ['mix']`: `nuts_calc.py` は拒否するが `nuts_calc_tex.py` は拒否しない(issue #41)。→ 本ファイルはこの組み合わせを一切使わない。
@@ -53,6 +54,7 @@
 ## 注意事項・既知の制限
 
 - `nuts_calc.py`/`nuts_calc_tex.py`/`web/backend/app.py` 側にパラメータの許可リストバリデーションが薄いため(`docs/L3_implementation/specification_summary.md` 既知の制約)、ここで不正な組み合わせを作らないよう注意する。特に上記のレンダラー相違(issue #41/#42/#43)が解消されるまでは、該当する組み合わせを追加しないこと。
+- 1年生の加減算6カードは `carry_mode` がLaTeX専用のためReportLabレンダラーでは表示されない。`latexOnly` を外すと `nuts_calc.py` が未知引数で失敗する。
 - `written` の内容は学年によって件数・対応演算が異なる(1年生は0件、他学年は1〜3件)。
 - `examPrep` は学年4〜6のみ9件ずつ、他は空配列。パラメータの組み合わせは `tests/test_nuts_calc_tex_exam_prep_presets.py` のシミュレーション結果に依存しているため、`buildExamPrepPresets` の桁数・項数・段階の設計を変更する場合はテストと合わせて見直すこと。
 - 小数カード(`normal` 内、3〜5年に1〜3件ずつ)・`mixed` カード(`normal` 内、6年のみ2件)はいずれも横書きのみで、`written` セクションには追加していない(`ope` の小数拡張は横書き限定、`mixed` コマンド自体が `--vertical` を持たない)。パラメータの組み合わせは `tests/test_nuts_calc_tex_decimal_mixed_presets.py` のシミュレーション結果に依存しているため、変更する場合はテストと合わせて見直すこと。

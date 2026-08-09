@@ -17,7 +17,7 @@ CI 定義・パッケージ定義(lock file 等)は Python 側に存在しない
 | 国際化 | i18next 26.3.6 + react-i18next 17.0.10(英語/日本語) | `web/frontend/package-lock.json:packages["node_modules/i18next"|"react-i18next"].version`、`web/frontend/src/i18n.js:1-29` |
 | バッチ生成 | Bash(`set -Ceu`) | `factory.sh:1,38` |
 | CLI(実験的プロトタイプ) | `nuts_calc_tex.py`(LaTeX/`pdflatex` レンダリング、`nuts_calc.py` とコード共有なし) | `nuts_calc_tex.py:1`、[[../L3_implementation/nuts_calc_tex.py]] |
-| テスト | pytest(`tests/`、15ファイル) + Node.js 組み込み `node:test`(frontend 2ファイル) | `pytest.ini:1-3`、`web/frontend/src/drillPresets.test.js:1-11`、`web/frontend/src/verticalLayout.test.js:1-10` |
+| テスト | pytest(`tests/`、18個の `test_*.py`) + Node.js 組み込み `node:test`(frontend 2ファイル) | `pytest.ini:1-3`、`tests/`、`web/frontend/src/drillPresets.test.js`、`web/frontend/src/verticalLayout.test.js` |
 | パッケージマネージャ(Python) | pip(lock file なし。旧 `setup.py` は削除済み、`git log` のコミット `d9fc0a3` で確認) | `README.md:13-14` は pip インストールを謳うが検証すると裏付けとなるパッケージ定義ファイルは存在しない |
 | パッケージマネージャ(Web) | npm(`package-lock.json` あり) | `web/frontend/package-lock.json` |
 | ライセンス | MIT | `LICENSE:1-21` |
@@ -38,13 +38,13 @@ CI 定義・パッケージ定義(lock file 等)は Python 側に存在しない
 
 ### `nuts_calc_tex.py`(実験的プロトタイプ)
 
-`nuts_calc.py` と同じ7コマンドにLaTeX専用 `frac` を加えた8コマンドを `pdflatex` でレンダリングする独立プロトタイプ。`frac` は分子・分母の桁数、同分母・異分母、真分数条件を指定して厳密な四則演算を生成する。Webでは `NUTS_CALC_RENDERER=latex` の場合だけ3〜6年生の分数カードを表示する(`nuts_calc_tex.py:118-184,1339-1498`、`web/frontend/src/drillPresets.js:154-327`)。`factory.sh` からは呼ばれない。
+`nuts_calc.py` と同じ7コマンドにLaTeX専用 `frac` と `mixed` を加えた計9コマンドを `pdflatex` でレンダリングする独立プロトタイプ。`frac` は厳密な分数四則演算、`mixed` は整数・小数・分数を混在させた多項式を生成し、`ope` は小数および2項整数加減算の繰り上がり・繰り下がり条件にも対応する。Webでは `NUTS_CALC_RENDERER=latex` の場合だけ、分数・小数・混合計算・筆算・中学受験準備と、1年生の条件付き加減算6カードを表示する。`factory.sh` からは呼ばれない。
 
 ### Web UI(`web/`、新規)
 
 - `web/backend/app.py`: Flask アプリ。エンドポイントは `POST /generate-pdf`(PDF生成)と `GET /renderer-info`(現在有効なレンダラー名の取得、issue #46)の2つ。コマンド構築・レンダラー選択・subprocess 実行のロジックは `web/backend/renderers.py`(issue #36)に切り出されており、env 変数 `NUTS_CALC_RENDERER`(`reportlab`|`latex`、デフォルト `reportlab`)で `nuts_calc.py`/`nuts_calc_tex.py` を切り替えられる。詳細は [[../L3_implementation/specification_summary]] を参照。
 - `web/frontend/src/App.jsx`: ヘッダー(タイトル・英語/日本語の言語切り替え)を描画し、本体は `GradeDrills.jsx` に委譲するシェル(`web/frontend/src/App.jsx`)。
-- `web/frontend/src/GradeDrills.jsx`: トップ画面。学年(1〜6年生)+「無学年」+「カスタム」をリンク風ボタンで並べ、選択中の学年に応じて `drillPresets.js` のプリセットをカード表示する。LaTeX レンダラー時は通常形式の下に「筆算」を、4〜6年生ではさらに「中学受験」(各学年9カード、基礎/標準/発展×3レベル)を表示する(`web/frontend/src/GradeDrills.jsx:234-300`、`web/frontend/src/drillPresets.js:21-51,378,460,538`)。カードの「PDFを生成」を押すと詳細ページに切り替わり、プレビュー生成後に実際の `<a href download>` からダウンロードする。
+- `web/frontend/src/GradeDrills.jsx`: トップ画面。学年(1〜6年生)+「無学年」+「カスタム」をリンク風ボタンで並べ、選択中の学年に応じて `drillPresets.js` のプリセットをカード表示する。LaTeX レンダラー時は、1年生に繰り上がり・繰り下がり条件で分けた加算2・減算2・混合2の6カードを表示し、通常形式の下に「筆算」を、4〜6年生ではさらに「中学受験」(各学年9カード、基礎/標準/発展×3レベル)を表示する。カードの「PDFを生成」を押すと詳細ページに切り替わり、プレビュー生成後に実際の `<a href download>` からダウンロードする。
 - `web/frontend/src/CustomGenerator.jsx`: 「カスタム」選択時に表示される、7種類の `command` すべてに対応する詳細パラメータフォーム(用紙サイズ・数値範囲・演算子・行列数・オプション)。`activeTab` state でタブ切り替え(計算内容/用紙/オプション/PDFプレビュー)を実装。
 
 ## 補助機能

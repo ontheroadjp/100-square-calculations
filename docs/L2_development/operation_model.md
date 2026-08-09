@@ -56,7 +56,7 @@ npm install
 npm run dev      # http://localhost:5173
 ```
 
-`npm run build` は 2026-08-07 に実機確認済み(68 modules transformed、成功)。`package.json` に `i18next`/`react-i18next`/`i18next-browser-languagedetector`/`i18next-http-backend` が揃っており、以前の依存欠落は解消済み。`npm run lint` は同日の検証で `web/frontend/src/drillPresets.js:304` の日本語コメント内全角空白を `no-irregular-whitespace` が拒否し、1件失敗する。
+`npm run build` は 2026-08-09 に実機確認済み(68 modules transformed、成功)。`package.json` に `i18next`/`react-i18next`/`i18next-browser-languagedetector`/`i18next-http-backend` が揃っており、以前の依存欠落は解消済み。`npm run lint` は同日の検証で `web/frontend/src/drillPresets.js:363` の日本語コメント内全角空白を `no-irregular-whitespace` が拒否し、1件失敗する。
 
 ## `nuts_calc_tex.py`(実験的LaTeXプロトタイプ)のセットアップと実行
 
@@ -64,8 +64,10 @@ npm run dev      # http://localhost:5173
 # pdflatex を含む LaTeX ディストリビューションが必要(例: texlive-latex-base + texlive-latex-extra)
 python3 nuts_calc_tex.py A4 ope -a 1 -b 1 --out-file result.pdf
 python3 nuts_calc_tex.py A4 frac --numerator-digits 1 --denominator-digits 1 --same-denominator --proper-operands -o add sub --out-file fractions.pdf
+python3 nuts_calc_tex.py A4 mixed --a-kind int decimal --b-kind fraction --terms 3 --out-file mixed.pdf
+python3 nuts_calc_tex.py A4 ope -o add sub --mixed-carry --out-file grade1-mixed.pdf
 ```
-`frac` は分子・分母の桁数(1〜3)と四則演算を受け付け、同分母・異分母・真分数条件を追加できる。`vendor/texmf/tex/latex/longdivision/` は `TEXINPUTS` 経由で解決する。2026-08-07 に `pdflatex` を使う `frac` の直接生成まで成功した。`pdflatex` が無い場合は明確なエラーで終了する(`nuts_calc_tex.py:117-189,633-646`)。
+`frac` は分子・分母の桁数(1〜3)と四則演算を受け付け、同分母・異分母・真分数条件を追加できる。`mixed` は整数・小数・分数を混在させ、`ope` は `--a-decimal-places`/`--b-decimal-places` と `--carry`/`--no-carry`/`--mixed-carry` を追加で受け付ける。繰り上がり系フラグ指定時は `--a-min` 等の範囲より条件を優先し、必要なら対応する1桁加減算の候補範囲へフォールバックする。繰り下がりありの減算は10〜19−1桁に限定する。`vendor/texmf/tex/latex/longdivision/` は `TEXINPUTS` 経由で解決する。`pdflatex` が無い場合は明確なエラーで終了する。
 
 ## テスト(pytest)
 
@@ -75,7 +77,7 @@ python3 -m pytest -q
 # 既知の stale テストだけを分離する場合
 python3 -m pytest -q --ignore=tests/test_nuts_calc_init.py
 ```
-`pytest.ini` によりリポジトリルートで実行する。2026-08-07 に319件を収集し、既知 stale ファイルを除く297件は全成功した。`tests/test_nuts_calc_init.py` 単独は既知どおり9失敗・13成功。詳細は [[test]]。
+`pytest.ini` によりリポジトリルートで実行する。2026-08-09 に408件を収集し、既知 stale ファイルを除く386件は全成功した。`tests/test_nuts_calc_init.py` 単独は既知どおり9失敗・13成功。詳細は [[test]]。
 
 frontend の純粋関数テストは `package.json` に script がないため直接実行する:
 
@@ -83,12 +85,12 @@ frontend の純粋関数テストは `package.json` に script がないため�
 node --test web/frontend/src/drillPresets.test.js web/frontend/src/verticalLayout.test.js
 ```
 
-2026-08-07 に7件すべて成功した(`web/frontend/src/drillPresets.test.js:1-78`、`web/frontend/src/verticalLayout.test.js:1-25`)。
+2026-08-09 に12件すべて成功した。
 
 ## ビルド
 
 - CLI/Web バックエンド: ビルド工程なし(PDF/CSV 生成そのものが成果物)。
-- Web フロントエンド: `npm run build`(Vite)。2026-08-07 実機確認済み(成功)。
+- Web フロントエンド: `npm run build`(Vite)。2026-08-09 実機確認済み(成功)。
 
 ## 未確認事項
 
