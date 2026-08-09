@@ -41,6 +41,9 @@ issue #19 のトラッキング issue にある「将来 `nuts_calc.py`/`nuts_ca
 
 ## 変更履歴(git log より自動生成)
 
+- bf720ce feat(#81): clarify carry-borrow CLI options
+- 1186039 feat(#78): add carry-aware grade 1 drills
+- 6889ef0 feat(#76): add decimal ope arithmetic and int/decimal/fraction mixed command
 - 7290008 feat(#73): add entrance-exam-prep drill section for grades 4-6
 - 6c2ee20 feat(#69): add ope --missing-value option with grade menu cards
 - 1b7e795 feat(#67): add ope --use-parentheses option with grade menu cards
