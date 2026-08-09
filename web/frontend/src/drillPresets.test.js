@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { presetsByGrade } from './drillPresets.js';
+import ja from '../public/locales/ja/translation.json' with { type: 'json' };
+import en from '../public/locales/en/translation.json' with { type: 'json' };
 
 const EXAM_PREP_GRADES = [4, 5, 6];
 const EXPECTED_STAGES = ['basic', 'intermediate', 'advanced'];
@@ -153,6 +155,39 @@ test('grade-6 mixed presets exist, are latexOnly, and target the mixed command',
   assert.equal(basic.params.mixed_operators, undefined);
   assert.equal(advanced.params.terms, 3);
   assert.equal(advanced.params.mixed_operators, true);
+});
+
+test('fraction comparison presets cover the requested grade and pattern matrix', () => {
+  const expected = {
+    4: [
+      ['g4-fraction-compare-same-denominator', 'same-denominator', false],
+      ['g4-fraction-compare-same-numerator', 'same-numerator', false],
+      ['g4-fraction-compare-same-denominator-advanced', 'same-denominator', true],
+      ['g4-fraction-compare-same-numerator-advanced', 'same-numerator', true],
+    ],
+    5: [
+      ['g5-fraction-compare-different-denominators', 'different-denominators', false],
+      ['g5-fraction-compare-different-denominators-advanced', 'different-denominators', true],
+    ],
+  };
+
+  for (const [grade, cards] of Object.entries(expected)) {
+    for (const [id, pattern, advanced] of cards) {
+      const preset = presetsByGrade[grade].normal.find((candidate) => candidate.id === id);
+      assert.ok(preset, `missing ${id}`);
+      assert.equal(preset.latexOnly, true, id);
+      assert.equal(preset.params.command_type, 'compare', id);
+      assert.equal(preset.params.comparison_pattern, pattern, id);
+      assert.ok(ja[preset.titleKey], `missing Japanese title translation for ${id}`);
+      assert.ok(ja[preset.descKey], `missing Japanese description translation for ${id}`);
+      assert.ok(en[preset.titleKey], `missing English title translation for ${id}`);
+      assert.ok(en[preset.descKey], `missing English description translation for ${id}`);
+      if (advanced) {
+        assert.equal(preset.params.a_fraction_form, 'mix', id);
+        assert.equal(preset.params.b_fraction_form, 'mix', id);
+      }
+    }
+  }
 });
 
 test('grades 1-2 and ungraded have no decimal or mixed presets', () => {

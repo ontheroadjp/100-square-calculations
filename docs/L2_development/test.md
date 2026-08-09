@@ -14,7 +14,7 @@
 | 対象 | ファイル | 根拠・理由 |
 |---|---|---|
 | ReportLab CLI | `test_nuts_calc_init.py`, `test_nuts_calc_data.py`, `test_nuts_calc_cli.py` | 引数、データ、成果物を層別に検証する |
-| LaTeX CLI | `test_nuts_calc_tex.py` とコマンド別 `test_nuts_calc_tex_*_generation.py` | 9コマンド、小数、混合数種、繰り上がり条件の生成ロジックと `pdflatex` 成果物を検証する |
+| LaTeX CLI | `test_nuts_calc_tex.py` とコマンド別 `test_nuts_calc_tex_*_generation.py` | 10コマンド、小数、分数比較、混合数種、繰り上がり条件の生成ロジックと `pdflatex` 成果物を検証する |
 | 小数・混合プリセット | `test_nuts_calc_tex_decimal_generation.py`, `test_nuts_calc_tex_decimal_mixed_presets.py`, `test_nuts_calc_tex_mixed_generation.py` | issue #76 の小数 `ope` と `mixed` を検証する |
 | 中学受験プリセット | `test_nuts_calc_tex_exam_prep_presets.py` | 4〜6年生×3段階×3レベルの組み合わせが retry 上限を枯渇させないことを生成関数で検証する(`tests/test_nuts_calc_tex_exam_prep_presets.py:18-81`) |
 | Web backend | `test_web_backend_app.py`, `test_web_backend_renderers.py` | renderer 選択、HTTP 応答、JSON→CLI 引数変換を検証する |

@@ -171,6 +171,21 @@ def test_build_command_translates_different_denominators() -> None:
     assert "--different-denominators" in command
 
 
+def test_build_command_translates_fraction_comparison_params() -> None:
+    params = {
+        "paper_size": "A4",
+        "command_type": "compare",
+        "comparison_pattern": "same-numerator",
+        "a_fraction_form": "mixed",
+        "b_fraction_form": "proper",
+    }
+    command = renderers.build_command("latex", params, "out.pdf")
+
+    assert command[command.index("--comparison-pattern") + 1] == "same-numerator"
+    assert command[command.index("--a-fraction-form") + 1] == "mixed"
+    assert command[command.index("--b-fraction-form") + 1] == "proper"
+
+
 def test_build_command_translates_decimal_places() -> None:
     params = {
         "paper_size": "A4",

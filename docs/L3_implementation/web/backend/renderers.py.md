@@ -41,6 +41,7 @@ issue #19 のトラッキング issue にある「将来 `nuts_calc.py`/`nuts_ca
 
 ## 変更履歴(git log より自動生成)
 
+- 9e296ee feat(#83): add fraction comparison worksheets
 - bf720ce feat(#81): clarify carry-borrow CLI options
 - 1186039 feat(#78): add carry-aware grade 1 drills
 - 6889ef0 feat(#76): add decimal ope arithmetic and int/decimal/fraction mixed command

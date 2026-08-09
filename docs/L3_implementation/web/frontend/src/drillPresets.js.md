@@ -17,6 +17,8 @@
 - **1年生の加減算は繰り上がり・繰り下がり条件で6カードに分割する(issue #78)**: 加算は1桁同士の「なし/あり」、減算は1桁同士の「繰り下がりなし」と10〜19−1桁の「あり」、加減算混合は「両方なし」と「全条件混合」を配置する。全条件混合には、繰り上がりあり/なしの1桁加算、繰り下がりなしの1桁減算、繰り下がりありの10〜19−1桁減算の4種類を含む。6カードはいずれも `nuts_calc_tex.py` 固有フラグを使うため `latexOnly: true` である(`drillPresets.js:63-124`)。
 - **分数カードは学習指導要領に沿って配置する**: `nuts_calc_tex.py` の `frac` コマンド(issue #65)を使い、3年は簡単な同分母加減(真分数かつ答えも真分数)、4年は同分母加減、5年は異分母加減、6年は分数の乗除を配置する。根拠資料は `docs/reference/elementary-course-of-study-mathematics-2017.pdf` と同READMEに保存している(`drillPresets.js:139-149,207-216,267-276,318-327`)。
 - **分数カードはLaTeX専用**: 各カードに `latexOnly: true` を付ける。`GradeDrills.jsx` が `GET /renderer-info` の結果で除外するため、`frac` 非対応の `nuts_calc.py` へ誤送信されない。
+- **分数の大小比較カード(issue #83)もLaTeX専用**: 4年生に同分母・異分子と同分子・異分母、5年生に異分母を配置する。各パターンには `a_fraction_form`/`b_fraction_form` を `mix` にした発展カードを追加し、真分数・仮分数・帯分数を問題ごとに混在させる。全6カードは `compare` コマンド、1桁の分子・分母、対応する `comparison_pattern` を固定し、`latexOnly: true` によりReportLabレンダラーへの送信を防ぐ（`drillPresets.js:405-446,582-601`）。
+- 比較カードの `titleKey`/`descKey` は英日翻訳辞書の実在キーをテストで検証する。発展カードは共有キーを使わず、カードごとの説明キーを持つため、翻訳リソース未定義時のキー名表示を防ぐ（`drillPresets.js:425-446,592-601`、`drillPresets.test.js:160-191`）。
 - **かっこ付き計算カードも学習指導要領に沿って配置する(issue #67)**: `nuts_calc_tex.py` の `ope --use-parentheses`(issue #67)を使い、4年生に基本形、5・6年生に発展形(指導要領上の正式単元ではない応用ドリル)を配置する。根拠資料は分数カードと同じ `docs/reference/elementary-course-of-study-mathematics-2017.pdf`(196ページ、第４学年 A(6) 数量の関係を表す式「四則の混合した式や（　）を用いた式」)。分数カードと同じ理由で `latexOnly: true` を付ける。
   - `g4-parentheses`(`a_value: 1, b_value: 1`)・`g5-parentheses-advanced`(`a_value: 2, b_value: 1`)・`g6-parentheses-advanced`(`a_value: 3, b_value: 1`)はいずれも `operator: ['mix']` で、`--use-parentheses` 自体が問題ごとに演算子(`op_left`/`op_right`)とかっこの位置(`position`)をランダムに選ぶため、カード側で演算子を固定していない(旧実装はカードごとに固定の演算子ペアと左かっこ固定だったが、「かっこの位置・演算子・式全体のパターンが単調」というレビュー指摘を受けて廃止)。学年間の差は `a` の桁数のみ(1桁→2桁→3桁)で表現する。
   - `b_value` を3カードとも `1`(1桁、1〜9)に固定しているのは UI 上の意図ではなく、`nuts_calc_tex.py` 側の制約に合わせたもの: 第3項 `c` は `b` と同じレンジを再利用するため(`nuts_calc_tex.py` 参照)、`b`/`c` を広げると一部の演算子・かっこ位置の組み合わせ(例: 2桁×2桁の掛け算を外側の引き算に使う)で解が見つからず `ValueError` になることをシミュレーションで確認済み。詳細は [[../../../../nuts_calc_tex.py]] を参照。
@@ -61,6 +63,9 @@
 
 ## 変更履歴(git log より自動生成)
 
+- 9e296ee feat(#83): add fraction comparison worksheets
+- 1186039 feat(#78): add carry-aware grade 1 drills
+- 6889ef0 feat(#76): add decimal ope arithmetic and int/decimal/fraction mixed command
 - 7290008 feat(#73): add entrance-exam-prep drill section for grades 4-6
 - 6c2ee20 feat(#69): add ope --missing-value option with grade menu cards
 - 1b7e795 feat(#67): add ope --use-parentheses option with grade menu cards
@@ -68,4 +73,3 @@
 - b727443 feat(#61): add separate addition and subtraction drills
 - 5211d63 feat(#44): rework grade-based drill menu per curriculum, inline written-calculation section, add Ungraded category
 - f0201d6 feat(#13): add grade-based written-calculation (hissan) drill menu
-- 0631cf9 feat(#5): add grade-based drill PDF picker to web/frontend
