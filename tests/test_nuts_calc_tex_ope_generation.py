@@ -22,6 +22,162 @@ def test_calc_add_returns_sum() -> None:
     assert tex_module.calc_add(3, 4, [3], [4]) == (3, 4, 7)
 
 
+@pytest.mark.parametrize(
+    ("a", "b", "expected"),
+    [
+        (12, 34, False),
+        (15, 27, True),
+        (95, 5, True),
+        (100, 200, False),
+    ],
+)
+def test_addition_has_carry_detects_any_digit_carry(a: int, b: int, expected: bool) -> None:
+    assert tex_module.addition_has_carry(a, b) is expected
+
+
+def test_calc_add_carry_prefers_matching_pair_in_requested_ranges() -> None:
+    assert tex_module.calc_add(8, 2, [8], [2], carry=True) == (8, 2, 10)
+
+
+def test_calc_add_no_carry_prefers_matching_pair_in_requested_ranges() -> None:
+    assert tex_module.calc_add(3, 4, [3], [4], carry=False) == (3, 4, 7)
+
+
+def test_calc_add_carry_fallback_ignores_impossible_bounds(
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+    monkeypatch.setattr(tex_module, "MAX_OPERAND_RETRY_ATTEMPTS", 1)
+
+    a, b, c = tex_module.calc_add(4, 4, [1, 2, 3, 4], [1, 2, 3, 4], carry=True)
+
+    assert tex_module.addition_has_carry(a, b)
+    assert c == a + b
+    assert (a, b) == (1, 9)
+
+
+def test_calc_add_no_carry_fallback_ignores_impossible_bounds(
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+    monkeypatch.setattr(tex_module, "MAX_OPERAND_RETRY_ATTEMPTS", 1)
+
+    a, b, c = tex_module.calc_add(9, 9, [9], [9], carry=False)
+
+    assert not tex_module.addition_has_carry(a, b)
+    assert c == a + b
+    assert (a, b) == (1, 1)
+
+
+@pytest.mark.parametrize("carry", [True, False])
+def test_calc_add_fallback_preserves_operand_digit_widths(
+        monkeypatch: pytest.MonkeyPatch, carry: bool,
+    ) -> None:
+    monkeypatch.setattr(tex_module, "MAX_OPERAND_RETRY_ATTEMPTS", 0)
+
+    a, b, c = tex_module.calc_add(999, 9999, [999], [9999], carry=carry)
+
+    assert len(str(a)) == 3
+    assert len(str(b)) == 4
+    assert tex_module.addition_has_carry(a, b) is carry
+    assert c == a + b
+
+
+@pytest.mark.parametrize(
+    ("carry_mode", "expected_carry"),
+    [('required', True), ('none', False)],
+)
+def test_generate_ope_problems_applies_addition_carry_filter(
+        carry_mode: tex_module.CarryMode, expected_carry: bool,
+    ) -> None:
+    problems = tex_module.generate_ope_problems(
+        list(range(1, 10)), list(range(1, 10)), ['add'],
+        order=GENERATION_SAMPLE_SIZE, start_index=1, carry_mode=carry_mode,
+    )
+
+    assert all(
+        tex_module.addition_has_carry(problem.a, problem.b) is expected_carry
+        for problem in problems
+    )
+
+
+@pytest.mark.parametrize(
+    ("a", "b", "expected"),
+    [
+        (8, 3, False),
+        (12, 3, True),
+        (18, 7, False),
+        (100, 1, True),
+    ],
+)
+def test_subtraction_has_borrow_detects_any_digit_borrow(
+        a: int, b: int, expected: bool,
+    ) -> None:
+    assert tex_module.subtraction_has_borrow(a, b) is expected
+
+
+def test_calc_sub_borrow_uses_10_to_19_minus_one_digit() -> None:
+    for _ in range(GENERATION_SAMPLE_SIZE):
+        a, b, c = tex_module.calc_sub(9, 1, [1, 9], [1, 9], borrow=True)
+        assert 10 <= a <= 19
+        assert 1 <= b <= 9
+        assert tex_module.subtraction_has_borrow(a, b)
+        assert c == a - b > 0
+
+
+def test_calc_sub_no_borrow_fallback_ignores_impossible_bounds(
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+    monkeypatch.setattr(tex_module, "MAX_OPERAND_RETRY_ATTEMPTS", 0)
+
+    a, b, c = tex_module.calc_sub(10, 9, [10], [9], borrow=False)
+
+    assert not tex_module.subtraction_has_borrow(a, b)
+    assert c == a - b > 0
+
+
+@pytest.mark.parametrize(
+    ("carry_mode", "expected_condition"),
+    [('required', True), ('none', False)],
+)
+def test_generate_add_sub_problems_applies_carry_and_borrow_filter(
+        carry_mode: tex_module.CarryMode, expected_condition: bool,
+    ) -> None:
+    problems = tex_module.generate_ope_problems(
+        list(range(1, 10)), list(range(1, 10)), ['add', 'sub'],
+        order=GENERATION_SAMPLE_SIZE, start_index=1, carry_mode=carry_mode,
+    )
+
+    for problem in problems:
+        if problem.operator == 'add':
+            assert tex_module.addition_has_carry(problem.a, problem.b) is expected_condition
+        else:
+            assert tex_module.subtraction_has_borrow(problem.a, problem.b) is expected_condition
+            if expected_condition:
+                assert 10 <= problem.a <= 19
+                assert 1 <= problem.b <= 9
+
+
+def test_generate_add_sub_mixed_carry_covers_all_four_conditions() -> None:
+    problems = tex_module.generate_ope_problems(
+        list(range(1, 10)), list(range(1, 10)), ['add', 'sub'],
+        order=2000, start_index=1, carry_mode='mixed',
+    )
+
+    observed = {
+        (
+            problem.operator,
+            tex_module.addition_has_carry(problem.a, problem.b)
+            if problem.operator == 'add'
+            else tex_module.subtraction_has_borrow(problem.a, problem.b),
+        )
+        for problem in problems
+    }
+    assert observed == {('add', False), ('add', True), ('sub', False), ('sub', True)}
+    for problem in problems:
+        if problem.operator == 'sub' and tex_module.subtraction_has_borrow(problem.a, problem.b):
+            assert 10 <= problem.a <= 19
+            assert 1 <= problem.b <= 9
+
+
 def test_calc_sub_result_is_always_positive() -> None:
     nums_a = list(range(1, 10))
     nums_b = list(range(1, 10))

@@ -109,6 +109,38 @@ def test_build_command_passes_operator_list_once() -> None:
     assert command.count("--operator") == 1
 
 
+@pytest.mark.parametrize(
+    ("carry_mode", "expected_flag"),
+    [
+        ("required", "--carry"),
+        ("none", "--no-carry"),
+        ("mixed", "--mixed-carry"),
+    ],
+)
+def test_build_command_translates_carry_mode(carry_mode: str, expected_flag: str) -> None:
+    params = {
+        "paper_size": "A4",
+        "command_type": "ope",
+        "operator": ["add", "sub"],
+        "carry_mode": carry_mode,
+    }
+
+    command = renderers.build_command("latex", params, "out.pdf")
+
+    assert expected_flag in command
+
+
+def test_build_command_rejects_unknown_carry_mode() -> None:
+    params = {
+        "paper_size": "A4",
+        "command_type": "ope",
+        "carry_mode": "unknown",
+    }
+
+    with pytest.raises(ValueError, match="Unknown carry_mode"):
+        renderers.build_command("latex", params, "out.pdf")
+
+
 def test_build_command_translates_fraction_params() -> None:
     params = {
         "paper_size": "A4",

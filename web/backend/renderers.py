@@ -3,7 +3,7 @@ import subprocess
 import sys
 import uuid
 from pathlib import Path
-from typing import TypedDict
+from typing import Literal, TypedDict
 
 
 class RendererRequest(TypedDict, total=False):
@@ -23,6 +23,7 @@ class RendererRequest(TypedDict, total=False):
     a_kind: list[str]
     b_kind: list[str]
     operator: list[str]
+    carry_mode: Literal["required", "none", "mixed"]
     descend: bool
     reverse: bool
     shuffle: bool
@@ -56,6 +57,12 @@ DEFAULT_RENDERER = "reportlab"
 RENDERER_SCRIPTS: dict[str, Path] = {
     "reportlab": REPO_ROOT / "nuts_calc.py",
     "latex": REPO_ROOT / "nuts_calc_tex.py",
+}
+
+CARRY_MODE_FLAGS = {
+    "required": "--carry",
+    "none": "--no-carry",
+    "mixed": "--mixed-carry",
 }
 
 
@@ -93,7 +100,8 @@ def build_command(renderer_name: str, params: RendererRequest, out_file: str) ->
     unconditionally for both renderers; callers must only set them when the
     active renderer is `latex` (see `GET /renderer-info`), otherwise
     nuts_calc.py will reject the resulting CLI invocation as an unrecognized
-    argument.
+    argument. `carry_mode` is likewise translated to the LaTeX-only
+    `--carry`/`--no-carry`/`--mixed-carry` flags.
     """
     script_path = RENDERER_SCRIPTS[renderer_name]
     command = [sys.executable, str(script_path)]
@@ -134,6 +142,12 @@ def build_command(renderer_name: str, params: RendererRequest, out_file: str) ->
         command.extend(["--b-kind", *params["b_kind"]])
     if params.get("operator"):
         command.extend(["--operator", *params["operator"]])
+    if "carry_mode" in params:
+        carry_mode = params["carry_mode"]
+        if carry_mode not in CARRY_MODE_FLAGS:
+            allowed = ", ".join(CARRY_MODE_FLAGS)
+            raise ValueError(f"Unknown carry_mode {carry_mode!r}. Must be one of: {allowed}.")
+        command.append(CARRY_MODE_FLAGS[carry_mode])
     if params.get("descend"):
         command.append("--descend")
     if params.get("reverse"):

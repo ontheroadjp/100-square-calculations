@@ -14,6 +14,32 @@ test('non-exam-prep grades have an empty examPrep bucket', () => {
   }
 });
 
+test('grade 1 has six carry and borrowing addition/subtraction presets', () => {
+  const expected = [
+    ['g1-add-no-carry', ['add'], 'none', 1, 9],
+    ['g1-add-carry', ['add'], 'required', 1, 9],
+    ['g1-sub-no-borrow', ['sub'], 'none', 1, 9],
+    ['g1-sub-borrow', ['sub'], 'required', 10, 19],
+    ['g1-addsub-no-carry', ['add', 'sub'], 'none', 1, 9],
+    ['g1-addsub-all', ['add', 'sub'], 'mixed', 1, 9],
+  ];
+
+  const gradeOnePresets = presetsByGrade[1].normal;
+  for (const [id, operators, carryMode, aMin, aMax] of expected) {
+    const preset = gradeOnePresets.find((candidate) => candidate.id === id);
+    assert.ok(preset, `missing ${id}`);
+    assert.equal(preset.latexOnly, true, `${id} must be latexOnly`);
+    assert.deepEqual(preset.params.operator, operators, id);
+    assert.equal(preset.params.carry_mode, carryMode, id);
+    assert.equal(preset.params.a_min, aMin, id);
+    assert.equal(preset.params.a_max, aMax, id);
+    assert.equal(preset.params.b_min, 1, id);
+    assert.equal(preset.params.b_max, 9, id);
+  }
+
+  assert.ok(!gradeOnePresets.some((preset) => ['g1-add', 'g1-sub', 'g1-addsub'].includes(preset.id)));
+});
+
 test('each exam-prep grade has exactly 9 latexOnly presets covering every stage/level', () => {
   for (const grade of EXAM_PREP_GRADES) {
     const presets = presetsByGrade[grade].examPrep;
