@@ -41,8 +41,7 @@ issue #19 のトラッキング issue にある「将来 `nuts_calc.py`/`nuts_ca
 
 ## 変更履歴(git log より自動生成)
 
-- issue #83: `compare` コマンドの `comparison_pattern`、左右の `fraction_form` を `--comparison-pattern`/`--a-fraction-form`/`--b-fraction-form` としてLaTeX CLIへ転送する。`RendererRequest` は値を限定した `Literal` で表し、カードからの文字列をそのまま引数に変換する（`web/backend/renderers.py:9-43,184-189`）。
-
+- 9e296ee feat(#83): add fraction comparison worksheets
 - bf720ce feat(#81): clarify carry-borrow CLI options
 - 1186039 feat(#78): add carry-aware grade 1 drills
 - 6889ef0 feat(#76): add decimal ope arithmetic and int/decimal/fraction mixed command

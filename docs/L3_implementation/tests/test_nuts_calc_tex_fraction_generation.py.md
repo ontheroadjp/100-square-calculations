@@ -13,3 +13,8 @@
 ## 統合ポイント
 
 対象は `nuts_calc_tex.py` の `generate_fraction_problems()` と `generate_fraction_comparison_problems()`、関連するTeX/CSVビルダーである。
+
+## 変更履歴(git log より自動生成)
+
+- 9e296ee feat(#83): add fraction comparison worksheets
+- 7c89a52 feat(#65): add curriculum-aligned fraction worksheets

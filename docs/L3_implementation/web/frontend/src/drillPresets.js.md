@@ -63,6 +63,9 @@
 
 ## 変更履歴(git log より自動生成)
 
+- 9e296ee feat(#83): add fraction comparison worksheets
+- 1186039 feat(#78): add carry-aware grade 1 drills
+- 6889ef0 feat(#76): add decimal ope arithmetic and int/decimal/fraction mixed command
 - 7290008 feat(#73): add entrance-exam-prep drill section for grades 4-6
 - 6c2ee20 feat(#69): add ope --missing-value option with grade menu cards
 - 1b7e795 feat(#67): add ope --use-parentheses option with grade menu cards
@@ -70,4 +73,3 @@
 - b727443 feat(#61): add separate addition and subtraction drills
 - 5211d63 feat(#44): rework grade-based drill menu per curriculum, inline written-calculation section, add Ungraded category
 - f0201d6 feat(#13): add grade-based written-calculation (hissan) drill menu
-- 0631cf9 feat(#5): add grade-based drill PDF picker to web/frontend

@@ -38,7 +38,7 @@ CI 定義・パッケージ定義(lock file 等)は Python 側に存在しない
 
 ### `nuts_calc_tex.py`(実験的プロトタイプ)
 
-`nuts_calc.py` と同じ7コマンドにLaTeX専用 `frac` と `mixed` を加えた計9コマンドを `pdflatex` でレンダリングする独立プロトタイプ。`frac` は厳密な分数四則演算、`mixed` は整数・小数・分数を混在させた多項式を生成し、`ope` は小数および2項整数加減算の繰り上がり・繰り下がり条件にも対応する。Webでは `NUTS_CALC_RENDERER=latex` の場合だけ、分数・小数・混合計算・筆算・中学受験準備と、1年生の条件付き加減算6カードを表示する。`factory.sh` からは呼ばれない。
+`nuts_calc.py` と同じ7コマンドにLaTeX専用 `frac`、`mixed`、`compare` を加えた計10コマンドを `pdflatex` でレンダリングする独立プロトタイプ。`frac` は厳密な分数四則演算、`mixed` は整数・小数・分数を混在させた多項式、`compare` は同分母・同分子・異分母の分数比較を生成し、`ope` は小数および2項整数加減算の繰り上がり・繰り下がり条件にも対応する。Webでは `NUTS_CALC_RENDERER=latex` の場合だけ、分数・小数・混合計算・筆算・中学受験準備と、1年生の条件付き加減算6カードを表示する。`factory.sh` からは呼ばれない。
 
 ### Web UI(`web/`、新規)
 

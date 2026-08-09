@@ -6,7 +6,7 @@ This project provides a set of tools to generate various types of mathematical p
 For the pedagogical background behind the drills (the mental-arithmetic technique the worksheets are built around), see `memo.md` (Japanese).
 
 ## Features
-*   **Diverse Problem Types**: Generate worksheets for integer arithmetic, complements, 100-square tables, multiplication tables, square numbers, mental arithmetic, and exact fraction arithmetic through the LaTeX renderer.
+*   **Diverse Problem Types**: Generate worksheets for integer arithmetic, complements, 100-square tables, multiplication tables, square numbers, mental arithmetic, exact fraction arithmetic, and fraction comparison through the LaTeX renderer.
 *   **Customizable Generation**: Extensive command-line options allow users to specify paper size, number ranges, operators, problem counts, and output formats.
 *   **PDF Output**: All worksheets are generated as high-quality PDF files, ready for printing.
 *   **Answer Options**: Include answers at the bottom of the page, merge answer files, or output raw problem data to CSV for further analysis.
@@ -96,6 +96,16 @@ curriculum source used for their placement is preserved under `docs/reference/`.
 The same renderer exposes the grades 4-6 entrance-exam-prep section, which uses
 multi-term, mixed-operator, and parenthesized `ope` expressions.
 
+It also provides a `compare` command for fraction comparison worksheets. Use
+`--comparison-pattern` to select `same-denominator`, `same-numerator`, or
+`different-denominators`; use `--a-fraction-form` and `--b-fraction-form` to
+independently select `proper`, `improper`, `mixed`, or randomized `mix` forms.
+
+```sh
+python3 nuts_calc_tex.py A4 compare --comparison-pattern same-denominator \
+  --a-fraction-form proper --b-fraction-form proper --out-file compare.pdf
+```
+
 It also provides decimal `ope`, the `mixed` integer/decimal/fraction command,
 and carry-aware two-term integer addition/subtraction. Carry-aware flags take
 precedence over incompatible operand ranges by falling back to their grade-1
@@ -176,7 +186,7 @@ There are two user-facing ways to generate a worksheet; the Web path selects one
 
 `factory.sh` is a third, batch-oriented entry point that calls `nuts_calc.py` repeatedly to populate a `dist/` directory with a fixed set of worksheets.
 
-**Experimental**: `nuts_calc_tex.py` is independent from ReportLab and implements nine commands: the seven ReportLab-compatible commands plus the LaTeX-only `frac` and `mixed` commands. It also owns decimal, written-calculation, and carry-aware drill behavior. Web cards using these features are renderer-gated because `nuts_calc.py` does not implement them. See `docs/L3_implementation/nuts_calc_tex.py.md`.
+**Experimental**: `nuts_calc_tex.py` is independent from ReportLab and implements ten commands: the seven ReportLab-compatible commands plus the LaTeX-only `frac`, `mixed`, and `compare` commands. It also owns decimal, written-calculation, and carry-aware drill behavior. Web cards using these features are renderer-gated because `nuts_calc.py` does not implement them. See `docs/L3_implementation/nuts_calc_tex.py.md`.
 
 See `docs/L1_project/project_overview.md` and `docs/L0_concept/concept.md` for the full breakdown and file/line references.
 

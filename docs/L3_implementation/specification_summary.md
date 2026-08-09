@@ -8,7 +8,7 @@ DB は存在しないため `database.md` は生成していない(永続化層�
 
 ## `nuts_calc_tex.py`(実験的プロトタイプ)
 
-`nuts_calc.py` とはコード共有しない独立LaTeXレンダラー。issue #19の7コマンドに `frac` と `mixed` を加えた計9コマンドを実装する。`frac` は分数の厳密な四則演算、`mixed` は整数・小数・分数を混在させた多項演算を生成し、`ope` は整数に加えて小数も扱う。issue #67 の `--use-parentheses`、issue #69 の `--missing-value`、issue #71 の `--terms`/`--terms-min`/`--terms-max`/`--mixed-operators` により、かっこ付き・虫食い・2〜12項の式を構成できる。issue #76 は小数 `ope` と `mixed` を追加した。issue #78 は2項整数 `ope` の加減算へ繰り上がり・繰り下がり条件を追加し、1年生向けWebカードを加算2・減算2・混合2の6枚に分割した。issue #81 でフラグ名を `--carry-borrow`/`--no-carry-borrow`/`--mixed-carry-borrow` に変更し、旧名は互換エイリアスなしで削除した。`allow_abbrev=False` により、旧名を含む長いオプションの省略形も受理しない。繰り下がりありの減算は10〜19−1桁に限定し、条件フラグ指定時は `--a-min` 等より条件を優先して候補範囲へフォールバックする。詳細は [[nuts_calc_tex.py]] を参照。
+`nuts_calc.py` とはコード共有しない独立LaTeXレンダラー。issue #19の7コマンドに `frac`、`mixed`、`compare` を加えた計10コマンドを実装する。`frac` は分数の厳密な四則演算、`mixed` は整数・小数・分数を混在させた多項演算、`compare` は同分母・同分子・異分母の分数比較を生成し、`ope` は整数に加えて小数も扱う。issue #67 の `--use-parentheses`、issue #69 の `--missing-value`、issue #71 の `--terms`/`--terms-min`/`--terms-max`/`--mixed-operators` により、かっこ付き・虫食い・2〜12項の式を構成できる。issue #76 は小数 `ope` と `mixed` を追加した。issue #78 は2項整数 `ope` の加減算へ繰り上がり・繰り下がり条件を追加し、1年生向けWebカードを加算2・減算2・混合2の6枚に分割した。issue #81 でフラグ名を `--carry-borrow`/`--no-carry-borrow`/`--mixed-carry-borrow` に変更し、旧名は互換エイリアスなしで削除した。`allow_abbrev=False` により、旧名を含む長いオプションの省略形も受理しない。繰り下がりありの減算は10〜19−1桁に限定し、条件フラグ指定時は `--a-min` 等より条件を優先して候補範囲へフォールバックする。詳細は [[nuts_calc_tex.py]] を参照。
 
 ## Web API 仕様(`web/backend/app.py`)
 
@@ -16,7 +16,7 @@ DB は存在しないため `database.md` は生成していない(永続化層�
 
 ### `POST /generate-pdf`
 
-- 入力: JSON ボディ。必須キーは `paper_size`, `command_type`。任意キーには通常 CLI option、分数・小数・mixed option、LaTeX 専用の `vertical`/`use_parentheses`/`missing_value`/`terms` 系と `carry_mode` を含む(`web/backend/renderers.py:9-48`)。
+- 入力: JSON ボディ。必須キーは `paper_size`, `command_type`。任意キーには通常 CLI option、分数・小数・mixed・compare option、LaTeX 専用の `vertical`/`use_parentheses`/`missing_value`/`terms` 系と `carry_mode` を含む(`web/backend/renderers.py:9-48`)。
 - 処理: 選択 renderer の CLI 引数へ変換し、UUID 出力名を指定して `subprocess.run(..., check=True)` を実行する(`web/backend/renderers.py:170-189`)。
 - 出力: 成功時は PDF attachment。JSON/必須値欠落は HTTP 400、renderer/CLI 等の実行時失敗は HTTP 500(`web/backend/app.py:17-50`)。
 - 入力検証: 必須キーの存在だけを backend で検証し、値の allowlist は CLI の argparse に委ねる。

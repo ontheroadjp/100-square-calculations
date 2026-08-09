@@ -260,12 +260,13 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 
 ## 変更履歴(git log より自動生成)
 
+- 9e296ee feat(#83): add fraction comparison worksheets
 - bf720ce feat(#81): clarify carry-borrow CLI options
 - 1186039 feat(#78): add carry-aware grade 1 drills
+- 6889ef0 feat(#76): add decimal ope arithmetic and int/decimal/fraction mixed command
 - 8ae1b1f feat(#71): add multi-term ope support and generalize parentheses to N terms
 - 6c2ee20 feat(#69): add ope --missing-value option with grade menu cards
 - 1b7e795 feat(#67): add ope --use-parentheses option with grade menu cards
 - 7c89a52 feat(#65): add curriculum-aligned fraction worksheets
 - 5acfc32 fix(#63): box complement worksheet blanks
 - 04d9a60 fix(#59): distribute horizontal worksheet layout
-- cf3603c fix(#55): preserve vertical worksheet page counts
