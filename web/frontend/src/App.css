@@ -476,11 +476,170 @@ body {
   margin: 0;
 }
 
+.drill-search {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.drill-search label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.drill-search input,
+.drill-filter-bar select {
+  min-height: 44px;
+  box-sizing: border-box;
+  border: 1px solid #cbd5e1;
+  padding: 8px 12px;
+  font: inherit;
+}
+
+.drill-home-section {
+  margin: 28px 0;
+}
+
+.drill-home-section h2 {
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+}
+
+.number-type-header {
+  margin: 8px 0 24px;
+}
+
+.number-type-header h1,
+.number-type-section h2 {
+  margin: 0 0 8px;
+}
+
+.number-type-header p,
+.number-type-section > p {
+  max-width: 48rem;
+  margin: 0;
+  color: #475569;
+  line-height: 1.7;
+}
+
+.number-type-section {
+  margin: 32px 0;
+}
+
+.number-type-section > p {
+  margin-bottom: 16px;
+}
+
+.format-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin: 0 0 24px;
+  padding: 12px 16px 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+}
+
+.format-filter legend {
+  padding: 0 4px;
+  font-weight: 700;
+}
+
+.format-filter label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+}
+
+.drill-start-grid,
+.drill-filter-bar {
+  display: grid;
+  gap: 8px;
+}
+
+.drill-start-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.drill-start-card,
+.filter-reset {
+  min-height: 52px;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1e3a8a;
+  padding: 10px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.drill-start-card.accent {
+  border-color: #fed7aa;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.drill-filter-bar {
+  margin-bottom: 20px;
+}
+
+.filter-reset {
+  min-height: 44px;
+  border-color: #cbd5e1;
+  background: #fff;
+  color: #334155;
+}
+
+.drill-badges,
+.drill-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.drill-badge {
+  min-height: 30px;
+  border: 0;
+  border-radius: 999px;
+  padding: 4px 10px;
+  color: #1e3a8a;
+  background: #dbeafe;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.level-badge {
+  color: #581c87;
+  background: #f3e8ff;
+}
+
+.drill-card-actions .preset-download-button {
+  flex: 1 1 140px;
+  width: auto;
+}
+
+.drill-empty-state {
+  margin: 40px 0;
+  color: #64748b;
+  text-align: center;
+}
+
 .custom-generator {
   margin-top: 8px;
 }
 
 @media (min-width: 600px) {
+  .drill-filter-bar {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .drill-start-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .preset-card-grid {
     grid-template-columns: repeat(2, 1fr);
   }

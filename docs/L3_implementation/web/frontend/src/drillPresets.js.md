@@ -10,7 +10,7 @@
   - `params`: `/generate-pdf` にそのまま渡す固定パラメータ。1年生の加減算6カードは `carry_mode: 'required'|'none'|'mixed'` を含み、それ以外の既存カードは演算子・桁数等を固定する。
   - `numberInput`: ユーザーがカードごとに変更できる追加パラメータがある場合のみ存在。`{ param, labelKey, min, max, default }` で、`param` が `params` にマージされる対象キー(例: 九九の「段」は `a_value`)。
 - `titleKey`/`descKey` は `public/locales/{en,ja}/translation.json` のキー。
-- `UNGRADED`(`presetsByGrade['ungraded']`)は他の学年キーと完全に同じ `{ normal, written }` 構造を持つため、`GradeDrills.jsx` 側は数値学年と区別せず同じロジックで扱える(`CUSTOM_GRADE` のみ別 UI として分岐)。
+- `UNGRADED`(`presetsByGrade['ungraded']`)は他の学年キーと完全に同じ `{ normal, written }` 構造を持つため、カタログ側は数値学年と区別せず同じロジックで扱える。
 
 ## 重要な設計判断
 
@@ -35,7 +35,7 @@
 - **整数・小数・分数の「混合計算」カード(`mixed`、issue #76)は6年のみに2枚配置する**: 根拠は学習指導要領解説PDF p.293-294 の「整数や小数の乗法や除法を分数の場合の計算にまとめることも取り扱うものとする」という内容の取扱い注記と、`5÷2×0.3` を分数の積にまとめる例示。`g6-mixed-basic`(2項、`operator: ['mix']`)・`g6-mixed-advanced`(3項、`mixed_operators: true`、p.294の例示と同じ3項連鎖の形)のいずれも `a_kind`/`b_kind` に `int`/`decimal`/`fraction` の3種類全てを許可し、`numerator_digits`/`denominator_digits`/`decimal_places` はいずれも `1` に固定している(桁数を広げると `mixed` 側の非決定的フォールバックにより `ValueError` のリスクが上がるため、`g4/g5/g6-parentheses*` と同じ「桁数を小さく保つ」設計方針を踏襲)。指導要領は乗法・除法のみに言及しているが、ユーザーの明示的な指示により `operator: ['mix']` は四則すべて(add/sub/mul/div)を対象にしている。答えは常に厳密な分数で表示され、無限小数になり得る除算(例: `2÷3`)でも小数表記に丸めることなく出題できる([[../../../../nuts_calc_tex.py]] 参照)。分数・かっこ付き計算カードと同じ理由で `latexOnly: true` を付ける。
   - **`ValueError` リスクの事前検証**: 上記の小数7カード全ての param 組み合わせは、実装時に `nuts_calc_tex.py` の生成関数を直接呼ぶシミュレーションで安全性を確認済み。回帰テストは `tests/test_nuts_calc_tex_decimal_mixed_presets.py`(`examPrep` の `tests/test_nuts_calc_tex_exam_prep_presets.py` と同じ方式)。パラメータの組み合わせを変更する場合は両方(本ファイルとテスト)を同期させる必要がある。
 - **日本の学習指導要領(算数)の学年配置に沿った内容確定**(2026年見直し):
-  - 1年生に `written`(筆算)セクションは存在しない。筆算という記法は指導要領上、正式には2年生から導入されるため。
+  - 1年生の繰り上がり・繰り下がり条件付き加減算6カードには、通常式と筆算の両方を用意する。カタログが同じ計算条件を一つのカードへ統合し、形式選択として表示する。
   - 2年生の加減算(`normal`/`written` とも)は「2位数+2位数」(`a_value: 2, b_value: 2`)。指導要領の2年生内容「2位数の加法及び減法の計算、それらの筆算の仕方」に対応する。
   - 3年生に `--intermediate`(途中式)を使った掛け算工夫プリセット(`g3-mul-intermediate`)を追加。指導要領3年の「乗数や被乗数を分解して計算する工夫」に対応する内容が、これまでどの学年にも存在しなかったため。
   - 4年生の `written` に掛け算(3桁×2桁、`g4-mul-written`)・わり算(3桁÷2桁、長除法、`g4-div-written`)を追加。指導要領4年の「乗法・除法の筆算」に対応する。`nuts_calc.py`/`nuts_calc_tex.py` 側は既に対応済み(掛け算の複数桁乗数は issue #10、わり算の長除法は issue #11)だったが、フロントエンドのプリセットには未反映だった。
@@ -57,12 +57,13 @@
 
 - `nuts_calc.py`/`nuts_calc_tex.py`/`web/backend/app.py` 側にパラメータの許可リストバリデーションが薄いため(`docs/L3_implementation/specification_summary.md` 既知の制約)、ここで不正な組み合わせを作らないよう注意する。特に上記のレンダラー相違(issue #41/#42/#43)が解消されるまでは、該当する組み合わせを追加しないこと。
 - 1年生の加減算6カードは `carry_mode` がLaTeX専用のためReportLabレンダラーでは表示されない。`latexOnly` を外すと `nuts_calc.py` が未知引数で失敗する。
-- `written` の内容は学年によって件数・対応演算が異なる(1年生は0件、他学年は1〜3件)。
+- `written` の内容は学年によって件数・対応演算が異なる。カタログは同一条件の通常式カードと筆算カードを統合する。
 - `examPrep` は学年4〜6のみ9件ずつ、他は空配列。パラメータの組み合わせは `tests/test_nuts_calc_tex_exam_prep_presets.py` のシミュレーション結果に依存しているため、`buildExamPrepPresets` の桁数・項数・段階の設計を変更する場合はテストと合わせて見直すこと。
 - 小数カード(`normal` 内、3〜5年に1〜3件ずつ)・`mixed` カード(`normal` 内、6年のみ2件)はいずれも横書きのみで、`written` セクションには追加していない(`ope` の小数拡張は横書き限定、`mixed` コマンド自体が `--vertical` を持たない)。パラメータの組み合わせは `tests/test_nuts_calc_tex_decimal_mixed_presets.py` のシミュレーション結果に依存しているため、変更する場合はテストと合わせて見直すこと。
 
 ## 変更履歴(git log より自動生成)
 
+- d956e48 feat(#86): rebuild drill discovery by number type
 - 9e296ee feat(#83): add fraction comparison worksheets
 - 1186039 feat(#78): add carry-aware grade 1 drills
 - 6889ef0 feat(#76): add decimal ope arithmetic and int/decimal/fraction mixed command
