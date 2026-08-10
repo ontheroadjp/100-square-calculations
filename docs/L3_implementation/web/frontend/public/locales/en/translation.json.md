@@ -2,11 +2,11 @@
 
 ## Purpose
 
-The frontend English translation dictionary. The six fraction-comparison cards have titles and descriptions that distinguish grade placement, comparison pattern, and advanced forms.
+The frontend English translation dictionary. It defines individual preset copy as well as the number-type discovery, format/goal, operation-group, and question-format labels.
 
 ## Notes
 
-Keys must exactly match `titleKey` and `descKey` in `drillPresets.js`. Descriptions state that learners write `<` or `>` and that advanced cards include proper fractions, improper fractions, and mixed numbers.
+Keys must exactly match `titleKey` and `descKey` in `drillPresets.js`. The `number_type_*`, `operation_group_*`, and `form_*` keys are used by `GradeDrills.jsx` and `drillCatalog.js`.
 
 ## Change history (generated from git log)
 

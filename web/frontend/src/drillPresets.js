@@ -150,9 +150,52 @@ export const presetsByGrade = {
         },
       },
     ],
-    // Written-calculation (筆算) notation is formally introduced starting
-    // grade 2 in the course of study, so grade 1 has no `written` section.
-    written: [],
+    // Keep every two-term arithmetic condition available in both formats so
+    // the catalog can present format as a choice rather than duplicate cards.
+    written: [
+      {
+        id: 'g1-add-no-carry-written',
+        titleKey: 'preset_g1_add_no_carry_title',
+        descKey: 'preset_g1_add_no_carry_desc',
+        latexOnly: true,
+        params: { command_type: 'ope', operator: ['add'], carry_mode: 'none', a_min: 1, a_max: 9, b_min: 1, b_max: 9, vertical: true },
+      },
+      {
+        id: 'g1-add-carry-written',
+        titleKey: 'preset_g1_add_carry_title',
+        descKey: 'preset_g1_add_carry_desc',
+        latexOnly: true,
+        params: { command_type: 'ope', operator: ['add'], carry_mode: 'required', a_min: 1, a_max: 9, b_min: 1, b_max: 9, vertical: true },
+      },
+      {
+        id: 'g1-sub-no-borrow-written',
+        titleKey: 'preset_g1_sub_no_borrow_title',
+        descKey: 'preset_g1_sub_no_borrow_desc',
+        latexOnly: true,
+        params: { command_type: 'ope', operator: ['sub'], carry_mode: 'none', a_min: 1, a_max: 9, b_min: 1, b_max: 9, vertical: true },
+      },
+      {
+        id: 'g1-sub-borrow-written',
+        titleKey: 'preset_g1_sub_borrow_title',
+        descKey: 'preset_g1_sub_borrow_desc',
+        latexOnly: true,
+        params: { command_type: 'ope', operator: ['sub'], carry_mode: 'required', a_min: 10, a_max: 19, b_min: 1, b_max: 9, vertical: true },
+      },
+      {
+        id: 'g1-addsub-no-carry-written',
+        titleKey: 'preset_g1_addsub_no_carry_title',
+        descKey: 'preset_g1_addsub_no_carry_desc',
+        latexOnly: true,
+        params: { command_type: 'ope', operator: ['add', 'sub'], carry_mode: 'none', a_min: 1, a_max: 9, b_min: 1, b_max: 9, vertical: true },
+      },
+      {
+        id: 'g1-addsub-all-written',
+        titleKey: 'preset_g1_addsub_mixed_carry_title',
+        descKey: 'preset_g1_addsub_mixed_carry_desc',
+        latexOnly: true,
+        params: { command_type: 'ope', operator: ['add', 'sub'], carry_mode: 'mixed', a_min: 1, a_max: 9, b_min: 1, b_max: 9, vertical: true },
+      },
+    ],
     // The entrance-exam-prep section only applies to grades 4-6 (see
     // buildExamPrepPresets above).
     examPrep: [],
@@ -335,11 +378,38 @@ export const presetsByGrade = {
         descKey: 'preset_g3_mul_written_desc',
         params: { command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 1, vertical: true },
       },
+      {
+        id: 'g3-div-written',
+        titleKey: 'preset_g3_div_title',
+        descKey: 'preset_g3_div_desc',
+        params: { command_type: 'ope', operator: ['div'], a_value: 2, b_value: 1, vertical: true },
+      },
     ],
     examPrep: [],
   },
   4: {
     normal: [
+      {
+        id: 'g4-add4',
+        titleKey: 'preset_g4_add4_title',
+        descKey: 'preset_g4_add4_desc',
+        catalogTitleKey: 'preset_g4_add4_title',
+        params: { command_type: 'ope', operator: ['add'], a_value: 4, b_value: 4 },
+      },
+      {
+        id: 'g4-sub4',
+        titleKey: 'preset_g4_sub4_title',
+        descKey: 'preset_g4_sub4_desc',
+        catalogTitleKey: 'preset_g4_sub4_title',
+        params: { command_type: 'ope', operator: ['sub'], a_value: 4, b_value: 4 },
+      },
+      {
+        id: 'g4-addsub4',
+        titleKey: 'preset_g4_addsub4_title',
+        descKey: 'preset_g4_addsub4_desc',
+        catalogTitleKey: 'preset_g4_addsub4_title',
+        params: { command_type: 'ope', operator: ['add', 'sub'], a_value: 4, b_value: 4 },
+      },
       {
         id: 'g4-mul',
         titleKey: 'preset_g4_mul_title',
@@ -522,6 +592,27 @@ export const presetsByGrade = {
   5: {
     normal: [
       {
+        id: 'g5-add5',
+        titleKey: 'preset_g5_add5_title',
+        descKey: 'preset_g5_add5_desc',
+        catalogTitleKey: 'preset_g5_add5_title',
+        params: { command_type: 'ope', operator: ['add'], a_value: 5, b_value: 5 },
+      },
+      {
+        id: 'g5-sub5',
+        titleKey: 'preset_g5_sub5_title',
+        descKey: 'preset_g5_sub5_desc',
+        catalogTitleKey: 'preset_g5_sub5_title',
+        params: { command_type: 'ope', operator: ['sub'], a_value: 5, b_value: 5 },
+      },
+      {
+        id: 'g5-addsub5',
+        titleKey: 'preset_g5_addsub5_title',
+        descKey: 'preset_g5_addsub5_desc',
+        catalogTitleKey: 'preset_g5_addsub5_title',
+        params: { command_type: 'ope', operator: ['add', 'sub'], a_value: 5, b_value: 5 },
+      },
+      {
         id: 'g5-pi',
         titleKey: 'preset_g5_pi_title',
         descKey: 'preset_g5_pi_desc',
@@ -656,6 +747,27 @@ export const presetsByGrade = {
   },
   6: {
     normal: [
+      {
+        id: 'g6-add-mixed-digits',
+        titleKey: 'preset_g6_add_mixed_digits_title',
+        descKey: 'preset_g6_add_mixed_digits_desc',
+        catalogTitleKey: 'preset_g6_add_mixed_digits_title',
+        params: { command_type: 'ope', operator: ['add'], a_value: 5, b_value: 3 },
+      },
+      {
+        id: 'g6-sub-mixed-digits',
+        titleKey: 'preset_g6_sub_mixed_digits_title',
+        descKey: 'preset_g6_sub_mixed_digits_desc',
+        catalogTitleKey: 'preset_g6_sub_mixed_digits_title',
+        params: { command_type: 'ope', operator: ['sub'], a_value: 5, b_value: 3 },
+      },
+      {
+        id: 'g6-addsub-mixed-digits',
+        titleKey: 'preset_g6_addsub_mixed_digits_title',
+        descKey: 'preset_g6_addsub_mixed_digits_desc',
+        catalogTitleKey: 'preset_g6_addsub_mixed_digits_title',
+        params: { command_type: 'ope', operator: ['add', 'sub'], a_value: 5, b_value: 3 },
+      },
       {
         id: 'g6-pi',
         titleKey: 'preset_g6_pi_title',
