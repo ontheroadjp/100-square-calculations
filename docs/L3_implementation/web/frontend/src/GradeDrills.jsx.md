@@ -25,3 +25,11 @@
 
 - `latex` レンダラー専用カードは `buildDrillCatalog(activeRenderer)` が除外するため、利用可能な入口とフィルタはレンダラーによって変わる。
 - 現在は小数の四則混合、およびかっこ付き虫食い算のプリセットがないため、対応する空の中見出しは表示しない。
+
+## 変更履歴（git log より自動生成）
+
+- d956e48 feat(#86): rebuild drill discovery by number type
+- 7290008 feat(#73): add entrance-exam-prep drill section for grades 4-6
+- 7c89a52 feat(#65): add curriculum-aligned fraction worksheets
+- fd449c7 fix(#57): apply vertical layout in web UI
+- 9ead364 refactor(#46): remove --vertical from nuts_calc.py; gate written-calculation UI on active renderer

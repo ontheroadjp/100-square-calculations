@@ -14,3 +14,7 @@
 
 - 対象: `drillCatalog.js`
 - 実行: `node --test web/frontend/src/drillCatalog.test.js`
+
+## 変更履歴（git log より自動生成）
+
+- d956e48 feat(#86): rebuild drill discovery by number type

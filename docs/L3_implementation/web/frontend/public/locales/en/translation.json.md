@@ -10,6 +10,7 @@ Keys must exactly match `titleKey` and `descKey` in `drillPresets.js`. The `numb
 
 ## Change history (generated from git log)
 
+- d956e48 feat(#86): rebuild drill discovery by number type
 - 9e296ee feat(#83): add fraction comparison worksheets
 - 1186039 feat(#78): add carry-aware grade 1 drills
 - 6889ef0 feat(#76): add decimal ope arithmetic and int/decimal/fraction mixed command

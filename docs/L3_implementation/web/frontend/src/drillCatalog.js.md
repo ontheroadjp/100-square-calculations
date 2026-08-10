@@ -22,3 +22,7 @@
 ## 注意事項・既知の制限
 
 - `forms` はカードの提供形式または問題特性を示す探索用メタデータであり、PDF生成パラメータを変更しない。
+
+## 変更履歴（git log より自動生成）
+
+- d956e48 feat(#86): rebuild drill discovery by number type
