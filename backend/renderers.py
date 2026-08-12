@@ -24,6 +24,7 @@ class RendererRequest(TypedDict, total=False):
     b_kind: list[str]
     operator: list[str]
     carry_mode: Literal["required", "none", "mixed"]
+    remainder_mode: Literal["required", "none", "mixed"]
     descend: bool
     reverse: bool
     shuffle: bool
@@ -67,6 +68,12 @@ CARRY_MODE_FLAGS = {
     "mixed": "--mixed-carry-borrow",
 }
 
+REMAINDER_MODE_FLAGS = {
+    "required": "--remainder",
+    "none": "--no-remainder",
+    "mixed": "--mixed-remainder",
+}
+
 
 def get_renderer_name() -> str:
     """
@@ -103,7 +110,9 @@ def build_command(renderer_name: str, params: RendererRequest, out_file: str) ->
     active renderer is `latex` (see `GET /renderer-info`), otherwise
     nuts_calc.py will reject the resulting CLI invocation as an unrecognized
     argument. `carry_mode` is likewise translated to the LaTeX-only
-    `--carry-borrow`/`--no-carry-borrow`/`--mixed-carry-borrow` flags.
+    `--carry-borrow`/`--no-carry-borrow`/`--mixed-carry-borrow` flags, and
+    `remainder_mode` to the LaTeX-only `--remainder`/`--no-remainder`/
+    `--mixed-remainder` flags (issue #91).
     """
     script_path = RENDERER_SCRIPTS[renderer_name]
     command = [sys.executable, str(script_path)]
@@ -150,6 +159,12 @@ def build_command(renderer_name: str, params: RendererRequest, out_file: str) ->
             allowed = ", ".join(CARRY_MODE_FLAGS)
             raise ValueError(f"Unknown carry_mode {carry_mode!r}. Must be one of: {allowed}.")
         command.append(CARRY_MODE_FLAGS[carry_mode])
+    if "remainder_mode" in params:
+        remainder_mode = params["remainder_mode"]
+        if remainder_mode not in REMAINDER_MODE_FLAGS:
+            allowed = ", ".join(REMAINDER_MODE_FLAGS)
+            raise ValueError(f"Unknown remainder_mode {remainder_mode!r}. Must be one of: {allowed}.")
+        command.append(REMAINDER_MODE_FLAGS[remainder_mode])
     if params.get("descend"):
         command.append("--descend")
     if params.get("reverse"):

@@ -117,7 +117,7 @@ def test_build_ope_bottom_answer_tex_formats_decimal_result() -> None:
 
 def test_build_ope_csv_rows_keeps_plain_ints_when_no_decimal_places() -> None:
     problem = tex_module.OpeProblem(index=1, a=2, b=3, operator="add", c=5)
-    assert tex_module.build_ope_csv_rows([[problem]]) == [[1, 1, 2, "add", 3, 5]]
+    assert tex_module.build_ope_csv_rows([[problem]]) == [[1, 1, 2, "add", 3, 5, 0]]
 
 
 def test_build_ope_csv_rows_formats_decimal_values() -> None:
@@ -125,4 +125,4 @@ def test_build_ope_csv_rows_formats_decimal_values() -> None:
         index=1, a=50, b=8, operator="mul", c=400,
         a_decimal_places=1, b_decimal_places=0,
     )
-    assert tex_module.build_ope_csv_rows([[problem]]) == [[1, 1, "5.0", "mul", "8", "40.0"]]
+    assert tex_module.build_ope_csv_rows([[problem]]) == [[1, 1, "5.0", "mul", "8", "40.0", 0]]

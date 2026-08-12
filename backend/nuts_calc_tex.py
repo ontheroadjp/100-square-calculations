@@ -76,6 +76,7 @@ BORROWING_MINUENDS = tuple(range(10, 20))
 BORROWING_SUBTRAHENDS = tuple(range(1, 10))
 
 CarryMode = Literal['required', 'none', 'mixed']
+RemainderMode = Literal['required', 'none', 'mixed']
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 VENDOR_TEXMF_DIR = os.path.join(SCRIPT_DIR, 'vendor', 'texmf')
@@ -185,6 +186,26 @@ def _init() -> argparse.Namespace:
         , action = 'store_const'
         , const = 'mixed'
         , help = 'Mix addition/subtraction with and without carrying/borrowing (two-term ope -o add sub only)'
+    )
+    remainder_group = parser.add_mutually_exclusive_group()
+    remainder_group.add_argument('--remainder'
+        , dest = 'remainder_mode'
+        , action = 'store_const'
+        , const = 'required'
+        , default = None
+        , help = 'Require a nonzero remainder (ope -o div only)'
+    )
+    remainder_group.add_argument('--no-remainder'
+        , dest = 'remainder_mode'
+        , action = 'store_const'
+        , const = 'none'
+        , help = 'Require exact (no-remainder) division (ope -o div only; same as the default)'
+    )
+    remainder_group.add_argument('--mixed-remainder'
+        , dest = 'remainder_mode'
+        , action = 'store_const'
+        , const = 'mixed'
+        , help = 'Mix exact and remainder division (ope -o div only)'
     )
     parser.add_argument('--numerator-digits'
         , type = int
@@ -540,6 +561,17 @@ def _init() -> argparse.Namespace:
         if args.a_decimal_places != MIN_DECIMAL_PLACES or args.b_decimal_places != MIN_DECIMAL_PLACES:
             failure("--carry-borrow/--no-carry-borrow/--mixed-carry-borrow only support integer operands.")
 
+    if args.remainder_mode is not None:
+        if args.command != 'ope' or args.operator != ['div']:
+            failure("--remainder/--no-remainder/--mixed-remainder only support 'ope -o div'.")
+        if args.use_parentheses or args.missing_value or terms_options_given:
+            failure(
+                "--remainder/--no-remainder/--mixed-remainder cannot be combined with "
+                "--use-parentheses/--missing-value/--terms family."
+            )
+        if args.a_decimal_places != MIN_DECIMAL_PLACES or args.b_decimal_places != MIN_DECIMAL_PLACES:
+            failure("--remainder/--no-remainder/--mixed-remainder only support integer operands.")
+
     if args.command == 'mixed' and terms_options_given and args.terms_min > args.terms_max:
         failure("--terms-min must be less than or equal to --terms-max.")
 
@@ -824,6 +856,10 @@ class OpeProblem:
     ope_result_decimal_places. This keeps all arithmetic in exact integers
     (never floats), so a decimal result is always exact and finite by
     construction -- see nuts_calc_tex.py.md's decimal-arithmetic design note.
+
+    remainder (0 by default) is only meaningful for operator == 'div': `c` is
+    always the floor quotient (a // b), and remainder is `a - b * c` (0 for
+    an exact division). Every other operator leaves it at the default.
     """
     index: int
     a: int
@@ -832,6 +868,7 @@ class OpeProblem:
     c: int
     a_decimal_places: int = MIN_DECIMAL_PLACES
     b_decimal_places: int = MIN_DECIMAL_PLACES
+    remainder: int = 0
 
 
 def format_decimal_value(raw: int, places: int) -> str:
@@ -1006,13 +1043,55 @@ def find_exact_division_pair(nums_a: list[int], nums_b: list[int]) -> tuple[int,
     return None
 
 
-def calc_div(a: int, b: int, nums_a: list[int], nums_b: list[int]) -> tuple[int, int, int]:
+def find_remainder_division_pair(nums_a: list[int], nums_b: list[int]) -> tuple[int, int] | None:
     """
-    Retry with freshly-sampled operands until the division is exact.
+    Deterministically find one (a, b) pair with b != 0 and a % b != 0.
 
-    Falls back to find_exact_division_pair (see its docstring) if random
-    sampling exhausts MAX_OPERAND_RETRY_ATTEMPTS without success.
+    Used as calc_div's fallback (remainder=True) when MAX_OPERAND_RETRY_ATTEMPTS
+    of random sampling doesn't find a solution. Mirrors find_exact_division_pair's
+    role for the remainder=False path, but a non-multiple is common enough that a
+    plain scan (rather than find_exact_division_pair's multiples-only stepping,
+    which only makes sense for *exact* multiples) stays cheap in practice.
     """
+    for b in nums_b:
+        if b == 0:
+            continue
+        for a in nums_a:
+            if a % b != 0:
+                return a, b
+    return None
+
+
+def calc_div(
+        a: int, b: int, nums_a: list[int], nums_b: list[int],
+        remainder: bool | None = None,
+    ) -> tuple[int, int, int]:
+    """
+    Retry with freshly-sampled operands until the division matches `remainder`.
+
+    remainder=None/False retries until the division is exact (a % b == 0),
+    falling back to find_exact_division_pair if random sampling exhausts
+    MAX_OPERAND_RETRY_ATTEMPTS without success -- this is the pre-remainder-
+    support behavior, unchanged. remainder=True retries until the division
+    has a nonzero remainder (a % b != 0), falling back to
+    find_remainder_division_pair. The returned `c` is always the floor
+    quotient (a // b); the caller (generate_ope_problems) derives the
+    remainder itself as `a - b * c` for display.
+    """
+    if remainder:
+        for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
+            if b != 0 and a % b != 0:
+                return a, b, a // b
+            a = random.choice(nums_a)
+            b = random.choice(nums_b)
+        fallback = find_remainder_division_pair(nums_a, nums_b)
+        if fallback is not None:
+            a, b = fallback
+            return a, b, a // b
+        raise ValueError(
+            "No remainder pair (a % b != 0, b != 0) found in the given number ranges."
+        )
+
     for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
         if b != 0 and a % b == 0:
             return a, b, a // b
@@ -1040,6 +1119,7 @@ def generate_ope_problems(
         order: int, start_index: int,
         a_decimal_places: int = MIN_DECIMAL_PLACES, b_decimal_places: int = MIN_DECIMAL_PLACES,
         carry_mode: CarryMode | None = None,
+        remainder_mode: RemainderMode | None = None,
     ) -> list[OpeProblem]:
     """
     Generate `order` arithmetic problems starting at `start_index`.
@@ -1051,6 +1131,12 @@ def generate_ope_problems(
     'none' forbids both. 'mixed' leaves one-digit addition unrestricted and
     chooses borrow-free one-digit or borrowing 10-19-minus-one-digit
     subtraction per subtraction problem.
+
+    remainder_mode='required' requires a nonzero division remainder;
+    'none' forbids one (same as the pre-remainder-support default);
+    'mixed' chooses per div problem. OpeProblem.remainder is derived from
+    the returned a/b/c as `a - b * c` regardless of remainder_mode, so it's
+    always populated correctly (0 for an exact division).
 
     a_decimal_places/b_decimal_places (0 by default) do not change how
     nums_a/nums_b/CALC_FUNCTIONS are sampled or validated -- they are only
@@ -1070,26 +1156,44 @@ def generate_ope_problems(
         elif operator == 'sub' and carry_mode is not None:
             borrow = random.choice((False, True)) if carry_mode == 'mixed' else carry_mode == 'required'
             a, b, c = calc_sub(a, b, nums_a, nums_b, borrow)
+        elif operator == 'div' and remainder_mode is not None:
+            want_remainder = random.choice((False, True)) if remainder_mode == 'mixed' else remainder_mode == 'required'
+            a, b, c = calc_div(a, b, nums_a, nums_b, want_remainder)
         else:
             a, b, c = CALC_FUNCTIONS[operator](a, b, nums_a, nums_b)
+        remainder = a - b * c if operator == 'div' else 0
         problems.append(OpeProblem(
             index=start_index + offset, a=a, b=b, operator=operator, c=c,
             a_decimal_places=a_decimal_places, b_decimal_places=b_decimal_places,
+            remainder=remainder,
         ))
     return problems
 
 
 def build_horizontal_block_tex(problem: OpeProblem, show_answer: bool) -> str:
-    """Render one `ope` problem in horizontal format: `n) $a op b = c$`."""
+    """
+    Render one `ope` problem in horizontal format: `n) $a op b = c$`.
+
+    A div problem with a nonzero remainder additionally renders a
+    "\\cdots r" suffix (blanked out along with `c` when show_answer=False),
+    since `c = a // b` alone would otherwise understate the answer. Uses the
+    plain-math "3 \\cdots 2" ellipsis shorthand (also used in Japanese
+    textbooks) for the remainder marker rather than the word "あまり":
+    this file compiles with plain pdflatex (no CJK/Japanese font package),
+    which cannot render Japanese text (see docs/L3_implementation/
+    nuts_calc_tex.py.md).
+    """
     symbol = OPERATOR_TEX_SYMBOLS[problem.operator]
     a_tex = format_decimal_value(problem.a, problem.a_decimal_places)
     b_tex = format_decimal_value(problem.b, problem.b_decimal_places)
     if show_answer:
         c_places = ope_result_decimal_places(problem.operator, problem.a_decimal_places, problem.b_decimal_places)
         result_tex = format_decimal_value(problem.c, c_places)
+        remainder_tex = f" \\cdots {problem.remainder}" if problem.remainder else ""
     else:
         result_tex = BLANK_ANSWER_TEX
-    return f"{problem.index}) ${a_tex} {symbol} {b_tex} = {result_tex}$"
+        remainder_tex = f" \\cdots {BLANK_ANSWER_TEX}" if problem.remainder else ""
+    return f"{problem.index}) ${a_tex} {symbol} {b_tex} = {result_tex}{remainder_tex}$"
 
 
 def build_intermediate_memo(a: int, b: int) -> str:
@@ -1173,17 +1277,25 @@ def build_ope_bottom_answer_tex(problems: list[OpeProblem]) -> str:
     parts = []
     for problem in problems:
         c_places = ope_result_decimal_places(problem.operator, problem.a_decimal_places, problem.b_decimal_places)
-        parts.append(f"({problem.index}) {format_decimal_value(problem.c, c_places)}")
+        answer = format_decimal_value(problem.c, c_places)
+        if problem.remainder:
+            # See build_horizontal_block_tex's docstring for why this uses
+            # "..." rather than "あまり" (plain pdflatex, no CJK support).
+            answer += f" ... {problem.remainder}"
+        parts.append(f"({problem.index}) {answer}")
     return ' \\quad '.join(parts)
 
 
 def build_ope_csv_rows(pages_problems: list[list[OpeProblem]]) -> list[list[object]]:
     """
-    One row per problem: [page_number, index, a, operator, b, c].
+    One row per problem: [page_number, index, a, operator, b, c, remainder].
 
     a/b/c stay plain int when a_decimal_places/b_decimal_places are both 0
-    (the pre-decimal-support default, so existing CSV output is byte-for-byte
-    unchanged); with decimal places, they are formatted decimal strings.
+    (the pre-decimal-support default); with decimal places, they are
+    formatted decimal strings. remainder is always a plain int (0 for every
+    non-div problem and every exact division), appended as a trailing
+    column so pre-remainder-support CSV consumers that only read the first
+    six columns are unaffected.
     """
     rows: list[list[object]] = []
     for page_number, problems in enumerate(pages_problems, start=1):
@@ -1197,7 +1309,7 @@ def build_ope_csv_rows(pages_problems: list[list[OpeProblem]]) -> list[list[obje
                 a_value = format_decimal_value(problem.a, problem.a_decimal_places)
                 b_value = format_decimal_value(problem.b, problem.b_decimal_places)
                 c_value = format_decimal_value(problem.c, c_places)
-            rows.append([page_number, problem.index, a_value, problem.operator, b_value, c_value])
+            rows.append([page_number, problem.index, a_value, problem.operator, b_value, c_value, problem.remainder])
     return rows
 
 
@@ -2396,6 +2508,7 @@ def build_ope_pages(
         problems = generate_ope_problems(
             nums_a, nums_b, ini.operator, order, start_index,
             ini.a_decimal_places, ini.b_decimal_places, ini.carry_mode,
+            ini.remainder_mode,
         )
         blank_page, filled_page = build_ope_page_pair(problems, ini.columns, ini.vertical, ini.intermediate)
         pages_problems.append(problems)

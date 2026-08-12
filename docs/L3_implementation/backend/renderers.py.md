@@ -12,7 +12,7 @@
 - `get_renderer_name()`(`renderers.py:44-56`): env 変数 `NUTS_CALC_RENDERER` を読み、未設定なら `DEFAULT_RENDERER`(`'reportlab'`、既存動作を保つデフォルト)を返す。`RENDERER_SCRIPTS` に無い値が指定された場合は許可値一覧を含む `ValueError` を送出する。
 - `build_command(renderer_name, params, out_file)`(`renderers.py:59-119`): リクエストの `params`(dict)を CLI 引数に変換する。`nuts_calc.py` と `nuts_calc_tex.py` は `paper_size`/`command`/`-a`/`-b`/`--rows`/`--descend` 等の CLI 引数体系がほぼ完全に一致しているため、このロジックはレンダラー間で共用しており、`RENDERER_SCRIPTS[renderer_name]` で選んだスクリプトパスのみが異なる。`paper_size`/`command_type` が欠けている場合は `ValueError` を送出する(旧 `app.py` のインライン実装と同じ挙動)。
 - `run(params, output_dir, renderer_name=None)`(`renderers.py:122-141`): `renderer_name` 省略時は `get_renderer_name()` で解決し、UUID ファイル名を生成して `subprocess.run(..., check=True)` を実行、`(output_filepath, output_filename, completed_process)` を返す。呼び出し元(`app.py`)が `completed_process.stdout`/`.stderr` をログに使う。例外(`subprocess.CalledProcessError`/`FileNotFoundError`/`ValueError`)は呼び出し元に伝播させ、HTTP レスポンスへの変換は行わない(Flask 非依存の設計方針)。
-- `RendererRequest`(`TypedDict`、`renderers.py:9-48`): リクエスト params の型ヒント。全キー任意(`total=False`)。`carry_mode` は `Literal['required','none','mixed']` で、`CARRY_MODE_FLAGS` が順に `--carry-borrow`/`--no-carry-borrow`/`--mixed-carry-borrow` へ変換する。未知値は無視せず `ValueError` にする(`renderers.py:26,62-66,143-150`)。`missing_value: bool` や `terms` 系も同様にLaTeX専用パラメータとして保持する。
+- `RendererRequest`(`TypedDict`、`renderers.py:9-48`): リクエスト params の型ヒント。全キー任意(`total=False`)。`carry_mode` は `Literal['required','none','mixed']` で、`CARRY_MODE_FLAGS` が順に `--carry-borrow`/`--no-carry-borrow`/`--mixed-carry-borrow` へ変換する。未知値は無視せず `ValueError` にする(`renderers.py:26,62-66,143-150`)。`missing_value: bool` や `terms` 系も同様にLaTeX専用パラメータとして保持する。`remainder_mode`(`Literal['required','none','mixed']`、issue #91)は `carry_mode` と全く同じパターンで、`REMAINDER_MODE_FLAGS` が `--remainder`/`--no-remainder`/`--mixed-remainder` へ変換し、未知値は同様に `ValueError` にする。
 
 ## 重要な設計判断とその理由
 
@@ -37,18 +37,9 @@ issue #19 のトラッキング issue にある「将来 `nuts_calc.py`/`nuts_ca
 
 - `nuts_calc.py`/`nuts_calc_tex.py` 双方とも、バリデーション失敗メッセージを `print()`(stdout)で出力してから `exit(1)` する実装のため、`subprocess.CalledProcessError.stderr` は空文字になりうる。`app.py` 側は `e.stdout` を優先してエラーメッセージを組み立てる(issue #37 で修正、`docs/L3_implementation/backend/app.py.md` 参照)。なお `nuts_calc.py` の `com`/`99`/`squ`/`pi`/`100` バリデーションは同 issue 以前は引数なし `exit()`(終了コード0)を使っており、`check=True` の `subprocess.run` がそもそも `CalledProcessError` を送出しない不具合があった(`nuts_calc.py` 側で修正済み)。
 - `get_renderer_name()` は呼び出しごとに env 変数を再読み込みする(プロセス起動時にキャッシュしない)。Flask アプリのライフサイクル中に env 変数が変わることは通常想定されないため実用上の影響はないが、テスト容易性(`monkeypatch.setenv`)を優先した設計。
-- `--vertical`、`--use-parentheses`、`--missing-value`、`--terms`系、`--mixed-operators`、`--carry-borrow`/`--no-carry-borrow`/`--mixed-carry-borrow` は `nuts_calc.py` に存在しない。これらを持つリクエストはLaTeXレンダラーに限定する([[../../../../nuts_calc.py]] 参照)。
+- `--vertical`、`--use-parentheses`、`--missing-value`、`--terms`系、`--mixed-operators`、`--carry-borrow`/`--no-carry-borrow`/`--mixed-carry-borrow`、`--remainder`/`--no-remainder`/`--mixed-remainder` は `nuts_calc.py` に存在しない。これらを持つリクエストはLaTeXレンダラーに限定する([[../../../../nuts_calc.py]] 参照)。
 
 ## 変更履歴(git log より自動生成)
 
-- 9e296ee feat(#83): add fraction comparison worksheets
-- bf720ce feat(#81): clarify carry-borrow CLI options
-- 1186039 feat(#78): add carry-aware grade 1 drills
-- 6889ef0 feat(#76): add decimal ope arithmetic and int/decimal/fraction mixed command
-- 7290008 feat(#73): add entrance-exam-prep drill section for grades 4-6
-- 6c2ee20 feat(#69): add ope --missing-value option with grade menu cards
-- 1b7e795 feat(#67): add ope --use-parentheses option with grade menu cards
-- 7c89a52 feat(#65): add curriculum-aligned fraction worksheets
-- 9ead364 refactor(#46): remove --vertical from nuts_calc.py; gate written-calculation UI on active renderer
-- 8062b9f fix(#36): invoke the running interpreter (sys.executable) instead of hardcoded python3
-- 155caf8 feat(#36): switch web/backend renderer between nuts_calc.py and nuts_calc_tex.py via env var
+- 0dcb553 feat(#91): add remainder control to ope division
+- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

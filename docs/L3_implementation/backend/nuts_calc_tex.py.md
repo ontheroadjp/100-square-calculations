@@ -14,6 +14,15 @@
 - `calc_sub(..., borrow=True)` はユーザー指定範囲より学習条件を優先し、被減数10〜19・減数1〜9かつ実際に繰り下がる組だけを返す。`borrow=False` は指定範囲を優先後、正で繰り下がらない代表値へフォールバックする。`borrow=None` は従来の「答えが正」だけを保証する経路である(`nuts_calc_tex.py:846-940`)。
 - `generate_ope_problems()` は `required` なら各加算で繰り上がり、各減算で繰り下がりを必須にし、`none` なら両方を禁止する。`mixed` は1桁加算を無条件抽選して繰り上がりあり/なしを混ぜ、減算ごとに1桁同士の繰り下がりなし、または10〜19−1桁の繰り下がりありを抽選する(`nuts_calc_tex.py:1004-1045`)。
 
+### `ope --remainder`/`--no-remainder`/`--mixed-remainder`(issue #91)
+
+- 3フラグは `carry_group` と同じ形の argparse 排他グループで、内部では `remainder_mode: RemainderMode = Literal['required', 'none', 'mixed']` に正規化する。`ope -o div` の単独指定のみ対応し(`args.operator != ['div']` を拒否)、かっこ・虫食い算・多項・`--intermediate`・小数(`--a-decimal-places`/`--b-decimal-places`)との併用は `_init()` が拒否する。フラグ未指定時は `remainder_mode=None` で、issue #91 以前と完全に同じ「常に割り切れる」挙動を保つ。
+- `calc_div(a, b, nums_a, nums_b, remainder=None)`: `remainder` が真値でない(`None`/`False`)場合は元の「`a % b == 0` になるまで再抽選し、尽きたら `find_exact_division_pair` へ決定的フォールバック」という経路をそのまま通る(コード自体は分岐が増えただけで挙動は無変更)。`remainder=True` の場合は対称な新経路(「`a % b != 0` になるまで再抽選し、尽きたら `find_remainder_division_pair` へ決定的フォールバック」)を通る。戻り値は既存と同じ `(a, b, c)` の3要素(`c` は常に `a // b`)で、呼び出し側の型は変わらない。
+- `find_remainder_division_pair(nums_a, nums_b)`: `find_exact_division_pair` と対になる決定的フォールバック。倍数だけを飛び飛びに走査する `find_exact_division_pair` の最適化(非倍数は「大半」なのでこの最適化は不要)とは異なり、`nums_b` × `nums_a` を単純に総当たりして最初に見つかった非倍数ペアを返す。
+- `generate_ope_problems(..., remainder_mode=None)`: `operator == 'div'` かつ `remainder_mode is not None` の場合だけ `CALC_FUNCTIONS['div']` を経由せず `calc_div` を直接呼ぶ(`carry_mode` が `add`/`sub` に対して行っているのと同じパターン)。`'mixed'` は問題ごとに `random.choice((False, True))` で余りあり/なしを抽選する(`carry_mode='mixed'` の減算と同じ考え方)。`OpeProblem.remainder`(既定0)は演算子が `'div'` のときだけ `a - b * c` から導出し、それ以外の演算子では常に0のまま(`calc_div` の戻り値だけを見れば済み、`remainder_mode` の値そのものを保持する必要がない)。
+- **日本語テキスト「あまり」ではなく `\cdots`(または `build_ope_bottom_answer_tex` ではプレーンASCIIの `...`)を使う理由**: 本ファイルは素の `pdflatex`(CJK/日本語フォントパッケージ未読み込み、`nuts_calc_tex.py:677-684` のプリアンブル参照)でコンパイルしており、日本語グリフを含む文字列を渡すと `pdflatex` が `Fatal error occurred, no output PDF file produced` で失敗する(実機で確認済み)。`\cdots`(数式モード)または `...`(`build_ope_bottom_answer_tex` はテキストモードのため素の3ピリオド)は、日本の教科書でも使われる「3⋯2」という余り表記の慣用的な省略形であり、フォント追加なしで安全に描画できる代替として採用した。`build_horizontal_block_tex`(横書き)/`build_ope_bottom_answer_tex`(下部解答欄)の双方で、`problem.remainder` が0のとき(既定・非div演算子を含む)は追加の出力を一切行わないため、issue #91 以前の出力と完全に同一(回帰なし)。
+- `build_ope_csv_rows` は `remainder` 列(`problem.remainder`、常にプレーン `int`)を末尾に追加した7列 `[page_number, index, a, operator, b, c, remainder]` になった(非div演算子・余りなしの割り算では常に0)。旧6列を前提にした呼び出し元がある場合は末尾列を無視すれば従来通り読める。
+
 ### `frac` コマンド(issue #65)
 
 - `_init()` は `--numerator-digits`/`--denominator-digits`(各1〜3)、`--same-denominator`/`--different-denominators`(排他)、`--proper-operands`、`--proper-result` を受け付ける。分子の桁数が分母を上回る状態で真分数を要求するなど、生成不能な代表的組み合わせを事前に拒否する(`nuts_calc_tex.py:155-184,305-328`)。
@@ -86,7 +95,7 @@
 
 ### `ope` コマンド(Phase 2)
 
-- `OpeProblem` データクラス(`index`/`a`/`b`/`operator`/`c`)が1問を表す。
+- `OpeProblem` データクラス(`index`/`a`/`b`/`operator`/`c`/`a_decimal_places`/`b_decimal_places`/`remainder`)が1問を表す。`remainder`(既定0、issue #91)は `operator == 'div'` のときだけ `a - b * c` の意味を持ち、それ以外は常に0。
 - フラグ未指定時の `calc_add`/`calc_mul` は単純計算。`calc_sub`/`calc_div` は `nuts_calc.py` の同名関数と同じ意味論(結果が正になるまで/割り切れるまで、最大 `MAX_OPERAND_RETRY_ATTEMPTS`(1000)回オペランドを再抽選)をベースに独立に再実装し、再抽選後は `calc_sub` が `(max(nums_a), min(nums_b))`、`calc_div` が `find_exact_division_pair` へ決定的にフォールバックする。`--carry-borrow`系指定時だけ、上記issue #78の条件付き経路へ分岐する(`nuts_calc_tex.py:874-999`)。
 - `generate_ope_problems`(`nuts_calc_tex.py:433-451`): `operators` に `'mix'` が含まれる場合は `add`/`sub`/`mul`/`div` の4種から**問題ごとに**ランダムな演算子を選ぶ(`nuts_calc.py` の `mix` 展開と同じ意味論)。
 - 横書き: `build_horizontal_block_tex` が `n) $a op b = c$` を生成する。blank 版は `c` の代わりに、下線を伴わない固定幅の `\hspace{1.5em}` を出力する。`--intermediate` 指定時は `build_horizontal_intermediate_block_tex` が代わりに使われ、`build_intermediate_memo`(`memo.md` STEP 1 の2桁×1桁暗算メモ技法: `a` の十の位×`b` と一の位×`b` をそれぞれ2桁ゼロ埋めして連結)を挟んだ `n) $a \times b \Rightarrow memo \Rightarrow c$` を出力する。同じ固定幅の空欄を使うため、通常・途中式とも解答欄のレイアウトを維持する。
@@ -96,7 +105,7 @@
   - `mix` の場合、各問題は生成時点で具体的な演算子(add/sub/mul/div のいずれか)に確定しているため、`build_vertical_block_tex` は追加の分岐なしに機能する。
 - `build_ope_page_pair`(`nuts_calc_tex.py:508-528`): `vertical`/`intermediate` フラグに応じて上記のブロックビルダーと `Page.layout`(`vertical` なら `'tabular'`、それ以外は `'inline'`)を選び、同一の問題リストから blank/filled の `Page` ペアを作る(blank/filled は同じ問題を使い、表示のみが異なる)。
 - `build_ope_pages`(`nuts_calc_tex.py:557-578`): `ini.a_min`〜`ini.b_max` から候補集合を作り、ページごとに `rows*columns` 問を生成してページペアを積み上げる。`--with-bottom-answer` 指定時は `build_ope_bottom_answer_tex` で `(index) c` の一覧を blank ページ末尾に追加する。
-- `build_ope_csv_rows`(`nuts_calc_tex.py:535-540`): 1問1行、`[page_number, index, a, operator, b, c]` の列で CSV を書き出す(ヘッダー行なし、Phase 1 と同じ方針)。
+- `build_ope_csv_rows`(`nuts_calc_tex.py:535-540`): 1問1行、`[page_number, index, a, operator, b, c, remainder]` の列で CSV を書き出す(ヘッダー行なし、Phase 1 と同じ方針。`remainder` 列は issue #91 で追加、詳細は前述の `ope --remainder` セクション参照)。
 
 ### `com` コマンド(Phase 3)
 
@@ -260,13 +269,5 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 
 ## 変更履歴(git log より自動生成)
 
-- 9e296ee feat(#83): add fraction comparison worksheets
-- bf720ce feat(#81): clarify carry-borrow CLI options
-- 1186039 feat(#78): add carry-aware grade 1 drills
-- 6889ef0 feat(#76): add decimal ope arithmetic and int/decimal/fraction mixed command
-- 8ae1b1f feat(#71): add multi-term ope support and generalize parentheses to N terms
-- 6c2ee20 feat(#69): add ope --missing-value option with grade menu cards
-- 1b7e795 feat(#67): add ope --use-parentheses option with grade menu cards
-- 7c89a52 feat(#65): add curriculum-aligned fraction worksheets
-- 5acfc32 fix(#63): box complement worksheet blanks
-- 04d9a60 fix(#59): distribute horizontal worksheet layout
+- 0dcb553 feat(#91): add remainder control to ope division
+- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)
