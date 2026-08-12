@@ -109,10 +109,12 @@ python3 nuts_calc_tex.py A4 compare --comparison-pattern same-denominator \
 ```
 
 It also provides decimal `ope`, the `mixed` integer/decimal/fraction command,
-and carry-aware two-term integer addition/subtraction. Carry-aware flags take
-precedence over incompatible operand ranges by falling back to their grade-1
-candidate ranges; borrowing-required subtraction is limited to 10-19 minus one
-digit.
+and carry-aware two-term integer addition/subtraction. Carry-required addition
+and borrow-required subtraction sample within the configured operand ranges
+(falling back to a digit-width-preserving synthesized pair if no matching
+combination turns up); the one exception is borrow-required subtraction with
+both ranges single-digit (1-9), where no positive-result borrow is possible,
+so it falls back to the original 10-19-minus-one-digit sampling instead.
 
 ```bash
 python3 nuts_calc_tex.py A4 ope -o add --carry-borrow --out-file carrying.pdf

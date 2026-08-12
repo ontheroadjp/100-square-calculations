@@ -135,6 +135,59 @@ def test_calc_sub_no_borrow_fallback_ignores_impossible_bounds(
 
 
 @pytest.mark.parametrize(
+    ("nums_a", "nums_b"),
+    [
+        (list(range(10, 100)), list(range(1, 10))),  # 2-digit minuend
+        (list(range(100, 1000)), list(range(1, 100))),  # 3-digit minuend
+        (list(range(1000, 10000)), list(range(1, 1000))),  # 4-digit minuend
+    ],
+)
+def test_calc_sub_borrow_respects_configured_multi_digit_range(
+        nums_a: list[int], nums_b: list[int],
+    ) -> None:
+    # issue #92: borrow=True must sample within the caller's configured
+    # range for multi-digit widths instead of always forcing 10-19.
+    for _ in range(GENERATION_SAMPLE_SIZE):
+        a, b, c = tex_module.calc_sub(
+            nums_a[0], nums_b[0], nums_a, nums_b, borrow=True,
+        )
+        assert min(nums_a) <= a <= max(nums_a)
+        assert min(nums_b) <= b <= max(nums_b)
+        assert tex_module.subtraction_has_borrow(a, b)
+        assert c == a - b > 0
+
+
+@pytest.mark.parametrize(
+    ("a_width", "b_width"), [(2, 1), (3, 1), (4, 2)],
+)
+def test_calc_sub_borrow_fallback_preserves_operand_digit_widths(
+        monkeypatch: pytest.MonkeyPatch, a_width: int, b_width: int,
+    ) -> None:
+    monkeypatch.setattr(tex_module, "MAX_OPERAND_RETRY_ATTEMPTS", 0)
+    nums_a = [10 ** (a_width - 1)]
+    nums_b = [10 ** (b_width - 1)]
+
+    a, b, c = tex_module.calc_sub(nums_a[0], nums_b[0], nums_a, nums_b, borrow=True)
+
+    assert len(str(a)) == a_width
+    assert len(str(b)) == b_width
+    assert tex_module.subtraction_has_borrow(a, b)
+    assert c == a - b > 0
+
+
+def test_calc_sub_borrow_keeps_grade1_teens_range_for_single_digit_bounds() -> None:
+    # The mixed-carry grade-1 preset shares one 1-9/1-9 range across add and
+    # sub, where no borrowing pair with a positive result exists -- calc_sub
+    # must keep falling back to the teens-minus-one-digit sampling here.
+    for _ in range(GENERATION_SAMPLE_SIZE):
+        a, b, c = tex_module.calc_sub(9, 1, list(range(1, 10)), list(range(1, 10)), borrow=True)
+        assert 10 <= a <= 19
+        assert 1 <= b <= 9
+        assert tex_module.subtraction_has_borrow(a, b)
+        assert c == a - b > 0
+
+
+@pytest.mark.parametrize(
     ("carry_mode", "expected_condition"),
     [('required', True), ('none', False)],
 )

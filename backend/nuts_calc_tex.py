@@ -976,6 +976,23 @@ def build_subtraction_fallback(a_width: int, b_width: int) -> tuple[int, int]:
     return a, b
 
 
+def build_borrow_fallback(a_width: int, b_width: int) -> tuple[int, int]:
+    """
+    Build a positive, digit-width-preserving pair that borrows.
+
+    Mirrors build_addition_fallback's carry=True branch: a is widened just
+    enough to guarantee a > b (at least one more digit than b, and at least
+    2 digits overall, since a single digit can't borrow with a positive
+    result), and its units digit is forced to 0 while b's units digit is
+    forced nonzero -- that alone guarantees a units-digit borrow regardless
+    of the remaining digits.
+    """
+    a_width = max(a_width, b_width + 1, 2)
+    a = 10 ** (a_width - 1)
+    b = 1 if b_width == 1 else 10 ** (b_width - 1) + 1
+    return a, b
+
+
 def calc_sub(
         a: int, b: int, nums_a: list[int], nums_b: list[int],
         borrow: bool | None = None,
@@ -983,18 +1000,35 @@ def calc_sub(
     """
     Subtract with a positive result, optionally requiring/forbidding borrowing.
 
-    borrow=True deliberately overrides configured ranges and restricts the
-    problem to 10-19 minus a one-digit operand. borrow=False prefers the
-    configured ranges, then synthesizes a positive borrow-free pair instead
-    of failing. borrow=None preserves the original retry/fallback behavior.
+    borrow=True prefers the configured ranges, retrying within nums_a/nums_b
+    for a borrowing, positive-result pair and falling back to
+    build_borrow_fallback (mirroring calc_add's carry=True path) instead of
+    failing. The one exception: when both ranges are single-digit (1-9), no
+    borrowing pair with a positive result can exist within them, so this
+    keeps the original grade-1 "teens minus a one-digit operand" sampling
+    unchanged -- the web layer's mixed-carry grade-1 preset (add and sub
+    sharing one a_min/a_max=1/9, b_min/b_max=1/9 range) hits exactly this
+    shape for its sub+borrow branch. borrow=False prefers the configured
+    ranges, then synthesizes a positive borrow-free pair instead of failing.
+    borrow=None preserves the original retry/fallback behavior.
     """
     if borrow is True:
+        a_width = operand_digit_width(nums_a)
+        b_width = operand_digit_width(nums_b)
+        if a_width == 1 and b_width == 1:
+            for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
+                a = random.choice(BORROWING_MINUENDS)
+                b = random.choice(BORROWING_SUBTRAHENDS)
+                if subtraction_has_borrow(a, b):
+                    return a, b, a - b
+            return 10, 1, 9
         for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
-            a = random.choice(BORROWING_MINUENDS)
-            b = random.choice(BORROWING_SUBTRAHENDS)
-            if subtraction_has_borrow(a, b):
+            if a - b > 0 and subtraction_has_borrow(a, b):
                 return a, b, a - b
-        return 10, 1, 9
+            a = random.choice(nums_a)
+            b = random.choice(nums_b)
+        a, b = build_borrow_fallback(a_width, b_width)
+        return a, b, a - b
 
     for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
         if a - b > 0 and (borrow is None or not subtraction_has_borrow(a, b)):
@@ -1128,9 +1162,10 @@ def generate_ope_problems(
     problem; otherwise one operator is picked per problem from `operators`.
 
     carry_mode='required' requires carrying for add and borrowing for sub;
-    'none' forbids both. 'mixed' leaves one-digit addition unrestricted and
-    chooses borrow-free one-digit or borrowing 10-19-minus-one-digit
-    subtraction per subtraction problem.
+    'none' forbids both. 'mixed' leaves addition unrestricted and chooses
+    borrow-free or borrow-required subtraction per subtraction problem (see
+    calc_sub for how borrow-required sampling behaves for a given nums_a/
+    nums_b range).
 
     remainder_mode='required' requires a nonzero division remainder;
     'none' forbids one (same as the pre-remainder-support default);

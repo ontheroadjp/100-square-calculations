@@ -247,6 +247,25 @@ def test_cli_ope_sub_carry_flags_control_borrowing(
         assert int(result_value) == int(a) - int(b) > 0
 
 
+def test_cli_ope_sub_carry_borrow_respects_configured_multi_digit_range(run_tex_cli, tmp_path):
+    # issue #92: a 2-digit configured range must produce a 2-digit borrowing
+    # minuend, not the grade-1-only 10-19 band.
+    result = run_tex_cli(
+        "A4", "ope", "-o", "sub", "--carry-borrow",
+        "--a-min", "10", "--a-max", "99", "--b-min", "1", "--b-max", "9",
+        "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
+    )
+
+    assert result.returncode == 0, result.stderr
+    for row in (tmp_path / "result.csv").read_text().strip().splitlines():
+        _, _, a, operator, b, result_value, _ = row.split(",")
+        assert operator == "sub"
+        assert subtraction_has_borrow(int(a), int(b))
+        assert 10 <= int(a) <= 99
+        assert 1 <= int(b) <= 9
+        assert int(result_value) == int(a) - int(b) > 0
+
+
 def test_cli_ope_mixed_carry_accepts_add_sub(run_tex_cli, tmp_path):
     result = run_tex_cli(
         "A4", "ope", "-o", "add", "sub", "--mixed-carry-borrow",
