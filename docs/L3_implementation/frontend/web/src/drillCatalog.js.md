@@ -10,7 +10,7 @@
 
 ## 統合ポイント
 
-- 呼び出し元: `gradeDrills.js`。
+- 呼び出し元: `home.js`(利用可能な出題形式の算出)、`catalog.js`(カタログ構築・絞り込み)、`preset.js`(URLパラメータからのプリセット特定)。
 - 呼び出し先: `drillPresets.js`(`GRADES`/`UNGRADED`/`presetsByGrade`)。
 
 ## 注意事項・既知の制限

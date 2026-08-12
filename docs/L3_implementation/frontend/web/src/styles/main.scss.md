@@ -6,7 +6,7 @@
 
 ## 動作の概要
 
-`@use 'base'; @use 'components'; @use 'layout';` の3行のみ。`main.js` から `import './styles/main.scss'` され、Vite が Dart Sass でコンパイルして `<style>` として注入する。
+`@use 'base'; @use 'components'; @use 'layout';` の3行のみ。各ページエントリ(`home.js`/`catalog.js`/`preset.js`/`custom.js`)の先頭で `import './styles/main.scss'` され、Vite が Dart Sass でコンパイルして `<style>` として注入する。
 
 ## 重要な設計判断とその理由
 
@@ -21,7 +21,7 @@
 
 ## 統合ポイント
 
-- 呼び出し元: `main.js`。
+- 呼び出し元: `home.js`/`catalog.js`/`preset.js`/`custom.js`(各ページエントリが個別に `import`。`frontend/web` は複数ページ構成のため単一の `main.js` は存在しない、issue #88)。
 - 呼び出し先: `_base.scss`/`_components.scss`/`_layout.scss`。
 
 ## 注意事項・既知の制限

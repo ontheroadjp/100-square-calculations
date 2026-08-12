@@ -15,6 +15,10 @@
 
 ユーザーからの明示的な要望により、gulp のような軽量ビルド構成(保存時の自動 Sass コンパイル・dev サーバー)を求めつつ webpack 級の重量設定は避けたいという方針で、`frontend/spa` と同じ Vite を React なしの vanilla テンプレートで採用した。ツールを一つに統一でき、設定はほぼゼロで Sass・HMR・本番ビルドが揃う。
 
+### 複数ページ構成(SPAではない)にした理由
+
+ユーザーからの明示的な指示により、`frontend/web` は SPA(単一 `index.html` を JS ルーターで画面切替する構成)ではなく、画面ごとに実在の `.html`(`index.html`/`catalog.html`/`preset.html`/`custom.html`)を持つ構成にした(issue #88)。このため `vite.config.js`(`build.rollupOptions.input` に4つの `.html` を列挙)で Vite のマルチページビルドを設定している。
+
 ## 統合ポイント
 
 - 呼び出し元: `npm run dev`/`npm run build`(開発者が直接実行)。

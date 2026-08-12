@@ -16,7 +16,7 @@
 
 ## 統合ポイント
 
-- 呼び出し元: `gradeDrills.js`(`GRADES`/`UNGRADED`/`CUSTOM_GRADE`)。
+- 呼び出し元: `catalog.js`/`drillCatalog.js`(`GRADES`/`UNGRADED`)。`CUSTOM_GRADE` は `frontend/web` が複数ページ構成(issue #88)のため未使用(`custom.html` へは通常の `<a href>` で遷移する)。
 - 呼び出し先: なし(データ定義のみ)。
 
 ## 注意事項・既知の制限

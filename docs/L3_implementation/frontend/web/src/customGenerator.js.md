@@ -15,7 +15,7 @@
 
 ### 入力欄ごとに「render() する/しない」を使い分けている理由
 
-`gradeDrills.js` の検索欄と同じ理由(1文字入力ごとに `<input>` を作り直すとフォーカスが外れる)により、`aMin`/`aMax`/`bMin`/`bMax`/`aValue`/`bValue`/`rows`/`columns`/`page` のようなテキスト/数値入力は、`input` イベントで `state` の値だけを更新し `render()` を呼ばない(ブラウザのネイティブ挙動でその場の値表示・フォーカスが維持される)。一方、以下は構造的な見た目の変化を伴うため `render()` が必要:
+`catalog.js` の検索欄と同じ理由(1文字入力ごとに `<input>` を作り直すとフォーカスが外れる)により、`aMin`/`aMax`/`bMin`/`bMax`/`aValue`/`bValue`/`rows`/`columns`/`page` のようなテキスト/数値入力は、`input` イベントで `state` の値だけを更新し `render()` を呼ばない(ブラウザのネイティブ挙動でその場の値表示・フォーカスが維持される)。一方、以下は構造的な見た目の変化を伴うため `render()` が必要:
 - `commandType` の変更: 表示するフィールド自体が変わる(`ope`/`com`/`100`/`99`/`squ`/`pi` で表示項目が異なる)。
 - タブ切り替え(`data-action="tab"`): 表示するタブペインが変わる。
 - `paperSize` の変更(かつ `vertical` がON): 同じ「用紙設定」タブ内の `rows`/`columns` 欄が `enableVerticalLayout()` により自動更新されるため、その変更を画面に反映する必要がある。
@@ -25,10 +25,11 @@
 
 ## 統合ポイント
 
-- 呼び出し元: `gradeDrills.js`(`nav-custom` 遷移時)。
+- 呼び出し元: `custom.js`(`custom.html` のページエントリ)。
 - 呼び出し先: `strings.js`(`t`)、`verticalLayout.js`、`backend`(`POST /generate-pdf`)。
 
 ## 注意事項・既知の制限
 
 - backend の URL がハードコードされている点は `frontend/spa` と同じ既知の制約([[../../frontend/spa/src/CustomGenerator.jsx]] 参照)。
 - `aBc` コマンドは `command_type` の選択肢にはあるが、`frontend/spa` 版と同様に固有の追加パラメータUIは持たない(`nuts_calc_tex.py` 側のデフォルト挙動に委ねる)。
+- `frontend/web` は複数ページ構成(issue #88、[[./presetDetail.js]] の「注意事項」参照)のため、本モジュールは `custom.html` 用の独立したマウント可能ウィジェットとして設計されている。`supportsVertical` は `custom.js` が自前で `GET /renderer-info` を fetch して算出する(`frontend/spa` では親コンポーネントの `GradeDrills.jsx` が算出して prop で渡していたが、`frontend/web` にはページをまたぐ共有状態を持つ親が存在しない)。

@@ -17,7 +17,7 @@
 
 ## 統合ポイント
 
-- 呼び出し元: `app.js`/`gradeDrills.js`/`presetDetail.js`/`customGenerator.js` すべて。
+- 呼び出し元: `home.js`/`catalog.js`/`presetDetail.js`/`customGenerator.js` すべて。
 - 呼び出し先: なし(`strings.ja.json` を読み込むのみ)。
 
 ## 注意事項・既知の制限
