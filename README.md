@@ -119,6 +119,17 @@ python3 nuts_calc_tex.py A4 ope -o add --carry-borrow --out-file carrying.pdf
 python3 nuts_calc_tex.py A4 ope -o add sub --mixed-carry-borrow --out-file mixed-carry.pdf
 ```
 
+For `ope -o div`, use `--remainder`, `--no-remainder`, or `--mixed-remainder` to
+require, forbid, or mix a nonzero division remainder (the default, and
+`--no-remainder`, behave the same as before this flag existed). Since plain
+`pdflatex` has no CJK font support, a nonzero remainder is rendered with the
+plain-math `\cdots` ellipsis shorthand (e.g. `11 ÷ 4 = 2 ⋯ 3`) rather than the
+Japanese "あまり" label.
+
+```bash
+python3 nuts_calc_tex.py A4 ope -o div --remainder --out-file division-remainder.pdf
+```
+
 ### Batch Generation with `factory.sh`
 The `factory.sh` script (in `backend/`) automates the generation of a predefined set of worksheets, creating a structured output directory (`dist/`).
 

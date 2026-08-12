@@ -1,0 +1,1 @@
+- docs/L3_implementation/backend/nuts_calc_tex.py.md:9-16 — `nuts_calc_tex.py` compiles with plain `pdflatex` (no CJK/Japanese font package), so any Japanese text in generated PDF output must use ASCII/math workarounds (e.g. `\cdots` instead of the "あまり" label) unless CJK font support is added as separate scope (issue #91)

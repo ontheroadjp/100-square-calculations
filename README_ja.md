@@ -77,11 +77,12 @@ python nuts_calc.py -h
 
 ### `nuts_calc_tex.py` のLaTeX専用ドリル
 
-以下の例は `backend/` ディレクトリ内(`cd backend`)での実行を前提とします。`frac` は厳密な分数計算、`mixed` は整数・小数・分数の混合計算を生成します。2項整数の加減算では `--carry-borrow`、`--no-carry-borrow`、`--mixed-carry-borrow` を指定できます。これらの条件は数値範囲指定より優先され、繰り下がりありの減算は10〜19−1桁に限定されます。
+以下の例は `backend/` ディレクトリ内(`cd backend`)での実行を前提とします。`frac` は厳密な分数計算、`mixed` は整数・小数・分数の混合計算を生成します。2項整数の加減算では `--carry-borrow`、`--no-carry-borrow`、`--mixed-carry-borrow` を指定できます。これらの条件は数値範囲指定より優先され、繰り下がりありの減算は10〜19−1桁に限定されます。`ope -o div` では `--remainder`、`--no-remainder`、`--mixed-remainder` で割り算の余りを必須・禁止・混在から選べます(既定値と `--no-remainder` はこのフラグ追加以前と同じ挙動です)。素の `pdflatex` は日本語フォントに対応していないため、余りは「あまり」ではなく `\cdots`(例: `11 ÷ 4 = 2 ⋯ 3`)で表示されます。
 
 ```bash
 python3 nuts_calc_tex.py A4 frac --numerator-digits 1 --denominator-digits 1 -o add sub --out-file fractions.pdf
 python3 nuts_calc_tex.py A4 ope -o add sub --mixed-carry-borrow --out-file grade1-mixed.pdf
+python3 nuts_calc_tex.py A4 ope -o div --remainder --out-file division-remainder.pdf
 ```
 
 ### `factory.sh`を使った一括生成
