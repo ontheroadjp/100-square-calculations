@@ -269,5 +269,6 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 
 ## 変更履歴(git log より自動生成)
 
-- 0dcb553 feat(#91): add remainder control to ope division
+- 6ba8068 fix(#92): make required-borrow subtraction respect the configured digit range
+- eae5107 #91 nuts_calc_tex.py: add remainder control to division (none/required/mixed) (#102)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)
