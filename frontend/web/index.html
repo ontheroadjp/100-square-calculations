@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>100マス計算ジェネレーター</title>
+  </head>
+  <body>
+    <div class="app-container">
+      <header class="app-header">
+        <h1>100マス計算ジェネレーター</h1>
+      </header>
+
+      <main class="main-content">
+        <div class="grade-drills">
+          <form class="drill-search" method="get" action="catalog.html">
+            <label for="drillSearch">ドリルを検索</label>
+            <input id="drillSearch" name="q" type="search" placeholder="分数、筆算、繰り上がり など">
+          </form>
+
+          <nav class="grade-nav" aria-label="ドリルのナビゲーション">
+            <a class="grade-link active" href="index.html">ドリルを探す</a>
+            <a class="grade-link" href="custom.html">カスタム</a>
+          </nav>
+
+          <p class="grade-drills-intro">練習したい内容から、ぴったりのドリルを探しましょう。</p>
+
+          <section class="drill-home-section">
+            <h2>数の種類から選ぶ</h2>
+            <div class="drill-start-grid">
+              <a class="drill-start-card" href="catalog.html?numberType=integers">整数</a>
+              <a class="drill-start-card" href="catalog.html?numberType=decimals">小数</a>
+              <a class="drill-start-card" href="catalog.html?numberType=fractions">分数</a>
+              <a class="drill-start-card" href="catalog.html?numberType=mixed">混合</a>
+            </div>
+          </section>
+
+          <section class="drill-home-section" id="formSection" hidden>
+            <h2>出題形式・目的で選ぶ</h2>
+            <div class="drill-start-grid" id="formStartGrid"></div>
+          </section>
+
+          <section class="drill-home-section">
+            <h2>学年から選ぶ</h2>
+            <div class="drill-start-grid grade-start-grid">
+              <a class="drill-start-card" href="catalog.html?grade=1">1年生</a>
+              <a class="drill-start-card" href="catalog.html?grade=2">2年生</a>
+              <a class="drill-start-card" href="catalog.html?grade=3">3年生</a>
+              <a class="drill-start-card" href="catalog.html?grade=4">4年生</a>
+              <a class="drill-start-card" href="catalog.html?grade=5">5年生</a>
+              <a class="drill-start-card" href="catalog.html?grade=6">6年生</a>
+              <a class="drill-start-card" href="catalog.html?grade=ungraded">無学年</a>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script type="module" src="/src/home.js"></script>
+  </body>
+</html>

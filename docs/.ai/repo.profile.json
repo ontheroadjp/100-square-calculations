@@ -1,6 +1,6 @@
 {
   "repo_id": "ontheroadjp/100-square-calculations",
-  "package_manager": "pip (python) + npm (web/frontend)",
+  "package_manager": "pip (python, backend/) + npm (frontend/spa, frontend/web)",
   "doc_roots": [
     "docs/L0_concept",
     "docs/L1_project",
@@ -9,35 +9,43 @@
   ],
   "commands": {
     "install_python": "python3 -m venv venv && source venv/bin/activate && pip install reportlab flask flask-cors",
-    "run_cli": "python3 nuts_calc.py <paper_size> <command> [options]",
-    "run_cli_tex_prototype": "python3 nuts_calc_tex.py <paper_size> <command> [options]  # requires pdflatex; web/backend selects it with NUTS_CALC_RENDERER=latex; factory.sh does not use it",
-    "batch_generate": "./factory.sh",
-    "run_backend": "cd web/backend && python app.py",
-    "install_frontend": "cd web/frontend && npm install",
-    "run_frontend_dev": "cd web/frontend && npm run dev",
-    "build_frontend": "cd web/frontend && npm run build",
-    "lint_frontend": "cd web/frontend && npm run lint",
-    "test_frontend": "node --test web/frontend/src/drillPresets.test.js web/frontend/src/verticalLayout.test.js",
+    "run_cli": "cd backend && python3 nuts_calc.py <paper_size> <command> [options]",
+    "run_cli_tex_prototype": "cd backend && python3 nuts_calc_tex.py <paper_size> <command> [options]  # requires pdflatex; backend/app.py selects it with NUTS_CALC_RENDERER=latex; factory.sh does not use it",
+    "batch_generate": "cd backend && ./factory.sh",
+    "run_backend": "cd backend && python app.py",
+    "install_frontend_spa": "cd frontend/spa && npm install",
+    "run_frontend_spa_dev": "cd frontend/spa && npm run dev",
+    "build_frontend_spa": "cd frontend/spa && npm run build",
+    "lint_frontend_spa": "cd frontend/spa && npm run lint",
+    "test_frontend_spa": "node --test frontend/spa/src/drillPresets.test.js frontend/spa/src/drillCatalog.test.js frontend/spa/src/verticalLayout.test.js",
+    "install_frontend_web": "cd frontend/web && npm install",
+    "run_frontend_web_dev": "cd frontend/web && npm run dev",
+    "build_frontend_web": "cd frontend/web && npm run build",
     "install_test_deps": "pip install pytest",
-    "run_tests": "python3 -m pytest -q",
-    "run_tests_without_known_stale": "python3 -m pytest -q --ignore=tests/test_nuts_calc_init.py"
+    "run_tests": "cd backend && python3 -m pytest -q",
+    "run_tests_without_known_stale": "cd backend && python3 -m pytest -q --ignore=tests/test_nuts_calc_init.py"
   },
   "entrypoints": [
-    "nuts_calc.py",
-    "nuts_calc_tex.py",
-    "factory.sh",
-    "web/backend/app.py",
-    "web/frontend/src/main.jsx"
+    "backend/nuts_calc.py",
+    "backend/nuts_calc_tex.py",
+    "backend/factory.sh",
+    "backend/app.py",
+    "frontend/spa/src/main.jsx",
+    "frontend/web/index.html",
+    "frontend/web/catalog.html",
+    "frontend/web/preset.html",
+    "frontend/web/custom.html"
   ],
   "primary_docs": {
     "investigation": "docs/L3_implementation/specification_summary.md",
     "structure": "docs/L1_project/repository_structure.md"
   },
   "notes": {
-    "package_manager": "No requirements.txt/pyproject.toml/setup.py exists for the Python side (a prior setup.py was removed per commit d9fc0a3, verified: 'git log -- nuts_calc.py'). README.md's Setup/Dependencies sections describe installing Flask/Flask-Cors/reportlab manually via pip, and web/frontend has its own package.json/package-lock.json for npm.",
+    "package_manager": "No requirements.txt/pyproject.toml/setup.py exists for the Python side (a prior setup.py was removed per commit d9fc0a3, verified: 'git log -- backend/nuts_calc.py'). README.md's Setup/Dependencies sections describe installing Flask/Flask-Cors/reportlab manually via pip. frontend/spa and frontend/web each have their own independent package.json/package-lock.json for npm.",
     "ci": "No .github/workflows directory or other CI definition exists in this repo (verified: 'find .github -type f' returns nothing).",
-    "tests": "tests/ contains 18 Python test_*.py files (pytest.ini: testpaths=tests, pythonpath=.). Collected 408 tests on 2026-08-09. Excluding tests/test_nuts_calc_init.py, 386 tests pass, including pdflatex-dependent tests. The excluded file has 9 known stale failures and 13 passes. Two frontend node:test files contain 12 tests, all passing when invoked explicitly with node --test; package.json has no test script.",
-    "known_defects": "The previously-tracked web/frontend build failure (missing i18next dependencies) is resolved: package.json lists the four i18next-family dependencies and npm run build succeeds (re-verified 2026-08-09). npm run lint currently fails once at web/frontend/src/drillPresets.js:363 because no-irregular-whitespace rejects a Japanese full-width space in a comment. Separately, tests/test_nuts_calc_init.py has 9 known-stale failures that are not a nuts_calc.py implementation defect.",
-    "nuts_calc_tex_py": "Experimental LaTeX renderer with zero code sharing with nuts_calc.py. It implements the seven ReportLab-compatible commands plus the LaTeX-only frac and mixed commands (nine commands total). It supports exact fractions, decimal arithmetic, mixed int/decimal/fraction expressions, and carry/borrowing constraints for two-term integer addition/subtraction. Requires pdflatex and vendors longdivision under vendor/texmf/. web/backend/renderers.py selects it with NUTS_CALC_RENDERER=latex; the frontend hides LaTeX-only cards for reportlab."
+    "restructure_issue_88": "The repo was reorganized in issue #88 from a web/{backend,frontend} layout to backend/ + frontend/{spa,web}, consolidating nuts_calc.py/nuts_calc_tex.py/factory.sh/vendor/texmf/tests/pytest.ini (previously at the repo root and web/backend/) into a single self-contained backend/ tree, moving the existing React SPA unchanged from web/frontend to frontend/spa, and adding frontend/web as a new lightweight, Japanese-only, no-i18n-library static multi-page implementation (HTML/CSS(Sass)/JS via Vite) that shares the same backend/ Flask API. backend/renderers.py's script-path resolution was updated accordingly (self-relative to backend/ instead of two levels up from web/backend/).",
+    "tests": "backend/tests/ contains 18 Python test_*.py files (backend/pytest.ini: testpaths=tests, pythonpath=. -- still resolves correctly from backend/ after the move). Collected 420 tests on 2026-08-12. Excluding backend/tests/test_nuts_calc_init.py, 398 tests pass, including pdflatex-dependent tests (running the full suite without --ignore reports 411 passed, 9 failed). The excluded file has 9 known stale failures and 13 passes. frontend/spa has 3 node:test files (17 tests total), all passing when invoked explicitly with node --test; its package.json has no test script. frontend/web has no automated tests.",
+    "known_defects": "npm run lint (frontend/spa) currently fails once at frontend/spa/src/drillPresets.js:433 because no-irregular-whitespace rejects a Japanese full-width space in a comment (line number shifted from :363 as presets were added; same underlying issue, not a regression). Separately, backend/tests/test_nuts_calc_init.py has 9 known-stale failures that are not a nuts_calc.py implementation defect. frontend/web has no lint script configured.",
+    "nuts_calc_tex_py": "Experimental LaTeX renderer with zero code sharing with nuts_calc.py. It implements the seven ReportLab-compatible commands plus the LaTeX-only frac, mixed, and compare commands (ten commands total). It supports exact fractions, decimal arithmetic, mixed int/decimal/fraction expressions, and carry/borrowing constraints for two-term integer addition/subtraction. Requires pdflatex and vendors longdivision under backend/vendor/texmf/ (path resolved relative to nuts_calc_tex.py's own file location, so it continued to work unmodified through the issue #88 move). backend/renderers.py selects it with NUTS_CALC_RENDERER=latex; both frontend/spa and frontend/web hide LaTeX-only cards when the reportlab renderer is active."
   }
 }
