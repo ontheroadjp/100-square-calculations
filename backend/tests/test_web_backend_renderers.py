@@ -141,6 +141,38 @@ def test_build_command_rejects_unknown_carry_mode() -> None:
         renderers.build_command("latex", params, "out.pdf")
 
 
+@pytest.mark.parametrize(
+    ("remainder_mode", "expected_flag"),
+    [
+        ("required", "--remainder"),
+        ("none", "--no-remainder"),
+        ("mixed", "--mixed-remainder"),
+    ],
+)
+def test_build_command_translates_remainder_mode(remainder_mode: str, expected_flag: str) -> None:
+    params = {
+        "paper_size": "A4",
+        "command_type": "ope",
+        "operator": ["div"],
+        "remainder_mode": remainder_mode,
+    }
+
+    command = renderers.build_command("latex", params, "out.pdf")
+
+    assert expected_flag in command
+
+
+def test_build_command_rejects_unknown_remainder_mode() -> None:
+    params = {
+        "paper_size": "A4",
+        "command_type": "ope",
+        "remainder_mode": "unknown",
+    }
+
+    with pytest.raises(ValueError, match="Unknown remainder_mode"):
+        renderers.build_command("latex", params, "out.pdf")
+
+
 def test_build_command_translates_fraction_params() -> None:
     params = {
         "paper_size": "A4",

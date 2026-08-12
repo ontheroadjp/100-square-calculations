@@ -207,7 +207,7 @@ def test_cli_ope_add_carry_flags_override_impossible_ranges(
     assert result.returncode == 0, result.stderr
     _assert_is_pdf(tmp_path / "result.pdf")
     for row in (tmp_path / "result.csv").read_text().strip().splitlines():
-        _, _, a, operator, b, result_value = row.split(",")
+        _, _, a, operator, b, result_value, _ = row.split(",")
         assert operator == "add"
         assert addition_has_carry(int(a), int(b)) is expected_carry
         assert int(result_value) == int(a) + int(b)
@@ -238,7 +238,7 @@ def test_cli_ope_sub_carry_flags_control_borrowing(
 
     assert result.returncode == 0, result.stderr
     for row in (tmp_path / "result.csv").read_text().strip().splitlines():
-        _, _, a, operator, b, result_value = row.split(",")
+        _, _, a, operator, b, result_value, _ = row.split(",")
         assert operator == "sub"
         assert subtraction_has_borrow(int(a), int(b)) is expected_borrow
         if expected_borrow:
@@ -268,6 +268,76 @@ def test_cli_ope_carry_modes_reject_invalid_operators(run_tex_cli, tmp_path, inv
 @pytest.mark.parametrize("legacy_flag", ["--carry", "--no-carry", "--mixed-carry"])
 def test_cli_ope_rejects_legacy_carry_flags(run_tex_cli, tmp_path, legacy_flag):
     result = run_tex_cli("A4", "ope", legacy_flag, "--out-file", "result.pdf")
+
+    assert result.returncode == 2
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_div_remainder_flag_forces_nonzero_remainder(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "div", "--remainder",
+        "--a-min", "10", "--a-max", "99", "--b-min", "2", "--b-max", "9",
+        "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
+    )
+
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    for row in (tmp_path / "result.csv").read_text().strip().splitlines():
+        _, _, a, operator, b, c, remainder = row.split(",")
+        assert operator == "div"
+        assert int(remainder) != 0
+        assert int(remainder) == int(a) - int(b) * int(c)
+
+
+def test_cli_ope_div_no_remainder_flag_matches_default(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "div", "--no-remainder",
+        "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
+    )
+
+    assert result.returncode == 0, result.stderr
+    for row in (tmp_path / "result.csv").read_text().strip().splitlines():
+        _, _, a, operator, b, c, remainder = row.split(",")
+        assert operator == "div"
+        assert remainder == "0"
+        assert int(a) % int(b) == 0
+
+
+def test_cli_ope_mixed_remainder_covers_both_conditions(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "div", "--mixed-remainder",
+        "--a-min", "10", "--a-max", "99", "--b-min", "2", "--b-max", "9",
+        "-r", "5", "-c", "5", "--csv", "--out-file", "result.pdf",
+    )
+
+    assert result.returncode == 0, result.stderr
+    remainders = {
+        row.split(",")[6] == "0"
+        for row in (tmp_path / "result.csv").read_text().strip().splitlines()
+    }
+    assert remainders == {True, False}
+
+
+@pytest.mark.parametrize(
+    "invalid_args",
+    [
+        ("-o", "add", "--remainder"),
+        ("-o", "div", "mul", "--remainder"),
+        ("-o", "div", "--remainder", "--use-parentheses"),
+    ],
+)
+def test_cli_ope_remainder_modes_reject_invalid_combinations(run_tex_cli, tmp_path, invalid_args):
+    result = run_tex_cli("A4", "ope", *invalid_args, "--out-file", "result.pdf")
+
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_rejects_combining_remainder_flags(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "div", "--remainder", "--no-remainder",
+        "--out-file", "result.pdf",
+    )
 
     assert result.returncode == 2
     assert not (tmp_path / "result.pdf").exists()
@@ -671,9 +741,10 @@ def test_cli_ope_csv_rows_contain_real_problem_data(run_tex_cli, tmp_path):
     csv_path = tmp_path / "result.csv"
     lines = csv_path.read_text().strip().splitlines()
     assert len(lines) == 4
-    page_number, index, a, operator, b, c = lines[0].split(",")
+    page_number, index, a, operator, b, c, remainder = lines[0].split(",")
     assert (page_number, index, operator) == ("1", "1", "add")
     assert int(a) + int(b) == int(c)
+    assert remainder == "0"
 
 
 def test_cli_com_produces_blank_and_filled_pdfs(run_tex_cli, tmp_path):

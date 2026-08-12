@@ -238,6 +238,78 @@ def test_find_exact_division_pair_returns_none_when_impossible() -> None:
     assert tex_module.find_exact_division_pair([1], [2]) is None
 
 
+def test_calc_div_remainder_true_returns_nonzero_remainder() -> None:
+    nums_a = list(range(10, 100))
+    nums_b = list(range(2, 10))
+    for _ in range(GENERATION_SAMPLE_SIZE):
+        a, b, c = tex_module.calc_div(50, 3, nums_a, nums_b, remainder=True)
+        assert b != 0
+        assert a % b != 0
+        assert c == a // b
+
+
+def test_calc_div_remainder_false_matches_default_exact_behavior() -> None:
+    nums_a = list(range(10, 100))
+    nums_b = list(range(1, 10))
+    a, b, c = tex_module.calc_div(50, 3, nums_a, nums_b, remainder=False)
+    assert a % b == 0
+    assert c == a // b
+
+
+def test_calc_div_remainder_true_succeeds_when_valid_pair_space_is_narrow(
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+    monkeypatch.setattr(tex_module, "MAX_OPERAND_RETRY_ATTEMPTS", 0)
+    a, b, c = tex_module.calc_div(10, 3, [10], [3], remainder=True)
+    assert a % b != 0
+    assert c == a // b
+
+
+def test_calc_div_remainder_true_raises_when_no_remainder_pair_is_possible() -> None:
+    with pytest.raises(ValueError):
+        tex_module.calc_div(2, 1, [2, 4], [1], remainder=True)
+
+
+def test_find_remainder_division_pair_returns_none_when_impossible() -> None:
+    assert tex_module.find_remainder_division_pair([2, 4], [1]) is None
+
+
+@pytest.mark.parametrize(
+    ("remainder_mode", "expect_remainder"),
+    [('required', True), ('none', False)],
+)
+def test_generate_ope_problems_applies_division_remainder_filter(
+        remainder_mode: tex_module.RemainderMode, expect_remainder: bool,
+    ) -> None:
+    problems = tex_module.generate_ope_problems(
+        list(range(10, 100)), list(range(2, 10)), ['div'],
+        order=GENERATION_SAMPLE_SIZE, start_index=1, remainder_mode=remainder_mode,
+    )
+
+    assert all((problem.remainder != 0) is expect_remainder for problem in problems)
+    assert all(problem.remainder == problem.a - problem.b * problem.c for problem in problems)
+
+
+def test_generate_ope_problems_mixed_remainder_covers_both_conditions() -> None:
+    problems = tex_module.generate_ope_problems(
+        list(range(10, 100)), list(range(2, 10)), ['div'],
+        order=2000, start_index=1, remainder_mode='mixed',
+    )
+
+    observed = {problem.remainder != 0 for problem in problems}
+    assert observed == {False, True}
+    for problem in problems:
+        assert problem.remainder == problem.a - problem.b * problem.c
+
+
+def test_generate_ope_problems_default_remainder_mode_is_always_exact() -> None:
+    problems = tex_module.generate_ope_problems(
+        list(range(10, 100)), list(range(1, 10)), ['div'],
+        order=GENERATION_SAMPLE_SIZE, start_index=1,
+    )
+    assert all(problem.remainder == 0 for problem in problems)
+
+
 def test_generate_ope_problems_assigns_sequential_indices() -> None:
     problems = tex_module.generate_ope_problems([5], [3], ['add'], order=4, start_index=11)
     assert [problem.index for problem in problems] == [11, 12, 13, 14]
@@ -270,6 +342,22 @@ def test_build_horizontal_block_tex_blank_hides_answer() -> None:
     assert '2 + 3' in blank_tex
     assert '2 + 3 = \\hspace{1.5em}$' in blank_tex
     assert '2 + 3 = 5' in filled_tex
+
+
+def test_build_horizontal_block_tex_div_without_remainder_is_unchanged() -> None:
+    problem = tex_module.OpeProblem(index=1, a=6, b=3, operator='div', c=2)
+    filled_tex = tex_module.build_horizontal_block_tex(problem, show_answer=True)
+    assert 'あまり' not in filled_tex
+    assert '6 \\div 3 = 2$' in filled_tex
+
+
+def test_build_horizontal_block_tex_div_with_remainder_shows_cdots_and_blanks_it() -> None:
+    problem = tex_module.OpeProblem(index=1, a=17, b=5, operator='div', c=3, remainder=2)
+    blank_tex = tex_module.build_horizontal_block_tex(problem, show_answer=False)
+    filled_tex = tex_module.build_horizontal_block_tex(problem, show_answer=True)
+    assert '17 \\div 5 = \\hspace{1.5em} \\cdots \\hspace{1.5em}$' in blank_tex
+    assert '2' not in blank_tex
+    assert '17 \\div 5 = 3 \\cdots 2$' in filled_tex
 
 
 def test_build_horizontal_intermediate_block_tex_blank_hides_answer_without_underline() -> None:
@@ -305,9 +393,15 @@ def test_build_ope_csv_rows_has_one_row_per_problem() -> None:
     page2 = [tex_module.OpeProblem(index=2, a=9, b=4, operator='sub', c=5)]
     rows = tex_module.build_ope_csv_rows([page1, page2])
     assert rows == [
-        [1, 1, 2, 'add', 3, 5],
-        [2, 2, 9, 'sub', 4, 5],
+        [1, 1, 2, 'add', 3, 5, 0],
+        [2, 2, 9, 'sub', 4, 5, 0],
     ]
+
+
+def test_build_ope_csv_rows_includes_remainder_column_for_div() -> None:
+    page = [tex_module.OpeProblem(index=1, a=17, b=5, operator='div', c=3, remainder=2)]
+    rows = tex_module.build_ope_csv_rows([page])
+    assert rows == [[1, 1, 17, 'div', 5, 3, 2]]
 
 
 def test_paren_stage_add_returns_sum() -> None:
