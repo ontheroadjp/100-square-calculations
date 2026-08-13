@@ -308,6 +308,7 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴(git log より自動生成)
 
+- dc864b4 refactor(#120): introduce pluggable LatexEngineAdapter interface in nuts_calc_tex.py
 - f164f35 feat(#96): add fraction/decimal conversion drill commands to nuts_calc_tex.py
 - a6c52f9 #95 nuts_calc_tex.py: add LCM and GCD pair-number drill commands (#107)
 - 3b25e73 #94 nuts_calc_tex.py: add evenodd/multiples/divisors number-property commands (#106)
