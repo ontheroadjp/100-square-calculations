@@ -43,4 +43,4 @@ wireframe の PC レイアウトはドリル設定とプレビューが同一画
 
 ## 変更履歴(git log より自動生成)
 
-- feat(#101): add frontend/web PC 4-column make flow(このタスクで新規追加。コミットハッシュは /docs-sync 実行時に確定)
+- d9599eb feat(#101): add PC 4-column layout to frontend/web's make flow

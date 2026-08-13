@@ -28,6 +28,6 @@
 
 ## 変更履歴(git log より自動生成)
 
-- feat(#101): add PC 4-column layout string keys(このタスクでの変更。コミットハッシュは /docs-sync 実行時に確定)
+- d9599eb feat(#101): add PC 4-column layout to frontend/web's make flow(`strings.js` 自体は無変更、`strings.ja.json` のみ変更のため `git log -- frontend/web/src/strings.js` には現れない)
 - 64f005b feat(#100): rebuild frontend/web preset detail settings/completion/preview screens
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

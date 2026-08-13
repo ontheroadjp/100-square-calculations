@@ -31,7 +31,7 @@ issue #98 で `DRILL_FORMS`(`drillCatalog.js`)が常に空配列を返すよう�
 
 ## 変更履歴(git log より自動生成)
 
-- feat(#101): mount pcMakeFlow on index.html(このタスクでの変更。コミットハッシュは /docs-sync 実行時に確定)
+- d9599eb feat(#101): add PC 4-column layout to frontend/web's make flow
 - f111bd7 feat(#99): rebuild frontend/web top and catalog screens to match wireframe screens 1-2
 - 8007488 #97 frontend/web: rebuild nav shell, design tokens, and remove legacy features (#109)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)
