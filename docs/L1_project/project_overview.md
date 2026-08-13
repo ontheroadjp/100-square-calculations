@@ -53,7 +53,7 @@ CI 定義・パッケージ定義(lock file 等)は Python 側に存在しない
 
 ### Web フロントエンド(web): `frontend/web`(静的サイト、新規、issue #88)
 
-React・i18n ライブラリを使わず(日本語のみ対応)、HTML/CSS(Sass)/vanilla JS のみで実装されている。ユーザーの明示的な指示により SPA(単一ページを JS ルーターで画面切替)ではなく、画面ごとに実在の `.html` を持つ複数ページ構成(`index.html`/`catalog.html`/`preset.html`。旧 `custom.html` は issue #97 で削除)として実装されており、画面遷移は通常の `<a href>` リンクと GET フォーム送信で行う。issue #97 でカスタム生成フォーム・検索・無学年ドリルへの導線を撤去したため、現時点では `frontend/spa` と機能的に同等ではない(issue #90 の後続issueで段階的に再構築中)。`drillPresets.js`/`drillCatalog.js`/`verticalLayout.js` は `frontend/spa` から複製した純粋データ/ロジック(React/i18n 非依存のため無変更で再利用可能)。詳細は [[../L3_implementation/specification_summary]] を参照。
+React・i18n ライブラリを使わず(日本語のみ対応)、HTML/CSS(Sass)/vanilla JS のみで実装されている。ユーザーの明示的な指示により SPA(単一ページを JS ルーターで画面切替)ではなく、画面ごとに実在の `.html` を持つ複数ページ構成(`index.html`/`catalog.html`/`preset.html`。旧 `custom.html` は issue #97 で削除)として実装されており、画面遷移は `<a href>` リンクのみで行う(issue #99 で唯一残っていた `catalog.html` の GET フォームを撤去したため、GET フォーム送信による遷移は現在存在しない)。`index.html` は学年カラーの2×3学年カードグリッド、`catalog.html` は `?grade=N` を読み `drillPresets.js` の `presetsByGrade[grade]` をカテゴリ(たし算/ひき算/かけ算/わり算/分数/四則混合/数の性質)ごとのドリルカード一覧として描画する(issue #99、`docs/uiux/wireframe_v1.png` 画面①②に対応)。issue #97 でカスタム生成フォーム・検索・無学年ドリルへの導線を、issue #99 で数の種類/学年/レベル別の絞り込みUIを撤去したため、現時点では `frontend/spa` と機能的に同等ではない(issue #90 の後続issueで段階的に再構築中)。`drillPresets.js`/`drillCatalog.js`/`verticalLayout.js` は `frontend/spa` から複製した純粋データ/ロジック(React/i18n 非依存のため無変更で再利用可能)。詳細は [[../L3_implementation/specification_summary]] を参照。
 
 ## 補助機能
 

@@ -30,6 +30,6 @@ issue #98 で `DRILL_FORMS`(`drillCatalog.js`)が常に空配列を返すよう�
 
 ## 変更履歴(git log より自動生成)
 
-- (issue #99 実装コミット) feat(#99): rebuild frontend/web top screen to match wireframe screen 1
-- b11ac96 feat(#97): rebuild frontend/web nav shell and design tokens, remove custom generator/search/ungraded UI
+- f111bd7 feat(#99): rebuild frontend/web top and catalog screens to match wireframe screens 1-2
+- 8007488 #97 frontend/web: rebuild nav shell, design tokens, and remove legacy features (#109)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)
