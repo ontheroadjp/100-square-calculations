@@ -7,7 +7,8 @@
 ## 動作の概要
 
 - モジュール読み込み時に `mountNavShell()`(issue #97 で追加)を呼び、モバイル下部タブバー/PCサイドバーを描画する。
-- それ以外の処理を持たない。ヒーローコピー(「毎日の計算練習を、すぐにプリント。」等)と学年カラーの2×3学年カードグリッド(`catalog.html?grade=N` への静的リンク)は `index.html` に直接ハードコードしており、JS は関与しない。
+- 続けて `mountPcMakeFlow(document.getElementById('pcMakeFlow'))`(issue #101 で追加)を呼び、PC(≥768px)向け4カラムレイアウトをマウントする。`#pcMakeFlow` は `index.html` に追加した空の `<div>` で、モバイル幅では CSS(`_pcMakeFlow.scss`)により非表示。
+- ヒーローコピー(「毎日の計算練習を、すぐにプリント。」等)と学年カラーの2×3学年カードグリッド(`catalog.html?grade=N` への静的リンク、モバイル専用)は `index.html` に直接ハードコードしており、JS は関与しない。
 
 ## 重要な設計判断とその理由
 
@@ -22,7 +23,7 @@ issue #98 で `DRILL_FORMS`(`drillCatalog.js`)が常に空配列を返すよう�
 ## 統合ポイント
 
 - 呼び出し元: `index.html` の `<script type="module" src="/src/home.js">`。
-- 呼び出し先: `navShell.js`(`mountNavShell`)のみ。`strings.js`/`drillCatalog.js`/`drillPresets.js`/`backend` への依存は issue #99 で撤去した。
+- 呼び出し先: `navShell.js`(`mountNavShell`)、`pcMakeFlow.js`(`mountPcMakeFlow`、issue #101 で追加)。`strings.js`/`drillCatalog.js`/`drillPresets.js`/`backend` への直接依存は issue #99 で撤去した(`pcMakeFlow.js` 経由での間接依存は issue #101 で復活している)。
 
 ## 注意事項・既知の制限
 
@@ -30,6 +31,7 @@ issue #98 で `DRILL_FORMS`(`drillCatalog.js`)が常に空配列を返すよう�
 
 ## 変更履歴(git log より自動生成)
 
+- d9599eb feat(#101): add PC 4-column layout to frontend/web's make flow
 - f111bd7 feat(#99): rebuild frontend/web top and catalog screens to match wireframe screens 1-2
 - 8007488 #97 frontend/web: rebuild nav shell, design tokens, and remove legacy features (#109)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)
