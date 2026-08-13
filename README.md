@@ -133,13 +133,23 @@ python3 nuts_calc_tex.py A4 ope -o div --remainder --out-file division-remainder
 ```
 
 Use `--with-name-field` to print a `Name: ___` line in the page header (a
-common setting shared across all ten commands, not just `ope`). Since plain
+common setting shared across all twelve commands, not just `ope`). Since plain
 `pdflatex` has no CJK font support, the label is rendered as English `Name:`
 rather than the Japanese `なまえ：`, matching the existing `Date:`/`Time:`
 labels.
 
 ```bash
 python3 nuts_calc_tex.py A4 ope --with-name-field --out-file with-name.pdf
+```
+
+It also provides `lcm` and `gcd` commands for least-common-multiple and
+greatest-common-divisor drills. Each problem draws two random integers and
+hides only the answer (e.g. `LCM(a, b) = ___`); the English `LCM`/`GCD`
+labels are used for the same CJK/pdflatex reason as `--with-name-field` above.
+
+```bash
+python3 nuts_calc_tex.py A4 lcm --out-file lcm.pdf
+python3 nuts_calc_tex.py A4 gcd --out-file gcd.pdf
 ```
 
 ### Batch Generation with `factory.sh`
@@ -216,7 +226,7 @@ The repository is organized as `backend/` + `frontend/{spa,web}`, so the Flask b
 *   **Web UI**: a frontend (`frontend/spa`, a React SPA, or `frontend/web`, a lightweight static multi-page site) → Flask backend (`backend/app.py`) → `backend/renderers.py` → `subprocess` call to `nuts_calc.py` (default) or `nuts_calc_tex.py` (via `NUTS_CALC_RENDERER=latex`) → generated PDF is streamed back to the browser. The backend holds no drill-generation logic of its own; it only translates form input into CLI arguments shared by both renderers. Both frontends call the same two endpoints (`POST /generate-pdf`, `GET /renderer-info`) and duplicate the same handful of pure data/logic modules (`drillPresets.js`/`drillCatalog.js`/`verticalLayout.js`) rather than sharing a package, since a future repo split was anticipated.
 *   **Batch**: `backend/factory.sh` is a third, batch-oriented entry point that calls `nuts_calc.py` repeatedly to populate a `dist/` directory with a fixed set of worksheets.
 
-**Experimental**: `nuts_calc_tex.py` is independent from ReportLab and implements ten commands: the seven ReportLab-compatible commands plus the LaTeX-only `frac`, `mixed`, and `compare` commands. It also owns decimal, written-calculation, and carry-aware drill behavior. Web cards using these features are renderer-gated because `nuts_calc.py` does not implement them. See `docs/L3_implementation/backend/nuts_calc_tex.py.md`.
+**Experimental**: `nuts_calc_tex.py` is independent from ReportLab and implements twelve commands: the seven ReportLab-compatible commands plus the LaTeX-only `frac`, `mixed`, `compare`, `lcm`, and `gcd` commands. It also owns decimal, written-calculation, and carry-aware drill behavior. Web cards using these features are renderer-gated because `nuts_calc.py` does not implement them. See `docs/L3_implementation/backend/nuts_calc_tex.py.md`.
 
 See `docs/L1_project/project_overview.md` and `docs/L0_concept/concept.md` for the full breakdown and file/line references.
 

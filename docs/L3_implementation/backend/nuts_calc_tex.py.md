@@ -283,7 +283,8 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴(git log より自動生成)
 
-- 392edbf feat(#93): add optional name field to nuts_calc_tex.py worksheets
+- 6f1dec4 feat(#95): add lcm and gcd pair-number drill commands to nuts_calc_tex.py
+- 26ec449 #93 nuts_calc_tex.py: add optional name field to generated worksheets (#105)
 - bd8f170 #92 nuts_calc_tex.py: fix borrow-required subtraction to respect configured digit range (#103)
 - eae5107 #91 nuts_calc_tex.py: add remainder control to division (none/required/mixed) (#102)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)
