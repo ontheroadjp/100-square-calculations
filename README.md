@@ -6,7 +6,7 @@ This project provides a set of tools to generate various types of mathematical p
 For the pedagogical background behind the drills (the mental-arithmetic technique the worksheets are built around), see `memo.md` (Japanese).
 
 ## Features
-*   **Diverse Problem Types**: Generate worksheets for integer arithmetic, complements, 100-square tables, multiplication tables, square numbers, mental arithmetic, exact fraction arithmetic, and fraction comparison through the LaTeX renderer.
+*   **Diverse Problem Types**: Generate worksheets for integer arithmetic, complements, 100-square tables, multiplication tables, square numbers, mental arithmetic, exact fraction arithmetic, fraction comparison, and number properties (even/odd, multiples, divisors, LCM, GCD) through the LaTeX renderer.
 *   **Customizable Generation**: Extensive command-line options allow users to specify paper size, number ranges, operators, problem counts, and output formats.
 *   **PDF Output**: All worksheets are generated as high-quality PDF files, ready for printing.
 *   **Answer Options**: Include answers at the bottom of the page, merge answer files, or output raw problem data to CSV for further analysis.
@@ -133,7 +133,7 @@ python3 nuts_calc_tex.py A4 ope -o div --remainder --out-file division-remainder
 ```
 
 Use `--with-name-field` to print a `Name: ___` line in the page header (a
-common setting shared across all twelve commands, not just `ope`). Since plain
+common setting shared across all fifteen commands, not just `ope`). Since plain
 `pdflatex` has no CJK font support, the label is rendered as English `Name:`
 rather than the Japanese `なまえ：`, matching the existing `Date:`/`Time:`
 labels.
@@ -226,7 +226,7 @@ The repository is organized as `backend/` + `frontend/{spa,web}`, so the Flask b
 *   **Web UI**: a frontend (`frontend/spa`, a React SPA, or `frontend/web`, a lightweight static multi-page site) → Flask backend (`backend/app.py`) → `backend/renderers.py` → `subprocess` call to `nuts_calc.py` (default) or `nuts_calc_tex.py` (via `NUTS_CALC_RENDERER=latex`) → generated PDF is streamed back to the browser. The backend holds no drill-generation logic of its own; it only translates form input into CLI arguments shared by both renderers. Both frontends call the same two endpoints (`POST /generate-pdf`, `GET /renderer-info`) and duplicate the same handful of pure data/logic modules (`drillPresets.js`/`drillCatalog.js`/`verticalLayout.js`) rather than sharing a package, since a future repo split was anticipated.
 *   **Batch**: `backend/factory.sh` is a third, batch-oriented entry point that calls `nuts_calc.py` repeatedly to populate a `dist/` directory with a fixed set of worksheets.
 
-**Experimental**: `nuts_calc_tex.py` is independent from ReportLab and implements twelve commands: the seven ReportLab-compatible commands plus the LaTeX-only `frac`, `mixed`, `compare`, `lcm`, and `gcd` commands. It also owns decimal, written-calculation, and carry-aware drill behavior. Web cards using these features are renderer-gated because `nuts_calc.py` does not implement them. See `docs/L3_implementation/backend/nuts_calc_tex.py.md`.
+**Experimental**: `nuts_calc_tex.py` is independent from ReportLab and implements fifteen commands: the seven ReportLab-compatible commands, the LaTeX-only `frac`, `mixed`, and `compare` commands, the LaTeX-only `evenodd`, `multiples`, and `divisors` number-property commands, and the LaTeX-only `lcm` and `gcd` pair-number commands. It also owns decimal, written-calculation, and carry-aware drill behavior. Web cards using these features are renderer-gated because `nuts_calc.py` does not implement them. See `docs/L3_implementation/backend/nuts_calc_tex.py.md`.
 
 See `docs/L1_project/project_overview.md` and `docs/L0_concept/concept.md` for the full breakdown and file/line references.
 
