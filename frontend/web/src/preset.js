@@ -1,6 +1,6 @@
 import './styles/main.scss';
 import { t } from './strings.js';
-import { buildDrillCatalog } from './drillCatalog.js';
+import { GRADES, UNGRADED, presetsByGrade } from './drillPresets.js';
 import { mountPresetDetail } from './presetDetail.js';
 import { mountNavShell } from './navShell.js';
 
@@ -8,11 +8,26 @@ const API_BASE = 'http://127.0.0.1:5000';
 
 mountNavShell();
 
+function canUseItem(item, renderer) {
+  return !item.latexOnly || renderer === 'latex';
+}
+
+// Item ids are unique across the whole data model (drillPresets.test.js),
+// so a plain id search doesn't need the URL's grade to disambiguate.
+function findItemById(drillId, renderer) {
+  for (const gradeKey of [...GRADES, UNGRADED]) {
+    for (const items of Object.values(presetsByGrade[gradeKey])) {
+      const item = items.find((candidate) => candidate.id === drillId);
+      if (item && canUseItem(item, renderer)) return item;
+    }
+  }
+  return null;
+}
+
 async function findPreset() {
   const params = new URLSearchParams(location.search);
   const grade = params.get('grade');
   const drillId = params.get('drillId');
-  const format = params.get('format');
 
   let activeRenderer = 'reportlab';
   try {
@@ -22,10 +37,8 @@ async function findPreset() {
     activeRenderer = 'reportlab';
   }
 
-  const catalog = buildDrillCatalog(activeRenderer);
-  const drill = catalog.find((candidate) => candidate.id === drillId);
-  const preset = drill?.presets[format];
-  return preset ? { grade, preset } : null;
+  const item = findItemById(drillId, activeRenderer);
+  return item ? { grade, item } : null;
 }
 
 const container = document.getElementById('detail');
