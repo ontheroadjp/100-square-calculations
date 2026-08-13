@@ -6,38 +6,6 @@
   margin: 0 0 8px;
 }
 
-.grade-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-  margin-bottom: 24px;
-  border-bottom: 1px solid $color-border-light;
-  padding-bottom: 16px;
-}
-
-.grade-link {
-  background: none;
-  border: none;
-  padding: 8px 0;
-  min-height: 44px;
-  font-size: 1rem;
-  font-weight: 500;
-  color: $color-primary;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-
-  &:hover {
-    color: $color-primary-hover;
-  }
-
-  &.active {
-    color: $color-primary-hover;
-    font-weight: 700;
-    text-decoration-thickness: 2px;
-  }
-}
-
 .preset-card-number-input {
   display: flex;
   align-items: center;
@@ -52,26 +20,6 @@
     width: 72px;
     padding: 8px;
     border: 1px solid $color-border;
-  }
-}
-
-.drill-search {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 16px;
-
-  label {
-    font-size: 0.875rem;
-    font-weight: 600;
-  }
-
-  input {
-    min-height: 44px;
-    box-sizing: border-box;
-    border: 1px solid #cbd5e1;
-    padding: 8px 12px;
-    font: inherit;
   }
 }
 
@@ -142,10 +90,6 @@
   @media (min-width: 600px) {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
-}
-
-.custom-generator {
-  margin-top: 8px;
 }
 
 .preset-detail {

@@ -1,0 +1,124 @@
+@use 'base' as *;
+
+$nav-bottom-height: 64px;
+$nav-sidebar-width: 220px;
+$breakpoint-desktop: 768px;
+
+.bottom-tab-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  height: $nav-bottom-height;
+  background: #fff;
+  border-top: 1px solid $color-border-light;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+
+  @media (min-width: $breakpoint-desktop) {
+    display: none;
+  }
+}
+
+.pc-sidebar {
+  display: none;
+
+  @media (min-width: $breakpoint-desktop) {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: $nav-sidebar-width;
+    background: #fff;
+    border-right: 1px solid $color-border-light;
+    padding: $space-lg $space-md;
+    box-sizing: border-box;
+    gap: $space-xs;
+    z-index: 10;
+  }
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  padding: $space-sm 0;
+  margin-bottom: $space-lg;
+  color: $color-primary;
+  font-size: $font-size-lg;
+  font-weight: 700;
+  text-decoration: none;
+
+  svg {
+    flex-shrink: 0;
+  }
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  font: inherit;
+  color: $color-text-muted;
+  text-decoration: none;
+  cursor: pointer;
+
+  span {
+    font-size: 0.7rem;
+    font-weight: 500;
+  }
+
+  &.active {
+    color: $color-primary;
+  }
+
+  &:disabled {
+    color: $color-disabled;
+    cursor: not-allowed;
+  }
+}
+
+.tab-item {
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-item {
+  flex: 0 0 auto;
+  justify-content: flex-start;
+  gap: $space-sm;
+  padding: $space-sm $space-md;
+  border-radius: $radius-sm;
+  width: 100%;
+  box-sizing: border-box;
+
+  span {
+    font-size: $font-size-base;
+    font-weight: 500;
+  }
+
+  &.active {
+    background: #eff6ff;
+    font-weight: 700;
+  }
+
+  &:hover:not(:disabled) {
+    background: #f3f4f6;
+  }
+}
+
+body {
+  @media (max-width: #{$breakpoint-desktop - 1px}) {
+    padding-bottom: $nav-bottom-height;
+  }
+
+  @media (min-width: $breakpoint-desktop) {
+    padding-left: $nav-sidebar-width;
+  }
+}

@@ -65,7 +65,7 @@ npm install
 npm run dev      # http://localhost:5174 等(5173が使用中の場合は自動で別ポート)
 ```
 
-`npm run build` は Vite のマルチページビルド(`vite.config.js` の `build.rollupOptions.input` に4つの `.html` を列挙)で `dist/index.html`/`catalog.html`/`preset.html`/`custom.html` を出力する。2026-08-12 に実機確認済み(成功)。`package.json` の devDependencies は `vite`/`sass` のみで、React・i18next 系は含まない。`lint` スクリプトは定義されていない。
+`npm run build` は Vite のマルチページビルド(`vite.config.js` の `build.rollupOptions.input` に3つの `.html` を列挙。`custom.html` entry は issue #97 で削除)で `dist/index.html`/`catalog.html`/`preset.html` を出力する。2026-08-13 に実機確認済み(成功)。`package.json` の devDependencies は `vite`/`sass` のみで、React・i18next 系は含まない。`lint` スクリプトは定義されていない。
 
 ## `nuts_calc_tex.py`(実験的LaTeXプロトタイプ)のセットアップと実行
 

@@ -1,11 +1,10 @@
 import './styles/main.scss';
 import { t } from './strings.js';
-import { GRADES, UNGRADED } from './drillPresets.js';
-import {
-  addSearchText,
-  buildDrillCatalog,
-  filterDrillCatalog,
-} from './drillCatalog.js';
+import { UNGRADED } from './drillPresets.js';
+import { buildDrillCatalog, filterDrillCatalog } from './drillCatalog.js';
+import { mountNavShell } from './navShell.js';
+
+mountNavShell();
 
 const API_BASE = 'http://127.0.0.1:5000';
 const NUMBER_TYPE_GROUPS = {
@@ -90,13 +89,11 @@ function numberTypeCatalogHtml(catalog, numberType, context) {
 
 async function render() {
   const params = new URLSearchParams(location.search);
-  const query = params.get('q') ?? '';
   const numberType = params.get('numberType') || null;
   const grade = parseGrade(params.get('grade'));
   const level = params.get('level') || null;
   const forms = params.getAll('forms');
 
-  document.getElementById('drillSearch').value = query;
   document.querySelector('[name="numberType"]').value = numberType ?? '';
   document.querySelector('[name="grade"]').value = grade ?? '';
   document.querySelector('[name="level"]').value = level ?? '';
@@ -109,10 +106,10 @@ async function render() {
     activeRenderer = 'reportlab';
   }
 
-  const catalog = addSearchText(buildDrillCatalog(activeRenderer), t);
-  const filteredDrills = filterDrillCatalog(catalog, { numberType, forms, grade, level, query });
-  const availableNumberTypeDrills = filterDrillCatalog(catalog, { numberType, grade, level, query });
-  const inNumberTypeView = Boolean(numberType) && !query.trim();
+  const catalog = buildDrillCatalog(activeRenderer).filter((drill) => drill.grade !== UNGRADED);
+  const filteredDrills = filterDrillCatalog(catalog, { numberType, forms, grade, level });
+  const availableNumberTypeDrills = filterDrillCatalog(catalog, { numberType, grade, level });
+  const inNumberTypeView = Boolean(numberType);
   const context = { inNumberTypeView, numberType, forms, level };
 
   const formatFilterFieldset = document.getElementById('formatFilter');
