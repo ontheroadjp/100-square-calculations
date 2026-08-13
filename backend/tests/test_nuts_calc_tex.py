@@ -1,17 +1,20 @@
 """End-to-end regression tests for nuts_calc_tex.py (Phase 1 foundation #20;
 `ope` command Phase 2 #21; `com` command Phase 3 #22; `99` command Phase 5
 #24; `aBc` command Phase 6 #25; `squ` command Phase 7 #26; `pi` command
-Phase 8 #27; fraction arithmetic #65; `ope --use-parentheses` #67; and
-`ope --missing-value` #69).
+Phase 8 #27; fraction arithmetic #65; `ope --use-parentheses` #67;
+`ope --missing-value` #69; and `evenodd`/`multiples`/`divisors` #94).
 
 nuts_calc_tex.py has zero code dependency on nuts_calc.py, so these tests
 run it as a real subprocess, independent of tests/test_nuts_calc_cli.py.
 All tests are skipped when `pdflatex` is not on PATH, since this module
-requires a LaTeX distribution. Pure-Python `ope`/`com`/`99`/`aBc`/`squ`/`pi`
-generation logic that doesn't need pdflatex is covered separately in
-test_nuts_calc_tex_ope_generation.py, test_nuts_calc_tex_com_generation.py,
-test_nuts_calc_tex_kuku_generation.py, test_nuts_calc_tex_abc_generation.py,
-test_nuts_calc_tex_squ_generation.py, and test_nuts_calc_tex_pi_generation.py.
+requires a LaTeX distribution. Pure-Python `ope`/`com`/`99`/`aBc`/`squ`/`pi`/
+`evenodd`/`multiples`/`divisors` generation logic that doesn't need pdflatex
+is covered separately in test_nuts_calc_tex_ope_generation.py,
+test_nuts_calc_tex_com_generation.py, test_nuts_calc_tex_kuku_generation.py,
+test_nuts_calc_tex_abc_generation.py, test_nuts_calc_tex_squ_generation.py,
+test_nuts_calc_tex_pi_generation.py, test_nuts_calc_tex_evenodd_generation.py,
+test_nuts_calc_tex_multiples_generation.py, and
+test_nuts_calc_tex_divisors_generation.py.
 """
 
 import shutil
@@ -1023,6 +1026,98 @@ def test_cli_pi_csv_rows_contain_real_problem_data(run_tex_cli, tmp_path):
     page_number, index, a, c = lines[0].split(",")
     assert (page_number, index, a) == ("1", "1", "3")
     assert round(int(a) * 3.14, 2) == float(c)
+
+
+def test_cli_evenodd_produces_blank_and_filled_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "evenodd", "-r", "3", "-c", "2", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+def test_cli_evenodd_with_bottom_answer_produces_pdf(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "evenodd", "-r", "3", "-c", "2", "-ww", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
+def test_cli_evenodd_csv_rows_contain_real_problem_data(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "evenodd", "--a-min", "1", "--a-max", "9", "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+
+    csv_path = tmp_path / "result.csv"
+    lines = csv_path.read_text().strip().splitlines()
+    assert len(lines) == 4  # rows * columns
+    page_number, index, a, label = lines[0].split(",")
+    assert (page_number, index) == ("1", "1")
+    assert 1 <= int(a) <= 9
+    assert label == ("even" if int(a) % 2 == 0 else "odd")
+
+
+def test_cli_multiples_produces_blank_and_filled_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "multiples", "-r", "3", "-c", "2", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+def test_cli_multiples_with_bottom_answer_produces_pdf(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "multiples", "-r", "3", "-c", "2", "-ww", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
+def test_cli_multiples_count_controls_list_length(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "multiples", "--a-min", "6", "--a-max", "6", "--multiples-count", "3",
+        "-r", "1", "-c", "1", "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+
+    csv_path = tmp_path / "result.csv"
+    page_number, index, a, multiples = csv_path.read_text().strip().split(",")
+    assert (page_number, index, a) == ("1", "1", "6")
+    assert multiples == "6 12 18"
+
+
+def test_cli_multiples_count_rejected_for_other_commands(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "squ", "-a", "3", "--multiples-count", "3", "--out-file", "result.pdf")
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_divisors_produces_blank_and_filled_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "divisors", "-r", "3", "-c", "2", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+def test_cli_divisors_with_bottom_answer_produces_pdf(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "divisors", "-r", "3", "-c", "2", "-ww", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
+def test_cli_divisors_csv_rows_contain_real_problem_data(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "divisors", "--a-min", "12", "--a-max", "12",
+        "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+
+    csv_path = tmp_path / "result.csv"
+    lines = csv_path.read_text().strip().splitlines()
+    assert len(lines) == 4  # rows * columns
+    page_number, index, a, divisors = lines[0].split(",")
+    assert (page_number, index, a) == ("1", "1", "12")
+    assert divisors == "1 2 3 4 6 12"
+
+
+def test_cli_divisors_rejects_a_min_below_one(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "divisors", "--a-min", "0", "--out-file", "result.pdf")
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
 
 
 def test_cli_frac_produces_blank_and_filled_pdfs(run_tex_cli, tmp_path):
