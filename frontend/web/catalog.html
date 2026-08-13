@@ -14,42 +14,7 @@
 
       <main class="main-content">
         <div class="grade-drills">
-          <form method="get" action="catalog.html" id="filterForm">
-            <div class="drill-filter-bar" aria-label="ドリルの絞り込み">
-              <select name="numberType" aria-label="数の種類で絞り込む">
-                <option value="">すべての数の種類</option>
-                <option value="integers">整数</option>
-                <option value="decimals">小数</option>
-                <option value="fractions">分数</option>
-                <option value="mixed">混合</option>
-              </select>
-              <select name="grade" aria-label="学年を選択">
-                <option value="">すべての学年</option>
-                <option value="1">1年生</option>
-                <option value="2">2年生</option>
-                <option value="3">3年生</option>
-                <option value="4">4年生</option>
-                <option value="5">5年生</option>
-                <option value="6">6年生</option>
-              </select>
-              <select name="level" aria-label="レベルで絞り込む">
-                <option value="">すべてのレベル</option>
-                <option value="basic">基本</option>
-                <option value="standard">標準</option>
-                <option value="advanced">発展</option>
-                <option value="exam-prep">中学受験</option>
-              </select>
-              <button type="submit" class="filter-reset">絞り込む</button>
-            </div>
-            <fieldset class="format-filter" id="formatFilter" aria-label="問題の形式" hidden>
-              <legend>問題の形式</legend>
-              <div id="formatFilterOptions"></div>
-              <button type="submit" class="filter-reset">絞り込む</button>
-            </fieldset>
-          </form>
-          <a class="filter-reset" href="catalog.html">絞り込みをクリア</a>
-
-          <div id="results"></div>
+          <div id="catalog"></div>
         </div>
       </main>
     </div>

@@ -1,102 +1,79 @@
 import './styles/main.scss';
 import { t } from './strings.js';
-import { UNGRADED } from './drillPresets.js';
-import { buildDrillCatalog, filterDrillCatalog } from './drillCatalog.js';
+import { GRADES, presetsByGrade } from './drillPresets.js';
 import { mountNavShell } from './navShell.js';
 
 mountNavShell();
 
 const API_BASE = 'http://127.0.0.1:5000';
-const NUMBER_TYPE_GROUPS = {
-  integers: ['addition-subtraction', 'multiplication-division', 'four-operations'],
-  decimals: ['addition-subtraction', 'multiplication-division', 'four-operations'],
-  fractions: ['addition-subtraction', 'multiplication-division', 'comparison'],
+
+// Matches the doc's たし算/ひき算/かけ算/わり算/... ordering
+// (docs/uiux/calculation_drill_menu_parameters_v1.md). Object key order in
+// drillPresets.js's presetsByGrade varies per grade (e.g. grade4 lists
+// division before addition), so section order is driven by this fixed list
+// rather than Object.keys() insertion order.
+const CATEGORY_ORDER = [
+  'addition', 'subtraction', 'multiplication', 'division',
+  'fraction', 'four-operations', 'number-sense',
+];
+
+const DIFFICULTY_BADGE_CLASS = {
+  difficulty_basic: 'badge-basic',
+  difficulty_standard: 'badge-standard',
+  difficulty_basic_standard: 'badge-standard',
 };
-const INTEGER_FORMAT_FILTERS = ['parentheses', 'missing-value'];
 
-function parseGrade(raw) {
-  if (!raw) return null;
-  return raw === UNGRADED ? UNGRADED : Number(raw);
+function canUseItem(item, renderer) {
+  return !item.latexOnly || renderer === 'latex';
 }
 
-function catalogHref({ numberType = null, grade = null, level = null, forms = [] } = {}) {
-  const params = new URLSearchParams();
-  if (numberType) params.set('numberType', numberType);
-  if (grade !== null && grade !== undefined) params.set('grade', grade);
-  if (level) params.set('level', level);
-  forms.forEach((form) => params.append('forms', form));
-  const query = params.toString();
-  return query ? `catalog.html?${query}` : 'catalog.html';
+// Renders examples ("625+75") with spaces around the operator for
+// readability, matching docs/uiux/wireframe_v1.png ("625 + 75"). Arrows in
+// number-sense examples ("37 → 奇数") already carry their own spacing.
+function formatExample(example) {
+  return example.replace(/([+\-×÷])/g, ' $1 ').replace(/\s+/g, ' ').trim();
 }
 
-function drillCardHtml(drill, { inNumberTypeView, numberType, forms, level }) {
-  const formats = Object.entries(drill.presets);
-  const gradeHref = catalogHref(inNumberTypeView
-    ? { numberType, forms, grade: drill.grade, level }
-    : { grade: drill.grade, level });
-  const levelHref = catalogHref(inNumberTypeView
-    ? { numberType, forms, grade: drill.grade, level: drill.level }
-    : { grade: drill.grade, level: drill.level });
-
+function drillCardHtml(grade, item) {
+  const badgeClass = DIFFICULTY_BADGE_CLASS[item.difficultyKey] ?? 'badge-standard';
+  const example = item.examples[0];
   return `
-    <article class="preset-card">
-      <div class="drill-badges">
-        <a class="drill-badge grade-badge" href="${gradeHref}">${t(`grade_${drill.grade}`)}</a>
-        <a class="drill-badge level-badge" href="${levelHref}">${t(`level_${drill.level}`)}</a>
+    <a class="drill-list-card" href="preset.html?grade=${grade}&drillId=${encodeURIComponent(item.id)}&format=default">
+      <div class="drill-list-card-heading">
+        <h3 class="drill-list-card-title">${t(item.titleKey)}</h3>
+        <span class="drill-badge ${badgeClass}">${t(item.difficultyKey)}</span>
       </div>
-      <h3 class="preset-card-title">${t(drill.titleKey)}</h3>
-      <p class="preset-card-desc">${t(drill.descKey)}</p>
-      <div class="drill-card-actions">
-        ${formats.map(([format]) => `
-          <a class="preset-download-button" href="preset.html?grade=${drill.grade}&drillId=${encodeURIComponent(drill.id)}&format=${format}">
-            ${formats.length > 1 ? t(`format_${format}`) : t('generate_pdf')}
-          </a>
-        `).join('')}
-      </div>
-    </article>
+      ${example ? `<p class="drill-list-card-example">${t('example_prefix')}${formatExample(example)}</p>` : ''}
+    </a>
   `;
 }
 
-function drillGridHtml(drills, context) {
-  if (drills.length === 0) return `<p class="drill-empty-state">${t('no_drills_found')}</p>`;
-  return `<div class="preset-card-grid">${drills.map((drill) => drillCardHtml(drill, context)).join('')}</div>`;
+function categorySectionHtml(grade, category, items) {
+  return `
+    <section class="category-section">
+      <h2 class="category-heading">${t(`category_${category}`)}</h2>
+      <div class="drill-list">${items.map((item) => drillCardHtml(grade, item)).join('')}</div>
+    </section>
+  `;
 }
 
-function numberTypeCatalogHtml(catalog, numberType, context) {
-  const groups = NUMBER_TYPE_GROUPS[numberType];
-  const groupsHtml = groups
-    ? groups.map((group) => {
-      const drills = catalog.filter((drill) => drill.operationGroup === group);
-      if (drills.length === 0) return '';
-      return `
-        <section class="number-type-section">
-          <h2>${t(`operation_group_${group}`)}</h2>
-          <p>${t(`operation_group_${group}_desc`)}</p>
-          ${drillGridHtml(drills, context)}
-        </section>
-      `;
-    }).join('')
-    : drillGridHtml(catalog, context);
-
+function emptyStateHtml() {
   return `
-    <header class="number-type-header">
-      <h1>${t(`number_type_${numberType}`)}</h1>
-      <p>${t(`number_type_${numberType}_intro`)}</p>
-    </header>
-    ${groupsHtml}
+    <p class="drill-empty-state">${t('no_drills_found')}</p>
+    <a class="back-button" href="index.html">${t('back')}</a>
   `;
 }
 
 async function render() {
   const params = new URLSearchParams(location.search);
-  const numberType = params.get('numberType') || null;
-  const grade = parseGrade(params.get('grade'));
-  const level = params.get('level') || null;
-  const forms = params.getAll('forms');
+  const gradeParam = Number(params.get('grade'));
+  const grade = GRADES.includes(gradeParam) ? gradeParam : null;
+  const container = document.getElementById('catalog');
 
-  document.querySelector('[name="numberType"]').value = numberType ?? '';
-  document.querySelector('[name="grade"]').value = grade ?? '';
-  document.querySelector('[name="level"]').value = level ?? '';
+  if (grade === null) {
+    container.innerHTML = emptyStateHtml();
+    return;
+  }
 
   let activeRenderer = 'reportlab';
   try {
@@ -106,34 +83,25 @@ async function render() {
     activeRenderer = 'reportlab';
   }
 
-  const catalog = buildDrillCatalog(activeRenderer).filter((drill) => drill.grade !== UNGRADED);
-  const filteredDrills = filterDrillCatalog(catalog, { numberType, forms, grade, level });
-  const availableNumberTypeDrills = filterDrillCatalog(catalog, { numberType, grade, level });
-  const inNumberTypeView = Boolean(numberType);
-  const context = { inNumberTypeView, numberType, forms, level };
+  const categories = presetsByGrade[grade];
+  const sections = CATEGORY_ORDER
+    .filter((category) => categories[category])
+    .map((category) => ({
+      category,
+      items: categories[category].filter((item) => canUseItem(item, activeRenderer)),
+    }))
+    .filter(({ items }) => items.length > 0);
 
-  const formatFilterFieldset = document.getElementById('formatFilter');
-  if (inNumberTypeView && numberType === 'integers') {
-    const availableForms = INTEGER_FORMAT_FILTERS.filter((form) => availableNumberTypeDrills.some((drill) => drill.forms.includes(form)));
-    if (availableForms.length > 0) {
-      document.getElementById('formatFilterOptions').innerHTML = availableForms.map((form) => `
-        <label>
-          <input type="checkbox" name="forms" value="${form}" ${forms.includes(form) ? 'checked' : ''}>
-          ${t(`form_${form}`)}
-        </label>
-      `).join('');
-      formatFilterFieldset.hidden = false;
-    } else {
-      formatFilterFieldset.hidden = true;
-    }
-  } else {
-    formatFilterFieldset.hidden = true;
-  }
-
-  const results = document.getElementById('results');
-  results.innerHTML = inNumberTypeView
-    ? numberTypeCatalogHtml(filteredDrills, numberType, context)
-    : drillGridHtml(filteredDrills, context);
+  container.innerHTML = `
+    <header class="catalog-header">
+      <a class="back-button" href="index.html">${t('back')}</a>
+      <h1 class="catalog-heading">${t(`grade_full_${grade}`)}</h1>
+      <p class="category-picker-heading">${t('category_picker_heading')}</p>
+    </header>
+    ${sections.length > 0
+      ? sections.map(({ category, items }) => categorySectionHtml(grade, category, items)).join('')
+      : emptyStateHtml()}
+  `;
 }
 
 render();

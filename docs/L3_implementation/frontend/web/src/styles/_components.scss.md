@@ -10,6 +10,10 @@
 
 issue #97 で `custom.html`/`src/customGenerator.js` を削除した際、それらだけが使っていた `.form-layout`/`.form-grid`/`.checkbox-group`/`.checkbox-grid`/`.required-text`/`.optional-text`/`.submit-button-container`/`.submit-button`/`.tab-nav`/`.tab-pane`/`.no-pdf-message`/`.result-display`/`.download-button`/`.error-message` を削除した(他ファイルでの参照がないことを `grep` で確認済み)。
 
+issue #99 で `catalog.js` の学年別カテゴリ画面用に以下を追加した:
+- `.badge-basic`/`.badge-standard`(`item.difficultyKey` に対応する基礎/標準バッジの配色。`difficulty_basic_standard` は `.badge-standard` を流用)
+- `.drill-list-card`/`.drill-list-card-heading`/`.drill-list-card-title`/`.drill-list-card-example`(カテゴリ内のドリルカード。カード全体が `<a>` のクリッカブル領域)
+
 ## 統合ポイント
 
 - 呼び出し元: `main.scss`(`@use 'components'`)。
@@ -17,9 +21,11 @@ issue #97 で `custom.html`/`src/customGenerator.js` を削除した際、それ
 
 ## 注意事項・既知の制限
 
-- [[./main.scss]] と同じく、`frontend/spa/src/App.css` からの追従コピーが必要な保守対象。`customGenerator.js` 専用だった上記クラスは issue #97 で削除済みのため、`App.css` 側に対応クラスが残っていても本ファイルには追従しない。
+- [[./main.scss]] と同じく、`frontend/spa/src/App.css` からの追従コピーが必要な保守対象。`customGenerator.js` 専用だった上記クラスは issue #97 で削除済みのため、`App.css` 側に対応クラスが残っていても本ファイルには追従しない。issue #99 で追加した `.badge-basic`/`.badge-standard`/`.drill-list-card*` は `frontend/web` 固有(`frontend/spa` に対応UIなし)のため、同様に追従コピー対象外。
+- 旧絞り込みグリッド用の `.drill-start-card`/`.filter-reset`/`.format-filter` セレクタ、旧カタロググリッド用の `.preset-card`/`.preset-card-grid`/`.preset-card-title`/`.preset-card-desc`/`.level-badge` セレクタは issue #99 で `index.html`/`catalog.html` からの参照元マークアップを削除し、現在参照元がない(`.preset-card-error` は `presetDetail.js` が引き続き使用、`.drill-badge` は `catalog.js` の新バッジ実装が基底クラスとして引き続き使用)。スタイル定義自体は削除していない(削除の要否は範囲外と判断)。
 
 ## 変更履歴(git log より自動生成)
 
-- b11ac96 feat(#97): rebuild frontend/web nav shell and design tokens, remove custom generator/search/ungraded UI
+- f111bd7 feat(#99): rebuild frontend/web top and catalog screens to match wireframe screens 1-2
+- 8007488 #97 frontend/web: rebuild nav shell, design tokens, and remove legacy features (#109)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)
