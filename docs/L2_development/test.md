@@ -68,7 +68,7 @@ npm run build
 | `frontend/spa` `node --test ...`(3ファイル) | 17 passed |
 | `cd frontend/spa && npm run build` | 成功 |
 | `cd frontend/spa && npm run lint` | 1失敗: `frontend/spa/src/drillPresets.js:433` の全角空白を `no-irregular-whitespace` が拒否(issue #88 以前から継続する既知の指摘。行番号はプリセット追加により `:363` から変化) |
-| `cd frontend/web && npm run build` | 成功(4 HTML エントリ: `index.html`/`catalog.html`/`preset.html`/`custom.html`) |
+| `cd frontend/web && npm run build` | 成功(3 HTML エントリ: `index.html`/`catalog.html`/`preset.html`。`custom.html` は issue #97 で削除) |
 
 9件の pytest 失敗は `exit()` の `SystemExit(None)` を期待するが、実装は issue #37 で `exit(1)` に修正済みである(`backend/tests/test_nuts_calc_init.py`、`backend/nuts_calc.py`)。したがって stale な期待値であり、現行実装の不具合とは判定しない。
 

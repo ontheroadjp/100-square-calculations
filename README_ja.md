@@ -10,7 +10,7 @@
 *   **解答オプション**: ページ下部に解答を含めたり、解答ファイルを結合したり、さらなる分析のために生の問題データをCSVに出力したりできます。
 *   **自動一括生成**: `factory.sh`スクリプトは、事前に設定された様々なワークシートを自動で生成し、構造化された出力ディレクトリ (`dist/`) を作成します。
 *   **学年別・中学受験準備プリセット**: Web UIは1〜6年生のカードを提供します。LaTeXレンダラーでは、1年生に繰り上がり・繰り下がり条件で分けた加算2・減算2・混合2の6カード、4〜6年生に中学受験準備27カードを追加します。
-*   **独立した2つのWeb UIフロントエンド**: `frontend/spa` は英語/日本語切替対応の React SPA です。`frontend/web` は日本語のみに対応した、HTML/CSS(Sass)/JSのみ(React・i18nライブラリ不要)の軽量な静的サイト実装で、同じドリルカタログ・カスタム生成機能を提供します。いずれも同じ Flask バックエンドを利用します。
+*   **独立した2つのWeb UIフロントエンド**: `frontend/spa` は英語/日本語切替対応の React SPA です。`frontend/web` は日本語のみに対応した、HTML/CSS(Sass)/JSのみ(React・i18nライブラリ不要)の軽量な静的サイト実装で、ドリルカタログの閲覧機能を提供します。いずれも同じ Flask バックエンドを利用します。
 
 ## セットアップ
 ReportLab版にはPython 3、Web UIにはさらにFlask、Flask-Cors、Node.js、npmが必要です。`nuts_calc_tex.py` または `NUTS_CALC_RENDERER=latex` を使う場合は `pdflatex` を含むLaTeX環境も必要です。Python側には `requirements.txt`/`pyproject.toml`/`setup.py` がないため、依存関係は手動で導入します。

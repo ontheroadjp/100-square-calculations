@@ -12,7 +12,7 @@ For the pedagogical background behind the drills (the mental-arithmetic techniqu
 *   **Answer Options**: Include answers at the bottom of the page, merge answer files, or output raw problem data to CSV for further analysis.
 *   **Automated Batch Generation**: The `factory.sh` script provides an automated way to generate a wide variety of pre-configured worksheets.
 *   **Grade and exam-prep presets**: The Web UI groups drills by grades 1-6. With the LaTeX renderer, grade 1 has six addition/subtraction cards split by carrying/borrowing conditions, and grades 4-6 add 27 entrance-exam-prep presets (three stages and three levels per grade).
-*   **Two independent Web UI frontends**: `frontend/spa` is a React SPA with English/Japanese language switching. `frontend/web` is a lightweight, Japanese-only, static multi-page implementation (plain HTML/CSS(Sass)/JS, no React or i18n library) offering the same drill-catalog and custom-generation features. Both talk to the same Flask backend.
+*   **Two independent Web UI frontends**: `frontend/spa` is a React SPA with English/Japanese language switching. `frontend/web` is a lightweight, Japanese-only, static multi-page implementation (plain HTML/CSS(Sass)/JS, no React or i18n library) offering drill-catalog browsing. Both talk to the same Flask backend.
 
 ## Installation
 To use the ReportLab generator, you need Python 3. The Web UI additionally needs Flask, Flask-Cors, Node.js, and npm. A LaTeX environment with `pdflatex` is required when using `nuts_calc_tex.py` or `NUTS_CALC_RENDERER=latex`.

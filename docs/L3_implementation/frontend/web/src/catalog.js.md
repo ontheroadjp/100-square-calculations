@@ -29,3 +29,8 @@
 ## 注意事項・既知の制限
 
 - 「問題の形式」絞り込みチェックボックス(`INTEGER_FORMAT_FILTERS`)は `numberType=integers` のときのみ表示する(検索語による分岐は issue #97 で検索UIごと撤去)。フォーム内に動的に注入する構造のため、`catalog.html` 側は空の `<fieldset id="formatFilter" hidden>` を用意しておき、JS が中身と `hidden` 属性を制御する。
+
+## 変更履歴(git log より自動生成)
+
+- b11ac96 feat(#97): rebuild frontend/web nav shell and design tokens, remove custom generator/search/ungraded UI
+- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

@@ -25,3 +25,7 @@
 ## 注意事項・既知の制限
 
 - グレード別カード色(`$color-grade-1`〜`6`、`_base.scss` で定義)はこのファイルでは未使用。グレード選択カード自体の再デザイン(issue #99)がこれらのトークンを消費する想定。
+
+## 変更履歴(git log より自動生成)
+
+- b11ac96 feat(#97): rebuild frontend/web nav shell and design tokens, remove custom generator/search/ungraded UI

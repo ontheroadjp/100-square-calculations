@@ -31,3 +31,7 @@ wireframe の「リピーターのホーム画面」(2回目以降の訪問者�
 
 - アクティブタブは常に「作る」固定で、引数によるアクティブタブ切り替えは実装していない(現状3ページとも同じ扱いのため、YAGNI により未対応)。将来リピーター向けホーム画面(issue #90 の後続issue)が追加された際に、`mountNavShell(activeTab)` のような形でパラメータ化が必要になる可能性がある。
 - `custom.html` 削除に伴い `CUSTOM_GRADE`(`drillPresets.js`)は `frontend/web` 側で完全に未使用になったが、`frontend/spa` との共有コピーのため削除していない([[./drillPresets.js]] 参照)。
+
+## 変更履歴(git log より自動生成)
+
+- b11ac96 feat(#97): rebuild frontend/web nav shell and design tokens, remove custom generator/search/ungraded UI

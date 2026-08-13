@@ -18,3 +18,8 @@
 ## 注意事項・既知の制限
 
 - `catalog.js` 側でカタログに存在しない `drillId`/`format` の組み合わせへのリンクは生成されないため、通常操作でこの「見つからない」経路に入ることはない。直接URLを編集してアクセスした場合のフォールバックとしてのみ機能する。
+
+## 変更履歴(git log より自動生成)
+
+- b11ac96 feat(#97): rebuild frontend/web nav shell and design tokens, remove custom generator/search/ungraded UI
+- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

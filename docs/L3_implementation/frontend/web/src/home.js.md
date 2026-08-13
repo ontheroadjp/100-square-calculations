@@ -24,3 +24,8 @@
 ## 注意事項・既知の制限
 
 - 検索フォーム(旧 `index.html` の `<form method="get" action="catalog.html">`)は issue #97 で削除済み(スコープ: カスタム生成フォーム・検索・無学年ドリルの導線を撤去)。
+
+## 変更履歴(git log より自動生成)
+
+- b11ac96 feat(#97): rebuild frontend/web nav shell and design tokens, remove custom generator/search/ungraded UI
+- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

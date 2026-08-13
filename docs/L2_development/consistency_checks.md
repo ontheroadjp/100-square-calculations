@@ -11,7 +11,7 @@ CI 定義が存在しないため、整合性はローカルで再現可能な�
 | Frontend(spa) tests | `node --test frontend/spa/src/drillPresets.test.js frontend/spa/src/drillCatalog.test.js frontend/spa/src/verticalLayout.test.js` | 17 passed |
 | Frontend(spa) build | `cd frontend/spa && npm run build` | 成功 |
 | Frontend(spa) lint | `cd frontend/spa && npm run lint` | 1失敗。`drillPresets.js:433` の全角空白を `no-irregular-whitespace` が拒否(既知、継続中) |
-| Frontend(web) build | `cd frontend/web && npm run build` | 成功。`dist/index.html`/`catalog.html`/`preset.html`/`custom.html` の4エントリを出力 |
+| Frontend(web) build | `cd frontend/web && npm run build` | 成功。`dist/index.html`/`catalog.html`/`preset.html` の3エントリを出力(`custom.html` は issue #97 で削除) |
 | API | ルートと renderer 変換をソース/pytest で照合 | `POST /generate-pdf` と `GET /renderer-info` の2本。`carry_mode` を含む backend テストは上記398件に含まれ成功 |
 | Web バックエンド実プロセス | `backend/app.py` を起動し `frontend/spa`・`frontend/web` の両方からブラウザで検証(issue #88) | ドリル検索・絞り込み・PDF生成/プレビュー/ダウンロード・カスタム生成フォームがいずれも正常動作。pytest による自動結合テストではなく手動確認 |
 

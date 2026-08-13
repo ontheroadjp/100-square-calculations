@@ -33,8 +33,7 @@
     "frontend/spa/src/main.jsx",
     "frontend/web/index.html",
     "frontend/web/catalog.html",
-    "frontend/web/preset.html",
-    "frontend/web/custom.html"
+    "frontend/web/preset.html"
   ],
   "primary_docs": {
     "investigation": "docs/L3_implementation/specification_summary.md",

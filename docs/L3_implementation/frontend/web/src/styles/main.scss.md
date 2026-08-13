@@ -29,3 +29,8 @@ issue #97 で4つ目のパーシャル `_navShell.scss`([[./navShell.scss]] 参�
 ## 注意事項・既知の制限
 
 - `frontend/spa/src/App.css` が更新された場合、本ファイル(および `_base`/`_components`/`_layout` の3パーシャル)は追従コピーが必要(issue #88 時点ではほぼ同一内容)。`_navShell.scss` は `App.css` に対応がないため対象外。
+
+## 変更履歴(git log より自動生成)
+
+- b11ac96 feat(#97): rebuild frontend/web nav shell and design tokens, remove custom generator/search/ungraded UI
+- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

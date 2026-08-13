@@ -19,3 +19,8 @@ issue #97 で `docs/uiux/wireframe_v1.png` に基づくデザイントークン�
 
 - [[./main.scss]] と同じく、`frontend/spa/src/App.css` からの追従コピーが必要な保守対象。
 - issue #97 で追加した `$color-grade-*` は本ファイル内では未使用(グレード選択カード自体の再デザインは issue #99 のスコープ)。`[[./navShell.scss]]` が `$space-*`/`$radius-*`/`$font-size-*` を消費している。
+
+## 変更履歴(git log より自動生成)
+
+- b11ac96 feat(#97): rebuild frontend/web nav shell and design tokens, remove custom generator/search/ungraded UI
+- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)
