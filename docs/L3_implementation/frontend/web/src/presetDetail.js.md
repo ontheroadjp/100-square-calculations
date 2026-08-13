@@ -17,7 +17,7 @@
 - `generatePdf()`: `item.buildParams(state.settingsState)` で request body の演算パラメータを得て、`POST /generate-pdf` を叩く。`isVerticalOperation(params)` が真の場合のみ `getVerticalRows`/`VERTICAL_COLUMNS` を使う(現行データモデルでは到達しない分岐だが、旧実装からの後方互換として維持)。成功時は `screen = 'done'` に遷移し、古い `pdfUrl` があれば `URL.revokeObjectURL()` で解放する。失敗時は `screen = 'settings'` に留まりエラーメッセージを表示する。
 - 完了画面(`screen === 'done'`): チェックマーク+静的CSS confetti、`buildSummaryParts()` によるサマリ文(例:「20問・基礎・繰り上がり：まぜる」)、4アクション(PDFを開く→`screen='preview'`、ダウンロードする→`<a download>`、同じ条件でもう1枚作る→`generatePdf()` 再実行、トップに戻る→`index.html`)。
 - プレビュー画面(`screen === 'preview'`): `<iframe src="${pdfUrl}#navpanes=0">`。ズーム等はブラウザ内蔵PDFビューアのツールバーに委ね、自前実装しない。戻る操作は `history.back()` ではなく `screen = 'done'` への内部遷移(ブラウザ履歴を消費しない)。
-- `layoutForProblemCount(problemCount)`・`buildSummaryParts(..., translate)` はエクスポートされた純粋関数。`buildSummaryParts` は `translate` を引数で受け取る設計にしており、`presetDetail.test.js`([[./presetDetail.test.js]] 参照。L3 doc化は見送り、`frontend/web` の既存 `drillPresets.test.js` にも個別docが無い慣例に合わせた)から `strings.ja.json` の実際の日本語文言に依存せずアサーションできる。
+- `layoutForProblemCount(problemCount)`・`buildSummaryParts(..., translate)` はエクスポートされた純粋関数。`buildSummaryParts` は `translate` を引数で受け取る設計にしており、`presetDetail.test.js`(L3 doc化は見送り、`frontend/web` の既存 `drillPresets.test.js` にも個別docが無い慣例に合わせた)から `strings.ja.json` の実際の日本語文言に依存せずアサーションできる。
 
 ## 重要な設計判断とその理由
 
