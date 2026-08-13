@@ -267,6 +267,26 @@ def test_build_command_omits_missing_value_when_false() -> None:
     assert "--missing-value" not in command
 
 
+def test_build_command_translates_with_name_field() -> None:
+    params = {
+        "paper_size": "A4",
+        "command_type": "ope",
+        "with_name_field": True,
+    }
+    command = renderers.build_command("latex", params, "out.pdf")
+    assert "--with-name-field" in command
+
+
+def test_build_command_omits_with_name_field_when_false() -> None:
+    params = {
+        "paper_size": "A4",
+        "command_type": "ope",
+        "with_name_field": False,
+    }
+    command = renderers.build_command("latex", params, "out.pdf")
+    assert "--with-name-field" not in command
+
+
 def test_build_command_translates_terms_params() -> None:
     params = {
         "paper_size": "A4",

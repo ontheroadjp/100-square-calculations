@@ -46,6 +46,7 @@ class RendererRequest(TypedDict, total=False):
     rows: int
     columns: int
     with_bottom_answer: bool
+    with_name_field: bool
     page: int
     merge: bool
     csv: bool
@@ -105,14 +106,15 @@ def build_command(renderer_name: str, params: RendererRequest, out_file: str) ->
     per-gap operator mixing, issue #71), and `--a-decimal-places`/
     `--b-decimal-places`/`--decimal-places`/`--a-kind`/`--b-kind` (decimal
     `ope` arithmetic and the `mixed` int/decimal/fraction command, issue
-    #76). This command-building logic still translates all of these params
-    unconditionally for both renderers; callers must only set them when the
-    active renderer is `latex` (see `GET /renderer-info`), otherwise
-    nuts_calc.py will reject the resulting CLI invocation as an unrecognized
-    argument. `carry_mode` is likewise translated to the LaTeX-only
-    `--carry-borrow`/`--no-carry-borrow`/`--mixed-carry-borrow` flags, and
-    `remainder_mode` to the LaTeX-only `--remainder`/`--no-remainder`/
-    `--mixed-remainder` flags (issue #91).
+    #76), and `with_name_field` (a name-entry line printed in the page
+    header, issue #93). This command-building logic still translates all of
+    these params unconditionally for both renderers; callers must only set
+    them when the active renderer is `latex` (see `GET /renderer-info`),
+    otherwise nuts_calc.py will reject the resulting CLI invocation as an
+    unrecognized argument. `carry_mode` is likewise translated to the
+    LaTeX-only `--carry-borrow`/`--no-carry-borrow`/`--mixed-carry-borrow`
+    flags, and `remainder_mode` to the LaTeX-only `--remainder`/
+    `--no-remainder`/`--mixed-remainder` flags (issue #91).
     """
     script_path = RENDERER_SCRIPTS[renderer_name]
     command = [sys.executable, str(script_path)]
@@ -207,6 +209,8 @@ def build_command(renderer_name: str, params: RendererRequest, out_file: str) ->
         command.extend(["--columns", str(params["columns"])])
     if params.get("with_bottom_answer"):
         command.append("--with-bottom-answer")
+    if params.get("with_name_field"):
+        command.append("--with-name-field")
     if "page" in params:
         command.extend(["--page", str(params["page"])])
     if params.get("merge"):
