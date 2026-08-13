@@ -308,8 +308,9 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴(git log より自動生成)
 
+- f164f35 feat(#96): add fraction/decimal conversion drill commands to nuts_calc_tex.py
+- a6c52f9 #95 nuts_calc_tex.py: add LCM and GCD pair-number drill commands (#107)
 - 3b25e73 #94 nuts_calc_tex.py: add evenodd/multiples/divisors number-property commands (#106)
-- 6f1dec4 feat(#95): add lcm and gcd pair-number drill commands to nuts_calc_tex.py
 - 26ec449 #93 nuts_calc_tex.py: add optional name field to generated worksheets (#105)
 - bd8f170 #92 nuts_calc_tex.py: fix borrow-required subtraction to respect configured digit range (#103)
 - eae5107 #91 nuts_calc_tex.py: add remainder control to division (none/required/mixed) (#102)
