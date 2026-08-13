@@ -13,7 +13,7 @@
 ## 統合ポイント
 
 - 呼び出し元: `preset.html` の `<script type="module" src="/src/preset.js">`。
-- 呼び出し先: `strings.js`(`t`)、`drillCatalog.js`(`buildDrillCatalog`)、`presetDetail.js`(`mountPresetDetail`)、`backend`(`GET /renderer-info`)。
+- 呼び出し先: `strings.js`(`t`)、`drillCatalog.js`(`buildDrillCatalog`)、`presetDetail.js`(`mountPresetDetail`)、`navShell.js`(`mountNavShell`、issue #97 で追加)、`backend`(`GET /renderer-info`)。
 
 ## 注意事項・既知の制限
 

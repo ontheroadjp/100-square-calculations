@@ -11,6 +11,31 @@ $color-error-bg: #fee2e2;
 $color-error-text: #b91c1c;
 $color-error-border: #fca5a5;
 
+// Per-grade card colors (docs/uiux/wireframe_v1.png). Not yet applied to
+// the grade-selection cards themselves (frontend/web content restyle is
+// issue #99) -- defined here so #99 can consume them directly.
+$color-grade-1: #f5a623;
+$color-grade-2: #34c759;
+$color-grade-3: #2563eb;
+$color-grade-4: #8b5cf6;
+$color-grade-5: #f43f5e;
+$color-grade-6: #06b6d4;
+
+$space-xs: 4px;
+$space-sm: 8px;
+$space-md: 16px;
+$space-lg: 24px;
+$space-xl: 32px;
+
+$radius-sm: 8px;
+$radius-md: 12px;
+$radius-pill: 999px;
+
+$font-size-sm: 0.875rem;
+$font-size-base: 1rem;
+$font-size-lg: 1.25rem;
+$font-size-xl: 1.5rem;
+
 html, body {
   margin: 0;
   padding: 0;

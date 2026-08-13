@@ -1,8 +1,12 @@
 import './styles/main.scss';
 import { t } from './strings.js';
 import { buildDrillCatalog, DRILL_FORMS } from './drillCatalog.js';
+import { mountNavShell } from './navShell.js';
+import { UNGRADED } from './drillPresets.js';
 
 const API_BASE = 'http://127.0.0.1:5000';
+
+mountNavShell();
 
 async function renderAvailableForms() {
   let activeRenderer = 'reportlab';
@@ -14,7 +18,7 @@ async function renderAvailableForms() {
     activeRenderer = 'reportlab';
   }
 
-  const catalog = buildDrillCatalog(activeRenderer);
+  const catalog = buildDrillCatalog(activeRenderer).filter((drill) => drill.grade !== UNGRADED);
   const availableForms = DRILL_FORMS.filter((form) => catalog.some((drill) => drill.forms.includes(form)));
   if (availableForms.length === 0) return;
 

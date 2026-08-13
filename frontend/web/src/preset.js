@@ -2,8 +2,11 @@ import './styles/main.scss';
 import { t } from './strings.js';
 import { buildDrillCatalog } from './drillCatalog.js';
 import { mountPresetDetail } from './presetDetail.js';
+import { mountNavShell } from './navShell.js';
 
 const API_BASE = 'http://127.0.0.1:5000';
+
+mountNavShell();
 
 async function findPreset() {
   const params = new URLSearchParams(location.search);

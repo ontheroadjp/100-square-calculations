@@ -6,8 +6,9 @@
 
 ## 動作の概要
 
-- `renderAvailableForms()`: `GET /renderer-info` を fetch して `activeRenderer` を確定し、`buildDrillCatalog(activeRenderer)` からその時点で1件以上ドリルが存在する `DRILL_FORMS` だけを抽出して `#formStartGrid` にリンク(`<a href="catalog.html?forms=...">`)として描画する。該当なしの場合はセクション自体(`#formSection`)を非表示のままにする。
-- 「数の種類から選ぶ」「学年から選ぶ」の2セクションはレンダラーに依存しない固定リンクのため、`index.html` に直接ハードコードされておりJSは関与しない。
+- モジュール読み込み時に `mountNavShell()`(issue #97 で追加)を呼び、モバイル下部タブバー/PCサイドバーを描画する。
+- `renderAvailableForms()`: `GET /renderer-info` を fetch して `activeRenderer` を確定し、`buildDrillCatalog(activeRenderer)` から `UNGRADED` 学年のエントリを除外したうえで、その時点で1件以上ドリルが存在する `DRILL_FORMS` だけを抽出して `#formStartGrid` にリンク(`<a href="catalog.html?forms=...">`)として描画する。該当なしの場合はセクション自体(`#formSection`)を非表示のままにする。
+- 「数の種類から選ぶ」「学年から選ぶ」の2セクションはレンダラーに依存しない固定リンクのため、`index.html` に直接ハードコードされておりJSは関与しない。「無学年」への固定リンクは issue #97 で削除済み。
 
 ## 重要な設計判断とその理由
 
@@ -18,8 +19,8 @@
 ## 統合ポイント
 
 - 呼び出し元: `index.html` の `<script type="module" src="/src/home.js">`。
-- 呼び出し先: `strings.js`(`t`)、`drillCatalog.js`(`buildDrillCatalog`/`DRILL_FORMS`)、`backend`(`GET /renderer-info`)。
+- 呼び出し先: `strings.js`(`t`)、`drillCatalog.js`(`buildDrillCatalog`/`DRILL_FORMS`)、`drillPresets.js`(`UNGRADED`)、`navShell.js`(`mountNavShell`、issue #97 で追加)、`backend`(`GET /renderer-info`)。
 
 ## 注意事項・既知の制限
 
-- 検索フォーム(`<form method="get" action="catalog.html">`)も `index.html` に静的に書かれており、送信は通常のブラウザGETナビゲーションに任せている(JSによる `preventDefault`/フェッチは行わない)。
+- 検索フォーム(旧 `index.html` の `<form method="get" action="catalog.html">`)は issue #97 で削除済み(スコープ: カスタム生成フォーム・検索・無学年ドリルの導線を撤去)。
