@@ -19,5 +19,5 @@ CLI レベル(`--a-fraction-form`/`--b-fraction-form` を `frac -o add`/`sub` �
 
 ## 変更履歴(git log より自動生成)
 
-- 9e296ee feat(#83): add fraction comparison worksheets
-- 7c89a52 feat(#65): add curriculum-aligned fraction worksheets
+- 80f5c5f feat(#112): add mixed-number (帯分数) support to nuts_calc_tex.py frac add/sub
+- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

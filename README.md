@@ -93,6 +93,16 @@ python3 nuts_calc_tex.py A4 frac \
   -o add sub --out-file fractions.pdf
 ```
 
+For a single `-o add` or `-o sub`, `--a-fraction-form` and `--b-fraction-form`
+independently select `proper` or `mixed` (mixed-number, e.g. `1 2/5`) operand
+forms, or randomized `mix`; answers `>= 1` render as mixed numbers too
+(`improper` is not supported for `frac`):
+
+```bash
+python3 nuts_calc_tex.py A4 frac -o add --same-denominator \
+  --a-fraction-form mixed --b-fraction-form mixed --out-file mixed-fractions.pdf
+```
+
 Grade 3-6 fraction cards appear only with `NUTS_CALC_RENDERER=latex`. The
 curriculum source used for their placement is preserved under `docs/reference/`.
 The same renderer exposes the grades 4-6 entrance-exam-prep section, which uses
