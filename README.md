@@ -132,6 +132,16 @@ Japanese "あまり" label.
 python3 nuts_calc_tex.py A4 ope -o div --remainder --out-file division-remainder.pdf
 ```
 
+Use `--with-name-field` to print a `Name: ___` line in the page header (a
+common setting shared across all ten commands, not just `ope`). Since plain
+`pdflatex` has no CJK font support, the label is rendered as English `Name:`
+rather than the Japanese `なまえ：`, matching the existing `Date:`/`Time:`
+labels.
+
+```bash
+python3 nuts_calc_tex.py A4 ope --with-name-field --out-file with-name.pdf
+```
+
 ### Batch Generation with `factory.sh`
 The `factory.sh` script (in `backend/`) automates the generation of a predefined set of worksheets, creating a structured output directory (`dist/`).
 

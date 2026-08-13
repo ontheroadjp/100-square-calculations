@@ -41,5 +41,6 @@ issue #19 のトラッキング issue にある「将来 `nuts_calc.py`/`nuts_ca
 
 ## 変更履歴(git log より自動生成)
 
-- 0dcb553 feat(#91): add remainder control to ope division
+- 392edbf feat(#93): add optional name field to nuts_calc_tex.py worksheets
+- eae5107 #91 nuts_calc_tex.py: add remainder control to division (none/required/mixed) (#102)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)
