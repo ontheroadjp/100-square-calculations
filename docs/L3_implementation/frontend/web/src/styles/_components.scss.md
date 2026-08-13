@@ -14,6 +14,18 @@ issue #99 で `catalog.js` の学年別カテゴリ画面用に以下を追加�
 - `.badge-basic`/`.badge-standard`(`item.difficultyKey` に対応する基礎/標準バッジの配色。`difficulty_basic_standard` は `.badge-standard` を流用)
 - `.drill-list-card`/`.drill-list-card-heading`/`.drill-list-card-title`/`.drill-list-card-example`(カテゴリ内のドリルカード。カード全体が `<a>` のクリッカブル領域)
 
+issue #100 で `presetDetail.js`([[../presetDetail.js]] 参照)の設定/完了/プレビュー3画面用に以下を追加した:
+- `.preset-detail-settings`/`.preset-detail-done`/`.preset-detail-preview`(各画面のルート。`display: flex; flex-direction: column`)
+- `.example-chip-row`/`.example-chip`(例題チップ)、`.support-level-note`(`partial`/`none` サポートレベルの注記)
+- `.setting-block`/`.setting-label`/`.setting-fixed-value`/`.setting-hint`、`.segmented-control`/`.segmented-option`(問題数・ドリル固有設定の segmented control。choice/fixed 共通の見た目)
+- `.disclosure`/`.disclosure-toggle`/`.disclosure-chevron`/`.disclosure-body`(「詳細設定(共通設定)」開閉)
+- `.toggle-row`/`.toggle-label`/`.toggle-switch`/`.toggle-switch-thumb`(「名前をつける」トグルスイッチ)
+- `.create-pdf-button`(「PDFを作成する」プライマリボタン)
+- `.completion-visual`/`.completion-check`/`.confetti-dot-1`〜`-6`/`.completion-heading`/`.completion-summary`/`.completion-thumbnail`/`.completion-actions`/`.completion-secondary-button`(完了画面。confettiは静的CSS装飾、サムネイルは実PDFレンダリングではない簡易プレースホルダー)
+- `.preview-header`/`.preview-iframe-container`(プレビュー画面。ズームUI等は自前実装せずブラウザ内蔵PDFビューアに委ねる)
+
+これに伴い `_layout.scss`([[./_layout.scss]] 参照)にあった旧単一画面版の `.preset-detail`/`.preset-detail-title`/`.preset-detail-status`/`.preset-detail-settings`/`.preset-detail-actions` を削除した。特に旧 `.preset-detail-settings`(`display: grid` の項目グリッド)は本ファイルの新 `.preset-detail-settings`(画面ルートの `flex-column`)とクラス名が衝突し、`main.scss` の `@use` 順(`components` の後に `layout`)により後勝ちで新スタイルを上書きしてレイアウトが崩れる実機バグを引き起こしたため、削除は必須の修正だった。
+
 ## 統合ポイント
 
 - 呼び出し元: `main.scss`(`@use 'components'`)。
@@ -26,6 +38,7 @@ issue #99 で `catalog.js` の学年別カテゴリ画面用に以下を追加�
 
 ## 変更履歴(git log より自動生成)
 
-- f111bd7 feat(#99): rebuild frontend/web top and catalog screens to match wireframe screens 1-2
+- 64f005b feat(#100): rebuild frontend/web preset detail settings/completion/preview screens
+- 1bd6fa6 #99 Rebuild frontend/web top and catalog screens to match wireframe screens 1-2 (#116)
 - 8007488 #97 frontend/web: rebuild nav shell, design tokens, and remove legacy features (#109)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

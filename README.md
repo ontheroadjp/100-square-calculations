@@ -221,12 +221,12 @@ Once both are running, open your browser to the frontend's address (e.g., `http:
 ```bash
 cd backend && python3 -m pytest -q --ignore=tests/test_nuts_calc_init.py
 node --test frontend/spa/src/drillPresets.test.js frontend/spa/src/drillCatalog.test.js frontend/spa/src/verticalLayout.test.js
-node --test frontend/web/src/drillPresets.test.js
+node --test frontend/web/src/drillPresets.test.js frontend/web/src/presetDetail.test.js
 cd frontend/spa && npm run build
 cd frontend/web && npm run build
 ```
 
-`backend/tests/test_nuts_calc_init.py` is excluded above because 9 expectations still pin the old `exit()` status while the implementation correctly uses `exit(1)`; see `docs/L2_development/test.md`. `npm run lint` is also available for `frontend/spa`, but currently reports one `no-irregular-whitespace` error at `frontend/spa/src/drillPresets.js:433`. `frontend/web` has no lint script and no `npm test` script, but `frontend/web/src/drillPresets.test.js` (node:test) covers its own drill-menu data model directly (issue #98); `frontend/web/src/drillPresets.js`/`drillCatalog.js` no longer copy `frontend/spa`'s versions (they diverged in #98).
+`backend/tests/test_nuts_calc_init.py` is excluded above because 9 expectations still pin the old `exit()` status while the implementation correctly uses `exit(1)`; see `docs/L2_development/test.md`. `npm run lint` is also available for `frontend/spa`, but currently reports one `no-irregular-whitespace` error at `frontend/spa/src/drillPresets.js:433`. `frontend/web` has no lint script and no `npm test` script, but `frontend/web/src/drillPresets.test.js` (node:test) covers its own drill-menu data model directly (issue #98), and `frontend/web/src/presetDetail.test.js` covers `presetDetail.js`'s pure problem-count/summary-building helpers (issue #100); `frontend/web/src/drillPresets.js`/`drillCatalog.js` no longer copy `frontend/spa`'s versions (they diverged in #98).
 
 ## Dependencies
 *   Python 3

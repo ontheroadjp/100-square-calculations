@@ -3,57 +3,233 @@ import { getVerticalRows, isVerticalOperation, VERTICAL_COLUMNS } from './vertic
 
 const API_BASE = 'http://127.0.0.1:5000';
 
-// Maps the simplified "problem density" choice to nuts_calc.py's rows/columns.
-// 'standard' matches the previous hardcoded default (10 rows x 2 columns).
-const DENSITY_OPTIONS = [
-  { value: 'few', labelKey: 'density_few', rows: 5, columns: 2 },
-  { value: 'standard', labelKey: 'density_standard', rows: 10, columns: 2 },
-  { value: 'many', labelKey: 'density_many', rows: 10, columns: 4 },
-];
-const DEFAULT_DENSITY = 'standard';
+export const PROBLEM_COUNT_OPTIONS = [10, 20, 30];
+const DEFAULT_PROBLEM_COUNT = 20;
 
-const buildFileName = (grade, preset) => `drill_grade${grade}_${preset.id}.pdf`;
+// Maps the problem-count choice to nuts_calc.py's rows/columns. 20 matches
+// the previous hardcoded default (10 rows x 2 columns).
+const LAYOUT_BY_PROBLEM_COUNT = {
+  10: { rows: 5, columns: 2 },
+  20: { rows: 10, columns: 2 },
+  30: { rows: 10, columns: 3 },
+};
 
-export function mountPresetDetail(container, { grade, preset, onBack }) {
-  const isVerticalPreset = isVerticalOperation(preset.params);
-  const supportsDensity = preset.params.command_type !== '100' && !isVerticalPreset;
+export function layoutForProblemCount(problemCount) {
+  return LAYOUT_BY_PROBLEM_COUNT[problemCount] ?? LAYOUT_BY_PROBLEM_COUNT[DEFAULT_PROBLEM_COUNT];
+}
 
+function defaultSettingsState(settings) {
+  const state = {};
+  for (const setting of settings) {
+    if (setting.type === 'choice') state[setting.id] = setting.default;
+  }
+  return state;
+}
+
+// Renders examples ("625+75") with spaces around the operator, matching
+// catalog.js's formatExample (docs/uiux/wireframe_v1.png convention).
+function formatExample(example) {
+  return example.replace(/([+\-×÷])/g, ' $1 ').replace(/\s+/g, ' ').trim();
+}
+
+// Builds the "20問・標準・繰り上がり：まぜる" style summary shown on the
+// completion screen. `translate` is injected rather than using the module's
+// own `t` import so callers (and tests) can verify the assembled parts
+// without depending on strings.ja.json's actual Japanese copy.
+export function buildSummaryParts({ problemCount, difficultyKey, settings, settingsState }, translate) {
+  const parts = [`${problemCount}${translate('problem_count_unit')}`, translate(difficultyKey)];
+  for (const setting of settings) {
+    if (setting.type === 'choice') {
+      const option = setting.options.find((candidate) => candidate.value === settingsState[setting.id]);
+      if (option) parts.push(`${translate(setting.labelKey)}：${translate(option.labelKey)}`);
+    } else {
+      parts.push(`${translate(setting.labelKey)}：${translate(setting.valueLabelKey)}`);
+    }
+  }
+  return parts;
+}
+
+const buildFileName = (grade, item) => `drill_grade${grade}_${item.id}.pdf`;
+
+export function mountPresetDetail(container, { grade, item, onBack }) {
   const state = {
-    numberValue: preset.numberInput?.default ?? null,
+    screen: 'settings', // settings | done | preview
+    problemCount: DEFAULT_PROBLEM_COUNT,
+    settingsState: defaultSettingsState(item.settings),
     paperSize: 'A4',
     pageCount: 1,
-    density: DEFAULT_DENSITY,
+    advancedOpen: false,
+    withName: false,
     status: 'idle', // idle | loading | ready | error
     pdfUrl: null,
     error: null,
-    lastGenerated: null,
   };
 
-  const isDirty = () => (
-    !state.lastGenerated
-    || state.lastGenerated.paperSize !== state.paperSize
-    || state.lastGenerated.pageCount !== state.pageCount
-    || state.lastGenerated.density !== state.density
-    || state.lastGenerated.numberValue !== state.numberValue
-  );
+  function renderSettingControl(setting) {
+    if (setting.type === 'fixed') {
+      return `
+        <div class="setting-block">
+          <span class="setting-label">${t(setting.labelKey)}</span>
+          <span class="setting-fixed-value">${t(setting.valueLabelKey)}</span>
+        </div>
+      `;
+    }
+    const showMixedHint = state.settingsState[setting.id] === 'mixed';
+    return `
+      <div class="setting-block">
+        <span class="setting-label">${t(setting.labelKey)}</span>
+        <div class="segmented-control" data-role="setting" data-setting-id="${setting.id}">
+          ${setting.options.map((option) => `
+            <button type="button" class="segmented-option ${state.settingsState[setting.id] === option.value ? 'is-selected' : ''}" data-value="${option.value}">${t(option.labelKey)}</button>
+          `).join('')}
+        </div>
+        ${showMixedHint ? `<p class="setting-hint">${t('setting_mixed_hint')}</p>` : ''}
+      </div>
+    `;
+  }
+
+  function renderSettingsScreen() {
+    return `
+      <div class="preset-detail preset-detail-settings">
+        <button type="button" class="back-button" data-action="back">${t('back')}</button>
+
+        <h3 class="preset-detail-title">${t(item.titleKey)}</h3>
+
+        ${item.examples.length > 0 ? `
+          <div class="example-chip-row">
+            ${item.examples.map((example) => `<span class="example-chip">${formatExample(example)}</span>`).join('')}
+          </div>
+        ` : ''}
+
+        ${item.supportLevel === 'partial' ? `<p class="support-level-note">${t('support_level_partial_note')}</p>` : ''}
+        ${state.status === 'error' ? `<p class="preset-card-error">${t('error_prefix')} ${state.error}</p>` : ''}
+
+        <div class="setting-block">
+          <span class="setting-label">${t('problem_count_label')}</span>
+          <div class="segmented-control" data-role="problem-count">
+            ${PROBLEM_COUNT_OPTIONS.map((count) => `
+              <button type="button" class="segmented-option ${state.problemCount === count ? 'is-selected' : ''}" data-value="${count}">${count}${t('problem_count_unit')}</button>
+            `).join('')}
+          </div>
+        </div>
+
+        ${item.settings.map((setting) => renderSettingControl(setting)).join('')}
+
+        <div class="disclosure">
+          <button type="button" class="disclosure-toggle" data-action="toggle-advanced" aria-expanded="${state.advancedOpen}">
+            <span>${t('advanced_settings_label')}</span>
+            <span class="disclosure-chevron ${state.advancedOpen ? 'is-open' : ''}">›</span>
+          </button>
+          ${state.advancedOpen ? `
+            <div class="disclosure-body">
+              <div class="form-group">
+                <label for="detailPaperSize">${t('paper_size')}</label>
+                <select id="detailPaperSize" data-role="paper-size">
+                  <option value="A4" ${state.paperSize === 'A4' ? 'selected' : ''}>${t('paper_size_a4')}</option>
+                  <option value="A3" ${state.paperSize === 'A3' ? 'selected' : ''}>${t('paper_size_a3')}</option>
+                  <option value="B5" ${state.paperSize === 'B5' ? 'selected' : ''}>${t('paper_size_b5')}</option>
+                  <option value="a4l" ${state.paperSize === 'a4l' ? 'selected' : ''}>${t('paper_size_a4l')}</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="detailPageCount">${t('number_of_pages')}</label>
+                <input id="detailPageCount" type="number" data-role="page-count" min="1" max="10" value="${state.pageCount}">
+              </div>
+            </div>
+          ` : ''}
+        </div>
+
+        <div class="toggle-row">
+          <span class="toggle-label">${t('name_field_toggle_label')}</span>
+          <button type="button" class="toggle-switch ${state.withName ? 'is-on' : ''}" data-action="toggle-with-name" role="switch" aria-checked="${state.withName}">
+            <span class="toggle-switch-thumb"></span>
+          </button>
+        </div>
+
+        ${item.supportLevel === 'none' ? `<p class="support-level-note">${t('support_level_none_note')}</p>` : ''}
+
+        <button type="button" class="create-pdf-button" data-action="create"
+          ${state.status === 'loading' || item.supportLevel === 'none' ? 'disabled' : ''}>
+          ${state.status === 'loading' ? t('generating') : (item.supportLevel === 'none' ? t('support_level_none_button') : t('create_pdf_button'))}
+        </button>
+      </div>
+    `;
+  }
+
+  function renderDoneScreen() {
+    const summary = buildSummaryParts(
+      { problemCount: state.problemCount, difficultyKey: item.difficultyKey, settings: item.settings, settingsState: state.settingsState },
+      t,
+    );
+    return `
+      <div class="preset-detail preset-detail-done">
+        <div class="completion-visual">
+          <span class="confetti-dot confetti-dot-1"></span>
+          <span class="confetti-dot confetti-dot-2"></span>
+          <span class="confetti-dot confetti-dot-3"></span>
+          <span class="confetti-dot confetti-dot-4"></span>
+          <span class="confetti-dot confetti-dot-5"></span>
+          <span class="confetti-dot confetti-dot-6"></span>
+          <span class="completion-check" aria-hidden="true">✓</span>
+        </div>
+        <h3 class="completion-heading">${t('completion_heading')}</h3>
+        <p class="completion-summary">
+          ${t(`grade_full_${grade}`)}<br>
+          ${t(item.titleKey)}<br>
+          ${summary.join('・')}
+        </p>
+
+        <div class="completion-thumbnail" aria-hidden="true"></div>
+
+        <div class="completion-actions">
+          <button type="button" class="create-pdf-button" data-action="open-preview">${t('action_open_pdf')}</button>
+          <a href="${state.pdfUrl}" download="${buildFileName(grade, item)}" class="completion-secondary-button">${t('action_download_pdf')}</a>
+          <button type="button" class="completion-secondary-button" data-action="regenerate" ${state.status === 'loading' ? 'disabled' : ''}>${t('action_same_condition')}</button>
+          <a href="index.html" class="completion-secondary-button">${t('action_back_to_top')}</a>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderPreviewScreen() {
+    return `
+      <div class="preset-detail preset-detail-preview">
+        <div class="preview-header">
+          <button type="button" class="back-button" data-action="back-to-done">‹ ${t('preview_heading')}</button>
+        </div>
+        <div class="pdf-iframe-container preview-iframe-container">
+          <iframe src="${state.pdfUrl}#navpanes=0" class="pdf-iframe" title="pdf-preview"></iframe>
+        </div>
+      </div>
+    `;
+  }
+
+  function render() {
+    if (state.screen === 'done') {
+      container.innerHTML = renderDoneScreen();
+    } else if (state.screen === 'preview') {
+      container.innerHTML = renderPreviewScreen();
+    } else {
+      container.innerHTML = renderSettingsScreen();
+    }
+  }
 
   async function generatePdf() {
-    const densityOption = DENSITY_OPTIONS.find((option) => option.value === state.density) ?? DENSITY_OPTIONS[1];
-    const layout = isVerticalPreset
-      ? { rows: getVerticalRows(state.paperSize), columns: VERTICAL_COLUMNS }
-      : densityOption;
-
     state.status = 'loading';
     state.error = null;
     render();
+
+    const params = item.buildParams(state.settingsState);
+    const layout = isVerticalOperation(params)
+      ? { rows: getVerticalRows(state.paperSize), columns: VERTICAL_COLUMNS }
+      : layoutForProblemCount(state.problemCount);
 
     const requestBody = {
       paper_size: state.paperSize,
       rows: layout.rows,
       columns: layout.columns,
       page: state.pageCount,
-      ...preset.params,
-      ...(preset.numberInput && { [preset.numberInput.param]: state.numberValue }),
+      ...params,
     };
 
     try {
@@ -69,115 +245,57 @@ export function mountPresetDetail(container, { grade, preset, onBack }) {
       }
 
       const blob = await response.blob();
+      if (state.pdfUrl) URL.revokeObjectURL(state.pdfUrl);
       state.pdfUrl = URL.createObjectURL(blob);
       state.status = 'ready';
-      state.lastGenerated = {
-        paperSize: state.paperSize,
-        pageCount: state.pageCount,
-        density: state.density,
-        numberValue: state.numberValue,
-      };
+      state.screen = 'done';
     } catch (err) {
       state.error = err.message;
       state.status = 'error';
+      state.screen = 'settings';
     }
     render();
   }
 
-  function render() {
-    container.innerHTML = `
-      <div class="preset-detail">
-        <button type="button" class="back-button" data-action="back">${t('back')}</button>
-
-        <h3 class="preset-detail-title">${t(preset.titleKey)}</h3>
-
-        ${state.status === 'loading' ? `<p class="preset-detail-status">${t('generating')}</p>` : ''}
-        ${state.status === 'error' ? `<p class="preset-card-error">${t('error_prefix')} ${state.error}</p>` : ''}
-        ${state.pdfUrl ? `
-          <div class="pdf-iframe-container">
-            <iframe src="${state.pdfUrl}" class="pdf-iframe" title="pdf-preview"></iframe>
-          </div>
-        ` : ''}
-
-        <div class="preset-detail-settings">
-          ${preset.numberInput ? `
-            <div class="form-group">
-              <label for="detailNumberInput">${t(preset.numberInput.labelKey)}</label>
-              <input id="detailNumberInput" type="number" data-role="number-value"
-                min="${preset.numberInput.min}" max="${preset.numberInput.max}"
-                value="${state.numberValue}">
-            </div>
-          ` : ''}
-          <div class="form-group">
-            <label for="detailPaperSize">${t('paper_size')}</label>
-            <select id="detailPaperSize" data-role="paper-size">
-              <option value="A4" ${state.paperSize === 'A4' ? 'selected' : ''}>${t('paper_size_a4')}</option>
-              <option value="A3" ${state.paperSize === 'A3' ? 'selected' : ''}>${t('paper_size_a3')}</option>
-              <option value="B5" ${state.paperSize === 'B5' ? 'selected' : ''}>${t('paper_size_b5')}</option>
-              <option value="a4l" ${state.paperSize === 'a4l' ? 'selected' : ''}>${t('paper_size_a4l')}</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="detailPageCount">${t('number_of_pages')}</label>
-            <input id="detailPageCount" type="number" data-role="page-count" min="1" max="10" value="${state.pageCount}">
-          </div>
-          ${supportsDensity ? `
-            <div class="form-group">
-              <label for="detailDensity">${t('problem_density')}</label>
-              <select id="detailDensity" data-role="density">
-                ${DENSITY_OPTIONS.map((option) => `
-                  <option value="${option.value}" ${state.density === option.value ? 'selected' : ''}>${t(option.labelKey)}</option>
-                `).join('')}
-              </select>
-            </div>
-          ` : ''}
-        </div>
-
-        <div class="preset-detail-actions">
-          <button type="button" class="regenerate-button" data-action="regenerate"
-            ${state.status === 'loading' || !isDirty() ? 'disabled' : ''}>
-            ${state.status === 'loading' ? t('generating') : t('regenerate_pdf')}
-          </button>
-          ${state.status === 'ready' && state.pdfUrl ? `
-            <a href="${state.pdfUrl}" download="${buildFileName(grade, preset)}" class="preset-download-button">${t('download_pdf')}</a>
-          ` : `
-            <button type="button" class="preset-download-button" disabled>${t('download_pdf')}</button>
-          `}
-        </div>
-      </div>
-    `;
-  }
-
   container.addEventListener('click', (event) => {
     const actionEl = event.target.closest('[data-action]');
-    if (!actionEl) return;
-    if (actionEl.dataset.action === 'back') onBack();
-    if (actionEl.dataset.action === 'regenerate') generatePdf();
+    if (actionEl) {
+      const action = actionEl.dataset.action;
+      if (action === 'back') { onBack(); return; }
+      if (action === 'toggle-advanced') { state.advancedOpen = !state.advancedOpen; render(); return; }
+      if (action === 'toggle-with-name') { state.withName = !state.withName; render(); return; }
+      if (action === 'create' || action === 'regenerate') { generatePdf(); return; }
+      if (action === 'open-preview') { state.screen = 'preview'; render(); return; }
+      if (action === 'back-to-done') { state.screen = 'done'; render(); return; }
+      return;
+    }
+
+    const optionEl = event.target.closest('[data-value]');
+    if (!optionEl) return;
+    const controlEl = optionEl.closest('[data-role]');
+    if (!controlEl) return;
+    if (controlEl.dataset.role === 'problem-count') {
+      state.problemCount = Number(optionEl.dataset.value);
+      render();
+    } else if (controlEl.dataset.role === 'setting') {
+      state.settingsState[controlEl.dataset.settingId] = optionEl.dataset.value;
+      render();
+    }
   });
 
   container.addEventListener('input', (event) => {
-    const role = event.target.dataset.role;
-    if (role === 'number-value') {
-      state.numberValue = parseInt(event.target.value, 10);
-      render();
-    } else if (role === 'page-count') {
+    if (event.target.dataset.role === 'page-count') {
       state.pageCount = parseInt(event.target.value, 10);
       render();
     }
   });
 
   container.addEventListener('change', (event) => {
-    const role = event.target.dataset.role;
-    if (role === 'paper-size') {
+    if (event.target.dataset.role === 'paper-size') {
       state.paperSize = event.target.value;
-      render();
-    } else if (role === 'density') {
-      state.density = event.target.value;
       render();
     }
   });
 
-  // Auto-generate a preview once when the detail page opens, using the
-  // default settings above.
-  generatePdf();
+  render();
 }

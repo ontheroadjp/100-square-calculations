@@ -7,6 +7,7 @@
 ## 動作の概要
 
 - `t(key)`: `strings.ja.json` から該当キーの日本語文字列を返す。キーが存在しない場合はキー自体をフォールバック表示する(翻訳漏れがあっても画面が壊れないようにするため)。
+- `strings.ja.json` の import は `with { type: 'json' }` インポート属性を付けている(issue #100)。Vite(≧5)は属性なしのプレーンな `import ja from './strings.ja.json'` でも動作するが、`frontend/web` のテストは Vite を介さないプレーンな `node --test` で動くため、属性なしだと Node 側で `strings.js` を import しようとした瞬間に失敗する。`presetDetail.js`([[./presetDetail.js]] 参照)の `presetDetail.test.js` が `presetDetail.js` を直接importして純粋関数(`layoutForProblemCount`/`buildSummaryParts`)をテストする際にこの経路を踏むため追加した。
 - `strings.ja.json` は元々 `frontend/spa` の `ja/translation.json` を丸ごとコピーしたもの。プリセットの `titleKey`/`descKey` など、`drillPresets.js`/`drillCatalog.js` が参照するキー体系は `frontend/spa` と共有している(データ側は移植時に変更していないため)。issue #97 で `frontend/web` 固有のナビゲーションシェル用キー(`nav_home`/`nav_create`/`nav_history`/`nav_favorites`/`nav_mypage`/`nav_brand`/`nav_mobile_label`/`nav_pc_label`)を追加し、同issueで撤去した検索UI・旧2リンクナビ専用のキー(旧 `nav_home`(「ドリルを探す」の意)・`drill_navigation_label`・`drill_search_label`・`drill_search_placeholder`)を削除した。issue #99 で新トップ/カテゴリ画面用のキー(`grade_full_1`〜`6`、`category_picker_heading`、`category_addition`/`category_subtraction`/`category_multiplication`/`category_division`/`category_fraction`/`category_four-operations`/`category_number-sense`、`example_prefix`)を追加した。これにより `strings.ja.json` は `frontend/spa` の `ja/translation.json` と完全一致ではなくなっている(`frontend/spa` 側にはナビシェル・新カテゴリ体系が存在しないため)。旧絞り込みUI専用キー(`subject_*`/`number_type_*_intro`/`form_*`/`*_filter_label`/`all_*`/`clear_filters` 等)は issue #99 で参照元(`catalog.js`/`index.html`)を削除したが、キー自体は削除していない(削除の要否は範囲外と判断。将来の docs-sync/清掃作業で扱う)。
 
 ## 重要な設計判断とその理由
@@ -27,5 +28,5 @@
 
 ## 変更履歴(git log より自動生成)
 
-- 8007488 #97 frontend/web: rebuild nav shell, design tokens, and remove legacy features (#109)
+- 64f005b feat(#100): rebuild frontend/web preset detail settings/completion/preview screens
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)
