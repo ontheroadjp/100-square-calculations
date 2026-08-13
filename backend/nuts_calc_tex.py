@@ -7,7 +7,9 @@ command (issue #21) + Phase 3 `com` command (issue #22) + Phase 4 `100`
 command (issue #23) + Phase 5 `99` command (issue #24) + Phase 6 `aBc`
 command (issue #25) + Phase 7 `squ` command (issue #26) + Phase 8 `pi`
 command (issue #27) + `evenodd`/`multiples`/`divisors` number-property
-commands (issue #94).
+commands (issue #94) + `lcm`/`gcd` pair-number commands (issue #95) +
+`simplify`/`commondenom`/`frac2dec`/`dec2frac`/`divfrac` fraction/decimal
+conversion commands (issue #96).
 
 A 100%-LaTeX-rendered, fully independent reimplementation of nuts_calc.py's
 CLI surface (see the tracking issue #19). This file has zero code
@@ -21,7 +23,12 @@ meant to run side by side, each self-contained.
 --descend/--reverse/--shuffle ordering), `pi` (multiplication by pi,
 with the same --descend/--reverse/--shuffle ordering), `evenodd`
 (even/odd judgment), `multiples` (multiples listing, --multiples-count),
-and `divisors` (divisor listing) are all implemented.
+`divisors` (divisor listing), `lcm`/`gcd` (least-common-multiple/
+greatest-common-divisor pairs), `simplify` (fraction reduction),
+`commondenom` (common-denominator conversion), `frac2dec` (fraction to
+terminating decimal), `dec2frac` (decimal to reduced fraction), and
+`divfrac` (division expressed as an unreduced fraction, a divided by b
+equals a/b) are all implemented.
 
 Requires a LaTeX distribution (`pdflatex`) on PATH. The `longdivision`
 CTAN package (used by `ope --vertical -o div`) is vendored into this repo
@@ -75,6 +82,7 @@ BLANK_ANSWER_TEX = '\\hspace{1.5em}'
 BOXED_BLANK_TEX = '\\vcenter{\\hbox{\\fbox{\\rule{0pt}{1em}\\hspace{1em}}}}'
 MIN_DECIMAL_PLACES = 0
 MAX_DECIMAL_PLACES = 2
+DEC2FRAC_MIN_DECIMAL_PLACES = 1
 MIXED_OPERAND_KINDS = ('int', 'decimal', 'fraction')
 DEFAULT_MULTIPLES_COUNT = 4
 MIN_MULTIPLES_COUNT = 1
@@ -137,12 +145,19 @@ def _init() -> argparse.Namespace:
     )
     parser.add_argument('command'
         , type = str
-        , choices = ['ope', 'com', '100', '99', 'aBc', 'squ', 'pi', 'frac', 'mixed', 'compare', 'evenodd', 'multiples', 'divisors', 'lcm', 'gcd']
+        , choices = [
+            'ope', 'com', '100', '99', 'aBc', 'squ', 'pi', 'frac', 'mixed', 'compare',
+            'evenodd', 'multiples', 'divisors', 'lcm', 'gcd',
+            'simplify', 'commondenom', 'frac2dec', 'dec2frac', 'divfrac',
+        ]
         , help = (
             'Type of formula to output (including "frac" for fraction arithmetic, "compare" for '
             'fraction comparison, "mixed" for int/decimal/fraction arithmetic, "evenodd" for '
             'even/odd judgment, "multiples" for listing multiples, "divisors" for listing divisors, '
-            'and "lcm"/"gcd" for least-common-multiple/greatest-common-divisor pairs)'
+            '"lcm"/"gcd" for least-common-multiple/greatest-common-divisor pairs, "simplify" for '
+            'fraction reduction, "commondenom" for common-denominator conversion, "frac2dec" for '
+            'fraction-to-decimal conversion, "dec2frac" for decimal-to-fraction conversion, and '
+            '"divfrac" for expressing a division as an unreduced fraction (a divided by b equals a/b))'
         )
     )
     parser.add_argument('-a', '--a-value'
@@ -449,7 +464,7 @@ def _init() -> argparse.Namespace:
                 f"{MAX_HUNDRED_SQUARE_DIGITS} digits for the '100' command."
             )
 
-    if args.command in ('ope', '100', 'lcm', 'gcd'):
+    if args.command in ('ope', '100', 'lcm', 'gcd', 'divfrac'):
         if args.a_value is not None:
             args.a_min, args.a_max = set_min_max_value(args.a_value)
         if args.b_value is not None:
@@ -482,14 +497,17 @@ def _init() -> argparse.Namespace:
     if args.command in ('multiples', 'divisors') and args.a_min < 1:
         failure(f"--a-min must be at least 1 for the '{args.command}' command.")
 
+    if args.command == 'divfrac' and args.b_min < 1:
+        failure("--b-min must be at least 1 for the 'divfrac' command.")
+
     if args.command == 'multiples':
         if args.multiples_count < MIN_MULTIPLES_COUNT:
             failure(f"--multiples-count must be at least {MIN_MULTIPLES_COUNT}.")
     elif args.multiples_count != DEFAULT_MULTIPLES_COUNT:
         failure("--multiples-count is only supported for the 'multiples' command.")
 
-    if args.command in ('frac', 'compare', 'mixed'):
-        # All three commands create fraction operands; the digit options are
+    if args.command in ('frac', 'compare', 'mixed', 'simplify', 'commondenom', 'frac2dec'):
+        # All six commands create fraction operands; the digit options are
         # shared so comparison worksheets can use the same familiar controls.
         for option_name, value in (
             ('--numerator-digits', args.numerator_digits),
@@ -3518,6 +3536,522 @@ def build_number_pair_pages(
     return blank_pages, filled_pages, pages_problems
 
 
+@dataclass
+class SimplifyProblem:
+    """One generated `simplify` problem: an unreduced fraction and its reduced form."""
+    index: int
+    operand: FractionOperand
+    reduced: Fraction
+
+
+def generate_simplify_problems(
+        numerator_digits: int, denominator_digits: int, order: int, start_index: int,
+    ) -> list[SimplifyProblem]:
+    """
+    Generate `order` fraction-simplification problems.
+
+    Reuses `random_fraction_operand` (the `frac` command's fraction
+    generator) but retries until gcd(numerator, denominator) > 1, since a
+    fraction already in lowest terms has nothing to simplify.
+    """
+    problems = []
+    for offset in range(order):
+        for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
+            operand = random_fraction_operand(numerator_digits, denominator_digits, proper=False)
+            if math.gcd(operand.numerator, operand.denominator) > 1:
+                problems.append(SimplifyProblem(index=start_index + offset, operand=operand, reduced=operand.value))
+                break
+        else:
+            raise ValueError("Unable to generate a reducible fraction with the requested digit constraints.")
+    return problems
+
+
+def build_simplify_block_tex(problem: SimplifyProblem, show_answer: bool) -> str:
+    """Render one `simplify` problem: `n) $\\frac{18}{24} \\Rightarrow \\frac{3}{4}$` (blank hides the reduced fraction)."""
+    result_tex = fraction_to_tex(problem.reduced) if show_answer else BLANK_ANSWER_TEX
+    return f"{problem.index}) $\\displaystyle {fraction_to_tex(problem.operand)} \\Rightarrow {result_tex}$"
+
+
+def build_simplify_page_pair(problems: list[SimplifyProblem], columns: int) -> tuple[Page, Page]:
+    """Build the (blank, filled) Page pair for one page's worth of `simplify` problems."""
+    blank_page = Page(
+        blocks=[build_simplify_block_tex(problem, show_answer=False) for problem in problems],
+        columns=columns,
+    )
+    filled_page = Page(
+        blocks=[build_simplify_block_tex(problem, show_answer=True) for problem in problems],
+        columns=columns,
+    )
+    return blank_page, filled_page
+
+
+def build_simplify_bottom_answer_tex(problems: list[SimplifyProblem]) -> str:
+    return ' \\quad '.join(
+        f"({problem.index}) $\\displaystyle {fraction_to_tex(problem.reduced)}$" for problem in problems
+    )
+
+
+def build_simplify_csv_rows(pages_problems: list[list[SimplifyProblem]]) -> list[list[object]]:
+    rows: list[list[object]] = []
+    for page_number, problems in enumerate(pages_problems, start=1):
+        for problem in problems:
+            rows.append([
+                page_number, problem.index, problem.operand.numerator, problem.operand.denominator,
+                problem.reduced.numerator, problem.reduced.denominator,
+            ])
+    return rows
+
+
+def build_simplify_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], list[list[SimplifyProblem]]]:
+    """Generate real `simplify` problems and their blank/filled Page pairs for every page."""
+    order = ini.rows * ini.columns
+
+    blank_pages = []
+    filled_pages = []
+    pages_problems = []
+    for page_number in range(1, ini.page + 1):
+        start_index = (page_number - 1) * order + 1
+        problems = generate_simplify_problems(ini.numerator_digits, ini.denominator_digits, order, start_index)
+        blank_page, filled_page = build_simplify_page_pair(problems, ini.columns)
+        pages_problems.append(problems)
+        blank_pages.append(blank_page)
+        filled_pages.append(filled_page)
+
+    if ini.with_bottom_answer:
+        for problems, blank_page in zip(pages_problems, blank_pages):
+            blank_page.bottom_answer_tex = build_simplify_bottom_answer_tex(problems)
+
+    return blank_pages, filled_pages, pages_problems
+
+
+@dataclass
+class CommonDenomProblem:
+    """One generated `commondenom` problem: two fractions converted to a shared (LCM) denominator."""
+    index: int
+    a: FractionOperand
+    b: FractionOperand
+    a_converted: FractionOperand
+    b_converted: FractionOperand
+
+
+def generate_commondenom_problems(
+        numerator_digits: int, denominator_digits: int, order: int, start_index: int,
+    ) -> list[CommonDenomProblem]:
+    """
+    Generate `order` common-denominator conversion problems.
+
+    Draws two fraction operands with `random_fraction_operand` (the `frac`
+    command's generator), retrying until their denominators differ (equal
+    denominators would make the conversion a no-op), then rescales each
+    numerator to `math.lcm(a.denominator, b.denominator)`, the smallest
+    shared denominator (the standard 通分 procedure).
+    """
+    problems = []
+    for offset in range(order):
+        for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
+            a = random_fraction_operand(numerator_digits, denominator_digits, proper=False)
+            b = random_fraction_operand(numerator_digits, denominator_digits, proper=False)
+            if a.denominator != b.denominator:
+                break
+        else:
+            raise ValueError("Unable to generate two fractions with different denominators for the requested digit constraints.")
+        common_denominator = math.lcm(a.denominator, b.denominator)
+        a_converted = FractionOperand(a.numerator * (common_denominator // a.denominator), common_denominator)
+        b_converted = FractionOperand(b.numerator * (common_denominator // b.denominator), common_denominator)
+        problems.append(CommonDenomProblem(
+            index=start_index + offset, a=a, b=b, a_converted=a_converted, b_converted=b_converted,
+        ))
+    return problems
+
+
+def build_commondenom_block_tex(problem: CommonDenomProblem, show_answer: bool) -> str:
+    """
+    Render one `commondenom` problem:
+    `n) $\\frac{1}{3}, \\frac{1}{4} \\Rightarrow \\frac{4}{12}, \\frac{3}{12}$`
+    (blank hides both converted fractions).
+    """
+    if show_answer:
+        result_tex = f"{fraction_to_tex(problem.a_converted)}, {fraction_to_tex(problem.b_converted)}"
+    else:
+        result_tex = BLANK_ANSWER_TEX
+    return (
+        f"{problem.index}) $\\displaystyle {fraction_to_tex(problem.a)}, "
+        f"{fraction_to_tex(problem.b)} \\Rightarrow {result_tex}$"
+    )
+
+
+def build_commondenom_page_pair(problems: list[CommonDenomProblem], columns: int) -> tuple[Page, Page]:
+    """Build the (blank, filled) Page pair for one page's worth of `commondenom` problems."""
+    blank_page = Page(
+        blocks=[build_commondenom_block_tex(problem, show_answer=False) for problem in problems],
+        columns=columns,
+    )
+    filled_page = Page(
+        blocks=[build_commondenom_block_tex(problem, show_answer=True) for problem in problems],
+        columns=columns,
+    )
+    return blank_page, filled_page
+
+
+def build_commondenom_bottom_answer_tex(problems: list[CommonDenomProblem]) -> str:
+    return ' \\quad '.join(
+        f"({problem.index}) $\\displaystyle {fraction_to_tex(problem.a_converted)}, "
+        f"{fraction_to_tex(problem.b_converted)}$"
+        for problem in problems
+    )
+
+
+def build_commondenom_csv_rows(pages_problems: list[list[CommonDenomProblem]]) -> list[list[object]]:
+    rows: list[list[object]] = []
+    for page_number, problems in enumerate(pages_problems, start=1):
+        for problem in problems:
+            rows.append([
+                page_number, problem.index,
+                problem.a.numerator, problem.a.denominator, problem.b.numerator, problem.b.denominator,
+                problem.a_converted.numerator, problem.a_converted.denominator,
+                problem.b_converted.numerator, problem.b_converted.denominator,
+            ])
+    return rows
+
+
+def build_commondenom_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], list[list[CommonDenomProblem]]]:
+    """Generate real `commondenom` problems and their blank/filled Page pairs for every page."""
+    order = ini.rows * ini.columns
+
+    blank_pages = []
+    filled_pages = []
+    pages_problems = []
+    for page_number in range(1, ini.page + 1):
+        start_index = (page_number - 1) * order + 1
+        problems = generate_commondenom_problems(ini.numerator_digits, ini.denominator_digits, order, start_index)
+        blank_page, filled_page = build_commondenom_page_pair(problems, ini.columns)
+        pages_problems.append(problems)
+        blank_pages.append(blank_page)
+        filled_pages.append(filled_page)
+
+    if ini.with_bottom_answer:
+        for problems, blank_page in zip(pages_problems, blank_pages):
+            blank_page.bottom_answer_tex = build_commondenom_bottom_answer_tex(problems)
+
+    return blank_pages, filled_pages, pages_problems
+
+
+def denominator_decimal_places(denominator: int) -> int | None:
+    """
+    Number of decimal places needed to represent some_numerator/denominator
+    exactly, or None if `denominator` has a prime factor other than 2 or 5
+    (i.e. the decimal would repeat forever).
+
+    Counts how many times 2 and how many times 5 divide `denominator`; the
+    exact decimal representation needs max(count_of_2s, count_of_5s) places
+    (e.g. denominator=8=2^3 needs 3 places, denominator=20=2^2*5 needs 2).
+    """
+    remaining = denominator
+    twos = 0
+    while remaining % 2 == 0:
+        remaining //= 2
+        twos += 1
+    fives = 0
+    while remaining % 5 == 0:
+        remaining //= 5
+        fives += 1
+    if remaining != 1:
+        return None
+    return max(twos, fives)
+
+
+def terminating_denominators(denominator_min: int, denominator_max: int) -> list[int]:
+    """Denominators in [denominator_min, denominator_max] whose only prime factors are 2 and 5 (terminating decimals only)."""
+    return [d for d in range(denominator_min, denominator_max + 1) if denominator_decimal_places(d) is not None]
+
+
+@dataclass
+class Frac2DecProblem:
+    """One generated `frac2dec` problem: a fraction converted to its exact terminating decimal."""
+    index: int
+    operand: FractionOperand
+    decimal_places: int
+    scaled_numerator: int
+
+    @property
+    def decimal_display(self) -> str:
+        return format_decimal_value(self.scaled_numerator, self.decimal_places)
+
+
+def generate_frac2dec_problems(
+        numerator_digits: int, denominator_digits: int, order: int, start_index: int,
+    ) -> list[Frac2DecProblem]:
+    """
+    Generate `order` fraction-to-decimal conversion problems.
+
+    Denominators are restricted to `terminating_denominators` (only prime
+    factors 2 and 5) so every answer is an exact, finite decimal -- the
+    same "never produce a repeating decimal" invariant already established
+    for `ope`'s decimal extension and `mixed` (see nuts_calc_tex.py.md).
+    Because the chosen denominator always divides 10**places exactly, the
+    scaled-integer division below never loses precision.
+    """
+    denominator_min, denominator_max = digit_range(denominator_digits)
+    denominator_min = max(2, denominator_min)
+    candidates = terminating_denominators(denominator_min, denominator_max)
+    if not candidates:
+        raise ValueError("No terminating-decimal denominator is available for the requested --denominator-digits.")
+    numerator_min, numerator_max = digit_range(numerator_digits)
+
+    problems = []
+    for offset in range(order):
+        denominator = random.choice(candidates)
+        numerator = random.randint(numerator_min, numerator_max)
+        places = denominator_decimal_places(denominator)
+        scaled_numerator = numerator * (10 ** places) // denominator
+        problems.append(Frac2DecProblem(
+            index=start_index + offset, operand=FractionOperand(numerator, denominator),
+            decimal_places=places, scaled_numerator=scaled_numerator,
+        ))
+    return problems
+
+
+def build_frac2dec_block_tex(problem: Frac2DecProblem, show_answer: bool) -> str:
+    """Render one `frac2dec` problem: `n) $\\frac{3}{4} \\Rightarrow 0.75$` (blank hides the decimal)."""
+    result_tex = problem.decimal_display if show_answer else BLANK_ANSWER_TEX
+    return f"{problem.index}) $\\displaystyle {fraction_to_tex(problem.operand)} \\Rightarrow {result_tex}$"
+
+
+def build_frac2dec_page_pair(problems: list[Frac2DecProblem], columns: int) -> tuple[Page, Page]:
+    """Build the (blank, filled) Page pair for one page's worth of `frac2dec` problems."""
+    blank_page = Page(
+        blocks=[build_frac2dec_block_tex(problem, show_answer=False) for problem in problems],
+        columns=columns,
+    )
+    filled_page = Page(
+        blocks=[build_frac2dec_block_tex(problem, show_answer=True) for problem in problems],
+        columns=columns,
+    )
+    return blank_page, filled_page
+
+
+def build_frac2dec_bottom_answer_tex(problems: list[Frac2DecProblem]) -> str:
+    return ' \\quad '.join(f"({problem.index}) {problem.decimal_display}" for problem in problems)
+
+
+def build_frac2dec_csv_rows(pages_problems: list[list[Frac2DecProblem]]) -> list[list[object]]:
+    rows: list[list[object]] = []
+    for page_number, problems in enumerate(pages_problems, start=1):
+        for problem in problems:
+            rows.append([
+                page_number, problem.index, problem.operand.numerator, problem.operand.denominator,
+                problem.decimal_display,
+            ])
+    return rows
+
+
+def build_frac2dec_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], list[list[Frac2DecProblem]]]:
+    """Generate real `frac2dec` problems and their blank/filled Page pairs for every page."""
+    order = ini.rows * ini.columns
+
+    blank_pages = []
+    filled_pages = []
+    pages_problems = []
+    for page_number in range(1, ini.page + 1):
+        start_index = (page_number - 1) * order + 1
+        problems = generate_frac2dec_problems(ini.numerator_digits, ini.denominator_digits, order, start_index)
+        blank_page, filled_page = build_frac2dec_page_pair(problems, ini.columns)
+        pages_problems.append(problems)
+        blank_pages.append(blank_page)
+        filled_pages.append(filled_page)
+
+    if ini.with_bottom_answer:
+        for problems, blank_page in zip(pages_problems, blank_pages):
+            blank_page.bottom_answer_tex = build_frac2dec_bottom_answer_tex(problems)
+
+    return blank_pages, filled_pages, pages_problems
+
+
+@dataclass
+class Dec2FracProblem:
+    """One generated `dec2frac` problem: a decimal value converted to its reduced fraction."""
+    index: int
+    decimal_places: int
+    scaled_numerator: int
+    reduced: Fraction
+
+    @property
+    def decimal_display(self) -> str:
+        return format_decimal_value(self.scaled_numerator, self.decimal_places)
+
+
+def generate_dec2frac_problems(order: int, start_index: int) -> list[Dec2FracProblem]:
+    """
+    Generate `order` decimal-to-fraction conversion problems.
+
+    Each decimal is built the same scaled-integer way as `ope`'s decimal
+    extension (format_decimal_value(scaled_numerator, decimal_places)), so
+    it is always an exact, finite decimal (no floating point involved).
+    `scaled_numerator` is drawn from [1, 10**places - 1], so it can never
+    be a multiple of 10**places and `reduced` -- Fraction(scaled_numerator,
+    10**places), which the fractions module always reduces to lowest
+    terms -- always has a denominator greater than 1.
+    """
+    problems = []
+    for offset in range(order):
+        decimal_places = random.randint(DEC2FRAC_MIN_DECIMAL_PLACES, MAX_DECIMAL_PLACES)
+        scaled_numerator = random.randint(1, 10 ** decimal_places - 1)
+        problems.append(Dec2FracProblem(
+            index=start_index + offset, decimal_places=decimal_places, scaled_numerator=scaled_numerator,
+            reduced=Fraction(scaled_numerator, 10 ** decimal_places),
+        ))
+    return problems
+
+
+def build_dec2frac_block_tex(problem: Dec2FracProblem, show_answer: bool) -> str:
+    """Render one `dec2frac` problem: `n) $0.6 \\Rightarrow \\frac{3}{5}$` (blank hides the fraction)."""
+    result_tex = fraction_to_tex(problem.reduced) if show_answer else BLANK_ANSWER_TEX
+    return f"{problem.index}) $\\displaystyle {problem.decimal_display} \\Rightarrow {result_tex}$"
+
+
+def build_dec2frac_page_pair(problems: list[Dec2FracProblem], columns: int) -> tuple[Page, Page]:
+    """Build the (blank, filled) Page pair for one page's worth of `dec2frac` problems."""
+    blank_page = Page(
+        blocks=[build_dec2frac_block_tex(problem, show_answer=False) for problem in problems],
+        columns=columns,
+    )
+    filled_page = Page(
+        blocks=[build_dec2frac_block_tex(problem, show_answer=True) for problem in problems],
+        columns=columns,
+    )
+    return blank_page, filled_page
+
+
+def build_dec2frac_bottom_answer_tex(problems: list[Dec2FracProblem]) -> str:
+    return ' \\quad '.join(
+        f"({problem.index}) $\\displaystyle {fraction_to_tex(problem.reduced)}$" for problem in problems
+    )
+
+
+def build_dec2frac_csv_rows(pages_problems: list[list[Dec2FracProblem]]) -> list[list[object]]:
+    rows: list[list[object]] = []
+    for page_number, problems in enumerate(pages_problems, start=1):
+        for problem in problems:
+            rows.append([
+                page_number, problem.index, problem.decimal_display,
+                problem.reduced.numerator, problem.reduced.denominator,
+            ])
+    return rows
+
+
+def build_dec2frac_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], list[list[Dec2FracProblem]]]:
+    """Generate real `dec2frac` problems and their blank/filled Page pairs for every page."""
+    order = ini.rows * ini.columns
+
+    blank_pages = []
+    filled_pages = []
+    pages_problems = []
+    for page_number in range(1, ini.page + 1):
+        start_index = (page_number - 1) * order + 1
+        problems = generate_dec2frac_problems(order, start_index)
+        blank_page, filled_page = build_dec2frac_page_pair(problems, ini.columns)
+        pages_problems.append(problems)
+        blank_pages.append(blank_page)
+        filled_pages.append(filled_page)
+
+    if ini.with_bottom_answer:
+        for problems, blank_page in zip(pages_problems, blank_pages):
+            blank_page.bottom_answer_tex = build_dec2frac_bottom_answer_tex(problems)
+
+    return blank_pages, filled_pages, pages_problems
+
+
+@dataclass
+class DivFracProblem:
+    """One generated `divfrac` problem: a÷b expressed as the unreduced fraction a/b."""
+    index: int
+    a: int
+    b: int
+
+    @property
+    def operand(self) -> FractionOperand:
+        return FractionOperand(self.a, self.b)
+
+
+def generate_divfrac_problems(nums_a: list[int], nums_b: list[int], order: int, start_index: int) -> list[DivFracProblem]:
+    """
+    Generate `order` division-as-fraction problems: `a`/`b` are drawn
+    independently from `nums_a`/`nums_b` (same per-problem draw pattern as
+    `generate_number_pair_problems`). `_init()` requires --b-min >= 1, so
+    `b` is never 0.
+    """
+    problems = []
+    for offset in range(order):
+        a = random.choice(nums_a)
+        b = random.choice(nums_b)
+        problems.append(DivFracProblem(index=start_index + offset, a=a, b=b))
+    return problems
+
+
+def build_divfrac_block_tex(problem: DivFracProblem, show_answer: bool) -> str:
+    """
+    Render one `divfrac` problem: `n) $a \\div b = \\frac{a}{b}$` (blank hides the fraction).
+
+    Uses fraction_to_tex(FractionOperand(...)) rather than
+    fraction_to_tex(Fraction(a, b)): Python's Fraction always auto-reduces
+    on construction, which would silently simplify the answer, but this
+    drill's answer must stay the literal, unreduced a/b.
+    """
+    result_tex = fraction_to_tex(problem.operand) if show_answer else BLANK_ANSWER_TEX
+    return f"{problem.index}) ${problem.a} \\div {problem.b} = {result_tex}$"
+
+
+def build_divfrac_page_pair(problems: list[DivFracProblem], columns: int) -> tuple[Page, Page]:
+    """Build the (blank, filled) Page pair for one page's worth of `divfrac` problems."""
+    blank_page = Page(
+        blocks=[build_divfrac_block_tex(problem, show_answer=False) for problem in problems],
+        columns=columns,
+    )
+    filled_page = Page(
+        blocks=[build_divfrac_block_tex(problem, show_answer=True) for problem in problems],
+        columns=columns,
+    )
+    return blank_page, filled_page
+
+
+def build_divfrac_bottom_answer_tex(problems: list[DivFracProblem]) -> str:
+    return ' \\quad '.join(
+        f"({problem.index}) $\\displaystyle {fraction_to_tex(problem.operand)}$" for problem in problems
+    )
+
+
+def build_divfrac_csv_rows(pages_problems: list[list[DivFracProblem]]) -> list[list[object]]:
+    rows: list[list[object]] = []
+    for page_number, problems in enumerate(pages_problems, start=1):
+        for problem in problems:
+            rows.append([page_number, problem.index, problem.a, problem.b])
+    return rows
+
+
+def build_divfrac_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], list[list[DivFracProblem]]]:
+    """Generate real `divfrac` problems and their blank/filled Page pairs for every page."""
+    nums_a = list(range(ini.a_min, ini.a_max + 1))
+    nums_b = list(range(ini.b_min, ini.b_max + 1))
+    order = ini.rows * ini.columns
+
+    blank_pages = []
+    filled_pages = []
+    pages_problems = []
+    for page_number in range(1, ini.page + 1):
+        start_index = (page_number - 1) * order + 1
+        problems = generate_divfrac_problems(nums_a, nums_b, order, start_index)
+        blank_page, filled_page = build_divfrac_page_pair(problems, ini.columns)
+        pages_problems.append(problems)
+        blank_pages.append(blank_page)
+        filled_pages.append(filled_page)
+
+    if ini.with_bottom_answer:
+        for problems, blank_page in zip(pages_problems, blank_pages):
+            blank_page.bottom_answer_tex = build_divfrac_bottom_answer_tex(problems)
+
+    return blank_pages, filled_pages, pages_problems
+
+
 def main(ini: argparse.Namespace) -> None:
     if shutil.which('pdflatex') is None:
         failure(
@@ -3542,6 +4076,11 @@ def main(ini: argparse.Namespace) -> None:
     multiples_pages_problems: list[list[MultiplesProblem]] | None = None
     divisors_pages_problems: list[list[DivisorsProblem]] | None = None
     number_pair_pages_problems: list[list[NumberPairProblem]] | None = None
+    simplify_pages_problems: list[list[SimplifyProblem]] | None = None
+    commondenom_pages_problems: list[list[CommonDenomProblem]] | None = None
+    frac2dec_pages_problems: list[list[Frac2DecProblem]] | None = None
+    dec2frac_pages_problems: list[list[Dec2FracProblem]] | None = None
+    divfrac_pages_problems: list[list[DivFracProblem]] | None = None
     if ini.command == 'ope' and ini.use_parentheses:
         blank_pages, filled_pages, tree_ope_pages_problems = build_ope_pages(ini)
     elif ini.command == 'ope' and ini.missing_value:
@@ -3576,6 +4115,16 @@ def main(ini: argparse.Namespace) -> None:
         blank_pages, filled_pages, multiples_pages_problems = build_multiples_pages(ini)
     elif ini.command == 'divisors':
         blank_pages, filled_pages, divisors_pages_problems = build_divisors_pages(ini)
+    elif ini.command == 'simplify':
+        blank_pages, filled_pages, simplify_pages_problems = build_simplify_pages(ini)
+    elif ini.command == 'commondenom':
+        blank_pages, filled_pages, commondenom_pages_problems = build_commondenom_pages(ini)
+    elif ini.command == 'frac2dec':
+        blank_pages, filled_pages, frac2dec_pages_problems = build_frac2dec_pages(ini)
+    elif ini.command == 'dec2frac':
+        blank_pages, filled_pages, dec2frac_pages_problems = build_dec2frac_pages(ini)
+    elif ini.command == 'divfrac':
+        blank_pages, filled_pages, divfrac_pages_problems = build_divfrac_pages(ini)
     else:
         blank_pages, filled_pages, fraction_pages_problems = build_fraction_pages(ini)
 
@@ -3635,6 +4184,16 @@ def main(ini: argparse.Namespace) -> None:
             rows = build_multiples_csv_rows(multiples_pages_problems)
         elif divisors_pages_problems is not None:
             rows = build_divisors_csv_rows(divisors_pages_problems)
+        elif simplify_pages_problems is not None:
+            rows = build_simplify_csv_rows(simplify_pages_problems)
+        elif commondenom_pages_problems is not None:
+            rows = build_commondenom_csv_rows(commondenom_pages_problems)
+        elif frac2dec_pages_problems is not None:
+            rows = build_frac2dec_csv_rows(frac2dec_pages_problems)
+        elif dec2frac_pages_problems is not None:
+            rows = build_dec2frac_csv_rows(dec2frac_pages_problems)
+        elif divfrac_pages_problems is not None:
+            rows = build_divfrac_csv_rows(divfrac_pages_problems)
         else:
             rows = build_fraction_csv_rows(fraction_pages_problems)
         write_csv(rows, outfile_csv)
