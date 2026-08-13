@@ -207,6 +207,10 @@ To use either web interface, you need to start the Flask backend and one of the 
         ```
     *   The backend will typically run on `http://127.0.0.1:5000`.
     *   (Optional) Set `NUTS_CALC_RENDERER=latex` before starting the app to generate PDFs via `nuts_calc_tex.py` instead of the default `nuts_calc.py` (`reportlab`); this requires `pdflatex` to be installed (see Dependencies below).
+    *   (Optional) When `NUTS_CALC_RENDERER=latex` is set, you can additionally set `NUTS_CALC_TEX_ENGINE=lualatex` to switch `nuts_calc_tex.py`'s LaTeX compilation step to the Japanese-capable `lualatex` engine instead of the default `pdflatex`; this requires the `lualatex` binary, the `texlive-luatex` package, and the `fonts-noto-cjk` package (see Dependencies below). Example:
+        ```bash
+        NUTS_CALC_RENDERER=latex NUTS_CALC_TEX_ENGINE=lualatex python app.py
+        ```
 
 2.  **Start a frontend** — pick one:
     *   **React SPA** (`frontend/spa`, English/Japanese):
