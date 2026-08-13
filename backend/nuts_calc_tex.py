@@ -273,12 +273,20 @@ def _init() -> argparse.Namespace:
     parser.add_argument('--a-fraction-form'
         , choices = ['proper', 'improper', 'mixed', 'mix']
         , default = 'proper'
-        , help = 'Form of the left comparison operand (compare only; mix chooses per problem)'
+        , help = (
+            'Form of the left operand (compare: proper/improper/mixed/mix; '
+            "frac -o add/sub only: proper/mixed/mix, 'improper' unsupported; "
+            'mix chooses per problem)'
+        )
     )
     parser.add_argument('--b-fraction-form'
         , choices = ['proper', 'improper', 'mixed', 'mix']
         , default = 'proper'
-        , help = 'Form of the right comparison operand (compare only; mix chooses per problem)'
+        , help = (
+            'Form of the right operand (compare: proper/improper/mixed/mix; '
+            "frac -o add/sub only: proper/mixed/mix, 'improper' unsupported; "
+            'mix chooses per problem)'
+        )
     )
     parser.add_argument('--a-decimal-places'
         , type = int
@@ -536,12 +544,22 @@ def _init() -> argparse.Namespace:
     if args.command != 'frac' and fraction_arithmetic_options_given:
         failure("--same-denominator/--different-denominators/--proper-operands/--proper-result are only supported for the 'frac' command.")
 
-    comparison_options_given = (
-        args.comparison_pattern != 'different-denominators'
-        or args.a_fraction_form != 'proper' or args.b_fraction_form != 'proper'
-    )
-    if args.command != 'compare' and comparison_options_given:
-        failure("--comparison-pattern/--a-fraction-form/--b-fraction-form are only supported for the 'compare' command.")
+    if args.comparison_pattern != 'different-denominators' and args.command != 'compare':
+        failure("--comparison-pattern is only supported for the 'compare' command.")
+
+    fraction_form_options_given = args.a_fraction_form != 'proper' or args.b_fraction_form != 'proper'
+    if fraction_form_options_given:
+        if args.command not in ('compare', 'frac'):
+            failure("--a-fraction-form/--b-fraction-form are only supported for the 'compare' and 'frac' commands.")
+        if args.command == 'frac':
+            # Curriculum scope (#112): 数の種類 only distinguishes 分数
+            # (proper)/帯分数を含む (mixed)/まぜる (mix) for frac add/sub, and
+            # a single explicit operator keeps the mixed-number semantics
+            # unambiguous (docs/uiux/calculation_drill_menu_parameters_v1.md:60-61,74-75).
+            if args.operator not in (['add'], ['sub']):
+                failure("--a-fraction-form/--b-fraction-form require a single -o add or -o sub for the 'frac' command.")
+            if 'improper' in (args.a_fraction_form, args.b_fraction_form):
+                failure("--a-fraction-form/--b-fraction-form do not support 'improper' for the 'frac' command.")
 
     if args.intermediate:
         if args.command != 'ope':
@@ -3074,13 +3092,19 @@ def build_divisors_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page
 
 @dataclass(frozen=True)
 class FractionOperand:
-    """A displayed fraction whose unreduced numerator/denominator are retained."""
+    """A displayed fraction whose unreduced numerator/denominator are retained.
+
+    ``whole`` (default 0) holds the whole-number part for a mixed-number
+    display (#112); every caller predating #112 leaves it at 0, which keeps
+    ``.value``/``fraction_to_tex`` behavior unchanged for them.
+    """
     numerator: int
     denominator: int
+    whole: int = 0
 
     @property
     def value(self) -> Fraction:
-        return Fraction(self.numerator, self.denominator)
+        return Fraction(self.whole * self.denominator + self.numerator, self.denominator)
 
 
 @dataclass(frozen=True)
@@ -3091,6 +3115,7 @@ class FractionProblem:
     b: FractionOperand
     operator: str
     c: Fraction
+    mixed_number_display: bool = False
 
 
 def digit_range(digits: int) -> tuple[int, int]:
@@ -3113,6 +3138,32 @@ def random_fraction_operand(
     return FractionOperand(random.randint(numerator_min, numerator_max), chosen_denominator)
 
 
+FRACTION_ARITHMETIC_MIXED_NUMBER_FORMS = ('proper', 'mixed')
+
+
+def random_fraction_arithmetic_operand(
+        form: str, numerator_digits: int, denominator_digits: int,
+        proper_operands: bool, denominator: int | None = None,
+    ) -> FractionOperand:
+    """Create one frac add/sub operand, optionally written as a mixed number.
+
+    ``form`` is 'proper' (default), 'mixed', or 'mix' (resolved per call to
+    'proper'/'mixed', unlike compare's COMPARISON_FORMS which also allows
+    'improper' -- frac add/sub never displays a bare improper fraction,
+    only 分数/帯分数 per docs/uiux/calculation_drill_menu_parameters_v1.md:
+    60-61,74-75). The 'proper' branch delegates to random_fraction_operand
+    with the caller's own proper_operands flag unchanged, so a problem
+    generated with every form left at its 'proper' default is identical to
+    the pre-#112 code path.
+    """
+    if form == 'mix':
+        form = random.choice(FRACTION_ARITHMETIC_MIXED_NUMBER_FORMS)
+    if form == 'mixed':
+        fractional_part = random_fraction_operand(numerator_digits, denominator_digits, True, denominator)
+        return FractionOperand(fractional_part.numerator, fractional_part.denominator, random.randint(1, 9))
+    return random_fraction_operand(numerator_digits, denominator_digits, proper_operands, denominator)
+
+
 def calculate_fraction(a: Fraction, b: Fraction, operator: str) -> Fraction:
     """Apply one supported operator to two exact fraction values."""
     if operator == 'add':
@@ -3129,11 +3180,18 @@ def generate_fraction_problems(
         order: int, start_index: int, same_denominator: bool,
         proper_operands: bool, proper_result: bool,
         different_denominators: bool = False,
+        a_form: str = 'proper', b_form: str = 'proper',
     ) -> list[FractionProblem]:
-    """Generate exact fraction problems satisfying the requested constraints."""
+    """Generate exact fraction problems satisfying the requested constraints.
+
+    a_form/b_form (default 'proper') select each operand's display form for
+    frac add/sub (#112); leaving both at 'proper' routes every operand
+    through the pre-#112 random_fraction_operand call unchanged.
+    """
     effective_operators = MIX_OPERATORS if 'mix' in operators else operators
     denominator_min, denominator_max = digit_range(denominator_digits)
     denominator_min = max(2, denominator_min)
+    mixed_number_display = a_form != 'proper' or b_form != 'proper'
     problems = []
     for offset in range(order):
         operator = random.choice(effective_operators)
@@ -3143,12 +3201,12 @@ def generate_fraction_problems(
                 if same_denominator else None
             )
             try:
-                a = random_fraction_operand(
-                    numerator_digits, denominator_digits, proper_operands,
+                a = random_fraction_arithmetic_operand(
+                    a_form, numerator_digits, denominator_digits, proper_operands,
                     common_denominator,
                 )
-                b = random_fraction_operand(
-                    numerator_digits, denominator_digits, proper_operands,
+                b = random_fraction_arithmetic_operand(
+                    b_form, numerator_digits, denominator_digits, proper_operands,
                     common_denominator,
                 )
             except ValueError:
@@ -3160,7 +3218,7 @@ def generate_fraction_problems(
                 continue
             if proper_result and c >= 1:
                 continue
-            problems.append(FractionProblem(start_index + offset, a, b, operator, c))
+            problems.append(FractionProblem(start_index + offset, a, b, operator, c, mixed_number_display))
             break
         else:
             raise ValueError("Unable to generate fraction problems with the requested constraints.")
@@ -3176,12 +3234,30 @@ def fraction_to_tex(value: Fraction | FractionOperand) -> str:
     return f"\\frac{{{numerator}}}{{{denominator}}}"
 
 
+def fraction_to_mixed_number_tex(value: Fraction | FractionOperand) -> str:
+    """Render a fraction/operand as a mixed number when its magnitude is >= 1.
+
+    Only used for FractionProblem.mixed_number_display problems (#112);
+    fraction_to_tex itself is left untouched so every other caller (e.g.
+    divfrac, which relies on an unreduced a/b never collapsing into mixed-
+    number form) keeps its exact pre-#112 output.
+    """
+    whole = getattr(value, 'whole', 0)
+    extra_whole, numerator = divmod(value.numerator, value.denominator)
+    whole += extra_whole
+    if numerator == 0:
+        return str(whole)
+    fraction_tex = fraction_to_tex(FractionOperand(numerator, value.denominator))
+    return f"{whole}{fraction_tex}" if whole else fraction_tex
+
+
 def build_fraction_block_tex(problem: FractionProblem, show_answer: bool) -> str:
     symbol = OPERATOR_TEX_SYMBOLS[problem.operator]
-    result_tex = fraction_to_tex(problem.c) if show_answer else BLANK_ANSWER_TEX
+    render = fraction_to_mixed_number_tex if problem.mixed_number_display else fraction_to_tex
+    result_tex = render(problem.c) if show_answer else BLANK_ANSWER_TEX
     return (
-        f"{problem.index}) $\\displaystyle {fraction_to_tex(problem.a)} {symbol} "
-        f"{fraction_to_tex(problem.b)} = {result_tex}$"
+        f"{problem.index}) $\\displaystyle {render(problem.a)} {symbol} "
+        f"{render(problem.b)} = {result_tex}$"
     )
 
 
@@ -3194,7 +3270,8 @@ def build_fraction_page_pair(problems: list[FractionProblem], columns: int) -> t
 
 def build_fraction_bottom_answer_tex(problems: list[FractionProblem]) -> str:
     return ' \\quad '.join(
-        f"({problem.index}) $\\displaystyle {fraction_to_tex(problem.c)}$"
+        f"({problem.index}) $\\displaystyle "
+        f"{(fraction_to_mixed_number_tex if problem.mixed_number_display else fraction_to_tex)(problem.c)}$"
         for problem in problems
     )
 
@@ -3208,6 +3285,7 @@ def build_fraction_csv_rows(pages_problems: list[list[FractionProblem]]) -> list
                 problem.a.numerator, problem.a.denominator, problem.operator,
                 problem.b.numerator, problem.b.denominator,
                 problem.c.numerator, problem.c.denominator,
+                problem.a.whole, problem.b.whole,
             ])
     return rows
 
@@ -3224,6 +3302,7 @@ def build_fraction_pages(
             ini.numerator_digits, ini.denominator_digits, ini.operator, order,
             (page_number - 1) * order + 1, ini.same_denominator,
             ini.proper_operands, ini.proper_result, ini.different_denominators,
+            ini.a_fraction_form, ini.b_fraction_form,
         )
         blank_page, filled_page = build_fraction_page_pair(problems, ini.columns)
         if ini.with_bottom_answer:

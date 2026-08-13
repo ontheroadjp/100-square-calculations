@@ -72,7 +72,7 @@ def test_build_fraction_csv_rows_keeps_operands_and_reduced_answer() -> None:
         "add", Fraction(3, 4),
     )
     assert tex_module.build_fraction_csv_rows([[problem]]) == [
-        [1, 1, 2, 4, "add", 1, 4, 3, 4],
+        [1, 1, 2, 4, "add", 1, 4, 3, 4, 0, 0],
     ]
 
 

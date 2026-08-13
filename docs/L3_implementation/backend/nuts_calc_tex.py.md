@@ -23,13 +23,24 @@
 - **日本語テキスト「あまり」ではなく `\cdots`(または `build_ope_bottom_answer_tex` ではプレーンASCIIの `...`)を使う理由**: 本ファイルは素の `pdflatex`(CJK/日本語フォントパッケージ未読み込み、`nuts_calc_tex.py:677-684` のプリアンブル参照)でコンパイルしており、日本語グリフを含む文字列を渡すと `pdflatex` が `Fatal error occurred, no output PDF file produced` で失敗する(実機で確認済み)。`\cdots`(数式モード)または `...`(`build_ope_bottom_answer_tex` はテキストモードのため素の3ピリオド)は、日本の教科書でも使われる「3⋯2」という余り表記の慣用的な省略形であり、フォント追加なしで安全に描画できる代替として採用した。`build_horizontal_block_tex`(横書き)/`build_ope_bottom_answer_tex`(下部解答欄)の双方で、`problem.remainder` が0のとき(既定・非div演算子を含む)は追加の出力を一切行わないため、issue #91 以前の出力と完全に同一(回帰なし)。
 - `build_ope_csv_rows` は `remainder` 列(`problem.remainder`、常にプレーン `int`)を末尾に追加した7列 `[page_number, index, a, operator, b, c, remainder]` になった(非div演算子・余りなしの割り算では常に0)。旧6列を前提にした呼び出し元がある場合は末尾列を無視すれば従来通り読める。
 
-### `frac` コマンド(issue #65)
+### `frac` コマンド(issue #65、帯分数対応は issue #112)
 
 - `_init()` は `--numerator-digits`/`--denominator-digits`(各1〜3)、`--same-denominator`/`--different-denominators`(排他)、`--proper-operands`、`--proper-result` を受け付ける。分子の桁数が分母を上回る状態で真分数を要求するなど、生成不能な代表的組み合わせを事前に拒否する(`nuts_calc_tex.py:155-184,305-328`)。
 - `FractionOperand` は出題時の未約分の分子・分母を保持し、`FractionProblem.c` は標準ライブラリ `fractions.Fraction` による厳密な約分済み解答を保持する。これにより、例えば問題の `2/4` はそのまま表示しつつ答えは `1/2` と表示できる(`nuts_calc_tex.py:1338-1361,1431-1438`)。
 - `generate_fraction_problems()` は `add`/`sub`/`mul`/`div`/`mix` を問題ごとに解決し、答えが正になる問題だけを生成する。`--proper-result` はさらに答えを1未満へ制限し、同分母・異分母条件も生成時に保証する。条件を1000回以内に満たせない場合は明確な `ValueError` にする(`nuts_calc_tex.py:1394-1434`)。
 - 問題・解答は `\frac` と `\displaystyle` で横書き表示する。通常の問題PDF、`_read.pdf`、`--merge`、`--with-bottom-answer`、`--csv` の全出力経路に対応する。答えの文字色は既存コマンドと同じ黒である(`nuts_calc_tex.py:1441-1500,1510-1565`)。
-- 学年別配置の根拠となる文部科学省資料は `docs/reference/` に保存する。Webカードは LaTeX レンダラー時のみ表示される([[frontend/spa/src/drillPresets.js]]、[[frontend/spa/src/GradeDrills.jsx]])。
+- 学年別配置の根拠となる文部科学省資料は `docs/reference/` に保存する。Webカードは LaTeX レンダラー時のみ表示される([[frontend/web/src/drillPresets.js]]、[[frontend/spa/src/drillPresets.js]]、[[frontend/spa/src/GradeDrills.jsx]])。
+
+#### 帯分数(帯分数を含む/まぜる)対応(issue #112)
+
+- `docs/uiux/calculation_drill_menu_parameters_v1.md:60-61,74-75` の「数の種類: 分数 / 帯分数を含む / まぜる」設定に対応するため、`compare` コマンド専用だった `--a-fraction-form`/`--b-fraction-form`(`proper`/`improper`/`mixed`/`mix`)を `frac -o add`/`sub` の単独指定にも拡張した。`_init()` は `frac` では `improper` を拒否し(帯分数ドリルは 真分数/帯分数 の2形式のみで、生の仮分数オペランドは curriculum doc に存在しない)、複数演算子・`mix` 演算子との併用も拒否する(帯分数の意味論を単一の add/sub に限定するため)(`nuts_calc_tex.py:543-558` 付近)。
+- `FractionOperand.whole`(既定0)が整数部を保持する。`.value` は `whole*denominator+numerator` から `Fraction` を計算するため、`whole=0` の既存呼び出し元(`simplify`/`commondenom`/`mixed`/`divfrac` など)は無変更(`nuts_calc_tex.py` の `FractionOperand` 定義直後)。
+- 新規 `random_fraction_arithmetic_operand(form, ...)`: `form='mix'` は `compare` の `COMPARISON_FORMS`(`proper`/`improper`/`mixed`)とは異なる `FRACTION_ARITHMETIC_MIXED_NUMBER_FORMS = ('proper', 'mixed')` から抽選する(`improper` を含めない)。`form='proper'` は既存の `random_fraction_operand(..., proper_operands, denominator)` へそのまま委譲するため、`a_fraction_form`/`b_fraction_form` を指定しない(既定 `'proper'`)場合の `generate_fraction_problems()` は issue #112 以前と完全に同一のオペランドを生成する(回帰なし)。`form='mixed'` は真分数部(`random_fraction_operand(..., True, ...)`)に `whole=random.randint(1, 9)` を付与する。
+- `generate_fraction_problems()` は `a_form`/`b_form`(既定 `'proper'`)を追加し、`mixed_number_display = a_form != 'proper' or b_form != 'proper'` を `FractionProblem` に記録する。a/b は独立に(`compare` の `--a-fraction-form`/`--b-fraction-form` と同じ設計で)抽選されるため、1問内で片方だけ帯分数になる組み合わせも生成しうる。
+- 新規 `fraction_to_mixed_number_tex()`: `FractionOperand.whole`(存在しない `Fraction` では `getattr` で0扱い)を起点に `divmod(numerator, denominator)` で整数部を確定し、`whole{fraction_tex}`(`compare` の `comparison_operand_to_tex` と同じ、空白なしの連結)を返す。既存の `fraction_to_tex()` 自体は一切変更していない(`divfrac` が `fraction_to_tex(FractionOperand(a, b))` で意図的に未約分の仮分数のまま表示する既存契約を壊さないため)。
+- `build_fraction_block_tex`/`build_fraction_bottom_answer_tex` は `problem.mixed_number_display` が真の問題だけ `fraction_to_mixed_number_tex` を使う(オペランドだけでなく答えも対象)。偽の問題(既定)は従来通り `fraction_to_tex` を使うため、`--a-fraction-form`/`--b-fraction-form` 未指定時の出力は無変更。
+- `build_fraction_csv_rows` は `a_whole`/`b_whole` を末尾に追加した11列(`[page_number, index, a_num, a_den, operator, b_num, b_den, c_num, c_den, a_whole, b_whole]`)になった。`whole=0` が既定のため、帯分数を使わない問題では末尾2列が常に0になるだけで既存の9列分は無変更(issue #91 の `remainder` 列追加と同じ、末尾追加による後方互換パターン)。
+- `build_fraction_pages` は `ini.a_fraction_form`/`ini.b_fraction_form` を `generate_fraction_problems` へそのまま渡す。
 
 ### `compare` コマンド(issue #83)
 
