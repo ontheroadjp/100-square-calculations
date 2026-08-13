@@ -6,6 +6,91 @@
   margin: 0 0 8px;
 }
 
+.hero-section {
+  margin: 8px 0 28px;
+}
+
+.hero-title {
+  margin: 0 0 8px;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: $color-text;
+}
+
+.hero-subtitle {
+  margin: 0;
+  color: $color-text-muted;
+}
+
+.grade-picker-heading {
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+}
+
+.grade-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+
+  @media (min-width: 600px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.grade-picker-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 96px;
+  border-radius: $radius-md;
+  padding: 16px;
+  box-sizing: border-box;
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+
+  &-1 { background: $color-grade-1; }
+  &-2 { background: $color-grade-2; }
+  &-3 { background: $color-grade-3; }
+  &-4 { background: $color-grade-4; }
+  &-5 { background: $color-grade-5; }
+  &-6 { background: $color-grade-6; }
+}
+
+.catalog-header {
+  margin: 0 0 28px;
+}
+
+.catalog-heading {
+  margin: 8px 0 4px;
+  font-size: 1.5rem;
+  color: $color-text;
+}
+
+.category-picker-heading {
+  margin: 0;
+  color: $color-text-muted;
+}
+
+.category-section {
+  margin: 28px 0;
+}
+
+.category-heading {
+  margin: 0 0 12px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: $color-text;
+}
+
+.drill-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .preset-card-number-input {
   display: flex;
   align-items: center;

@@ -7,7 +7,7 @@
 ## 動作の概要
 
 - `t(key)`: `strings.ja.json` から該当キーの日本語文字列を返す。キーが存在しない場合はキー自体をフォールバック表示する(翻訳漏れがあっても画面が壊れないようにするため)。
-- `strings.ja.json` は元々 `frontend/spa` の `ja/translation.json` を丸ごとコピーしたもの。プリセットの `titleKey`/`descKey` など、`drillPresets.js`/`drillCatalog.js` が参照するキー体系は `frontend/spa` と共有している(データ側は移植時に変更していないため)。issue #97 で `frontend/web` 固有のナビゲーションシェル用キー(`nav_home`/`nav_create`/`nav_history`/`nav_favorites`/`nav_mypage`/`nav_brand`/`nav_mobile_label`/`nav_pc_label`)を追加し、同issueで撤去した検索UI・旧2リンクナビ専用のキー(旧 `nav_home`(「ドリルを探す」の意)・`drill_navigation_label`・`drill_search_label`・`drill_search_placeholder`)を削除した。これにより `strings.ja.json` は `frontend/spa` の `ja/translation.json` と完全一致ではなくなっている(`frontend/spa` 側にはナビシェル自体が存在しないため)。
+- `strings.ja.json` は元々 `frontend/spa` の `ja/translation.json` を丸ごとコピーしたもの。プリセットの `titleKey`/`descKey` など、`drillPresets.js`/`drillCatalog.js` が参照するキー体系は `frontend/spa` と共有している(データ側は移植時に変更していないため)。issue #97 で `frontend/web` 固有のナビゲーションシェル用キー(`nav_home`/`nav_create`/`nav_history`/`nav_favorites`/`nav_mypage`/`nav_brand`/`nav_mobile_label`/`nav_pc_label`)を追加し、同issueで撤去した検索UI・旧2リンクナビ専用のキー(旧 `nav_home`(「ドリルを探す」の意)・`drill_navigation_label`・`drill_search_label`・`drill_search_placeholder`)を削除した。issue #99 で新トップ/カテゴリ画面用のキー(`grade_full_1`〜`6`、`category_picker_heading`、`category_addition`/`category_subtraction`/`category_multiplication`/`category_division`/`category_fraction`/`category_four-operations`/`category_number-sense`、`example_prefix`)を追加した。これにより `strings.ja.json` は `frontend/spa` の `ja/translation.json` と完全一致ではなくなっている(`frontend/spa` 側にはナビシェル・新カテゴリ体系が存在しないため)。旧絞り込みUI専用キー(`subject_*`/`number_type_*_intro`/`form_*`/`*_filter_label`/`all_*`/`clear_filters` 等)は issue #99 で参照元(`catalog.js`/`index.html`)を削除したが、キー自体は削除していない(削除の要否は範囲外と判断。将来の docs-sync/清掃作業で扱う)。
 
 ## 重要な設計判断とその理由
 
@@ -17,10 +17,16 @@
 
 ## 統合ポイント
 
-- 呼び出し元: `home.js`/`catalog.js`/`preset.js`/`presetDetail.js`/`navShell.js`(issue #97 で追加)。`customGenerator.js` は issue #97 で削除済み。
+- 呼び出し元: `catalog.js`/`preset.js`/`presetDetail.js`/`navShell.js`(issue #97 で追加)。`home.js` は issue #99 で `t()` への依存を撤去した(トップ画面の文言は `index.html` に直接ハードコード)。`customGenerator.js` は issue #97 で削除済み。
 - 呼び出し先: なし(`strings.ja.json` を読み込むのみ)。
 
 ## 注意事項・既知の制限
 
 - 英語ロケール・言語切替 UI は持たない(要件により日本語固定)。`strings.ja.json` に `en` 相当のキーは含まれない。
-- issue #97 の変更により `frontend/spa` の `ja/translation.json` との「追従コピー」関係は部分的に崩れている(ナビシェル用キーの追加・撤去済みUI用キーの削除)。今後 `frontend/spa` 側の翻訳を追従コピーする際は、この差分(ナビシェル用キーは対象外、撤去済みキーは復活させない)を踏まえる必要がある。
+- issue #97/#99 の変更により `frontend/spa` の `ja/translation.json` との「追従コピー」関係は部分的に崩れている(ナビシェル用キー・カテゴリ画面用キーの追加、撤去済みUI用キーの削除)。今後 `frontend/spa` 側の翻訳を追従コピーする際は、この差分(ナビシェル/カテゴリ用キーは対象外、撤去済みキーは復活させない)を踏まえる必要がある。
+
+## 変更履歴(git log より自動生成)
+
+- (issue #99 実装コミット) feat(#99): rebuild frontend/web top and catalog screens to match wireframe screens 1-2
+- b11ac96 feat(#97): rebuild frontend/web nav shell and design tokens, remove custom generator/search/ungraded UI
+- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)
