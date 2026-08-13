@@ -47,7 +47,7 @@ import subprocess
 import tempfile
 from dataclasses import dataclass, field
 from fractions import Fraction
-from typing import Callable, Literal, TypeVar
+from typing import Callable, Literal, Protocol, TypeVar
 
 
 MIN_ROWS_OR_COLUMNS = 1
@@ -720,7 +720,85 @@ class Page:
     layout: str = 'inline'
 
 
-def build_preamble_tex(paper_size: str) -> str:
+class LatexEngineAdapter(Protocol):
+    """
+    Pluggable interface for LaTeX compilation, selected via the
+    NUTS_CALC_TEX_ENGINE environment variable (mirrors backend/renderers.py's
+    NUTS_CALC_RENDERER pattern for choosing between nuts_calc.py and
+    nuts_calc_tex.py).
+
+    An adapter owns two engine-specific responsibilities: preamble content
+    this engine needs beyond the shared layout preamble (build_preamble_tex),
+    and how to invoke the engine's compiler (compile). Adding a future
+    engine (e.g. a Japanese-capable one, issue #121) requires only a new
+    class satisfying this interface plus a LATEX_ENGINE_ADAPTERS entry --
+    no changes to command-generation code.
+    """
+
+    binary_name: str
+
+    def build_preamble_additions(self) -> str:
+        """Extra preamble TeX this engine needs, appended after the shared packages."""
+        ...
+
+    def compile(self, tex_source: str, out_pdf_path: str) -> None:
+        """Compile tex_source into a PDF at out_pdf_path, calling failure() on error."""
+        ...
+
+
+class PdflatexEngineAdapter:
+    """
+    Default adapter: plain pdflatex. No CJK/Japanese font support (see
+    docs/L3_implementation/backend/nuts_calc_tex.py.md); a Japanese-capable
+    adapter is tracked separately as issue #121.
+    """
+
+    binary_name = 'pdflatex'
+
+    def build_preamble_additions(self) -> str:
+        return ''
+
+    def compile(self, tex_source: str, out_pdf_path: str) -> None:
+        env = os.environ.copy()
+        env['TEXINPUTS'] = f"{VENDOR_TEXMF_DIR}//:" + env.get('TEXINPUTS', '')
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tex_path = os.path.join(tmp_dir, 'worksheet.tex')
+            with open(tex_path, 'w') as f:
+                f.write(tex_source)
+            result = subprocess.run(
+                [self.binary_name, '-interaction=nonstopmode', '-halt-on-error', 'worksheet.tex'],
+                cwd=tmp_dir, env=env, capture_output=True, text=True,
+            )
+            if result.returncode != 0:
+                failure(f"{self.binary_name} failed while building {out_pdf_path}:\n{result.stdout[-4000:]}")
+            shutil.copyfile(os.path.join(tmp_dir, 'worksheet.pdf'), out_pdf_path)
+
+
+LATEX_ENGINE_ENV_VAR = 'NUTS_CALC_TEX_ENGINE'
+DEFAULT_LATEX_ENGINE = 'pdflatex'
+LATEX_ENGINE_ADAPTERS: dict[str, Callable[[], LatexEngineAdapter]] = {
+    'pdflatex': PdflatexEngineAdapter,
+}
+
+
+def get_latex_engine_name() -> str:
+    """
+    Resolve which LaTeX engine adapter to use from NUTS_CALC_TEX_ENGINE,
+    defaulting to `pdflatex` to preserve existing behavior when unset.
+    """
+    name = os.environ.get(LATEX_ENGINE_ENV_VAR, DEFAULT_LATEX_ENGINE)
+    if name not in LATEX_ENGINE_ADAPTERS:
+        allowed = ', '.join(sorted(LATEX_ENGINE_ADAPTERS))
+        raise ValueError(f"Unknown {LATEX_ENGINE_ENV_VAR} value {name!r}. Must be one of: {allowed}.")
+    return name
+
+
+def get_latex_engine_adapter() -> LatexEngineAdapter:
+    return LATEX_ENGINE_ADAPTERS[get_latex_engine_name()]()
+
+
+def build_preamble_tex(paper_size: str, engine_adapter: LatexEngineAdapter | None = None) -> str:
+    engine_adapter = engine_adapter if engine_adapter is not None else PdflatexEngineAdapter()
     geometry_option = PAPER_SIZE_TO_GEOMETRY_OPTION[paper_size.lower()]
     return (
         "\\documentclass[12pt]{article}\n"
@@ -731,7 +809,8 @@ def build_preamble_tex(paper_size: str) -> str:
         "\\usepackage{array}\n"
         "\\usepackage[table]{xcolor}\n"
         "\\usepackage{fancyhdr}\n"
-        "\\pagestyle{fancy}\n"
+        + engine_adapter.build_preamble_additions()
+        + "\\pagestyle{fancy}\n"
         "\\fancyhf{}\n"
         f"\\fancyfoot[L]{{{COPYRIGHT_STR}}}\n"
         "\\fancyfoot[R]{Page \\#\\thepage}\n"
@@ -850,6 +929,7 @@ def build_document_tex(
     blank_pages: list[Page],
     filled_pages: list[Page],
     mode: str,
+    engine_adapter: LatexEngineAdapter,
     with_name_field: bool = False,
 ) -> str:
     """
@@ -861,6 +941,9 @@ def build_document_tex(
             filled counterpart, in one PDF -- a simplified variant of
             nuts_calc.py's `--merge`, which instead delays the answer page
             by one page; see module/L3 docs for details).
+        engine_adapter: Selects the LaTeX engine's preamble additions (see
+            LatexEngineAdapter); the same adapter must be used to compile
+            the returned source.
     """
     if mode == 'blank':
         ordered_pages = blank_pages
@@ -876,27 +959,11 @@ def build_document_tex(
         build_page_tex(page, with_name_field) for page in ordered_pages
     )
     return (
-        build_preamble_tex(paper_size)
+        build_preamble_tex(paper_size, engine_adapter)
         + "\\begin{document}\n"
         + document_body
         + "\n\\end{document}\n"
     )
-
-
-def compile_tex(tex_source: str, out_pdf_path: str) -> None:
-    env = os.environ.copy()
-    env['TEXINPUTS'] = f"{VENDOR_TEXMF_DIR}//:" + env.get('TEXINPUTS', '')
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        tex_path = os.path.join(tmp_dir, 'worksheet.tex')
-        with open(tex_path, 'w') as f:
-            f.write(tex_source)
-        result = subprocess.run(
-            ['pdflatex', '-interaction=nonstopmode', '-halt-on-error', 'worksheet.tex'],
-            cwd=tmp_dir, env=env, capture_output=True, text=True,
-        )
-        if result.returncode != 0:
-            failure(f"pdflatex failed while building {out_pdf_path}:\n{result.stdout[-4000:]}")
-        shutil.copyfile(os.path.join(tmp_dir, 'worksheet.pdf'), out_pdf_path)
 
 
 def write_csv(rows: list[list[object]], csv_path: str) -> None:
@@ -4053,9 +4120,14 @@ def build_divfrac_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page]
 
 
 def main(ini: argparse.Namespace) -> None:
-    if shutil.which('pdflatex') is None:
+    try:
+        engine_adapter = get_latex_engine_adapter()
+    except ValueError as e:
+        failure(str(e))
+
+    if shutil.which(engine_adapter.binary_name) is None:
         failure(
-            "pdflatex not found. Install a LaTeX distribution first "
+            f"{engine_adapter.binary_name} not found. Install a LaTeX distribution first "
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
@@ -4134,19 +4206,22 @@ def main(ini: argparse.Namespace) -> None:
 
     if ini.merge:
         tex_source = build_document_tex(
-            ini.paper_size, blank_pages, filled_pages, mode='merge', with_name_field=ini.with_name_field,
+            ini.paper_size, blank_pages, filled_pages, mode='merge',
+            engine_adapter=engine_adapter, with_name_field=ini.with_name_field,
         )
-        compile_tex(tex_source, ini.out_file)
+        engine_adapter.compile(tex_source, ini.out_file)
     else:
-        compile_tex(
+        engine_adapter.compile(
             build_document_tex(
-                ini.paper_size, blank_pages, filled_pages, mode='blank', with_name_field=ini.with_name_field,
+                ini.paper_size, blank_pages, filled_pages, mode='blank',
+                engine_adapter=engine_adapter, with_name_field=ini.with_name_field,
             ),
             ini.out_file,
         )
-        compile_tex(
+        engine_adapter.compile(
             build_document_tex(
-                ini.paper_size, blank_pages, filled_pages, mode='filled', with_name_field=ini.with_name_field,
+                ini.paper_size, blank_pages, filled_pages, mode='filled',
+                engine_adapter=engine_adapter, with_name_field=ini.with_name_field,
             ),
             outfile_read,
         )
