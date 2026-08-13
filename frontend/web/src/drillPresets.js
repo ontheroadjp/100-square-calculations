@@ -463,6 +463,17 @@ const NUMBER_KIND_OPTIONS = [
   { value: 'mixed', labelKey: 'setting_option_mixed' },
 ];
 
+// Maps the 数の種類(分数/帯分数を含む/まぜる) numberKind setting to
+// nuts_calc_tex.py's frac --a-fraction-form/--b-fraction-form (#112).
+// 'fraction' omits both flags so the request keeps the CLI's 'proper'
+// default (unreduced non-mixed operands, unchanged from before #112).
+function fractionFormParams(state) {
+  const numberKind = state?.numberKind ?? 'mixed';
+  if (numberKind === 'fraction') return {};
+  const form = numberKind === 'mixedNumber' ? 'mixed' : 'mix';
+  return { a_fraction_form: form, b_fraction_form: form };
+}
+
 const grade4 = {
   division: [
     {
@@ -564,18 +575,15 @@ const grade4 = {
       descKey: 'menu_g4_fraction_add_desc',
       difficultyKey: 'difficulty_basic_standard',
       examples: ['3/8+2/8', '1 2/5+2 4/5'],
-      // Partial: frac never renders mixed numbers (帯分数), only raw
-      // numerator/denominator (nuts_calc_tex.py:3070-3076). "分数" (proper,
-      // non-mixed) is the only numberKind this can honor today. #112.
       settings: [
         fixedSetting('denominator', 'setting_denominator_label', 'setting_option_same_denominator'),
         { id: 'numberKind', labelKey: 'setting_number_kind_label', type: 'choice', options: NUMBER_KIND_OPTIONS, default: 'mixed' },
       ],
-      supportLevel: 'partial',
+      supportLevel: 'full',
       latexOnly: true,
-      buildParams: () => ({
+      buildParams: (state) => ({
         command_type: 'frac', operator: ['add'], numerator_digits: 1, denominator_digits: 1,
-        same_denominator: true,
+        same_denominator: true, ...fractionFormParams(state),
       }),
     },
     {
@@ -584,16 +592,19 @@ const grade4 = {
       descKey: 'menu_g4_fraction_sub_desc',
       difficultyKey: 'difficulty_basic_standard',
       examples: ['7/9-4/9', '3 2/5-1 4/5'],
-      // Partial: see g4-fraction-add above (#112).
       settings: [
         fixedSetting('denominator', 'setting_denominator_label', 'setting_option_same_denominator'),
         { id: 'numberKind', labelKey: 'setting_number_kind_label', type: 'choice', options: NUMBER_KIND_OPTIONS, default: 'mixed' },
       ],
-      supportLevel: 'partial',
+      supportLevel: 'full',
       latexOnly: true,
-      buildParams: () => ({
+      // proper_result (答え<1) only makes sense for the plain-fraction tier:
+      // 帯分数を含む/まぜる's example (3 2/5-1 4/5=1 3/5, #112) can legitimately
+      // answer >= 1 via whole-number borrowing.
+      buildParams: (state) => ({
         command_type: 'frac', operator: ['sub'], numerator_digits: 1, denominator_digits: 1,
-        same_denominator: true, proper_result: true,
+        same_denominator: true, proper_result: (state?.numberKind ?? 'mixed') === 'fraction',
+        ...fractionFormParams(state),
       }),
     },
   ],
@@ -726,17 +737,15 @@ const grade5 = {
       descKey: 'menu_g5_fraction_add_desc',
       difficultyKey: 'difficulty_standard',
       examples: ['2/3+3/5', '1 2/3+2 3/5'],
-      // Partial: denominator relationship is fully controllable, but the
-      // 数の種類(帯分数) setting isn't -- see g4-fraction-add note (#112).
       settings: [
         { id: 'denominator', labelKey: 'setting_denominator_label', type: 'choice', options: DENOMINATOR_CHOICE_OPTIONS, default: 'mixed' },
         { id: 'numberKind', labelKey: 'setting_number_kind_label', type: 'choice', options: NUMBER_KIND_OPTIONS, default: 'mixed' },
       ],
-      supportLevel: 'partial',
+      supportLevel: 'full',
       latexOnly: true,
       buildParams: (state) => ({
         command_type: 'frac', operator: ['add'], numerator_digits: 1, denominator_digits: 1,
-        ...denominatorParams(state),
+        ...denominatorParams(state), ...fractionFormParams(state),
       }),
     },
     {
@@ -745,16 +754,17 @@ const grade5 = {
       descKey: 'menu_g5_fraction_sub_desc',
       difficultyKey: 'difficulty_standard',
       examples: ['5/6-1/4', '3 5/6-1 1/4'],
-      // Partial: see g5-fraction-add above (#112).
       settings: [
         { id: 'denominator', labelKey: 'setting_denominator_label', type: 'choice', options: DENOMINATOR_CHOICE_OPTIONS, default: 'mixed' },
         { id: 'numberKind', labelKey: 'setting_number_kind_label', type: 'choice', options: NUMBER_KIND_OPTIONS, default: 'mixed' },
       ],
-      supportLevel: 'partial',
+      supportLevel: 'full',
       latexOnly: true,
+      // proper_result only for the plain-fraction tier -- see g4-fraction-sub note (#112).
       buildParams: (state) => ({
         command_type: 'frac', operator: ['sub'], numerator_digits: 1, denominator_digits: 1,
-        proper_result: true, ...denominatorParams(state),
+        proper_result: (state?.numberKind ?? 'mixed') === 'fraction',
+        ...denominatorParams(state), ...fractionFormParams(state),
       }),
     },
     {

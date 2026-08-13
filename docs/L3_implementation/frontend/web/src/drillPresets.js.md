@@ -26,11 +26,17 @@
 ### `partial` サポートの項目と根拠(実機検証で判明した未追跡ギャップ)
 
 以下は #91-#96 のいずれにも含まれない、#98 実装時の検証で新たに判明したバックエンド制約:
-- 4・5年生「分数の足し算/引き算」: `frac` コマンドは常に仮分数表記(`fraction_to_tex`, `nuts_calc_tex.py:3070-3076`)で、帯分数表示の経路が存在しない。「数の種類: 帯分数を含む/まぜる」は実現不可。→ issue #112。
+- 4・5年生「分数の足し算/引き算」(`g4-fraction-add`/`sub`、`g5-fraction-add`/`sub`)は issue #112 で `frac` コマンドが `--a-fraction-form`/`--b-fraction-form`(`mixed`/`mix`)による帯分数対応を実装したため `full` に引き上げ済み。詳細は下記「帯分数(#112)対応」を参照。
 - 3年生「小数第1位までの足し算/引き算」・4年生「小数の足し算/引き算」: `--carry-borrow`系フラグは整数専用で、`--a-decimal-places`/`--b-decimal-places` と併用不可(`nuts_calc_tex.py:610-611`)。→ issue #113。
 - 6年生の分数×整数・整数×分数・分数×分数・分数÷整数・整数÷分数・分数÷分数(計6項目): `frac`/`mixed` とも Python の `Fraction` が自動的に既約分数へ簡約するため、「約分が必要になるかどうか」を制御するフラグが存在しない。→ issue #114。
 
 `partial` の項目も `settings` にはドキュメント通りの選択肢を全て含める(将来 backend 側の issue が閉じた際、データモデルの再設計なしに `supportLevel` を `full` へ引き上げられるようにするため)。
+
+### 帯分数(#112)対応: `fractionFormParams`/`proper_result` の連動
+
+`NUMBER_KIND_OPTIONS`(`fraction`/`mixedNumber`/`mixed`、docs の「数の種類: 分数/帯分数を含む/まぜる」)を `fraction: {} / mixedNumber: {a,b}_fraction_form='mixed' / mixed: {a,b}_fraction_form='mix'` へ変換する `fractionFormParams(state)` ヘルパーを新設した。`numberKind` 未選択時の既定は `'mixed'`(=「まぜる」)で、これは backend の `--a-fraction-form mix --b-fraction-form mix` が a/b を独立抽選する挙動と一致する(`compare` コマンドの `--a-fraction-form`/`--b-fraction-form` と同じ設計、[[../../../../backend/nuts_calc_tex.py]] の該当セクション参照)。
+
+`g4-fraction-sub`/`g5-fraction-sub` の `proper_result`(答え<1を要求)は `numberKind === 'fraction'` のときだけ真にする。帯分数を含む繰り下がりの答えは1以上になりうる(docs の例 `3 2/5-1 4/5=1 3/5`)ため、`proper_result: true` を無条件のままにすると帯分数繰り下がりドリルが成立しない。
 
 ### `--mixed-carry-borrow`/`--mixed-remainder` の単一演算子制約
 
@@ -61,5 +67,6 @@
 
 ## 変更履歴（git log より自動生成）
 
-- 21a7b33 feat(#98): rebuild frontend/web drill menu data model to match calculation_drill_menu_parameters_v1.md
+- 80f5c5f feat(#112): add mixed-number (帯分数) support to nuts_calc_tex.py frac add/sub
+- 94eb478 #98 Rebuild frontend/web drill menu data model to match calculation_drill_menu_parameters_v1.md (#115)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

@@ -1145,7 +1145,75 @@ def test_cli_frac_csv_rows_contain_exact_fraction_data(run_tex_cli, tmp_path):
     assert result.returncode == 0, result.stdout + result.stderr
     lines = (tmp_path / "result.csv").read_text().strip().splitlines()
     assert len(lines) == 4
-    assert len(lines[0].split(",")) == 9
+    assert len(lines[0].split(",")) == 11
+    for row in lines:
+        assert row.split(",")[-2:] == ["0", "0"]  # a_whole/b_whole (#112): unused without --a/b-fraction-form
+
+
+def test_cli_frac_mixed_number_form_produces_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "frac", "-o", "add",
+        "--numerator-digits", "1", "--denominator-digits", "1", "--same-denominator",
+        "--a-fraction-form", "mixed", "--b-fraction-form", "mixed",
+        "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+    lines = (tmp_path / "result.csv").read_text().strip().splitlines()
+    assert len(lines) == 4
+    for row in lines:
+        a_whole, b_whole = row.split(",")[-2:]
+        assert 1 <= int(a_whole) <= 9
+        assert 1 <= int(b_whole) <= 9
+
+
+def test_cli_frac_mixed_number_form_mix_expands_to_proper_or_mixed(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "frac", "-o", "sub",
+        "--numerator-digits", "1", "--denominator-digits", "1", "--same-denominator", "--proper-result",
+        "--a-fraction-form", "mix", "--b-fraction-form", "mix",
+        "-r", "5", "-c", "5", "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    lines = (tmp_path / "result.csv").read_text().strip().splitlines()
+    assert len(lines) == 25
+    a_wholes = {int(row.split(",")[-2]) for row in lines}
+    b_wholes = {int(row.split(",")[-1]) for row in lines}
+    assert a_wholes & {0} and a_wholes - {0}  # both proper (0) and mixed (>0) forms appeared
+    assert b_wholes & {0} and b_wholes - {0}
+
+
+def test_cli_frac_fraction_form_rejects_improper(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "frac", "-o", "add", "--a-fraction-form", "improper", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_frac_fraction_form_rejects_mix_operator(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "frac", "-o", "mix", "--a-fraction-form", "mixed", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_frac_fraction_form_rejects_multiple_operators(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "frac", "-o", "add", "sub", "--a-fraction-form", "mixed", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_fraction_form_rejects_non_compare_non_frac_command(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "mixed", "--a-fraction-form", "mixed", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
 
 
 def test_cli_ope_decimal_add_sub_produces_pdfs(run_tex_cli, tmp_path):
