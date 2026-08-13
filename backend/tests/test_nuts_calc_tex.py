@@ -2,25 +2,30 @@
 `ope` command Phase 2 #21; `com` command Phase 3 #22; `99` command Phase 5
 #24; `aBc` command Phase 6 #25; `squ` command Phase 7 #26; `pi` command
 Phase 8 #27; fraction arithmetic #65; `ope --use-parentheses` #67;
-`ope --missing-value` #69; and `evenodd`/`multiples`/`divisors` #94).
+`ope --missing-value` #69; `evenodd`/`multiples`/`divisors` #94; `lcm`/`gcd`
+#95; and `simplify`/`commondenom`/`frac2dec`/`dec2frac`/`divfrac` #96).
 
 nuts_calc_tex.py has zero code dependency on nuts_calc.py, so these tests
 run it as a real subprocess, independent of tests/test_nuts_calc_cli.py.
 All tests are skipped when `pdflatex` is not on PATH, since this module
 requires a LaTeX distribution. Pure-Python `ope`/`com`/`99`/`aBc`/`squ`/`pi`/
-`evenodd`/`multiples`/`divisors` generation logic that doesn't need pdflatex
+`evenodd`/`multiples`/`divisors`/`lcm`/`gcd`/`simplify`/`commondenom`/
+`frac2dec`/`dec2frac`/`divfrac` generation logic that doesn't need pdflatex
 is covered separately in test_nuts_calc_tex_ope_generation.py,
 test_nuts_calc_tex_com_generation.py, test_nuts_calc_tex_kuku_generation.py,
 test_nuts_calc_tex_abc_generation.py, test_nuts_calc_tex_squ_generation.py,
 test_nuts_calc_tex_pi_generation.py, test_nuts_calc_tex_evenodd_generation.py,
-test_nuts_calc_tex_multiples_generation.py, and
-test_nuts_calc_tex_divisors_generation.py.
+test_nuts_calc_tex_multiples_generation.py,
+test_nuts_calc_tex_divisors_generation.py,
+test_nuts_calc_tex_lcm_gcd_generation.py, and
+test_nuts_calc_tex_conversion_generation.py.
 """
 
 import math
 import shutil
 import subprocess
 import sys
+from fractions import Fraction
 from pathlib import Path
 
 import pytest
@@ -1308,6 +1313,104 @@ def test_cli_number_pair_rejects_intermediate(run_tex_cli, tmp_path, command):
     result = run_tex_cli("A4", command, "--intermediate", "--out-file", "result.pdf")
     assert result.returncode == 1
     assert not (tmp_path / "result.pdf").exists()
+
+
+@pytest.mark.parametrize("command", ["simplify", "commondenom", "frac2dec", "dec2frac", "divfrac"])
+def test_cli_conversion_produces_blank_and_filled_pdfs(run_tex_cli, tmp_path, command):
+    result = run_tex_cli("A4", command, "-r", "3", "-c", "2", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+@pytest.mark.parametrize("command", ["simplify", "commondenom", "frac2dec", "dec2frac", "divfrac"])
+def test_cli_conversion_with_bottom_answer_produces_pdf(run_tex_cli, tmp_path, command):
+    result = run_tex_cli("A4", command, "-r", "3", "-c", "2", "-ww", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
+@pytest.mark.parametrize("command", ["simplify", "commondenom", "frac2dec"])
+def test_cli_conversion_digit_options_produce_pdf(run_tex_cli, tmp_path, command):
+    result = run_tex_cli(
+        "A4", command, "--numerator-digits", "2", "--denominator-digits", "2",
+        "-r", "2", "-c", "2", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
+def test_cli_divfrac_digit_options_produce_pdf(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "divfrac", "-a", "2", "-b", "2", "-r", "2", "-c", "2", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
+def test_cli_divfrac_rejects_b_min_below_one(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "divfrac", "--b-min", "0", "--out-file", "result.pdf")
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_simplify_csv_rows_are_reducible_and_correctly_reduced(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "simplify", "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    lines = (tmp_path / "result.csv").read_text().strip().splitlines()
+    assert len(lines) == 4
+    for line in lines:
+        _, _, numerator, denominator, reduced_numerator, reduced_denominator = line.split(",")
+        assert math.gcd(int(numerator), int(denominator)) > 1
+        assert Fraction(int(numerator), int(denominator)) == Fraction(int(reduced_numerator), int(reduced_denominator))
+
+
+def test_cli_commondenom_csv_rows_share_a_denominator(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "commondenom", "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    lines = (tmp_path / "result.csv").read_text().strip().splitlines()
+    assert len(lines) == 4
+    for line in lines:
+        parts = [int(value) for value in line.split(",")]
+        _, _, a_num, a_den, b_num, b_den, a_conv_num, a_conv_den, b_conv_num, b_conv_den = parts
+        assert a_conv_den == b_conv_den
+        assert Fraction(a_conv_num, a_conv_den) == Fraction(a_num, a_den)
+        assert Fraction(b_conv_num, b_conv_den) == Fraction(b_num, b_den)
+
+
+def test_cli_frac2dec_csv_rows_match_fraction(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "frac2dec", "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    lines = (tmp_path / "result.csv").read_text().strip().splitlines()
+    assert len(lines) == 4
+    for line in lines:
+        _, _, numerator, denominator, decimal_str = line.split(",")
+        assert Fraction(decimal_str) == Fraction(int(numerator), int(denominator))
+
+
+def test_cli_dec2frac_csv_rows_match_decimal_and_are_reduced(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "dec2frac", "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    lines = (tmp_path / "result.csv").read_text().strip().splitlines()
+    assert len(lines) == 4
+    for line in lines:
+        _, _, decimal_str, reduced_numerator, reduced_denominator = line.split(",")
+        reduced = Fraction(int(reduced_numerator), int(reduced_denominator))
+        assert Fraction(decimal_str) == reduced
+        assert reduced.denominator > 1
+
+
+def test_cli_divfrac_csv_rows_are_not_reduced(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "divfrac", "--a-min", "2", "--a-max", "2", "--b-min", "4", "--b-max", "4",
+        "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+    lines = (tmp_path / "result.csv").read_text().strip().splitlines()
+    assert len(lines) == 4
+    for line in lines:
+        _, _, a, b = line.split(",")
+        assert (a, b) == ("2", "4")
 
 
 def test_cli_fails_clearly_when_pdflatex_missing(run_tex_cli, tmp_path, monkeypatch):
