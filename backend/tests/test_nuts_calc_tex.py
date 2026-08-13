@@ -26,6 +26,7 @@ from nuts_calc_tex import (
     addition_has_carry,
     build_block_grid_tex,
     build_inline_grid_tex,
+    build_page_header_tex,
     build_page_tex,
     build_preamble_tex,
     build_tabular_grid_tex,
@@ -66,6 +67,19 @@ def test_preamble_reserves_a_40mm_footer_area() -> None:
 
     assert "margin=15mm,top=20mm,bottom=40mm" in tex
     assert "\\addtolength{\\footskip}{20mm}" in tex
+
+
+def test_page_header_omits_name_field_by_default() -> None:
+    tex = build_page_header_tex()
+
+    assert "Name:" not in tex
+    assert tex == build_page_header_tex(with_name_field=False)
+
+
+def test_page_header_includes_name_field_when_requested() -> None:
+    tex = build_page_header_tex(with_name_field=True)
+
+    assert "Name: \\underline{\\hspace{8cm}}" in tex
 
 
 def test_inline_grid_fills_an_incomplete_row_with_an_empty_cell() -> None:
@@ -170,6 +184,13 @@ def test_cli_with_bottom_answer_produces_pdf(run_tex_cli, tmp_path):
     result = run_tex_cli("A4", "ope", "-r", "3", "-c", "2", "-ww", "--out-file", "result.pdf")
     assert result.returncode == 0, result.stderr
     _assert_is_pdf(tmp_path / "result.pdf")
+
+
+def test_cli_with_name_field_produces_pdf(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "ope", "-r", "2", "-c", "2", "--with-name-field", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
 
 
 def test_cli_rejects_rows_below_minimum(run_tex_cli, tmp_path):

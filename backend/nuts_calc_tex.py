@@ -377,6 +377,11 @@ def _init() -> argparse.Namespace:
         , action = 'store_true'
         , help = 'Flag whether or not to post answers at the bottom of the page'
     )
+    parser.add_argument('--with-name-field'
+        , default = False
+        , action = 'store_true'
+        , help = 'Flag whether or not to print a name-entry line in the page header'
+    )
     parser.add_argument('-p', '--page'
         , type = int
         , default = 1
@@ -693,12 +698,16 @@ def build_preamble_tex(paper_size: str) -> str:
     )
 
 
-def build_page_header_tex() -> str:
+def build_page_header_tex(with_name_field: bool = False) -> str:
+    date_time_line = "Date: \\underline{\\hspace{4cm}} \\hfill Time: \\underline{\\hspace{4cm}}"
+    name_field_tex = (
+        "\\\\\nName: \\underline{\\hspace{8cm}}" if with_name_field else ""
+    )
     return (
         f"{{\\bfseries {HEADER_STR}}}\\\\\n"
         f"{{\\Large\\bfseries {TITLE_STR}}}\\\\\n"
         f"{{\\small {SUB_TITLE_STR}}}\\\\[1em]\n"
-        "Date: \\underline{\\hspace{4cm}} \\hfill Time: \\underline{\\hspace{4cm}}\n"
+        f"{date_time_line}{name_field_tex}\n"
         "\\vspace{1.5em}\n\n"
     )
 
@@ -777,7 +786,7 @@ def build_block_grid_tex(blocks: list[str]) -> str:
     return "\\vfill\n" + "\n".join(blocks) + "\n\\vfill"
 
 
-def build_page_tex(page: Page) -> str:
+def build_page_tex(page: Page, with_name_field: bool = False) -> str:
     """Render one Page's grid of blocks, plus header and optional bottom answer."""
     if page.layout == 'tabular':
         grid_tex = build_tabular_grid_tex(page.blocks, page.columns)
@@ -786,13 +795,19 @@ def build_page_tex(page: Page) -> str:
     else:
         grid_tex = build_inline_grid_tex(page.blocks, page.columns)
 
-    parts = [build_page_header_tex(), grid_tex]
+    parts = [build_page_header_tex(with_name_field), grid_tex]
     if page.bottom_answer_tex:
         parts.append(f"\\vfill\n{{\\small {page.bottom_answer_tex}}}\n")
     return "\n".join(parts)
 
 
-def build_document_tex(paper_size: str, blank_pages: list[Page], filled_pages: list[Page], mode: str) -> str:
+def build_document_tex(
+    paper_size: str,
+    blank_pages: list[Page],
+    filled_pages: list[Page],
+    mode: str,
+    with_name_field: bool = False,
+) -> str:
     """
     Build a full LaTeX document.
 
@@ -813,7 +828,9 @@ def build_document_tex(paper_size: str, blank_pages: list[Page], filled_pages: l
             ordered_pages.append(blank_page)
             ordered_pages.append(filled_page)
 
-    document_body = "\n\\newpage\n".join(build_page_tex(page) for page in ordered_pages)
+    document_body = "\n\\newpage\n".join(
+        build_page_tex(page, with_name_field) for page in ordered_pages
+    )
     return (
         build_preamble_tex(paper_size)
         + "\\begin{document}\n"
@@ -3180,11 +3197,23 @@ def main(ini: argparse.Namespace) -> None:
     outfile_csv = outfile_basename + '.csv'
 
     if ini.merge:
-        tex_source = build_document_tex(ini.paper_size, blank_pages, filled_pages, mode='merge')
+        tex_source = build_document_tex(
+            ini.paper_size, blank_pages, filled_pages, mode='merge', with_name_field=ini.with_name_field,
+        )
         compile_tex(tex_source, ini.out_file)
     else:
-        compile_tex(build_document_tex(ini.paper_size, blank_pages, filled_pages, mode='blank'), ini.out_file)
-        compile_tex(build_document_tex(ini.paper_size, blank_pages, filled_pages, mode='filled'), outfile_read)
+        compile_tex(
+            build_document_tex(
+                ini.paper_size, blank_pages, filled_pages, mode='blank', with_name_field=ini.with_name_field,
+            ),
+            ini.out_file,
+        )
+        compile_tex(
+            build_document_tex(
+                ini.paper_size, blank_pages, filled_pages, mode='filled', with_name_field=ini.with_name_field,
+            ),
+            outfile_read,
+        )
 
     if ini.csv:
         if ope_pages_problems is not None:
