@@ -1,0 +1,165 @@
+@use 'base' as *;
+
+// PC (>=768px, matching navShell's $breakpoint-desktop) 4-column layout
+// ("学年"/"計算を選ぶ"/"ドリル設定"/"プレビュー") for index.html's "作る" flow
+// (issue #101, docs/uiux/wireframe_v1.png "PC版レイアウトイメージ"). Mobile
+// keeps the existing single-column grade-picker (.grade-drills); only one of
+// the two is visible at a time, toggled purely by breakpoint.
+$breakpoint-desktop: 768px;
+$topbar-height: 60px;
+
+.pc-make-flow {
+  display: none;
+}
+
+.app-container.pc-flow-page {
+  @media (min-width: $breakpoint-desktop) {
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .app-header {
+    @media (min-width: $breakpoint-desktop) {
+      display: none;
+    }
+  }
+
+  .main-content {
+    @media (min-width: $breakpoint-desktop) {
+      max-width: none;
+      width: 100%;
+      padding: 0;
+    }
+  }
+
+  .grade-drills {
+    @media (min-width: $breakpoint-desktop) {
+      display: none;
+    }
+  }
+
+  .pc-make-flow {
+    @media (min-width: $breakpoint-desktop) {
+      display: block;
+    }
+  }
+}
+
+.pc-flow-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $space-md;
+  height: $topbar-height;
+  padding: 0 $space-lg;
+  box-sizing: border-box;
+  border-bottom: 1px solid $color-border-light;
+  background: #fff;
+}
+
+.pc-flow-breadcrumb {
+  margin: 0;
+  font-size: $font-size-base;
+  color: $color-text;
+}
+
+.pc-flow-breadcrumb-separator {
+  color: $color-text-muted;
+}
+
+.pc-flow-columns {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(280px, 1.4fr) minmax(280px, 1.4fr) minmax(240px, 1.2fr);
+  align-items: start;
+  min-height: calc(100vh - #{$topbar-height});
+  // Columns get a real minimum width (they hold text/cards/an iframe that
+  // can't usefully shrink below it), so narrow desktop windows scroll
+  // within this grid instead of widening the whole document -- letting the
+  // document itself overflow drags the fixed .pc-sidebar sideways with it
+  // (position: fixed follows the initial containing block, not the visual
+  // viewport, once the document itself gains horizontal overflow).
+  overflow-x: auto;
+}
+
+.pc-flow-column {
+  padding: $space-lg $space-md;
+  box-sizing: border-box;
+  height: calc(100vh - #{$topbar-height});
+  overflow-y: auto;
+  min-width: 0;
+
+  & + & {
+    border-left: 1px solid $color-border-light;
+  }
+}
+
+.pc-column-heading {
+  margin: 0 0 $space-md;
+  font-size: $font-size-base;
+  font-weight: 700;
+  color: $color-text;
+}
+
+.pc-column-placeholder {
+  margin: $space-md 0;
+  color: $color-text-muted;
+  font-size: $font-size-sm;
+}
+
+.pc-grade-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $space-xs;
+}
+
+.pc-grade-list-item {
+  width: 100%;
+  min-height: 40px;
+  padding: $space-sm $space-md;
+  border: none;
+  border-radius: $radius-sm;
+  background: transparent;
+  color: $color-text;
+  font: inherit;
+  font-size: $font-size-sm;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: #f3f4f6;
+  }
+
+  &.is-selected {
+    background: #eff6ff;
+    color: $color-primary;
+    font-weight: 700;
+  }
+}
+
+.pc-category-section {
+  margin: 0 0 $space-lg;
+}
+
+.pc-drill-list-card {
+  width: 100%;
+  border: 1px solid $color-border-light;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+
+  &.is-selected {
+    border-color: $color-primary;
+    background: #eff6ff;
+  }
+}
+
+.pc-settings-panel {
+  gap: $space-md;
+}
+
+.pc-preview-iframe-container {
+  height: 65vh;
+}
