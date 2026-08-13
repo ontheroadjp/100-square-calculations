@@ -6,7 +6,8 @@ nuts_calc_tex.py -- Phase 1 CLI/PDF foundation (issue #20) + Phase 2 `ope`
 command (issue #21) + Phase 3 `com` command (issue #22) + Phase 4 `100`
 command (issue #23) + Phase 5 `99` command (issue #24) + Phase 6 `aBc`
 command (issue #25) + Phase 7 `squ` command (issue #26) + Phase 8 `pi`
-command (issue #27).
+command (issue #27) + `evenodd`/`multiples`/`divisors` number-property
+commands (issue #94).
 
 A 100%-LaTeX-rendered, fully independent reimplementation of nuts_calc.py's
 CLI surface (see the tracking issue #19). This file has zero code
@@ -17,8 +18,10 @@ meant to run side by side, each self-contained.
 `com` (complement-to-target), `100` (100-square addition table), `99`
 (times-table / kuku, with --descend/--reverse/--shuffle ordering), `aBc`
 (mental-arithmetic digit-pair conversion), `squ` (square numbers, with
---descend/--reverse/--shuffle ordering), and `pi` (multiplication by pi,
-with the same --descend/--reverse/--shuffle ordering) are all implemented.
+--descend/--reverse/--shuffle ordering), `pi` (multiplication by pi,
+with the same --descend/--reverse/--shuffle ordering), `evenodd`
+(even/odd judgment), `multiples` (multiples listing, --multiples-count),
+and `divisors` (divisor listing) are all implemented.
 
 Requires a LaTeX distribution (`pdflatex`) on PATH. The `longdivision`
 CTAN package (used by `ope --vertical -o div`) is vendored into this repo
@@ -72,6 +75,9 @@ BOXED_BLANK_TEX = '\\vcenter{\\hbox{\\fbox{\\rule{0pt}{1em}\\hspace{1em}}}}'
 MIN_DECIMAL_PLACES = 0
 MAX_DECIMAL_PLACES = 2
 MIXED_OPERAND_KINDS = ('int', 'decimal', 'fraction')
+DEFAULT_MULTIPLES_COUNT = 4
+MIN_MULTIPLES_COUNT = 1
+EVEN_ODD_LABELS = {True: 'even', False: 'odd'}
 BORROWING_MINUENDS = tuple(range(10, 20))
 BORROWING_SUBTRAHENDS = tuple(range(1, 10))
 
@@ -130,8 +136,12 @@ def _init() -> argparse.Namespace:
     )
     parser.add_argument('command'
         , type = str
-        , choices = ['ope', 'com', '100', '99', 'aBc', 'squ', 'pi', 'frac', 'mixed', 'compare']
-        , help = 'Type of formula to output (including "frac" for fraction arithmetic, "compare" for fraction comparison, and "mixed" for int/decimal/fraction arithmetic)'
+        , choices = ['ope', 'com', '100', '99', 'aBc', 'squ', 'pi', 'frac', 'mixed', 'compare', 'evenodd', 'multiples', 'divisors']
+        , help = (
+            'Type of formula to output (including "frac" for fraction arithmetic, "compare" for '
+            'fraction comparison, "mixed" for int/decimal/fraction arithmetic, "evenodd" for '
+            'even/odd judgment, "multiples" for listing multiples, and "divisors" for listing divisors)'
+        )
     )
     parser.add_argument('-a', '--a-value'
         , type = int
@@ -287,6 +297,11 @@ def _init() -> argparse.Namespace:
         , choices = list(MIXED_OPERAND_KINDS)
         , nargs = '*'
         , help = 'Allowed operand kinds for the second and later "mixed" terms, chosen per problem (mixed only)'
+    )
+    parser.add_argument('--multiples-count'
+        , type = int
+        , default = DEFAULT_MULTIPLES_COUNT
+        , help = 'Number of multiples to list per problem (multiples only)'
     )
     parser.add_argument('--descend'
         , default = False
@@ -461,6 +476,15 @@ def _init() -> argparse.Namespace:
     if args.command == 'pi':
         if args.a_value is None:
             failure("-a/--a-value (starting multiplicand) is required for the 'pi' command.")
+
+    if args.command in ('multiples', 'divisors') and args.a_min < 1:
+        failure(f"--a-min must be at least 1 for the '{args.command}' command.")
+
+    if args.command == 'multiples':
+        if args.multiples_count < MIN_MULTIPLES_COUNT:
+            failure(f"--multiples-count must be at least {MIN_MULTIPLES_COUNT}.")
+    elif args.multiples_count != DEFAULT_MULTIPLES_COUNT:
+        failure("--multiples-count is only supported for the 'multiples' command.")
 
     if args.command in ('frac', 'compare', 'mixed'):
         # All three commands create fraction operands; the digit options are
@@ -2674,6 +2698,260 @@ def build_pi_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], lis
     return blank_pages, filled_pages, pages_problems
 
 
+@dataclass
+class EvenOddProblem:
+    """One generated `evenodd` (even/odd judgment) problem: is `a` even or odd."""
+    index: int
+    a: int
+    is_even: bool
+
+    @property
+    def label(self) -> str:
+        return EVEN_ODD_LABELS[self.is_even]
+
+
+def generate_evenodd_problems(nums_a: list[int], order: int, start_index: int) -> list[EvenOddProblem]:
+    """
+    Generate `order` even/odd judgment problems, with problem numbering
+    starting at `start_index`. Each problem's `a` is drawn independently
+    from `nums_a` (the --a-min/--a-max range), the same per-problem
+    random-draw pattern `ope`'s two-term generation uses, since each
+    problem on the page is independent (unlike `squ`/`pi`'s single
+    continuous sequence anchored on a required -a/--a-value).
+    """
+    problems = []
+    for offset in range(order):
+        a = random.choice(nums_a)
+        problems.append(EvenOddProblem(index=start_index + offset, a=a, is_even=a % 2 == 0))
+    return problems
+
+
+def build_evenodd_block_tex(problem: EvenOddProblem, show_answer: bool) -> str:
+    """
+    Render one `evenodd` problem: `n) $a \\Rightarrow \\mathrm{even}$` (blank hides the label).
+
+    The label is the ASCII word "even"/"odd" rather than the Japanese
+    "偶数"/"奇数": this file compiles with plain pdflatex (no CJK font
+    package loaded), and CJK glyphs make pdflatex fail with "Fatal error
+    occurred, no output PDF file produced" (same constraint documented for
+    --with-name-field's "Name:" label, issue #93). `\\mathrm` is core
+    LaTeX2e (no extra package needed) and keeps the label upright inside
+    math mode instead of being spaced out like a product of variables.
+    """
+    label_tex = f"\\mathrm{{{problem.label}}}" if show_answer else BLANK_ANSWER_TEX
+    return f"{problem.index}) ${problem.a} \\Rightarrow {label_tex}$"
+
+
+def build_evenodd_page_pair(problems: list[EvenOddProblem], columns: int) -> tuple[Page, Page]:
+    """Build the (blank, filled) Page pair for one page's worth of `evenodd` problems."""
+    blank_page = Page(
+        blocks=[build_evenodd_block_tex(problem, show_answer=False) for problem in problems],
+        columns=columns,
+    )
+    filled_page = Page(
+        blocks=[build_evenodd_block_tex(problem, show_answer=True) for problem in problems],
+        columns=columns,
+    )
+    return blank_page, filled_page
+
+
+def build_evenodd_bottom_answer_tex(problems: list[EvenOddProblem]) -> str:
+    return ' \\quad '.join(f"({problem.index}) {problem.label}" for problem in problems)
+
+
+def build_evenodd_csv_rows(pages_problems: list[list[EvenOddProblem]]) -> list[list[object]]:
+    rows: list[list[object]] = []
+    for page_number, problems in enumerate(pages_problems, start=1):
+        for problem in problems:
+            rows.append([page_number, problem.index, problem.a, problem.label])
+    return rows
+
+
+def build_evenodd_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], list[list[EvenOddProblem]]]:
+    """Generate real `evenodd` problems and their blank/filled Page pairs for every page."""
+    nums_a = list(range(ini.a_min, ini.a_max + 1))
+    order = ini.rows * ini.columns
+
+    blank_pages = []
+    filled_pages = []
+    pages_problems = []
+    for page_number in range(1, ini.page + 1):
+        start_index = (page_number - 1) * order + 1
+        problems = generate_evenodd_problems(nums_a, order, start_index)
+        blank_page, filled_page = build_evenodd_page_pair(problems, ini.columns)
+        pages_problems.append(problems)
+        blank_pages.append(blank_page)
+        filled_pages.append(filled_page)
+
+    if ini.with_bottom_answer:
+        for problems, blank_page in zip(pages_problems, blank_pages):
+            blank_page.bottom_answer_tex = build_evenodd_bottom_answer_tex(problems)
+
+    return blank_pages, filled_pages, pages_problems
+
+
+@dataclass
+class MultiplesProblem:
+    """One generated `multiples` problem: the first `len(multiples)` multiples of `a`."""
+    index: int
+    a: int
+    multiples: list[int]
+
+
+def generate_multiples_problems(nums_a: list[int], order: int, start_index: int, count: int) -> list[MultiplesProblem]:
+    """
+    Generate `order` multiples-listing problems, with problem numbering
+    starting at `start_index`. Each problem's base `a` is drawn
+    independently from `nums_a` (same per-problem random-draw pattern as
+    `generate_evenodd_problems`); its answer is the first `count`
+    multiples of `a` (`a, 2a, 3a, ...`).
+    """
+    problems = []
+    for offset in range(order):
+        a = random.choice(nums_a)
+        multiples = [a * n for n in range(1, count + 1)]
+        problems.append(MultiplesProblem(index=start_index + offset, a=a, multiples=multiples))
+    return problems
+
+
+def build_multiples_block_tex(problem: MultiplesProblem, show_answer: bool) -> str:
+    """Render one `multiples` problem: `n) $a \\Rightarrow 6, 12, 18, 24$` (blank hides the list)."""
+    multiples_tex = ', '.join(str(m) for m in problem.multiples) if show_answer else BLANK_ANSWER_TEX
+    return f"{problem.index}) ${problem.a} \\Rightarrow {multiples_tex}$"
+
+
+def build_multiples_page_pair(problems: list[MultiplesProblem], columns: int) -> tuple[Page, Page]:
+    """Build the (blank, filled) Page pair for one page's worth of `multiples` problems."""
+    blank_page = Page(
+        blocks=[build_multiples_block_tex(problem, show_answer=False) for problem in problems],
+        columns=columns,
+    )
+    filled_page = Page(
+        blocks=[build_multiples_block_tex(problem, show_answer=True) for problem in problems],
+        columns=columns,
+    )
+    return blank_page, filled_page
+
+
+def build_multiples_bottom_answer_tex(problems: list[MultiplesProblem]) -> str:
+    return ' \\quad '.join(
+        f"({problem.index}) {', '.join(str(m) for m in problem.multiples)}" for problem in problems
+    )
+
+
+def build_multiples_csv_rows(pages_problems: list[list[MultiplesProblem]]) -> list[list[object]]:
+    rows: list[list[object]] = []
+    for page_number, problems in enumerate(pages_problems, start=1):
+        for problem in problems:
+            multiples_str = ' '.join(str(m) for m in problem.multiples)
+            rows.append([page_number, problem.index, problem.a, multiples_str])
+    return rows
+
+
+def build_multiples_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], list[list[MultiplesProblem]]]:
+    """Generate real `multiples` problems and their blank/filled Page pairs for every page."""
+    nums_a = list(range(ini.a_min, ini.a_max + 1))
+    order = ini.rows * ini.columns
+
+    blank_pages = []
+    filled_pages = []
+    pages_problems = []
+    for page_number in range(1, ini.page + 1):
+        start_index = (page_number - 1) * order + 1
+        problems = generate_multiples_problems(nums_a, order, start_index, ini.multiples_count)
+        blank_page, filled_page = build_multiples_page_pair(problems, ini.columns)
+        pages_problems.append(problems)
+        blank_pages.append(blank_page)
+        filled_pages.append(filled_page)
+
+    if ini.with_bottom_answer:
+        for problems, blank_page in zip(pages_problems, blank_pages):
+            blank_page.bottom_answer_tex = build_multiples_bottom_answer_tex(problems)
+
+    return blank_pages, filled_pages, pages_problems
+
+
+@dataclass
+class DivisorsProblem:
+    """One generated `divisors` problem: the full ascending divisor list of `a`."""
+    index: int
+    a: int
+    divisors: list[int]
+
+
+def generate_divisors_problems(nums_a: list[int], order: int, start_index: int) -> list[DivisorsProblem]:
+    """
+    Generate `order` divisor-listing problems, with problem numbering
+    starting at `start_index`. Each problem's `a` is drawn independently
+    from `nums_a` (same per-problem random-draw pattern as
+    `generate_evenodd_problems`); its answer is every divisor of `a` in
+    ascending order (always including 1 and `a` itself).
+    """
+    problems = []
+    for offset in range(order):
+        a = random.choice(nums_a)
+        divisors = [d for d in range(1, a + 1) if a % d == 0]
+        problems.append(DivisorsProblem(index=start_index + offset, a=a, divisors=divisors))
+    return problems
+
+
+def build_divisors_block_tex(problem: DivisorsProblem, show_answer: bool) -> str:
+    """Render one `divisors` problem: `n) $a \\Rightarrow 1, 2, 3, 4, 6, 12$` (blank hides the list)."""
+    divisors_tex = ', '.join(str(d) for d in problem.divisors) if show_answer else BLANK_ANSWER_TEX
+    return f"{problem.index}) ${problem.a} \\Rightarrow {divisors_tex}$"
+
+
+def build_divisors_page_pair(problems: list[DivisorsProblem], columns: int) -> tuple[Page, Page]:
+    """Build the (blank, filled) Page pair for one page's worth of `divisors` problems."""
+    blank_page = Page(
+        blocks=[build_divisors_block_tex(problem, show_answer=False) for problem in problems],
+        columns=columns,
+    )
+    filled_page = Page(
+        blocks=[build_divisors_block_tex(problem, show_answer=True) for problem in problems],
+        columns=columns,
+    )
+    return blank_page, filled_page
+
+
+def build_divisors_bottom_answer_tex(problems: list[DivisorsProblem]) -> str:
+    return ' \\quad '.join(
+        f"({problem.index}) {', '.join(str(d) for d in problem.divisors)}" for problem in problems
+    )
+
+
+def build_divisors_csv_rows(pages_problems: list[list[DivisorsProblem]]) -> list[list[object]]:
+    rows: list[list[object]] = []
+    for page_number, problems in enumerate(pages_problems, start=1):
+        for problem in problems:
+            divisors_str = ' '.join(str(d) for d in problem.divisors)
+            rows.append([page_number, problem.index, problem.a, divisors_str])
+    return rows
+
+
+def build_divisors_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], list[list[DivisorsProblem]]]:
+    """Generate real `divisors` problems and their blank/filled Page pairs for every page."""
+    nums_a = list(range(ini.a_min, ini.a_max + 1))
+    order = ini.rows * ini.columns
+
+    blank_pages = []
+    filled_pages = []
+    pages_problems = []
+    for page_number in range(1, ini.page + 1):
+        start_index = (page_number - 1) * order + 1
+        problems = generate_divisors_problems(nums_a, order, start_index)
+        blank_page, filled_page = build_divisors_page_pair(problems, ini.columns)
+        pages_problems.append(problems)
+        blank_pages.append(blank_page)
+        filled_pages.append(filled_page)
+
+    if ini.with_bottom_answer:
+        for problems, blank_page in zip(pages_problems, blank_pages):
+            blank_page.bottom_answer_tex = build_divisors_bottom_answer_tex(problems)
+
+    return blank_pages, filled_pages, pages_problems
+
+
 @dataclass(frozen=True)
 class FractionOperand:
     """A displayed fraction whose unreduced numerator/denominator are retained."""
@@ -3165,6 +3443,9 @@ def main(ini: argparse.Namespace) -> None:
     fraction_pages_problems: list[list[FractionProblem]] | None = None
     comparison_pages_problems: list[list[FractionComparisonProblem]] | None = None
     mixed_pages_problems: list[list[MixedProblem]] | None = None
+    evenodd_pages_problems: list[list[EvenOddProblem]] | None = None
+    multiples_pages_problems: list[list[MultiplesProblem]] | None = None
+    divisors_pages_problems: list[list[DivisorsProblem]] | None = None
     if ini.command == 'ope' and ini.use_parentheses:
         blank_pages, filled_pages, tree_ope_pages_problems = build_ope_pages(ini)
     elif ini.command == 'ope' and ini.missing_value:
@@ -3189,6 +3470,12 @@ def main(ini: argparse.Namespace) -> None:
         blank_pages, filled_pages, mixed_pages_problems = build_mixed_pages(ini)
     elif ini.command == 'compare':
         blank_pages, filled_pages, comparison_pages_problems = build_fraction_comparison_pages(ini)
+    elif ini.command == 'evenodd':
+        blank_pages, filled_pages, evenodd_pages_problems = build_evenodd_pages(ini)
+    elif ini.command == 'multiples':
+        blank_pages, filled_pages, multiples_pages_problems = build_multiples_pages(ini)
+    elif ini.command == 'divisors':
+        blank_pages, filled_pages, divisors_pages_problems = build_divisors_pages(ini)
     else:
         blank_pages, filled_pages, fraction_pages_problems = build_fraction_pages(ini)
 
@@ -3240,6 +3527,12 @@ def main(ini: argparse.Namespace) -> None:
             rows = build_mixed_csv_rows(mixed_pages_problems)
         elif comparison_pages_problems is not None:
             rows = build_fraction_comparison_csv_rows(comparison_pages_problems)
+        elif evenodd_pages_problems is not None:
+            rows = build_evenodd_csv_rows(evenodd_pages_problems)
+        elif multiples_pages_problems is not None:
+            rows = build_multiples_csv_rows(multiples_pages_problems)
+        elif divisors_pages_problems is not None:
+            rows = build_divisors_csv_rows(divisors_pages_problems)
         else:
             rows = build_fraction_csv_rows(fraction_pages_problems)
         write_csv(rows, outfile_csv)
