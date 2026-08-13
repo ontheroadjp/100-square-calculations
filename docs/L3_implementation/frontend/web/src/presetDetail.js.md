@@ -35,3 +35,8 @@
 - backend の URL がハードコードされている点は `frontend/spa` と同じ既知の制約([[../../frontend/spa/src/CustomGenerator.jsx]] 参照)。
 - 完了画面のPDFサムネイルは実PDFレンダリングではなく静的なCSS装飾(`.completion-thumbnail`)。confettiも静的CSS(アニメーションなし)。例題チップは1行表示(wireframeは2行)。いずれもissue #100のスコープ簡略化として意図的に採用した。
 - `frontend/web` は複数ページ構成(issue #88、ユーザー要望)。本モジュールは `preset.html` 用の独立した「マウント可能なウィジェット」として設計されている(`customGenerator.js` と同じパターン、issue #97 で `customGenerator.js` 自体は削除済み)。
+
+## 変更履歴(git log より自動生成)
+
+- 64f005b feat(#100): rebuild frontend/web preset detail settings/completion/preview screens
+- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

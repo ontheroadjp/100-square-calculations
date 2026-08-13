@@ -38,6 +38,7 @@ issue #100 で `presetDetail.js`([[../presetDetail.js]] 参照)の設定/完了/
 
 ## 変更履歴(git log より自動生成)
 
-- f111bd7 feat(#99): rebuild frontend/web top and catalog screens to match wireframe screens 1-2
+- 64f005b feat(#100): rebuild frontend/web preset detail settings/completion/preview screens
+- 1bd6fa6 #99 Rebuild frontend/web top and catalog screens to match wireframe screens 1-2 (#116)
 - 8007488 #97 frontend/web: rebuild nav shell, design tokens, and remove legacy features (#109)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

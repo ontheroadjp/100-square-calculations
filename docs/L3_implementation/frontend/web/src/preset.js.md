@@ -22,5 +22,6 @@
 
 ## 変更履歴(git log より自動生成)
 
-- b11ac96 feat(#97): rebuild frontend/web nav shell and design tokens, remove custom generator/search/ungraded UI
+- 64f005b feat(#100): rebuild frontend/web preset detail settings/completion/preview screens
+- 8007488 #97 frontend/web: rebuild nav shell, design tokens, and remove legacy features (#109)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

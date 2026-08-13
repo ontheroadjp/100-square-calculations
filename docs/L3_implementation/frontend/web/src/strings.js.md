@@ -28,5 +28,5 @@
 
 ## 変更履歴(git log より自動生成)
 
-- 8007488 #97 frontend/web: rebuild nav shell, design tokens, and remove legacy features (#109)
+- 64f005b feat(#100): rebuild frontend/web preset detail settings/completion/preview screens
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)
