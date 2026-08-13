@@ -2,6 +2,7 @@ import './styles/main.scss';
 import { t } from './strings.js';
 import { GRADES, presetsByGrade } from './drillPresets.js';
 import { mountNavShell } from './navShell.js';
+import { ICONS } from './icons.js';
 
 mountNavShell();
 
@@ -60,7 +61,7 @@ function categorySectionHtml(grade, category, items) {
 function emptyStateHtml() {
   return `
     <p class="drill-empty-state">${t('no_drills_found')}</p>
-    <a class="back-button" href="index.html">${t('back')}</a>
+    <a class="back-button" href="index.html">${ICONS.back}<span>${t('back')}</span></a>
   `;
 }
 
@@ -94,7 +95,7 @@ async function render() {
 
   container.innerHTML = `
     <header class="catalog-header">
-      <a class="back-button" href="index.html">${t('back')}</a>
+      <a class="back-button" href="index.html">${ICONS.back}<span>${t('back')}</span></a>
       <h1 class="catalog-heading">${t(`grade_full_${grade}`)}</h1>
       <p class="category-picker-heading">${t('category_picker_heading')}</p>
     </header>

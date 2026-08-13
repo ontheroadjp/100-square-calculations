@@ -3,6 +3,7 @@ import { t } from './strings.js';
 import { GRADES, UNGRADED, presetsByGrade } from './drillPresets.js';
 import { mountPresetDetail } from './presetDetail.js';
 import { mountNavShell } from './navShell.js';
+import { ICONS } from './icons.js';
 
 const API_BASE = 'http://127.0.0.1:5000';
 
@@ -46,5 +47,5 @@ const found = await findPreset();
 if (found) {
   mountPresetDetail(container, { ...found, onBack: () => history.back() });
 } else {
-  container.innerHTML = `<p class="drill-empty-state">${t('no_drills_found')}</p><a class="back-button" href="index.html">${t('back')}</a>`;
+  container.innerHTML = `<p class="drill-empty-state">${t('no_drills_found')}</p><a class="back-button" href="index.html">${ICONS.back}<span>${t('back')}</span></a>`;
 }

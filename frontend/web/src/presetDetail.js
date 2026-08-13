@@ -1,5 +1,6 @@
 import { t } from './strings.js';
 import { getVerticalRows, isVerticalOperation, VERTICAL_COLUMNS } from './verticalLayout.js';
+import { ICONS } from './icons.js';
 
 const API_BASE = 'http://127.0.0.1:5000';
 
@@ -91,7 +92,7 @@ export function mountPresetDetail(container, { grade, item, onBack }) {
   function renderSettingsScreen() {
     return `
       <div class="preset-detail preset-detail-settings">
-        <button type="button" class="back-button" data-action="back">${t('back')}</button>
+        <button type="button" class="back-button" data-action="back">${ICONS.back}<span>${t('back')}</span></button>
 
         <h3 class="preset-detail-title">${t(item.titleKey)}</h3>
 
@@ -118,7 +119,7 @@ export function mountPresetDetail(container, { grade, item, onBack }) {
         <div class="disclosure">
           <button type="button" class="disclosure-toggle" data-action="toggle-advanced" aria-expanded="${state.advancedOpen}">
             <span>${t('advanced_settings_label')}</span>
-            <span class="disclosure-chevron ${state.advancedOpen ? 'is-open' : ''}">›</span>
+            <span class="disclosure-chevron ${state.advancedOpen ? 'is-open' : ''}">${ICONS.chevronRight}</span>
           </button>
           ${state.advancedOpen ? `
             <div class="disclosure-body">
@@ -170,7 +171,7 @@ export function mountPresetDetail(container, { grade, item, onBack }) {
           <span class="confetti-dot confetti-dot-4"></span>
           <span class="confetti-dot confetti-dot-5"></span>
           <span class="confetti-dot confetti-dot-6"></span>
-          <span class="completion-check" aria-hidden="true">✓</span>
+          <span class="completion-check" aria-hidden="true">${ICONS.checkDone}</span>
         </div>
         <h3 class="completion-heading">${t('completion_heading')}</h3>
         <p class="completion-summary">
@@ -195,7 +196,7 @@ export function mountPresetDetail(container, { grade, item, onBack }) {
     return `
       <div class="preset-detail preset-detail-preview">
         <div class="preview-header">
-          <button type="button" class="back-button" data-action="back-to-done">‹ ${t('preview_heading')}</button>
+          <button type="button" class="back-button" data-action="back-to-done">${ICONS.back}<span>${t('preview_heading')}</span></button>
         </div>
         <div class="pdf-iframe-container preview-iframe-container">
           <iframe src="${state.pdfUrl}#navpanes=0" class="pdf-iframe" title="pdf-preview"></iframe>
