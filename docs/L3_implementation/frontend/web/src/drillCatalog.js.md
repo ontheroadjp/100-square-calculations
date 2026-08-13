@@ -37,3 +37,8 @@
 - `frontend/spa/src/drillCatalog.js` とはもはや無関係(#98 で分岐)。
 - `catalog.js` の `NUMBER_TYPE_GROUPS`(`fractions: ['addition-subtraction', 'multiplication-division', 'comparison']` 等)は `'four-operations'` を含まないため、`operationGroup` が `'four-operations'` に分類される分数項目(例: `g6-fraction-muldiv-mixed`)は、数の種類で絞り込んだグループ表示には現れない(学年のみの通常カタログ表示には現れる)。#97 以前から存在する `catalog.js` 側の制約で、本アダプターでは解消していない。
 - 将来的に `home.js`/`catalog.js`/`preset.js` が #99/#100 の新 UI に置き換わった時点で、本ファイル自体の削除が可能になる(issue #110)。
+
+## 変更履歴（git log より自動生成）
+
+- 21a7b33 feat(#98): rebuild frontend/web drill menu data model to match calculation_drill_menu_parameters_v1.md
+- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)
