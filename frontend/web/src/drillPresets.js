@@ -1,912 +1,1054 @@
-// Curated mappings from "school grade" to /generate-pdf request params.
-// Fraction presets, parenthesized-expression presets (`use_parentheses`),
-// decimal presets (`a_decimal_places`/`b_decimal_places`), and int/decimal/
-// fraction "mixed" presets are all curriculum-aligned and marked latexOnly
-// because the `frac` command, `--use-parentheses` flag, decimal-places
-// flags, and `mixed` command all exist only in nuts_calc_tex.py.
+// Grade -> category -> menu-item hierarchy matching
+// docs/uiux/calculation_drill_menu_parameters_v1.md exactly (issue #98).
+//
+// Every menu item carries:
+// - settings: the doc's 固有設定/選択可能値 as either a `choice` (segmented
+//   control) or a `fixed` (displayed, not editable) setting, per the doc's
+//   "UI実装上のルール".
+// - buildParams(state): maps a settings-state object (one entry per
+//   `choice` setting id) to a POST /generate-pdf request body.
+// - supportLevel: 'full' (nuts_calc_tex.py honors every setting), 'partial'
+//   (it generates correct problems for the item but can't honor one or more
+//   settings -- see the linked issue in the comment above each affected
+//   item), or 'none' (no backend support at all; unused as of #98, since
+//   #91-#96 closed all commands the doc requires).
+//
+// All items are latexOnly: nuts_calc_tex.py-only flags (carry_mode,
+// remainder_mode, decimal places, terms/mixed-operators, frac/mixed/compare
+// and the number-theory commands) cover essentially every doc item; the
+// handful of plain ope/'99' items work on both renderers but are still
+// marked latexOnly for consistency with canUsePreset's renderer gate, since
+// mixing gate semantics per item would complicate drillCatalog.js for no
+// practical benefit (frontend/web only ever runs against one active
+// renderer at a time, selected server-side via NUTS_CALC_RENDERER).
 
 export const GRADES = [1, 2, 3, 4, 5, 6];
 
 export const UNGRADED = 'ungraded';
 
-export const CUSTOM_GRADE = 'custom';
+const OPT_NONE = { value: 'none', labelKey: 'setting_option_none' };
+const OPT_REQUIRED = { value: 'required', labelKey: 'setting_option_required' };
+const OPT_MIXED = { value: 'mixed', labelKey: 'setting_option_mixed' };
 
-// "examPrep" ("中学受験" / entrance-exam prep) presets combine ope's
-// --terms/--mixed-operators/--use-parentheses options (issue #71) into 9
-// cards per grade (3 stages x 3 levels = 27 total across grades 4-6).
-// latexOnly because --terms/--mixed-operators exist only in
-// nuts_calc_tex.py. Stage/level parameter choices (first-operand digit
-// range per grade, term count per level) mirror
-// tests/test_nuts_calc_tex_exam_prep_presets.py, which simulates each
-// combination directly against nuts_calc_tex.py's generation functions to
-// confirm it doesn't exhaust the retry budget -- keep the two in sync.
-const EXAM_PREP_STAGES = [
-  { stage: 'basic', mixedOperators: false, useParentheses: false },
-  { stage: 'intermediate', mixedOperators: true, useParentheses: false },
-  { stage: 'advanced', mixedOperators: true, useParentheses: true },
-];
-
-const EXAM_PREP_TERMS_BY_LEVEL = { 1: 3, 2: 4, 3: 5 };
-
-function buildExamPrepPresets(grade, aValue) {
-  const presets = [];
-  for (const { stage, mixedOperators, useParentheses } of EXAM_PREP_STAGES) {
-    for (const level of Object.keys(EXAM_PREP_TERMS_BY_LEVEL)) {
-      presets.push({
-        id: `g${grade}-examprep-${stage}-${level}`,
-        titleKey: `preset_g${grade}_examprep_${stage}_${level}_title`,
-        descKey: `preset_g${grade}_examprep_${stage}_${level}_desc`,
-        latexOnly: true,
-        params: {
-          command_type: 'ope',
-          operator: ['mix'],
-          terms: EXAM_PREP_TERMS_BY_LEVEL[level],
-          a_value: aValue,
-          b_value: 1,
-          ...(mixedOperators && { mixed_operators: true }),
-          ...(useParentheses && { use_parentheses: true }),
-        },
-      });
-    }
-  }
-  return presets;
+function carrySetting(labelKey) {
+  return { id: 'carryMode', labelKey, type: 'choice', options: [OPT_NONE, OPT_REQUIRED, OPT_MIXED], default: 'mixed' };
 }
 
-// "written" presets use nuts_calc.py's `--vertical` flag (written-calculation /
-// hissan format), which supports 'add'/'sub'/'mul'/'div' (including
-// multi-digit-multiplier 'mul', issue #10, and long-division 'div', issue
-// #11). 'mix' is intentionally never combined with `vertical: true` here:
-// nuts_calc.py rejects that combination but nuts_calc_tex.py does not
-// (tracked as a renderer-parity bug, issue #41), so exposing it would behave
-// inconsistently depending on which renderer the backend is configured to use.
+function remainderSetting(labelKey) {
+  return { id: 'remainderMode', labelKey, type: 'choice', options: [OPT_NONE, OPT_REQUIRED, OPT_MIXED], default: 'mixed' };
+}
+
+function fixedSetting(id, labelKey, valueLabelKey) {
+  return { id, labelKey, type: 'fixed', valueLabelKey };
+}
+
+// nuts_calc_tex.py rejects --mixed-carry-borrow unless -o includes both
+// add and sub (single-operator "mixed" carry has no dedicated flag); for a
+// single-operator item, 'mixed' is achieved by omitting carry_mode
+// entirely, which leaves carrying unconstrained the same way.
+function carryModeField(operator, state) {
+  const mode = state?.carryMode ?? 'mixed';
+  if (mode === 'mixed' && operator.length < 2) return {};
+  return { carry_mode: mode };
+}
+
+function remainderModeParam(state) {
+  return state?.remainderMode ?? 'mixed';
+}
+
+// ---------------------------------------------------------------------
+// Grade 1
+// ---------------------------------------------------------------------
+
+const grade1 = {
+  addition: [
+    {
+      id: 'g1-add-10',
+      titleKey: 'menu_g1_add_10_title',
+      descKey: 'menu_g1_add_10_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['3+5', '6+4'],
+      settings: [],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['add'], carry_mode: 'none',
+        a_min: 1, a_max: 9, b_min: 1, b_max: 9,
+      }),
+    },
+    {
+      id: 'g1-add-20',
+      titleKey: 'menu_g1_add_20_title',
+      descKey: 'menu_g1_add_20_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['8+7', '9+6'],
+      settings: [fixedSetting('carryMode', 'setting_carry_label', 'setting_option_required')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['add'], carry_mode: 'required',
+        a_min: 1, a_max: 9, b_min: 1, b_max: 9,
+      }),
+    },
+  ],
+  subtraction: [
+    {
+      id: 'g1-sub-10',
+      titleKey: 'menu_g1_sub_10_title',
+      descKey: 'menu_g1_sub_10_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['8-3', '10-6'],
+      settings: [],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['sub'],
+        a_min: 2, a_max: 10, b_min: 1, b_max: 9,
+      }),
+    },
+    {
+      id: 'g1-sub-20',
+      titleKey: 'menu_g1_sub_20_title',
+      descKey: 'menu_g1_sub_20_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['13-7', '16-9'],
+      settings: [fixedSetting('carryMode', 'setting_borrow_label', 'setting_option_required')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['sub'], carry_mode: 'required',
+        a_min: 10, a_max: 19, b_min: 1, b_max: 9,
+      }),
+    },
+  ],
+  'four-operations': [
+    {
+      id: 'g1-three-terms',
+      titleKey: 'menu_g1_three_terms_title',
+      descKey: 'menu_g1_three_terms_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['3+4+2', '8-3+4'],
+      settings: [
+        {
+          id: 'operators', labelKey: 'setting_operators_label', type: 'choice',
+          options: [
+            { value: 'add', labelKey: 'setting_option_add_only' },
+            { value: 'addsub', labelKey: 'setting_option_addsub_mixed' },
+          ],
+          default: 'addsub',
+        },
+      ],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: (state) => {
+        const addOnly = (state?.operators ?? 'addsub') === 'add';
+        return {
+          command_type: 'ope',
+          operator: addOnly ? ['add'] : ['add', 'sub'],
+          terms: 3,
+          ...(!addOnly && { mixed_operators: true }),
+          a_min: 1, a_max: 9, b_min: 1, b_max: 9,
+        };
+      },
+    },
+  ],
+};
+
+// ---------------------------------------------------------------------
+// Grade 2
+// ---------------------------------------------------------------------
+
+const grade2 = {
+  addition: [
+    {
+      id: 'g2-add-2digit',
+      titleKey: 'menu_g2_add_2digit_title',
+      descKey: 'menu_g2_add_2digit_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['34+5', '7+26', '42+35'],
+      settings: [carrySetting('setting_carry_label')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: (state) => ({
+        command_type: 'ope', operator: ['add'], ...carryModeField(['add'], state),
+        a_min: 1, a_max: 99, b_min: 1, b_max: 99,
+      }),
+    },
+  ],
+  subtraction: [
+    {
+      id: 'g2-sub-2digit',
+      titleKey: 'menu_g2_sub_2digit_title',
+      descKey: 'menu_g2_sub_2digit_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['38-5', '32-7', '72-48'],
+      settings: [carrySetting('setting_borrow_label')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: (state) => ({
+        command_type: 'ope', operator: ['sub'], ...carryModeField(['sub'], state),
+        a_min: 10, a_max: 99, b_min: 1, b_max: 99,
+      }),
+    },
+  ],
+  multiplication: [
+    {
+      id: 'g2-kuku',
+      titleKey: 'menu_g2_kuku_title',
+      descKey: 'menu_g2_kuku_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['3×7', '8×6'],
+      settings: [
+        {
+          id: 'dan', labelKey: 'setting_dan_label', type: 'choice',
+          options: [
+            { value: '1', labelKey: 'setting_option_dan_1' },
+            { value: '2', labelKey: 'setting_option_dan_2' },
+            { value: '3', labelKey: 'setting_option_dan_3' },
+            { value: '4', labelKey: 'setting_option_dan_4' },
+            { value: '5', labelKey: 'setting_option_dan_5' },
+            { value: '6', labelKey: 'setting_option_dan_6' },
+            { value: '7', labelKey: 'setting_option_dan_7' },
+            { value: '8', labelKey: 'setting_option_dan_8' },
+            { value: '9', labelKey: 'setting_option_dan_9' },
+            { value: 'mixed', labelKey: 'setting_option_mixed' },
+          ],
+          default: 'mixed',
+        },
+      ],
+      supportLevel: 'full',
+      latexOnly: false,
+      buildParams: (state) => {
+        const dan = state?.dan ?? 'mixed';
+        if (dan === 'mixed') {
+          return { command_type: 'ope', operator: ['mul'], a_min: 1, a_max: 9, b_min: 1, b_max: 9 };
+        }
+        return { command_type: '99', a_value: Number(dan) };
+      },
+    },
+  ],
+  'four-operations': [
+    {
+      id: 'g2-addsub-mixed',
+      titleKey: 'menu_g2_addsub_mixed_title',
+      descKey: 'menu_g2_addsub_mixed_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['35+24-18'],
+      settings: [fixedSetting('operators', 'setting_operators_label', 'setting_option_addsub_mixed')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['add', 'sub'], terms: 3, mixed_operators: true,
+        a_min: 1, a_max: 99, b_min: 1, b_max: 99,
+      }),
+    },
+    {
+      id: 'g2-parentheses',
+      titleKey: 'menu_g2_parentheses_title',
+      descKey: 'menu_g2_parentheses_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['35-(12+8)'],
+      settings: [fixedSetting('parentheses', 'setting_parentheses_label', 'setting_option_present')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['add', 'sub'], terms: 3, use_parentheses: true,
+        a_min: 1, a_max: 90, b_min: 1, b_max: 90,
+      }),
+    },
+  ],
+};
+
+// ---------------------------------------------------------------------
+// Grade 3
+// ---------------------------------------------------------------------
+
+const grade3 = {
+  addition: [
+    {
+      id: 'g3-add-3digit',
+      titleKey: 'menu_g3_add_3digit_title',
+      descKey: 'menu_g3_add_3digit_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['625+75', '263+1', '521+365'],
+      settings: [carrySetting('setting_carry_label')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: (state) => ({
+        command_type: 'ope', operator: ['add'], ...carryModeField(['add'], state),
+        a_min: 1, a_max: 999, b_min: 1, b_max: 999,
+      }),
+    },
+    {
+      id: 'g3-add-4digit',
+      titleKey: 'menu_g3_add_4digit_title',
+      descKey: 'menu_g3_add_4digit_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['3258+46', '583+2417'],
+      settings: [carrySetting('setting_carry_label')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: (state) => ({
+        command_type: 'ope', operator: ['add'], ...carryModeField(['add'], state),
+        a_min: 1, a_max: 9999, b_min: 1, b_max: 9999,
+      }),
+    },
+    {
+      id: 'g3-decimal-addsub',
+      titleKey: 'menu_g3_decimal_addsub_title',
+      descKey: 'menu_g3_decimal_addsub_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['2.4+3.1', '4.7+1.6'],
+      // Partial: nuts_calc_tex.py's --carry-borrow family rejects
+      // --a-decimal-places/--b-decimal-places (nuts_calc_tex.py:610-611),
+      // so the carry setting can't be honored yet. Tracked in #113.
+      settings: [carrySetting('setting_carry_label')],
+      supportLevel: 'partial',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['add'], a_value: 1, b_value: 1,
+        a_decimal_places: 1, b_decimal_places: 1,
+      }),
+    },
+  ],
+  subtraction: [
+    {
+      id: 'g3-sub-3digit',
+      titleKey: 'menu_g3_sub_3digit_title',
+      descKey: 'menu_g3_sub_3digit_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['625-75', '521-365'],
+      settings: [carrySetting('setting_borrow_label')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: (state) => ({
+        command_type: 'ope', operator: ['sub'], ...carryModeField(['sub'], state),
+        a_min: 100, a_max: 999, b_min: 1, b_max: 999,
+      }),
+    },
+    {
+      id: 'g3-sub-4digit',
+      titleKey: 'menu_g3_sub_4digit_title',
+      descKey: 'menu_g3_sub_4digit_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['3258-46', '7234-3587'],
+      settings: [carrySetting('setting_borrow_label')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: (state) => ({
+        command_type: 'ope', operator: ['sub'], ...carryModeField(['sub'], state),
+        a_min: 1000, a_max: 9999, b_min: 1, b_max: 9999,
+      }),
+    },
+    {
+      id: 'g3-decimal-sub',
+      titleKey: 'menu_g3_decimal_sub_title',
+      descKey: 'menu_g3_decimal_sub_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['5.7-2.3', '8.4-3.9'],
+      // Partial: see g3-decimal-addsub above (#113).
+      settings: [carrySetting('setting_borrow_label')],
+      supportLevel: 'partial',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['sub'], a_value: 1, b_value: 1,
+        a_decimal_places: 1, b_decimal_places: 1,
+      }),
+    },
+  ],
+  multiplication: [
+    {
+      id: 'g3-mul-2x1',
+      titleKey: 'menu_g3_mul_2x1_title',
+      descKey: 'menu_g3_mul_2x1_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['38×7', '24×5'],
+      settings: [],
+      supportLevel: 'full',
+      latexOnly: false,
+      buildParams: () => ({ command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 1 }),
+    },
+    {
+      id: 'g3-mul-3x1',
+      titleKey: 'menu_g3_mul_3x1_title',
+      descKey: 'menu_g3_mul_3x1_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['326×4', '425×7'],
+      settings: [],
+      supportLevel: 'full',
+      latexOnly: false,
+      buildParams: () => ({ command_type: 'ope', operator: ['mul'], a_value: 3, b_value: 1 }),
+    },
+    {
+      id: 'g3-mul-2x2',
+      titleKey: 'menu_g3_mul_2x2_title',
+      descKey: 'menu_g3_mul_2x2_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['47×23', '34×28'],
+      settings: [],
+      supportLevel: 'full',
+      latexOnly: false,
+      buildParams: () => ({ command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 2 }),
+    },
+  ],
+  division: [
+    {
+      id: 'g3-div-kuku',
+      titleKey: 'menu_g3_div_kuku_title',
+      descKey: 'menu_g3_div_kuku_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['42÷7', '56÷8'],
+      settings: [fixedSetting('remainderMode', 'setting_remainder_label', 'setting_option_none')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['div'], remainder_mode: 'none',
+        a_min: 1, a_max: 81, b_min: 1, b_max: 9,
+      }),
+    },
+    {
+      id: 'g3-div-remainder',
+      titleKey: 'menu_g3_div_remainder_title',
+      descKey: 'menu_g3_div_remainder_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['47÷6', '29÷4'],
+      settings: [fixedSetting('remainderMode', 'setting_remainder_label', 'setting_option_required')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['div'], remainder_mode: 'required',
+        a_min: 1, a_max: 99, b_min: 2, b_max: 9,
+      }),
+    },
+  ],
+  fraction: [
+    {
+      id: 'g3-fraction-add',
+      titleKey: 'menu_g3_fraction_add_title',
+      descKey: 'menu_g3_fraction_add_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['2/7+3/7'],
+      settings: [fixedSetting('denominator', 'setting_denominator_label', 'setting_option_same_denominator')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'frac', operator: ['add'], numerator_digits: 1, denominator_digits: 1,
+        same_denominator: true, proper_operands: true, proper_result: true,
+      }),
+    },
+    {
+      id: 'g3-fraction-sub',
+      titleKey: 'menu_g3_fraction_sub_title',
+      descKey: 'menu_g3_fraction_sub_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['6/7-2/7'],
+      settings: [fixedSetting('denominator', 'setting_denominator_label', 'setting_option_same_denominator')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'frac', operator: ['sub'], numerator_digits: 1, denominator_digits: 1,
+        same_denominator: true, proper_operands: true, proper_result: true,
+      }),
+    },
+  ],
+};
+
+// ---------------------------------------------------------------------
+// Grade 4
+// ---------------------------------------------------------------------
+
+const NUMBER_KIND_OPTIONS = [
+  { value: 'fraction', labelKey: 'setting_option_fraction_only' },
+  { value: 'mixedNumber', labelKey: 'setting_option_fraction_with_mixed' },
+  { value: 'mixed', labelKey: 'setting_option_mixed' },
+];
+
+const grade4 = {
+  division: [
+    {
+      id: 'g4-div-1digit',
+      titleKey: 'menu_g4_div_1digit_title',
+      descKey: 'menu_g4_div_1digit_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['84÷4', '864÷6'],
+      settings: [remainderSetting('setting_remainder_label')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: (state) => ({
+        command_type: 'ope', operator: ['div'], remainder_mode: remainderModeParam(state),
+        a_min: 10, a_max: 999, b_min: 2, b_max: 9,
+      }),
+    },
+    {
+      id: 'g4-div-2digit',
+      titleKey: 'menu_g4_div_2digit_title',
+      descKey: 'menu_g4_div_2digit_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['96÷12', '936÷24'],
+      settings: [remainderSetting('setting_remainder_label')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: (state) => ({
+        command_type: 'ope', operator: ['div'], remainder_mode: remainderModeParam(state),
+        a_min: 100, a_max: 999, b_min: 10, b_max: 99,
+      }),
+    },
+    {
+      id: 'g4-decimal-div-int',
+      titleKey: 'menu_g4_decimal_div_int_title',
+      descKey: 'menu_g4_decimal_div_int_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['8.4÷4', '7.35÷5'],
+      settings: [fixedSetting('divisor', 'setting_divisor_label', 'setting_option_integer')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['div'], a_value: 2, b_value: 1, a_decimal_places: 1,
+      }),
+    },
+  ],
+  addition: [
+    {
+      id: 'g4-decimal-add',
+      titleKey: 'menu_g4_decimal_add_title',
+      descKey: 'menu_g4_decimal_add_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['3.74+2.8', '4.36+1.57'],
+      // Partial: see grade3 decimal add/sub (#113); carry setting can't be
+      // honored alongside --a-decimal-places/--b-decimal-places yet.
+      settings: [carrySetting('setting_carry_label')],
+      supportLevel: 'partial',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['add'], a_value: 3, b_value: 3,
+        a_decimal_places: 2, b_decimal_places: 2,
+      }),
+    },
+  ],
+  subtraction: [
+    {
+      id: 'g4-decimal-sub',
+      titleKey: 'menu_g4_decimal_sub_title',
+      descKey: 'menu_g4_decimal_sub_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['8.2-3.47', '6.35-2.8'],
+      // Partial: see g4-decimal-add above (#113).
+      settings: [carrySetting('setting_borrow_label')],
+      supportLevel: 'partial',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['sub'], a_value: 3, b_value: 3,
+        a_decimal_places: 2, b_decimal_places: 2,
+      }),
+    },
+  ],
+  multiplication: [
+    {
+      id: 'g4-decimal-mul-int',
+      titleKey: 'menu_g4_decimal_mul_int_title',
+      descKey: 'menu_g4_decimal_mul_int_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['3.6×7', '2.35×4'],
+      settings: [fixedSetting('multiplier', 'setting_multiplier_label', 'setting_option_integer')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 1, a_decimal_places: 1,
+      }),
+    },
+  ],
+  fraction: [
+    {
+      id: 'g4-fraction-add',
+      titleKey: 'menu_g4_fraction_add_title',
+      descKey: 'menu_g4_fraction_add_desc',
+      difficultyKey: 'difficulty_basic_standard',
+      examples: ['3/8+2/8', '1 2/5+2 4/5'],
+      // Partial: frac never renders mixed numbers (帯分数), only raw
+      // numerator/denominator (nuts_calc_tex.py:3070-3076). "分数" (proper,
+      // non-mixed) is the only numberKind this can honor today. #112.
+      settings: [
+        fixedSetting('denominator', 'setting_denominator_label', 'setting_option_same_denominator'),
+        { id: 'numberKind', labelKey: 'setting_number_kind_label', type: 'choice', options: NUMBER_KIND_OPTIONS, default: 'mixed' },
+      ],
+      supportLevel: 'partial',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'frac', operator: ['add'], numerator_digits: 1, denominator_digits: 1,
+        same_denominator: true,
+      }),
+    },
+    {
+      id: 'g4-fraction-sub',
+      titleKey: 'menu_g4_fraction_sub_title',
+      descKey: 'menu_g4_fraction_sub_desc',
+      difficultyKey: 'difficulty_basic_standard',
+      examples: ['7/9-4/9', '3 2/5-1 4/5'],
+      // Partial: see g4-fraction-add above (#112).
+      settings: [
+        fixedSetting('denominator', 'setting_denominator_label', 'setting_option_same_denominator'),
+        { id: 'numberKind', labelKey: 'setting_number_kind_label', type: 'choice', options: NUMBER_KIND_OPTIONS, default: 'mixed' },
+      ],
+      supportLevel: 'partial',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'frac', operator: ['sub'], numerator_digits: 1, denominator_digits: 1,
+        same_denominator: true, proper_result: true,
+      }),
+    },
+  ],
+  'four-operations': [
+    {
+      id: 'g4-four-operations',
+      titleKey: 'menu_g4_four_operations_title',
+      descKey: 'menu_g4_four_operations_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['8+12÷3×2'],
+      settings: [fixedSetting('operators', 'setting_operators_label', 'setting_option_four_operations')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['add', 'sub', 'mul', 'div'], mixed_operators: true, terms: 3,
+        a_value: 1, b_value: 1,
+      }),
+    },
+    {
+      id: 'g4-parentheses',
+      titleKey: 'menu_g4_parentheses_title',
+      descKey: 'menu_g4_parentheses_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['(8+4)×5-6'],
+      settings: [fixedSetting('parentheses', 'setting_parentheses_label', 'setting_option_present')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['add', 'sub', 'mul', 'div'], mixed_operators: true,
+        use_parentheses: true, a_value: 1, b_value: 1,
+      }),
+    },
+  ],
+};
+
+const DENOMINATOR_CHOICE_OPTIONS = [
+  { value: 'same', labelKey: 'setting_option_same_denominator' },
+  { value: 'different', labelKey: 'setting_option_different_denominator' },
+  { value: 'mixed', labelKey: 'setting_option_mixed' },
+];
+
+function denominatorParams(state) {
+  const denominator = state?.denominator ?? 'mixed';
+  if (denominator === 'same') return { same_denominator: true };
+  if (denominator === 'different') return { different_denominators: true };
+  return {};
+}
+
+const REDUCTION_OPTIONS = [OPT_NONE, OPT_REQUIRED, OPT_MIXED];
+
+// ---------------------------------------------------------------------
+// Grade 5
+// ---------------------------------------------------------------------
+
+const grade5 = {
+  multiplication: [
+    {
+      id: 'g5-decimal-mul',
+      titleKey: 'menu_g5_decimal_mul_title',
+      descKey: 'menu_g5_decimal_mul_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['3.6×2.4', '0.25×1.6'],
+      settings: [fixedSetting('multiplier', 'setting_multiplier_label', 'setting_option_decimal')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 2,
+        a_decimal_places: 1, b_decimal_places: 1,
+      }),
+    },
+  ],
+  division: [
+    {
+      id: 'g5-decimal-div',
+      titleKey: 'menu_g5_decimal_div_title',
+      descKey: 'menu_g5_decimal_div_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['7.56÷1.2', '4.8÷0.6'],
+      settings: [fixedSetting('divisor', 'setting_divisor_label', 'setting_option_decimal')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['div'], a_value: 2, b_value: 2,
+        a_decimal_places: 1, b_decimal_places: 1,
+      }),
+    },
+  ],
+  'four-operations': [
+    {
+      id: 'g5-decimal-four-ops',
+      titleKey: 'menu_g5_decimal_four_ops_title',
+      descKey: 'menu_g5_decimal_four_ops_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['3.6×2.5+4.8÷1.2'],
+      settings: [fixedSetting('operators', 'setting_operators_label', 'setting_option_four_operations')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'mixed', operator: ['add', 'sub', 'mul', 'div'], mixed_operators: true, terms: 3,
+        a_kind: ['decimal'], b_kind: ['decimal'], decimal_places: 1,
+      }),
+    },
+  ],
+  fraction: [
+    {
+      id: 'g5-simplify',
+      titleKey: 'menu_g5_simplify_title',
+      descKey: 'menu_g5_simplify_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['18/24 → 3/4'],
+      settings: [],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({ command_type: 'simplify', numerator_digits: 2, denominator_digits: 2 }),
+    },
+    {
+      id: 'g5-commondenom',
+      titleKey: 'menu_g5_commondenom_title',
+      descKey: 'menu_g5_commondenom_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['1/3, 1/4 → 4/12, 3/12'],
+      settings: [],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({ command_type: 'commondenom', numerator_digits: 1, denominator_digits: 1 }),
+    },
+    {
+      id: 'g5-fraction-add',
+      titleKey: 'menu_g5_fraction_add_title',
+      descKey: 'menu_g5_fraction_add_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['2/3+3/5', '1 2/3+2 3/5'],
+      // Partial: denominator relationship is fully controllable, but the
+      // 数の種類(帯分数) setting isn't -- see g4-fraction-add note (#112).
+      settings: [
+        { id: 'denominator', labelKey: 'setting_denominator_label', type: 'choice', options: DENOMINATOR_CHOICE_OPTIONS, default: 'mixed' },
+        { id: 'numberKind', labelKey: 'setting_number_kind_label', type: 'choice', options: NUMBER_KIND_OPTIONS, default: 'mixed' },
+      ],
+      supportLevel: 'partial',
+      latexOnly: true,
+      buildParams: (state) => ({
+        command_type: 'frac', operator: ['add'], numerator_digits: 1, denominator_digits: 1,
+        ...denominatorParams(state),
+      }),
+    },
+    {
+      id: 'g5-fraction-sub',
+      titleKey: 'menu_g5_fraction_sub_title',
+      descKey: 'menu_g5_fraction_sub_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['5/6-1/4', '3 5/6-1 1/4'],
+      // Partial: see g5-fraction-add above (#112).
+      settings: [
+        { id: 'denominator', labelKey: 'setting_denominator_label', type: 'choice', options: DENOMINATOR_CHOICE_OPTIONS, default: 'mixed' },
+        { id: 'numberKind', labelKey: 'setting_number_kind_label', type: 'choice', options: NUMBER_KIND_OPTIONS, default: 'mixed' },
+      ],
+      supportLevel: 'partial',
+      latexOnly: true,
+      buildParams: (state) => ({
+        command_type: 'frac', operator: ['sub'], numerator_digits: 1, denominator_digits: 1,
+        proper_result: true, ...denominatorParams(state),
+      }),
+    },
+    {
+      id: 'g5-frac2dec',
+      titleKey: 'menu_g5_frac2dec_title',
+      descKey: 'menu_g5_frac2dec_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['3/4 → 0.75'],
+      settings: [],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({ command_type: 'frac2dec', numerator_digits: 1, denominator_digits: 1 }),
+    },
+    {
+      id: 'g5-dec2frac',
+      titleKey: 'menu_g5_dec2frac_title',
+      descKey: 'menu_g5_dec2frac_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['0.6 → 3/5'],
+      settings: [],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({ command_type: 'dec2frac' }),
+    },
+    {
+      id: 'g5-divfrac',
+      titleKey: 'menu_g5_divfrac_title',
+      descKey: 'menu_g5_divfrac_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['2÷3 → 2/3'],
+      settings: [],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({ command_type: 'divfrac', a_min: 1, a_max: 9, b_min: 2, b_max: 9 }),
+    },
+  ],
+  'number-sense': [
+    {
+      id: 'g5-evenodd',
+      titleKey: 'menu_g5_evenodd_title',
+      descKey: 'menu_g5_evenodd_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['37 → 奇数', '48 → 偶数'],
+      settings: [],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({ command_type: 'evenodd', a_min: 1, a_max: 100 }),
+    },
+    {
+      id: 'g5-multiples',
+      titleKey: 'menu_g5_multiples_title',
+      descKey: 'menu_g5_multiples_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['6 → 6,12,18,…'],
+      settings: [],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({ command_type: 'multiples', a_min: 2, a_max: 12 }),
+    },
+    {
+      id: 'g5-divisors',
+      titleKey: 'menu_g5_divisors_title',
+      descKey: 'menu_g5_divisors_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['12 → 1,2,3,4,6,12'],
+      settings: [],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({ command_type: 'divisors', a_min: 6, a_max: 60 }),
+    },
+    {
+      id: 'g5-lcm',
+      titleKey: 'menu_g5_lcm_title',
+      descKey: 'menu_g5_lcm_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['6と8 → 最小公倍数24'],
+      settings: [],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({ command_type: 'lcm', a_min: 4, a_max: 40, b_min: 4, b_max: 40 }),
+    },
+    {
+      id: 'g5-gcd',
+      titleKey: 'menu_g5_gcd_title',
+      descKey: 'menu_g5_gcd_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['18と24 → 最大公約数6'],
+      settings: [],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({ command_type: 'gcd', a_min: 4, a_max: 40, b_min: 4, b_max: 40 }),
+    },
+  ],
+};
+
+// ---------------------------------------------------------------------
+// Grade 6
+// ---------------------------------------------------------------------
+
+const grade6 = {
+  fraction: [
+    {
+      id: 'g6-fraction-mul-int',
+      titleKey: 'menu_g6_fraction_mul_int_title',
+      descKey: 'menu_g6_fraction_mul_int_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['3/5×4'],
+      // Partial: no way to force/forbid a reducible raw result. #114.
+      settings: [
+        { id: 'reduction', labelKey: 'setting_reduction_label', type: 'choice', options: REDUCTION_OPTIONS, default: 'mixed' },
+        fixedSetting('multiplier', 'setting_multiplier_label', 'setting_option_integer'),
+      ],
+      supportLevel: 'partial',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'mixed', operator: ['mul'], a_kind: ['fraction'], b_kind: ['int'],
+        numerator_digits: 1, denominator_digits: 1,
+      }),
+    },
+    {
+      id: 'g6-int-mul-fraction',
+      titleKey: 'menu_g6_int_mul_fraction_title',
+      descKey: 'menu_g6_int_mul_fraction_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['4×3/5'],
+      // Partial: see g6-fraction-mul-int above (#114).
+      settings: [
+        { id: 'reduction', labelKey: 'setting_reduction_label', type: 'choice', options: REDUCTION_OPTIONS, default: 'mixed' },
+        fixedSetting('multiplicand', 'setting_multiplicand_label', 'setting_option_integer'),
+      ],
+      supportLevel: 'partial',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'mixed', operator: ['mul'], a_kind: ['int'], b_kind: ['fraction'],
+        numerator_digits: 1, denominator_digits: 1,
+      }),
+    },
+    {
+      id: 'g6-fraction-mul',
+      titleKey: 'menu_g6_fraction_mul_title',
+      descKey: 'menu_g6_fraction_mul_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['3/5×7/9'],
+      // Partial: see g6-fraction-mul-int above (#114).
+      settings: [
+        { id: 'reduction', labelKey: 'setting_reduction_label', type: 'choice', options: REDUCTION_OPTIONS, default: 'mixed' },
+      ],
+      supportLevel: 'partial',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'frac', operator: ['mul'], numerator_digits: 1, denominator_digits: 1,
+        proper_operands: true,
+      }),
+    },
+    {
+      id: 'g6-fraction-div-int',
+      titleKey: 'menu_g6_fraction_div_int_title',
+      descKey: 'menu_g6_fraction_div_int_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: ['5/6÷3'],
+      // Partial: see g6-fraction-mul-int above (#114).
+      settings: [
+        { id: 'reduction', labelKey: 'setting_reduction_label', type: 'choice', options: REDUCTION_OPTIONS, default: 'mixed' },
+        fixedSetting('divisor', 'setting_divisor_label', 'setting_option_integer'),
+      ],
+      supportLevel: 'partial',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'mixed', operator: ['div'], a_kind: ['fraction'], b_kind: ['int'],
+        numerator_digits: 1, denominator_digits: 1,
+      }),
+    },
+    {
+      id: 'g6-int-div-fraction',
+      titleKey: 'menu_g6_int_div_fraction_title',
+      descKey: 'menu_g6_int_div_fraction_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['4÷2/3'],
+      // Partial: see g6-fraction-mul-int above (#114).
+      settings: [
+        { id: 'reduction', labelKey: 'setting_reduction_label', type: 'choice', options: REDUCTION_OPTIONS, default: 'mixed' },
+        fixedSetting('divisor', 'setting_divisor_label', 'setting_option_fraction'),
+      ],
+      supportLevel: 'partial',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'mixed', operator: ['div'], a_kind: ['int'], b_kind: ['fraction'],
+        numerator_digits: 1, denominator_digits: 1,
+      }),
+    },
+    {
+      id: 'g6-fraction-div',
+      titleKey: 'menu_g6_fraction_div_title',
+      descKey: 'menu_g6_fraction_div_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['3/4÷2/5'],
+      // Partial: see g6-fraction-mul-int above (#114).
+      settings: [
+        { id: 'reduction', labelKey: 'setting_reduction_label', type: 'choice', options: REDUCTION_OPTIONS, default: 'mixed' },
+      ],
+      supportLevel: 'partial',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'frac', operator: ['div'], numerator_digits: 1, denominator_digits: 1,
+        proper_operands: true,
+      }),
+    },
+    {
+      id: 'g6-fraction-muldiv-mixed',
+      titleKey: 'menu_g6_fraction_muldiv_mixed_title',
+      descKey: 'menu_g6_fraction_muldiv_mixed_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['3/4×2/5÷7/10'],
+      settings: [fixedSetting('operators', 'setting_operators_label', 'setting_option_muldiv_mixed')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'mixed', operator: ['mul', 'div'], mixed_operators: true, terms: 3,
+        a_kind: ['fraction'], b_kind: ['fraction'], numerator_digits: 1, denominator_digits: 1,
+      }),
+    },
+    {
+      id: 'g6-fraction-four-ops',
+      titleKey: 'menu_g6_fraction_four_ops_title',
+      descKey: 'menu_g6_fraction_four_ops_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['2/3+1/4×6/5'],
+      settings: [fixedSetting('operators', 'setting_operators_label', 'setting_option_four_operations')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'mixed', operator: ['add', 'sub', 'mul', 'div'], mixed_operators: true, terms: 3,
+        a_kind: ['fraction'], b_kind: ['fraction'], numerator_digits: 1, denominator_digits: 1,
+      }),
+    },
+    {
+      id: 'g6-fraction-decimal-mixed',
+      titleKey: 'menu_g6_fraction_decimal_mixed_title',
+      descKey: 'menu_g6_fraction_decimal_mixed_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: ['3/4+0.5'],
+      settings: [fixedSetting('numberKind', 'setting_number_kind_label', 'setting_option_fraction_decimal_mixed')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'mixed', operator: ['add'], a_kind: ['fraction', 'decimal'], b_kind: ['fraction', 'decimal'],
+        numerator_digits: 1, denominator_digits: 1, decimal_places: 1,
+      }),
+    },
+  ],
+};
+
+// ---------------------------------------------------------------------
+// Ungraded
+// ---------------------------------------------------------------------
+//
+// aBc (mental-math decomposition) and squ (same-number multiplication) are
+// generic drills with no course-of-study grade anchor and no entry in
+// docs/uiux/calculation_drill_menu_parameters_v1.md; kept as-is (out of
+// this doc-parity rebuild's scope, per issue #98 discussion).
+
+const ungraded = {
+  'number-sense': [
+    {
+      id: 'ungraded-abc',
+      titleKey: 'menu_ungraded_abc_title',
+      descKey: 'menu_ungraded_abc_desc',
+      difficultyKey: 'difficulty_standard',
+      examples: [],
+      settings: [],
+      supportLevel: 'full',
+      latexOnly: false,
+      buildParams: () => ({ command_type: 'aBc' }),
+    },
+    {
+      id: 'ungraded-squ',
+      titleKey: 'menu_ungraded_squ_title',
+      descKey: 'menu_ungraded_squ_desc',
+      difficultyKey: 'difficulty_basic',
+      examples: [],
+      settings: [],
+      supportLevel: 'full',
+      latexOnly: false,
+      buildParams: () => ({ command_type: 'squ', a_value: 1 }),
+    },
+  ],
+};
+
 export const presetsByGrade = {
-  1: {
-    normal: [
-      {
-        id: 'g1-add-no-carry',
-        titleKey: 'preset_g1_add_no_carry_title',
-        descKey: 'preset_g1_add_no_carry_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'ope', operator: ['add'], carry_mode: 'none',
-          a_min: 1, a_max: 9, b_min: 1, b_max: 9,
-        },
-      },
-      {
-        id: 'g1-add-carry',
-        titleKey: 'preset_g1_add_carry_title',
-        descKey: 'preset_g1_add_carry_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'ope', operator: ['add'], carry_mode: 'required',
-          a_min: 1, a_max: 9, b_min: 1, b_max: 9,
-        },
-      },
-      {
-        id: 'g1-sub-no-borrow',
-        titleKey: 'preset_g1_sub_no_borrow_title',
-        descKey: 'preset_g1_sub_no_borrow_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'ope', operator: ['sub'], carry_mode: 'none',
-          a_min: 1, a_max: 9, b_min: 1, b_max: 9,
-        },
-      },
-      {
-        id: 'g1-sub-borrow',
-        titleKey: 'preset_g1_sub_borrow_title',
-        descKey: 'preset_g1_sub_borrow_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'ope', operator: ['sub'], carry_mode: 'required',
-          a_min: 10, a_max: 19, b_min: 1, b_max: 9,
-        },
-      },
-      {
-        id: 'g1-addsub-no-carry',
-        titleKey: 'preset_g1_addsub_no_carry_title',
-        descKey: 'preset_g1_addsub_no_carry_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'ope', operator: ['add', 'sub'], carry_mode: 'none',
-          a_min: 1, a_max: 9, b_min: 1, b_max: 9,
-        },
-      },
-      {
-        id: 'g1-addsub-all',
-        titleKey: 'preset_g1_addsub_mixed_carry_title',
-        descKey: 'preset_g1_addsub_mixed_carry_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'ope', operator: ['add', 'sub'], carry_mode: 'mixed',
-          a_min: 1, a_max: 9, b_min: 1, b_max: 9,
-        },
-      },
-      {
-        id: 'g1-complement10',
-        titleKey: 'preset_g1_complement10_title',
-        descKey: 'preset_g1_complement10_desc',
-        params: { command_type: 'com', a_value: 10 },
-      },
-      {
-        id: 'g1-hyakumasu',
-        titleKey: 'preset_g1_hyakumasu_title',
-        descKey: 'preset_g1_hyakumasu_desc',
-        params: { command_type: '100', a_value: 1, b_value: 1 },
-      },
-      {
-        // No formal square-bracket (□) notation at grade 1 in the course of
-        // study; this is an introductory application drill, consistent with
-        // grade 1 already having non-standards-mandated presets (e.g.
-        // g1-hyakumasu above). latexOnly because --missing-value exists only
-        // in nuts_calc_tex.py (issue #69).
-        id: 'g1-missing-value',
-        titleKey: 'preset_g1_missing_value_title',
-        descKey: 'preset_g1_missing_value_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'ope', operator: ['add', 'sub'], missing_value: true,
-          a_min: 1, a_max: 9, b_min: 1, b_max: 9,
-        },
-      },
-    ],
-    // Keep every two-term arithmetic condition available in both formats so
-    // the catalog can present format as a choice rather than duplicate cards.
-    written: [
-      {
-        id: 'g1-add-no-carry-written',
-        titleKey: 'preset_g1_add_no_carry_title',
-        descKey: 'preset_g1_add_no_carry_desc',
-        latexOnly: true,
-        params: { command_type: 'ope', operator: ['add'], carry_mode: 'none', a_min: 1, a_max: 9, b_min: 1, b_max: 9, vertical: true },
-      },
-      {
-        id: 'g1-add-carry-written',
-        titleKey: 'preset_g1_add_carry_title',
-        descKey: 'preset_g1_add_carry_desc',
-        latexOnly: true,
-        params: { command_type: 'ope', operator: ['add'], carry_mode: 'required', a_min: 1, a_max: 9, b_min: 1, b_max: 9, vertical: true },
-      },
-      {
-        id: 'g1-sub-no-borrow-written',
-        titleKey: 'preset_g1_sub_no_borrow_title',
-        descKey: 'preset_g1_sub_no_borrow_desc',
-        latexOnly: true,
-        params: { command_type: 'ope', operator: ['sub'], carry_mode: 'none', a_min: 1, a_max: 9, b_min: 1, b_max: 9, vertical: true },
-      },
-      {
-        id: 'g1-sub-borrow-written',
-        titleKey: 'preset_g1_sub_borrow_title',
-        descKey: 'preset_g1_sub_borrow_desc',
-        latexOnly: true,
-        params: { command_type: 'ope', operator: ['sub'], carry_mode: 'required', a_min: 10, a_max: 19, b_min: 1, b_max: 9, vertical: true },
-      },
-      {
-        id: 'g1-addsub-no-carry-written',
-        titleKey: 'preset_g1_addsub_no_carry_title',
-        descKey: 'preset_g1_addsub_no_carry_desc',
-        latexOnly: true,
-        params: { command_type: 'ope', operator: ['add', 'sub'], carry_mode: 'none', a_min: 1, a_max: 9, b_min: 1, b_max: 9, vertical: true },
-      },
-      {
-        id: 'g1-addsub-all-written',
-        titleKey: 'preset_g1_addsub_mixed_carry_title',
-        descKey: 'preset_g1_addsub_mixed_carry_desc',
-        latexOnly: true,
-        params: { command_type: 'ope', operator: ['add', 'sub'], carry_mode: 'mixed', a_min: 1, a_max: 9, b_min: 1, b_max: 9, vertical: true },
-      },
-    ],
-    // The entrance-exam-prep section only applies to grades 4-6 (see
-    // buildExamPrepPresets above).
-    examPrep: [],
-  },
-  2: {
-    normal: [
-      {
-        id: 'g2-add2',
-        titleKey: 'preset_g2_add2_title',
-        descKey: 'preset_g2_add2_desc',
-        params: { command_type: 'ope', operator: ['add'], a_value: 2, b_value: 2 },
-      },
-      {
-        id: 'g2-sub2',
-        titleKey: 'preset_g2_sub2_title',
-        descKey: 'preset_g2_sub2_desc',
-        params: { command_type: 'ope', operator: ['sub'], a_value: 2, b_value: 2 },
-      },
-      {
-        id: 'g2-addsub2',
-        titleKey: 'preset_g2_addsub2_title',
-        descKey: 'preset_g2_addsub2_desc',
-        params: { command_type: 'ope', operator: ['add', 'sub'], a_value: 2, b_value: 2 },
-      },
-      {
-        id: 'g2-kuku',
-        titleKey: 'preset_g2_kuku_title',
-        descKey: 'preset_g2_kuku_desc',
-        params: { command_type: '99' },
-        numberInput: { param: 'a_value', labelKey: 'preset_input_dan', min: 1, max: 9, default: 2 },
-      },
-      {
-        id: 'g2-complement100',
-        titleKey: 'preset_g2_complement100_title',
-        descKey: 'preset_g2_complement100_desc',
-        params: { command_type: 'com', a_value: 100 },
-      },
-      {
-        // Matches the formal grade-2 course-of-study unit A(3) 加法と減法との
-        // 相互関係 (elementary-course-of-study-mathematics-2017.pdf p.114),
-        // e.g. □＋５＝12. latexOnly because --missing-value exists only in
-        // nuts_calc_tex.py (issue #69).
-        id: 'g2-missing-value',
-        titleKey: 'preset_g2_missing_value_title',
-        descKey: 'preset_g2_missing_value_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'ope', operator: ['add', 'sub'], missing_value: true,
-          a_value: 2, b_value: 2,
-        },
-      },
-    ],
-    written: [
-      {
-        id: 'g2-add-written',
-        titleKey: 'preset_g2_add_written_title',
-        descKey: 'preset_g2_add_written_desc',
-        params: { command_type: 'ope', operator: ['add'], a_value: 2, b_value: 2, vertical: true },
-      },
-      {
-        id: 'g2-sub-written',
-        titleKey: 'preset_g2_sub_written_title',
-        descKey: 'preset_g2_sub_written_desc',
-        params: { command_type: 'ope', operator: ['sub'], a_value: 2, b_value: 2, vertical: true },
-      },
-      {
-        id: 'g2-addsub-written',
-        titleKey: 'preset_g2_addsub_written_title',
-        descKey: 'preset_g2_addsub_written_desc',
-        params: { command_type: 'ope', operator: ['add', 'sub'], a_value: 2, b_value: 2, vertical: true },
-      },
-    ],
-    examPrep: [],
-  },
-  3: {
-    normal: [
-      {
-        id: 'g3-mul',
-        titleKey: 'preset_g3_mul_title',
-        descKey: 'preset_g3_mul_desc',
-        params: { command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 1 },
-      },
-      {
-        id: 'g3-div',
-        titleKey: 'preset_g3_div_title',
-        descKey: 'preset_g3_div_desc',
-        params: { command_type: 'ope', operator: ['div'], a_value: 2, b_value: 1 },
-      },
-      {
-        id: 'g3-add3',
-        titleKey: 'preset_g3_add3_title',
-        descKey: 'preset_g3_add3_desc',
-        params: { command_type: 'ope', operator: ['add'], a_value: 3, b_value: 3 },
-      },
-      {
-        id: 'g3-sub3',
-        titleKey: 'preset_g3_sub3_title',
-        descKey: 'preset_g3_sub3_desc',
-        params: { command_type: 'ope', operator: ['sub'], a_value: 3, b_value: 3 },
-      },
-      {
-        id: 'g3-addsub3',
-        titleKey: 'preset_g3_addsub3_title',
-        descKey: 'preset_g3_addsub3_desc',
-        params: { command_type: 'ope', operator: ['add', 'sub'], a_value: 3, b_value: 3 },
-      },
-      {
-        id: 'g3-mul-intermediate',
-        titleKey: 'preset_g3_mul_intermediate_title',
-        descKey: 'preset_g3_mul_intermediate_desc',
-        // operator is pinned to ['mul'] (not left to default) because
-        // nuts_calc_tex.py rejects --intermediate with any other operator,
-        // while nuts_calc.py silently ignores it -- being explicit keeps the
-        // request valid on both renderers (see issue #42).
-        params: { command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 1, intermediate: true },
-      },
-      {
-        // Matches the formal grade-3 course-of-study unit covering □ for
-        // multiplication/division relationships (elementary-course-of-study
-        // -mathematics-2017.pdf p.55), e.g. 12÷3 framed as 3×□＝12. latexOnly
-        // because --missing-value exists only in nuts_calc_tex.py (issue #69).
-        id: 'g3-missing-value',
-        titleKey: 'preset_g3_missing_value_title',
-        descKey: 'preset_g3_missing_value_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'ope', operator: ['mul', 'div'], missing_value: true,
-          a_value: 2, b_value: 1,
-        },
-      },
-      {
-        id: 'g3-fraction-simple-addsub',
-        titleKey: 'preset_g3_fraction_title',
-        descKey: 'preset_g3_fraction_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'frac', operator: ['add', 'sub'], numerator_digits: 1,
-          denominator_digits: 1, same_denominator: true, proper_operands: true,
-          proper_result: true,
-        },
-      },
-      {
-        // Matches the formal grade-3 course-of-study unit A(5) 小数の意味と表し方
-        // (elementary-course-of-study-mathematics-2017.pdf p.156): simple
-        // one-decimal-place (1/10 unit) addition/subtraction. latexOnly
-        // because --a-decimal-places/--b-decimal-places exist only in
-        // nuts_calc_tex.py (issue #76).
-        id: 'g3-decimal-addsub',
-        titleKey: 'preset_g3_decimal_addsub_title',
-        descKey: 'preset_g3_decimal_addsub_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'ope', operator: ['add', 'sub'], a_value: 1, b_value: 1,
-          a_decimal_places: 1, b_decimal_places: 1,
-        },
-      },
-    ],
-    written: [
-      {
-        id: 'g3-add-written',
-        titleKey: 'preset_g3_add_written_title',
-        descKey: 'preset_g3_add_written_desc',
-        params: { command_type: 'ope', operator: ['add'], a_value: 3, b_value: 3, vertical: true },
-      },
-      {
-        id: 'g3-sub-written',
-        titleKey: 'preset_g3_sub_written_title',
-        descKey: 'preset_g3_sub_written_desc',
-        params: { command_type: 'ope', operator: ['sub'], a_value: 3, b_value: 3, vertical: true },
-      },
-      {
-        id: 'g3-addsub-written',
-        titleKey: 'preset_g3_addsub_written_title',
-        descKey: 'preset_g3_addsub_written_desc',
-        params: { command_type: 'ope', operator: ['add', 'sub'], a_value: 3, b_value: 3, vertical: true },
-      },
-      {
-        id: 'g3-mul-written',
-        titleKey: 'preset_g3_mul_written_title',
-        descKey: 'preset_g3_mul_written_desc',
-        params: { command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 1, vertical: true },
-      },
-      {
-        id: 'g3-div-written',
-        titleKey: 'preset_g3_div_title',
-        descKey: 'preset_g3_div_desc',
-        params: { command_type: 'ope', operator: ['div'], a_value: 2, b_value: 1, vertical: true },
-      },
-    ],
-    examPrep: [],
-  },
-  4: {
-    normal: [
-      {
-        id: 'g4-add4',
-        titleKey: 'preset_g4_add4_title',
-        descKey: 'preset_g4_add4_desc',
-        catalogTitleKey: 'preset_g4_add4_title',
-        params: { command_type: 'ope', operator: ['add'], a_value: 4, b_value: 4 },
-      },
-      {
-        id: 'g4-sub4',
-        titleKey: 'preset_g4_sub4_title',
-        descKey: 'preset_g4_sub4_desc',
-        catalogTitleKey: 'preset_g4_sub4_title',
-        params: { command_type: 'ope', operator: ['sub'], a_value: 4, b_value: 4 },
-      },
-      {
-        id: 'g4-addsub4',
-        titleKey: 'preset_g4_addsub4_title',
-        descKey: 'preset_g4_addsub4_desc',
-        catalogTitleKey: 'preset_g4_addsub4_title',
-        params: { command_type: 'ope', operator: ['add', 'sub'], a_value: 4, b_value: 4 },
-      },
-      {
-        id: 'g4-mul',
-        titleKey: 'preset_g4_mul_title',
-        descKey: 'preset_g4_mul_desc',
-        params: { command_type: 'ope', operator: ['mul'], a_value: 3, b_value: 2 },
-      },
-      {
-        id: 'g4-div',
-        titleKey: 'preset_g4_div_title',
-        descKey: 'preset_g4_div_desc',
-        params: { command_type: 'ope', operator: ['div'], a_value: 3, b_value: 2 },
-      },
-      {
-        id: 'g4-mix',
-        titleKey: 'preset_g4_mix_title',
-        descKey: 'preset_g4_mix_desc',
-        params: { command_type: 'ope', operator: ['mix'], a_value: 2, b_value: 2 },
-      },
-      {
-        // Matches the formal grade-4 course-of-study unit A(6) 数量の関係を表す式
-        // ("四則の混合した式や（　）を用いた式", elementary-course-of-study
-        // -mathematics-2017.pdf page 196): single-digit three-operand
-        // expressions. operator: ['mix'] plus --use-parentheses's own
-        // per-problem position/operator randomization (nuts_calc_tex.py
-        // issue #67) varies both which pair is parenthesized ("(a op b) op
-        // c" vs "a op (b op c)") and which of the four operations are used,
-        // instead of a single fixed pattern. latexOnly because
-        // --use-parentheses exists only in nuts_calc_tex.py.
-        id: 'g4-parentheses',
-        titleKey: 'preset_g4_parentheses_title',
-        descKey: 'preset_g4_parentheses_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'ope', operator: ['mix'], use_parentheses: true,
-          a_value: 1, b_value: 1,
-        },
-      },
-      {
-        // Extends the g4-mix preset (2-digit, mixed operators) with
-        // --missing-value's boxed-blank treatment: grade 4 formalizes □/△
-        // notation for mixed-operator expressions. latexOnly because
-        // --missing-value exists only in nuts_calc_tex.py (issue #69).
-        id: 'g4-missing-value',
-        titleKey: 'preset_g4_missing_value_title',
-        descKey: 'preset_g4_missing_value_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'ope', operator: ['mix'], missing_value: true,
-          a_value: 2, b_value: 2,
-        },
-      },
-      {
-        id: 'g4-fraction-common-addsub',
-        titleKey: 'preset_g4_fraction_title',
-        descKey: 'preset_g4_fraction_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'frac', operator: ['add', 'sub'], numerator_digits: 1,
-          denominator_digits: 1, same_denominator: true,
-        },
-      },
-      {
-        id: 'g4-fraction-compare-same-denominator',
-        titleKey: 'preset_g4_fraction_compare_same_denominator_title',
-        descKey: 'preset_g4_fraction_compare_same_denominator_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'compare', comparison_pattern: 'same-denominator',
-          numerator_digits: 1, denominator_digits: 1,
-        },
-      },
-      {
-        id: 'g4-fraction-compare-same-numerator',
-        titleKey: 'preset_g4_fraction_compare_same_numerator_title',
-        descKey: 'preset_g4_fraction_compare_same_numerator_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'compare', comparison_pattern: 'same-numerator',
-          numerator_digits: 1, denominator_digits: 1,
-        },
-      },
-      {
-        id: 'g4-fraction-compare-same-denominator-advanced',
-        titleKey: 'preset_g4_fraction_compare_same_denominator_advanced_title',
-        descKey: 'preset_g4_fraction_compare_same_denominator_advanced_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'compare', comparison_pattern: 'same-denominator',
-          a_fraction_form: 'mix', b_fraction_form: 'mix',
-          numerator_digits: 1, denominator_digits: 1,
-        },
-      },
-      {
-        id: 'g4-fraction-compare-same-numerator-advanced',
-        titleKey: 'preset_g4_fraction_compare_same_numerator_advanced_title',
-        descKey: 'preset_g4_fraction_compare_same_numerator_advanced_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'compare', comparison_pattern: 'same-numerator',
-          a_fraction_form: 'mix', b_fraction_form: 'mix',
-          numerator_digits: 1, denominator_digits: 1,
-        },
-      },
-      {
-        // Matches the formal grade-4 course-of-study unit A(4) 小数の仕組みと
-        // その計算 (elementary-course-of-study-mathematics-2017.pdf p.196):
-        // multi-place (1/100 unit) decimal addition/subtraction. latexOnly
-        // because --a-decimal-places/--b-decimal-places exist only in
-        // nuts_calc_tex.py (issue #76).
-        id: 'g4-decimal-addsub',
-        titleKey: 'preset_g4_decimal_addsub_title',
-        descKey: 'preset_g4_decimal_addsub_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'ope', operator: ['add', 'sub'], a_value: 3, b_value: 3,
-          a_decimal_places: 2, b_decimal_places: 2,
-        },
-      },
-      {
-        // Same course-of-study unit (p.196): "乗数や除数が整数である場合の
-        // 小数の乗法" (decimal x integer). b_decimal_places is left at its
-        // default (0) so the second operand is a plain integer -- the
-        // asymmetric decimal-places case nuts_calc_tex.py restricts to a
-        // single mul/div operator (issue #76).
-        id: 'g4-decimal-mul',
-        titleKey: 'preset_g4_decimal_mul_title',
-        descKey: 'preset_g4_decimal_mul_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 1,
-          a_decimal_places: 1,
-        },
-      },
-      {
-        // Same unit (p.196): "...小数の除法" (decimal / integer).
-        id: 'g4-decimal-div',
-        titleKey: 'preset_g4_decimal_div_title',
-        descKey: 'preset_g4_decimal_div_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'ope', operator: ['div'], a_value: 2, b_value: 1,
-          a_decimal_places: 1,
-        },
-      },
-    ],
-    written: [
-      {
-        id: 'g4-mul-written',
-        titleKey: 'preset_g4_mul_written_title',
-        descKey: 'preset_g4_mul_written_desc',
-        params: { command_type: 'ope', operator: ['mul'], a_value: 3, b_value: 2, vertical: true },
-      },
-      {
-        id: 'g4-div-written',
-        titleKey: 'preset_g4_div_written_title',
-        descKey: 'preset_g4_div_written_desc',
-        params: { command_type: 'ope', operator: ['div'], a_value: 3, b_value: 2, vertical: true },
-      },
-      {
-        id: 'g4-add-written',
-        titleKey: 'preset_g4_add_written_title',
-        descKey: 'preset_g4_add_written_desc',
-        params: { command_type: 'ope', operator: ['add'], a_value: 4, b_value: 4, vertical: true },
-      },
-      {
-        id: 'g4-sub-written',
-        titleKey: 'preset_g4_sub_written_title',
-        descKey: 'preset_g4_sub_written_desc',
-        params: { command_type: 'ope', operator: ['sub'], a_value: 4, b_value: 4, vertical: true },
-      },
-      {
-        id: 'g4-addsub-written',
-        titleKey: 'preset_g4_addsub_written_title',
-        descKey: 'preset_g4_addsub_written_desc',
-        params: { command_type: 'ope', operator: ['add', 'sub'], a_value: 4, b_value: 4, vertical: true },
-      },
-    ],
-    examPrep: buildExamPrepPresets(4, 1),
-  },
-  5: {
-    normal: [
-      {
-        id: 'g5-add5',
-        titleKey: 'preset_g5_add5_title',
-        descKey: 'preset_g5_add5_desc',
-        catalogTitleKey: 'preset_g5_add5_title',
-        params: { command_type: 'ope', operator: ['add'], a_value: 5, b_value: 5 },
-      },
-      {
-        id: 'g5-sub5',
-        titleKey: 'preset_g5_sub5_title',
-        descKey: 'preset_g5_sub5_desc',
-        catalogTitleKey: 'preset_g5_sub5_title',
-        params: { command_type: 'ope', operator: ['sub'], a_value: 5, b_value: 5 },
-      },
-      {
-        id: 'g5-addsub5',
-        titleKey: 'preset_g5_addsub5_title',
-        descKey: 'preset_g5_addsub5_desc',
-        catalogTitleKey: 'preset_g5_addsub5_title',
-        params: { command_type: 'ope', operator: ['add', 'sub'], a_value: 5, b_value: 5 },
-      },
-      {
-        id: 'g5-pi',
-        titleKey: 'preset_g5_pi_title',
-        descKey: 'preset_g5_pi_desc',
-        params: { command_type: 'pi' },
-        numberInput: { param: 'a_value', labelKey: 'preset_input_start', min: 1, max: 20, default: 1 },
-      },
-      {
-        id: 'g5-mix',
-        titleKey: 'preset_g5_mix_title',
-        descKey: 'preset_g5_mix_desc',
-        params: { command_type: 'ope', operator: ['mix'], a_value: 3, b_value: 2 },
-      },
-      {
-        // Advanced extension of g4-parentheses: no grade-5 course-of-study
-        // unit covers this directly (that unit is grade 4 only), so this is
-        // an ungraded-in-spirit but grade-5-placed application drill with a
-        // 2-digit first operand (b/c stay single-digit -- verified by
-        // simulation that widening both b and c to 2 digits makes some
-        // operator/position combinations, e.g. sub outside a mul on the
-        // right, have essentially no solvable triple in range). Same
-        // operator/position randomization as g4-parentheses.
-        id: 'g5-parentheses-advanced',
-        titleKey: 'preset_g5_parentheses_advanced_title',
-        descKey: 'preset_g5_parentheses_advanced_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'ope', operator: ['mix'], use_parentheses: true,
-          a_value: 2, b_value: 1,
-        },
-      },
-      {
-        // Extends the g5-mix preset (3-digit x 2-digit, mixed operators)
-        // with --missing-value's boxed-blank treatment. No direct
-        // course-of-study unit for this combination; same "advanced
-        // application" framing as g5-parentheses-advanced. latexOnly
-        // because --missing-value exists only in nuts_calc_tex.py (issue
-        // #69).
-        id: 'g5-missing-value',
-        titleKey: 'preset_g5_missing_value_title',
-        descKey: 'preset_g5_missing_value_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'ope', operator: ['mix'], missing_value: true,
-          a_value: 3, b_value: 2,
-        },
-      },
-      {
-        id: 'g5-fraction-unlike-addsub',
-        titleKey: 'preset_g5_fraction_title',
-        descKey: 'preset_g5_fraction_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'frac', operator: ['add', 'sub'], numerator_digits: 1,
-          denominator_digits: 1, different_denominators: true, proper_operands: true,
-        },
-      },
-      {
-        id: 'g5-fraction-compare-different-denominators',
-        titleKey: 'preset_g5_fraction_compare_different_denominators_title',
-        descKey: 'preset_g5_fraction_compare_different_denominators_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'compare', comparison_pattern: 'different-denominators',
-          numerator_digits: 1, denominator_digits: 1,
-        },
-      },
-      {
-        id: 'g5-fraction-compare-different-denominators-advanced',
-        titleKey: 'preset_g5_fraction_compare_different_denominators_advanced_title',
-        descKey: 'preset_g5_fraction_compare_different_denominators_advanced_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'compare', comparison_pattern: 'different-denominators',
-          a_fraction_form: 'mix', b_fraction_form: 'mix',
-          numerator_digits: 1, denominator_digits: 1,
-        },
-      },
-      {
-        // Matches the formal grade-5 course-of-study unit covering "小数の
-        // 乗法，除法の意味" (elementary-course-of-study-mathematics-2017.pdf
-        // p.245): decimal x decimal. Both operands use the same
-        // decimal-places value (1), which nuts_calc_tex.py requires for
-        // 'mul' to keep the product within elementary-school-appropriate
-        // range (issue #76).
-        id: 'g5-decimal-mul',
-        titleKey: 'preset_g5_decimal_mul_title',
-        descKey: 'preset_g5_decimal_mul_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 2,
-          a_decimal_places: 1, b_decimal_places: 1,
-        },
-      },
-      {
-        // Same unit (p.245): decimal / decimal. Equal decimal places make
-        // the quotient an exact whole number (aligning decimal points before
-        // dividing, as taught in the course of study) -- never a
-        // repeating/infinite decimal, since nuts_calc_tex.py's decimal
-        // division always reuses the exact-integer-division guarantee (see
-        // nuts_calc_tex.py.md's decimal-arithmetic design note).
-        id: 'g5-decimal-div',
-        titleKey: 'preset_g5_decimal_div_title',
-        descKey: 'preset_g5_decimal_div_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'ope', operator: ['div'], a_value: 2, b_value: 2,
-          a_decimal_places: 1, b_decimal_places: 1,
-        },
-      },
-    ],
-    written: [
-      {
-        id: 'g5-add-written',
-        titleKey: 'preset_g5_add_written_title',
-        descKey: 'preset_g5_add_written_desc',
-        params: { command_type: 'ope', operator: ['add'], a_value: 5, b_value: 5, vertical: true },
-      },
-      {
-        id: 'g5-sub-written',
-        titleKey: 'preset_g5_sub_written_title',
-        descKey: 'preset_g5_sub_written_desc',
-        params: { command_type: 'ope', operator: ['sub'], a_value: 5, b_value: 5, vertical: true },
-      },
-      {
-        id: 'g5-addsub-written',
-        titleKey: 'preset_g5_addsub_written_title',
-        descKey: 'preset_g5_addsub_written_desc',
-        params: { command_type: 'ope', operator: ['add', 'sub'], a_value: 5, b_value: 5, vertical: true },
-      },
-    ],
-    examPrep: buildExamPrepPresets(5, 2),
-  },
-  6: {
-    normal: [
-      {
-        id: 'g6-add-mixed-digits',
-        titleKey: 'preset_g6_add_mixed_digits_title',
-        descKey: 'preset_g6_add_mixed_digits_desc',
-        catalogTitleKey: 'preset_g6_add_mixed_digits_title',
-        params: { command_type: 'ope', operator: ['add'], a_value: 5, b_value: 3 },
-      },
-      {
-        id: 'g6-sub-mixed-digits',
-        titleKey: 'preset_g6_sub_mixed_digits_title',
-        descKey: 'preset_g6_sub_mixed_digits_desc',
-        catalogTitleKey: 'preset_g6_sub_mixed_digits_title',
-        params: { command_type: 'ope', operator: ['sub'], a_value: 5, b_value: 3 },
-      },
-      {
-        id: 'g6-addsub-mixed-digits',
-        titleKey: 'preset_g6_addsub_mixed_digits_title',
-        descKey: 'preset_g6_addsub_mixed_digits_desc',
-        catalogTitleKey: 'preset_g6_addsub_mixed_digits_title',
-        params: { command_type: 'ope', operator: ['add', 'sub'], a_value: 5, b_value: 3 },
-      },
-      {
-        id: 'g6-pi',
-        titleKey: 'preset_g6_pi_title',
-        descKey: 'preset_g6_pi_desc',
-        params: { command_type: 'pi' },
-        numberInput: { param: 'a_value', labelKey: 'preset_input_start', min: 1, max: 20, default: 1 },
-      },
-      {
-        id: 'g6-mix',
-        titleKey: 'preset_g6_mix_title',
-        descKey: 'preset_g6_mix_desc',
-        params: { command_type: 'ope', operator: ['mix'], a_value: 3, b_value: 3 },
-      },
-      {
-        // Advanced extension of g4-parentheses (see g5-parentheses-advanced):
-        // a 3-digit first operand (one step up from grade 5's 2-digit) is
-        // the differentiator, with b/c kept single-digit for the same
-        // solvability reason as g5-parentheses-advanced. Same
-        // operator/position randomization as g4-parentheses.
-        id: 'g6-parentheses-advanced',
-        titleKey: 'preset_g6_parentheses_advanced_title',
-        descKey: 'preset_g6_parentheses_advanced_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'ope', operator: ['mix'], use_parentheses: true,
-          a_value: 3, b_value: 1,
-        },
-      },
-      {
-        // Extends the g6-mix preset (same operand ranges) with
-        // --missing-value's boxed-blank treatment. Same "advanced
-        // application" framing as g6-parentheses-advanced. latexOnly
-        // because --missing-value exists only in nuts_calc_tex.py (issue
-        // #69).
-        id: 'g6-missing-value',
-        titleKey: 'preset_g6_missing_value_title',
-        descKey: 'preset_g6_missing_value_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'ope', operator: ['mix'], missing_value: true,
-          a_value: 3, b_value: 3,
-        },
-      },
-      {
-        id: 'g6-fraction-muldiv',
-        titleKey: 'preset_g6_fraction_title',
-        descKey: 'preset_g6_fraction_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'frac', operator: ['mul', 'div'], numerator_digits: 1,
-          denominator_digits: 1, proper_operands: true,
-        },
-      },
-      {
-        // Matches the formal grade-6 course-of-study "内容の取扱い" note on
-        // 分数の乗法，除法 (elementary-course-of-study-mathematics-2017.pdf
-        // p.293): "整数や小数の乗法や除法を分数の場合の計算にまとめることも
-        // 取り扱うものとする" (integer/decimal multiplication and division
-        // shall also be handled by unifying them into fraction-form
-        // calculation) -- worked example on p.294: "5÷2×0.3" converted to a
-        // fraction product. The `mixed` command (nuts_calc_tex.py, issue
-        // #76) implements exactly this: int/decimal/fraction operands,
-        // computed exactly via fractions.Fraction and always answered as a
-        // fraction (never decimal notation), so a division whose quotient
-        // doesn't terminate (e.g. 2/3) is still exact, not an
-        // infinite/repeating decimal. latexOnly because the `mixed` command
-        // exists only in nuts_calc_tex.py.
-        id: 'g6-mixed-basic',
-        titleKey: 'preset_g6_mixed_basic_title',
-        descKey: 'preset_g6_mixed_basic_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'mixed', operator: ['mix'], terms: 2,
-          numerator_digits: 1, denominator_digits: 1, decimal_places: 1,
-          a_kind: ['int', 'decimal', 'fraction'], b_kind: ['int', 'decimal', 'fraction'],
-        },
-      },
-      {
-        // Same course-of-study basis as g6-mixed-basic, extended to a
-        // 3-term chained expression (matching the p.294 worked example's
-        // shape, "5÷2×0.3") via --mixed-operators (standard * / precedence
-        // over + -, nuts_calc_tex.py issue #71/#76).
-        id: 'g6-mixed-advanced',
-        titleKey: 'preset_g6_mixed_advanced_title',
-        descKey: 'preset_g6_mixed_advanced_desc',
-        latexOnly: true,
-        params: {
-          command_type: 'mixed', operator: ['mix'], terms: 3, mixed_operators: true,
-          numerator_digits: 1, denominator_digits: 1, decimal_places: 1,
-          a_kind: ['int', 'decimal', 'fraction'], b_kind: ['int', 'decimal', 'fraction'],
-        },
-      },
-    ],
-    written: [
-      {
-        id: 'g6-add-written',
-        titleKey: 'preset_g6_add_written_title',
-        descKey: 'preset_g6_add_written_desc',
-        params: { command_type: 'ope', operator: ['add'], a_value: 5, b_value: 3, vertical: true },
-      },
-      {
-        id: 'g6-sub-written',
-        titleKey: 'preset_g6_sub_written_title',
-        descKey: 'preset_g6_sub_written_desc',
-        params: { command_type: 'ope', operator: ['sub'], a_value: 5, b_value: 3, vertical: true },
-      },
-      {
-        id: 'g6-addsub-written',
-        titleKey: 'preset_g6_addsub_written_title',
-        descKey: 'preset_g6_addsub_written_desc',
-        params: { command_type: 'ope', operator: ['add', 'sub'], a_value: 5, b_value: 3, vertical: true },
-      },
-    ],
-    examPrep: buildExamPrepPresets(6, 3),
-  },
-  // Drills that don't correspond to any single course-of-study grade unit
-  // (unlike e.g. `pi`, which is anchored to grade 5's introduction of the
-  // 3.14 constant): `aBc` is a mental-math decomposition trick and `squ` is
-  // a generic same-number multiplication drill, neither taught as a named
-  // elementary-school unit. Neither has a `--vertical` form (only `ope`
-  // supports it), so `written` stays empty. Keyed by `UNGRADED` so
-  // `GradeDrills.jsx` can look it up the same way as a numbered grade.
-  [UNGRADED]: {
-    normal: [
-      {
-        id: 'ungraded-abc',
-        titleKey: 'preset_ungraded_abc_title',
-        descKey: 'preset_ungraded_abc_desc',
-        params: { command_type: 'aBc' },
-      },
-      {
-        id: 'ungraded-squ',
-        titleKey: 'preset_ungraded_squ_title',
-        descKey: 'preset_ungraded_squ_desc',
-        params: { command_type: 'squ' },
-        numberInput: { param: 'a_value', labelKey: 'preset_input_start', min: 1, max: 20, default: 1 },
-      },
-    ],
-    written: [],
-    examPrep: [],
-  },
+  1: grade1,
+  2: grade2,
+  3: grade3,
+  4: grade4,
+  5: grade5,
+  6: grade6,
+  [UNGRADED]: ungraded,
 };
