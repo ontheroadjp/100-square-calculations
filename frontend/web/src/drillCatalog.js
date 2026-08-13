@@ -2,140 +2,81 @@ import { GRADES, UNGRADED, presetsByGrade } from './drillPresets.js';
 
 export const NUMBER_TYPES = ['integers', 'decimals', 'fractions', 'mixed'];
 export const OPERATION_GROUPS = ['addition-subtraction', 'multiplication-division', 'four-operations', 'comparison', 'number-sense'];
-export const DRILL_FORMS = ['written', 'parentheses', 'missing-value', 'number-sense', 'exam-prep'];
+// The written(筆算)/missing-value(虫食い算) format distinctions from before
+// #98 have no equivalent in docs/uiux/calculation_drill_menu_parameters_v1.md
+// and were dropped from the data model (see issue #111); no format-level
+// filter remains today.
+export const DRILL_FORMS = [];
 
-const SPECIAL_TWO_TERM_FLAGS = [
-  'intermediate',
-  'missing_value',
-  'use_parentheses',
-  'a_decimal_places',
-  'b_decimal_places',
-  'mixed_operators',
+const NUMBER_SENSE_COMMANDS = [
+  'com', '99', '100', 'squ', 'pi', 'aBc',
+  'evenodd', 'multiples', 'divisors', 'lcm', 'gcd',
+  'simplify', 'commondenom', 'frac2dec', 'dec2frac', 'divfrac',
 ];
 
-function hasOwn(object, key) {
-  return Object.prototype.hasOwnProperty.call(object, key);
+const FRACTION_COMMANDS = ['frac', 'simplify', 'commondenom', 'frac2dec', 'dec2frac', 'divfrac'];
+
+const LEVEL_BY_DIFFICULTY_KEY = {
+  difficulty_basic: 'basic',
+  difficulty_standard: 'standard',
+  difficulty_basic_standard: 'standard',
+};
+
+function defaultSettingsState(settings) {
+  const state = {};
+  for (const setting of settings) {
+    if (setting.type === 'choice') state[setting.id] = setting.default;
+  }
+  return state;
 }
 
-function isTwoTermArithmeticPreset(preset) {
-  const { params } = preset;
-  return params.command_type === 'ope'
-    && params.terms === undefined
-    && !params.operator.includes('mix')
-    && !SPECIAL_TWO_TERM_FLAGS.some((flag) => hasOwn(params, flag));
-}
-
-function formatSignature(preset) {
-  const params = { ...preset.params };
-  delete params.vertical;
-  return JSON.stringify(Object.keys(params).sort().map((key) => [key, params[key]]));
-}
-
-function getNumberType(preset, bucket) {
-  const { params } = preset;
-  if (bucket === 'examPrep') return 'integers';
-  if (params.command_type === 'mixed') return 'mixed';
-  if (params.command_type === 'frac' || params.command_type === 'compare') return 'fractions';
-  if (hasOwn(params, 'a_decimal_places') || hasOwn(params, 'b_decimal_places')) return 'decimals';
-  return 'integers';
-}
-
-function getOperationGroup(preset) {
-  const { params } = preset;
+// Mirrors the pre-#98 classification (params-driven, not category-driven)
+// so catalog.js's hardcoded NUMBER_TYPE_GROUPS keep working unchanged.
+function getOperationGroup(params) {
   if (params.command_type === 'compare') return 'comparison';
-  if (params.command_type === 'com' || ['100', '99', 'aBc', 'squ', 'pi'].includes(params.command_type)) return 'number-sense';
-  if (params.operator?.includes('mix')) return 'four-operations';
-  if (params.operator?.every((operator) => ['add', 'sub'].includes(operator))) return 'addition-subtraction';
+  if (NUMBER_SENSE_COMMANDS.includes(params.command_type)) return 'number-sense';
+  const operators = params.operator ?? [];
+  if (params.mixed_operators || operators.includes('mix')) return 'four-operations';
+  if (operators.length > 0 && operators.every((operator) => ['add', 'sub'].includes(operator))) return 'addition-subtraction';
   return 'multiplication-division';
 }
 
-function getForms(presets, bucket) {
-  const forms = new Set();
-  if (bucket === 'examPrep') forms.add('exam-prep');
-
-  for (const preset of Object.values(presets)) {
-    if (preset.params.vertical) forms.add('written');
-    if (preset.params.use_parentheses) forms.add('parentheses');
-    if (preset.params.missing_value) forms.add('missing-value');
-    if (getOperationGroup(preset) === 'number-sense') forms.add('number-sense');
-  }
-
-  return [...forms];
+function getNumberType(params) {
+  if (params.command_type === 'mixed') return 'mixed';
+  if (FRACTION_COMMANDS.includes(params.command_type)) return 'fractions';
+  if (params.a_decimal_places || params.b_decimal_places || params.decimal_places) return 'decimals';
+  return 'integers';
 }
 
-function getLevel(preset, bucket) {
-  if (bucket === 'examPrep') return 'exam-prep';
-  if (preset.id.includes('advanced') || preset.id.includes('intermediate') || preset.id.includes('-mix') || preset.params.use_parentheses || preset.params.missing_value) return 'advanced';
-  if (preset.id.includes('no-carry') || preset.id.includes('complement') || preset.id.includes('hyakumasu') || preset.id.includes('kuku') || preset.id.includes('simple')) return 'basic';
-  return 'standard';
+function getLevel(item) {
+  return LEVEL_BY_DIFFICULTY_KEY[item.difficultyKey] ?? 'standard';
 }
 
-function canUsePreset(preset, renderer) {
-  return (!preset.latexOnly && !preset.params.vertical) || renderer === 'latex';
+function canUseItem(item, renderer) {
+  return !item.latexOnly || renderer === 'latex';
 }
 
 function createCatalogEntries(grade, renderer) {
-  const buckets = presetsByGrade[grade];
-  const normal = buckets.normal.filter((preset) => canUsePreset(preset, renderer));
-  const written = buckets.written.filter((preset) => canUsePreset(preset, renderer));
-  const writtenBySignature = new Map(
-    written.filter(isTwoTermArithmeticPreset).map((preset) => [formatSignature(preset), preset]),
-  );
-  const pairedWrittenIds = new Set();
-
-  const entries = normal.map((preset) => {
-    const writtenPreset = isTwoTermArithmeticPreset(preset)
-      ? writtenBySignature.get(formatSignature(preset))
-      : undefined;
-    if (writtenPreset) pairedWrittenIds.add(writtenPreset.id);
-    const presets = {
-      horizontal: preset,
-      ...(writtenPreset && { vertical: writtenPreset }),
-    };
-    return {
-      id: preset.id,
-      grade,
-      numberType: getNumberType(preset, 'normal'),
-      operationGroup: getOperationGroup(preset),
-      forms: getForms(presets, 'normal'),
-      level: getLevel(preset, 'normal'),
-      titleKey: preset.catalogTitleKey ?? preset.titleKey,
-      descKey: preset.catalogDescKey ?? preset.descKey,
-      presets,
-    };
-  });
-
-  for (const preset of written) {
-    if (pairedWrittenIds.has(preset.id)) continue;
-    const presets = { vertical: preset };
-    entries.push({
-      id: preset.id,
-      grade,
-      numberType: getNumberType(preset, 'written'),
-      operationGroup: getOperationGroup(preset),
-      forms: getForms(presets, 'written'),
-      level: getLevel(preset, 'written'),
-      titleKey: preset.catalogTitleKey ?? preset.titleKey,
-      descKey: preset.catalogDescKey ?? preset.descKey,
-      presets,
-    });
+  const categories = presetsByGrade[grade];
+  const entries = [];
+  for (const items of Object.values(categories)) {
+    for (const item of items) {
+      if (!canUseItem(item, renderer)) continue;
+      const params = item.buildParams(defaultSettingsState(item.settings));
+      entries.push({
+        id: item.id,
+        grade,
+        numberType: getNumberType(params),
+        operationGroup: getOperationGroup(params),
+        forms: [],
+        level: getLevel(item),
+        titleKey: item.titleKey,
+        descKey: item.descKey,
+        supportLevel: item.supportLevel,
+        presets: { default: { titleKey: item.titleKey, descKey: item.descKey, params } },
+      });
+    }
   }
-
-  for (const preset of buckets.examPrep.filter((candidate) => canUsePreset(candidate, renderer))) {
-    const presets = { horizontal: preset };
-    entries.push({
-      id: preset.id,
-      grade,
-      numberType: getNumberType(preset, 'examPrep'),
-      operationGroup: getOperationGroup(preset),
-      forms: getForms(presets, 'examPrep'),
-      level: getLevel(preset, 'examPrep'),
-      titleKey: preset.titleKey,
-      descKey: preset.descKey,
-      presets,
-    });
-  }
-
   return entries;
 }
 
