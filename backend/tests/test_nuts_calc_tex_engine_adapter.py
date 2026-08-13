@@ -67,3 +67,26 @@ def test_build_preamble_tex_splices_in_engine_preamble_additions() -> None:
 
     tex = tex_module.build_preamble_tex("A4", StubEngineAdapter())
     assert "\\usepackage{stubpackage}\n\\pagestyle{fancy}" in tex
+
+
+def test_engine_name_resolves_lualatex_from_env_var(monkeypatch) -> None:
+    monkeypatch.setenv(tex_module.LATEX_ENGINE_ENV_VAR, "lualatex")
+    assert tex_module.get_latex_engine_name() == "lualatex"
+
+
+def test_get_latex_engine_adapter_returns_lualatex_adapter_when_selected(monkeypatch) -> None:
+    monkeypatch.setenv(tex_module.LATEX_ENGINE_ENV_VAR, "lualatex")
+    adapter = tex_module.get_latex_engine_adapter()
+    assert isinstance(adapter, tex_module.LuaLatexEngineAdapter)
+    assert adapter.binary_name == "lualatex"
+
+
+def test_lualatex_adapter_preamble_loads_fontspec_and_cjk_font() -> None:
+    additions = tex_module.LuaLatexEngineAdapter().build_preamble_additions()
+    assert "\\usepackage{fontspec}" in additions
+    assert f"\\setmainfont{{{tex_module.LUALATEX_CJK_FONT_NAME}}}" in additions
+
+
+def test_build_preamble_tex_splices_in_lualatex_adapter_preamble() -> None:
+    tex = tex_module.build_preamble_tex("A4", tex_module.LuaLatexEngineAdapter())
+    assert "\\usepackage{fontspec}\n\\setmainfont{Noto Sans CJK JP}\n\\pagestyle{fancy}" in tex

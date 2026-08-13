@@ -95,6 +95,7 @@ RemainderMode = Literal['required', 'none', 'mixed']
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 VENDOR_TEXMF_DIR = os.path.join(SCRIPT_DIR, 'vendor', 'texmf')
+LUALATEX_CJK_FONT_NAME = 'Noto Sans CJK JP'
 
 OPERATOR_TEX_SYMBOLS = {'add': '+', 'sub': '-', 'mul': '\\times', 'div': '\\div'}
 MIX_OPERATORS = ['add', 'sub', 'mul', 'div']
@@ -746,17 +747,16 @@ class LatexEngineAdapter(Protocol):
         ...
 
 
-class PdflatexEngineAdapter:
+class _SubprocessLatexEngineAdapter:
     """
-    Default adapter: plain pdflatex. No CJK/Japanese font support (see
-    docs/L3_implementation/backend/nuts_calc_tex.py.md); a Japanese-capable
-    adapter is tracked separately as issue #121.
+    Shared compile() for engines invoked as a single-pass
+    `<binary_name> -interaction=nonstopmode -halt-on-error worksheet.tex`
+    subprocess (pdflatex and lualatex both follow this CLI contract).
+    Subclasses need only set binary_name and implement
+    build_preamble_additions().
     """
 
-    binary_name = 'pdflatex'
-
-    def build_preamble_additions(self) -> str:
-        return ''
+    binary_name: str
 
     def compile(self, tex_source: str, out_pdf_path: str) -> None:
         env = os.environ.copy()
@@ -774,10 +774,43 @@ class PdflatexEngineAdapter:
             shutil.copyfile(os.path.join(tmp_dir, 'worksheet.pdf'), out_pdf_path)
 
 
+class PdflatexEngineAdapter(_SubprocessLatexEngineAdapter):
+    """
+    Default adapter: plain pdflatex. No CJK/Japanese font support (see
+    docs/L3_implementation/backend/nuts_calc_tex.py.md).
+    """
+
+    binary_name = 'pdflatex'
+
+    def build_preamble_additions(self) -> str:
+        return ''
+
+
+class LuaLatexEngineAdapter(_SubprocessLatexEngineAdapter):
+    """
+    Japanese-capable adapter (issue #121): LuaLaTeX + fontspec, with the
+    main font set to a CJK-capable font so Japanese glyphs render (plain
+    pdflatex has no CJK font support and fails fatally on them). Selected
+    via NUTS_CALC_TEX_ENGINE=lualatex; requires the `lualatex` binary and
+    the Noto Sans CJK JP font on the system (see
+    docs/L3_implementation/backend/nuts_calc_tex.py.md for rationale and
+    known limitations).
+    """
+
+    binary_name = 'lualatex'
+
+    def build_preamble_additions(self) -> str:
+        return (
+            "\\usepackage{fontspec}\n"
+            f"\\setmainfont{{{LUALATEX_CJK_FONT_NAME}}}\n"
+        )
+
+
 LATEX_ENGINE_ENV_VAR = 'NUTS_CALC_TEX_ENGINE'
 DEFAULT_LATEX_ENGINE = 'pdflatex'
 LATEX_ENGINE_ADAPTERS: dict[str, Callable[[], LatexEngineAdapter]] = {
     'pdflatex': PdflatexEngineAdapter,
+    'lualatex': LuaLatexEngineAdapter,
 }
 
 
