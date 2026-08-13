@@ -32,6 +32,7 @@ includes `xlop` (e.g. `texlive-latex-base` + `texlive-latex-extra`).
 
 import argparse
 import csv
+import math
 import os
 import random
 import shutil
@@ -136,11 +137,12 @@ def _init() -> argparse.Namespace:
     )
     parser.add_argument('command'
         , type = str
-        , choices = ['ope', 'com', '100', '99', 'aBc', 'squ', 'pi', 'frac', 'mixed', 'compare', 'evenodd', 'multiples', 'divisors']
+        , choices = ['ope', 'com', '100', '99', 'aBc', 'squ', 'pi', 'frac', 'mixed', 'compare', 'evenodd', 'multiples', 'divisors', 'lcm', 'gcd']
         , help = (
             'Type of formula to output (including "frac" for fraction arithmetic, "compare" for '
             'fraction comparison, "mixed" for int/decimal/fraction arithmetic, "evenodd" for '
-            'even/odd judgment, "multiples" for listing multiples, and "divisors" for listing divisors)'
+            'even/odd judgment, "multiples" for listing multiples, "divisors" for listing divisors, '
+            'and "lcm"/"gcd" for least-common-multiple/greatest-common-divisor pairs)'
         )
     )
     parser.add_argument('-a', '--a-value'
@@ -447,7 +449,7 @@ def _init() -> argparse.Namespace:
                 f"{MAX_HUNDRED_SQUARE_DIGITS} digits for the '100' command."
             )
 
-    if args.command in ('ope', '100'):
+    if args.command in ('ope', '100', 'lcm', 'gcd'):
         if args.a_value is not None:
             args.a_min, args.a_max = set_min_max_value(args.a_value)
         if args.b_value is not None:
@@ -3423,6 +3425,99 @@ def build_mixed_pages(
     return blank_pages, filled_pages, pages_problems
 
 
+@dataclass
+class NumberPairProblem:
+    """One generated two-number-property problem: `compute(a, b) == c` (issue #95)."""
+    index: int
+    a: int
+    b: int
+    c: int
+
+
+def generate_number_pair_problems(
+        compute: Callable[[int, int], int], nums_a: list[int], nums_b: list[int],
+        order: int, start_index: int,
+    ) -> list[NumberPairProblem]:
+    """
+    Generate `order` two-number-property problems starting at `start_index`.
+
+    `a`/`b` are drawn independently from `nums_a`/`nums_b`. Unlike
+    calc_sub/calc_div, `compute` (math.lcm or math.gcd) is defined for every
+    pair of positive integers, so no retry/fallback logic is needed.
+    """
+    problems = []
+    for offset in range(order):
+        a = random.choice(nums_a)
+        b = random.choice(nums_b)
+        problems.append(NumberPairProblem(index=start_index + offset, a=a, b=b, c=compute(a, b)))
+    return problems
+
+
+def build_number_pair_block_tex(problem: NumberPairProblem, show_answer: bool, label: str) -> str:
+    """Render one lcm/gcd problem as `n) $LABEL(a, b) = c$` (blank version hides `c`)."""
+    result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
+    return f"{problem.index}) $\\mathrm{{{label}}}({problem.a}, {problem.b}) = {result_tex}$"
+
+
+def build_number_pair_page_pair(problems: list[NumberPairProblem], columns: int, label: str) -> tuple[Page, Page]:
+    """Build the (blank, filled) Page pair for one page's worth of lcm/gcd problems."""
+    blank_page = Page(
+        blocks=[build_number_pair_block_tex(problem, show_answer=False, label=label) for problem in problems],
+        columns=columns,
+    )
+    filled_page = Page(
+        blocks=[build_number_pair_block_tex(problem, show_answer=True, label=label) for problem in problems],
+        columns=columns,
+    )
+    return blank_page, filled_page
+
+
+def build_number_pair_bottom_answer_tex(problems: list[NumberPairProblem]) -> str:
+    return ' \\quad '.join(f"({problem.index}) {problem.c}" for problem in problems)
+
+
+def build_number_pair_csv_rows(pages_problems: list[list[NumberPairProblem]]) -> list[list[object]]:
+    rows: list[list[object]] = []
+    for page_number, problems in enumerate(pages_problems, start=1):
+        for problem in problems:
+            rows.append([page_number, problem.index, problem.a, problem.b, problem.c])
+    return rows
+
+
+def build_number_pair_pages(
+        ini: argparse.Namespace, compute: Callable[[int, int], int], label: str,
+    ) -> tuple[list[Page], list[Page], list[list[NumberPairProblem]]]:
+    """
+    Generate real lcm/gcd problems and their blank/filled Page pairs for every page.
+
+    Shared by the 'lcm' and 'gcd' commands: math.lcm/math.gcd (and the
+    'LCM'/'GCD' rendering label) are the only difference between the two
+    drills, so both commands are dispatched through this one function
+    (compare build_com_pages/build_kuku_pages, which are not parameterized
+    this way because their per-command math genuinely differs).
+    """
+    nums_a = list(range(ini.a_min, ini.a_max + 1))
+    nums_b = list(range(ini.b_min, ini.b_max + 1))
+    order = ini.rows * ini.columns
+
+    blank_pages = []
+    filled_pages = []
+    pages_problems = []
+    for page_number in range(1, ini.page + 1):
+        start_index = (page_number - 1) * order + 1
+        problems = generate_number_pair_problems(compute, nums_a, nums_b, order, start_index)
+        blank_page, filled_page = build_number_pair_page_pair(problems, ini.columns, label)
+        pages_problems.append(problems)
+        blank_pages.append(blank_page)
+        filled_pages.append(filled_page)
+
+    if ini.with_bottom_answer:
+        for problems, blank_page in zip(pages_problems, blank_pages):
+            blank_page.bottom_answer_tex = build_number_pair_bottom_answer_tex(problems)
+
+    return blank_pages, filled_pages, pages_problems
+
+
 def main(ini: argparse.Namespace) -> None:
     if shutil.which('pdflatex') is None:
         failure(
@@ -3446,6 +3541,7 @@ def main(ini: argparse.Namespace) -> None:
     evenodd_pages_problems: list[list[EvenOddProblem]] | None = None
     multiples_pages_problems: list[list[MultiplesProblem]] | None = None
     divisors_pages_problems: list[list[DivisorsProblem]] | None = None
+    number_pair_pages_problems: list[list[NumberPairProblem]] | None = None
     if ini.command == 'ope' and ini.use_parentheses:
         blank_pages, filled_pages, tree_ope_pages_problems = build_ope_pages(ini)
     elif ini.command == 'ope' and ini.missing_value:
@@ -3468,6 +3564,10 @@ def main(ini: argparse.Namespace) -> None:
         blank_pages, filled_pages, pi_pages_problems = build_pi_pages(ini)
     elif ini.command == 'mixed':
         blank_pages, filled_pages, mixed_pages_problems = build_mixed_pages(ini)
+    elif ini.command == 'lcm':
+        blank_pages, filled_pages, number_pair_pages_problems = build_number_pair_pages(ini, math.lcm, 'LCM')
+    elif ini.command == 'gcd':
+        blank_pages, filled_pages, number_pair_pages_problems = build_number_pair_pages(ini, math.gcd, 'GCD')
     elif ini.command == 'compare':
         blank_pages, filled_pages, comparison_pages_problems = build_fraction_comparison_pages(ini)
     elif ini.command == 'evenodd':
@@ -3525,6 +3625,8 @@ def main(ini: argparse.Namespace) -> None:
             rows = build_pi_csv_rows(pi_pages_problems)
         elif mixed_pages_problems is not None:
             rows = build_mixed_csv_rows(mixed_pages_problems)
+        elif number_pair_pages_problems is not None:
+            rows = build_number_pair_csv_rows(number_pair_pages_problems)
         elif comparison_pages_problems is not None:
             rows = build_fraction_comparison_csv_rows(comparison_pages_problems)
         elif evenodd_pages_problems is not None:

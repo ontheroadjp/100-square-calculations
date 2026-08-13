@@ -17,6 +17,7 @@ test_nuts_calc_tex_multiples_generation.py, and
 test_nuts_calc_tex_divisors_generation.py.
 """
 
+import math
 import shutil
 import subprocess
 import sys
@@ -1257,6 +1258,54 @@ def test_cli_mixed_rejects_decimal_places_out_of_range(run_tex_cli, tmp_path):
 
 def test_cli_mixed_kind_options_rejected_on_non_mixed_command(run_tex_cli, tmp_path):
     result = run_tex_cli("A4", "frac", "--a-kind", "int", "--out-file", "result.pdf")
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+@pytest.mark.parametrize("command,check", [
+    ("lcm", lambda a, b, c: math.lcm(a, b) == c),
+    ("gcd", lambda a, b, c: math.gcd(a, b) == c),
+])
+def test_cli_number_pair_produces_blank_and_filled_pdfs(run_tex_cli, tmp_path, command, check):
+    result = run_tex_cli("A4", command, "-r", "3", "-c", "2", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+@pytest.mark.parametrize("command", ["lcm", "gcd"])
+def test_cli_number_pair_with_bottom_answer_produces_pdf(run_tex_cli, tmp_path, command):
+    result = run_tex_cli("A4", command, "-r", "3", "-c", "2", "-ww", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
+@pytest.mark.parametrize("command", ["lcm", "gcd"])
+def test_cli_number_pair_digit_options_produce_pdf(run_tex_cli, tmp_path, command):
+    result = run_tex_cli("A4", command, "-a", "2", "-b", "2", "-r", "2", "-c", "2", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
+@pytest.mark.parametrize("command,check", [
+    ("lcm", lambda a, b, c: math.lcm(a, b) == c),
+    ("gcd", lambda a, b, c: math.gcd(a, b) == c),
+])
+def test_cli_number_pair_csv_rows_contain_real_problem_data(run_tex_cli, tmp_path, command, check):
+    result = run_tex_cli("A4", command, "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+
+    csv_path = tmp_path / "result.csv"
+    lines = csv_path.read_text().strip().splitlines()
+    assert len(lines) == 4
+    for line in lines:
+        page_number, index, a, b, c = line.split(",")
+        assert check(int(a), int(b), int(c))
+
+
+@pytest.mark.parametrize("command", ["lcm", "gcd"])
+def test_cli_number_pair_rejects_intermediate(run_tex_cli, tmp_path, command):
+    result = run_tex_cli("A4", command, "--intermediate", "--out-file", "result.pdf")
     assert result.returncode == 1
     assert not (tmp_path / "result.pdf").exists()
 
