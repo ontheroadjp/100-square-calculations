@@ -2,6 +2,7 @@ import { t } from './strings.js';
 import { GRADES, presetsByGrade } from './drillPresets.js';
 import { PROBLEM_COUNT_OPTIONS, layoutForProblemCount } from './presetDetail.js';
 import { getVerticalRows, isVerticalOperation, VERTICAL_COLUMNS } from './verticalLayout.js';
+import { ICONS } from './icons.js';
 
 const API_BASE = 'http://127.0.0.1:5000';
 
@@ -200,7 +201,7 @@ export function mountPcMakeFlow(container) {
         <div class="disclosure">
           <button type="button" class="disclosure-toggle" data-action="toggle-advanced" aria-expanded="${state.advancedOpen}">
             <span>${t('advanced_settings_label')}</span>
-            <span class="disclosure-chevron ${state.advancedOpen ? 'is-open' : ''}">›</span>
+            <span class="disclosure-chevron ${state.advancedOpen ? 'is-open' : ''}">${ICONS.chevronRight}</span>
           </button>
           ${state.advancedOpen ? `
             <div class="disclosure-body">

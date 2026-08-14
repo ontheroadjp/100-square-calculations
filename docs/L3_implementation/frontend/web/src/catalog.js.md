@@ -8,6 +8,7 @@
 
 - モジュール読み込み時に `mountNavShell()` を呼ぶ。
 - `render()`: `location.search` から `grade` を読み、`GRADES`(1〜6)に含まれない場合は空状態(`no_drills_found` + 戻るリンク)を表示して終了する。
+- ページヘッダーは `<header class="catalog-header">` 内の `<a class="page-header-row" href="index.html">${ICONS.chevronLeft}<h1 class="catalog-heading">...</h1></a>` という構造(issue #126)。アイコンとタイトルの `<h1>` を同じ `<a>` に包むことで、アイコン・タイトルどちらをクリックしても `index.html` に戻る単一のクリック領域になっている(「戻る」というテキストラベルは廃止)。旧実装は `<a class="back-button">戻るテキスト</a>` と `<h1 class="catalog-heading">` を別要素として横に並べていた。
 - `GET /renderer-info` を fetch して `activeRenderer` を確定する(失敗時は `reportlab` にフォールバック)。
 - `CATEGORY_ORDER`(`addition`/`subtraction`/`multiplication`/`division`/`fraction`/`four-operations`/`number-sense` の固定順)でループし、`presetsByGrade[grade]` に存在するカテゴリだけを、各アイテムを `canUseItem(item, activeRenderer)`(`!item.latexOnly || activeRenderer === 'latex'`。`drillCatalog.js` 内の同名関数と同じロジックをこのファイル内に複製)でフィルタしたうえで描画する。`presetsByGrade` のオブジェクトキー挿入順は学年ごとに異なる(例: grade4 は division が addition より先)ため、表示順は `CATEGORY_ORDER` で固定している。
 - `drillCardHtml`: ドリルカード1件を、タイトル・`item.difficultyKey`(`difficulty_basic`/`difficulty_standard`/`difficulty_basic_standard`)そのままを使う難易度バッジ・`item.examples[0]` を `formatExample()`(`+`/`-`/`×`/`÷` の前後にスペースを挿入。`/` は分数の区切りとして扱いスペースを入れない)で整形した例題1件、を `<a href="preset.html?grade=<grade>&drillId=<id>&format=default">` として描画する。カード全体がリンク。
@@ -23,6 +24,10 @@
 
 `drillCatalog.js` の `canUseItem` は非 export のプライベート関数であり、`catalog.js` が `presetsByGrade` を直接読む設計に切り替えたことで `drillCatalog.js` への依存を全体的に減らす方針と合わせ、1行のロジックのために export を追加するより複製の方が `drillCatalog.js`(将来削除候補、issue #110)への結合を増やさずに済むと判断した。
 
+### ヘッダーの「戻るアイコン+タイトル」を1つの `<a>` に統合した理由
+
+旧実装は `index.html` の静的な `<header class="app-header"><h1>100マス計算ジェネレーター</h1></header>` と、`catalog.js` が描画するこの `<header class="catalog-header">` が同一ページ上に二重に存在し、`<h1>` も2つ表示されていた(issue #126 でユーザー指摘)。修正では `index.html` 側の静的ヘッダーをブランド専用に作り替え([[./home.js]] 参照)、`catalog.html` からは静的ヘッダーそのものを削除して `catalog.js` が描画するこの `<header>` に一本化した。さらに、ユーザー要望により「戻る」というテキストラベル付きの独立したリンクをやめ、wireframe と同じ「アイコンはタイトルの左、タイトルクリックでも戻る」という単一のクリック領域に変更した。
+
 ### 例題を1件・スペース整形して表示する理由
 
 `docs/uiux/wireframe_v1.png` の画面②は各ドリルカードに例題を1件(`例）625 + 75` のようにスペース区切り)だけ表示している。`drillPresets.js` の `examples` 配列(最大3件、`'625+75'` のようにスペースなし)は元データのため、`catalog.js` 側で見た目だけ調整している。
@@ -30,7 +35,7 @@
 ## 統合ポイント
 
 - 呼び出し元: `catalog.html` の `<script type="module" src="/src/catalog.js">`。
-- 呼び出し先: `strings.js`(`t`)、`drillPresets.js`(`GRADES`/`presetsByGrade`)、`navShell.js`(`mountNavShell`)、`backend`(`GET /renderer-info`)。ドリルカードのリンク遷移先は `preset.html`(ブラウザナビゲーションのみ)。
+- 呼び出し先: `strings.js`(`t`)、`drillPresets.js`(`GRADES`/`presetsByGrade`)、`navShell.js`(`mountNavShell`)、`icons.js`(`ICONS.chevronLeft`)、`backend`(`GET /renderer-info`)。ドリルカードのリンク遷移先は `preset.html`(ブラウザナビゲーションのみ)。
 - `drillCatalog.js`/`filterDrillCatalog`/`buildDrillCatalog` への依存はなくなった。
 
 ## 注意事項・既知の制限

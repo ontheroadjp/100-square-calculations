@@ -92,9 +92,9 @@ export function mountPresetDetail(container, { grade, item, onBack }) {
   function renderSettingsScreen() {
     return `
       <div class="preset-detail preset-detail-settings">
-        <button type="button" class="back-button" data-action="back">${ICONS.back}<span>${t('back')}</span></button>
-
-        <h3 class="preset-detail-title">${t(item.titleKey)}</h3>
+        <header class="preset-detail-header">
+          <button type="button" class="page-header-row" data-action="back">${ICONS.chevronLeft}<h3 class="preset-detail-title">${t(item.titleKey)}</h3></button>
+        </header>
 
         ${item.examples.length > 0 ? `
           <div class="example-chip-row">
@@ -195,9 +195,9 @@ export function mountPresetDetail(container, { grade, item, onBack }) {
   function renderPreviewScreen() {
     return `
       <div class="preset-detail preset-detail-preview">
-        <div class="preview-header">
-          <button type="button" class="back-button" data-action="back-to-done">${ICONS.back}<span>${t('preview_heading')}</span></button>
-        </div>
+        <header class="preview-header">
+          <button type="button" class="page-header-row" data-action="back-to-done">${ICONS.chevronLeft}<h3 class="preset-detail-title">${t('preview_heading')}</h3></button>
+        </header>
         <div class="pdf-iframe-container preview-iframe-container">
           <iframe src="${state.pdfUrl}#navpanes=0" class="pdf-iframe" title="pdf-preview"></iframe>
         </div>
