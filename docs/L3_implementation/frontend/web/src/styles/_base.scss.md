@@ -30,6 +30,7 @@ issue #101 で `body` に `box-sizing: border-box` を追加した(下記「重�
 
 ## 変更履歴(git log より自動生成)
 
-- d9599eb feat(#101): add PC 4-column layout to frontend/web's make flow
-- b11ac96 feat(#97): rebuild frontend/web nav shell and design tokens, remove custom generator/search/ungraded UI
+- ab9fe98 feat(#126): add missing wireframe icons and unify page headers in frontend/web
+- 77f95b7 #101 frontend/web: add PC 4-column layout to the make flow (#119)
+- 8007488 #97 frontend/web: rebuild nav shell, design tokens, and remove legacy features (#109)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

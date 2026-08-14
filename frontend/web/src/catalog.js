@@ -95,8 +95,7 @@ async function render() {
 
   container.innerHTML = `
     <header class="catalog-header">
-      <a class="back-button" href="index.html">${ICONS.back}<span>${t('back')}</span></a>
-      <h1 class="catalog-heading">${t(`grade_full_${grade}`)}</h1>
+      <a class="page-header-row" href="index.html">${ICONS.chevronLeft}<h1 class="catalog-heading">${t(`grade_full_${grade}`)}</h1></a>
       <p class="category-picker-heading">${t('category_picker_heading')}</p>
     </header>
     ${sections.length > 0
