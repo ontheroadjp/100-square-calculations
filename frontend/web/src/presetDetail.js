@@ -118,6 +118,14 @@ export function buildSummaryParts({ problemCount, difficultyKey, settings, setti
 
 const buildFileName = (grade, item) => `drill_grade${grade}_${item.id}.pdf`;
 
+// Picks the example-chip content for the current settings: items whose
+// example set changes with the selected choice settings (carryMode,
+// remainderMode, denominator, numberKind, reduction, dan) provide
+// `examplesFor(settingsState)`; other items keep their static `examples`.
+export function selectExamples(item, settingsState) {
+  return item.examplesFor ? item.examplesFor(settingsState) : item.examples;
+}
+
 export function mountPresetDetail(container, { grade, item, onBack }) {
   container.classList.add(`grade-${grade}`);
 
@@ -158,6 +166,7 @@ export function mountPresetDetail(container, { grade, item, onBack }) {
   }
 
   function renderSettingsScreen() {
+    const examples = selectExamples(item, state.settingsState);
     return `
       <div class="preset-detail preset-detail-settings">
         <header class="catalog-header">
@@ -175,9 +184,9 @@ export function mountPresetDetail(container, { grade, item, onBack }) {
             <h3 class="preset-detail-title">問題サンプル</h3>
         </div>
 
-        ${item.examples.length > 0 ? `
+        ${examples.length > 0 ? `
           <div class="example-chip-row">
-            ${item.examples.map((example) => `<span class="example-chip">${renderExampleHtml(example)}</span>`).join('')}
+            ${examples.map((example) => `<span class="example-chip">${renderExampleHtml(example)}</span>`).join('')}
           </div>
         ` : ''}
 

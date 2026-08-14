@@ -94,3 +94,31 @@ test('buildParams(defaultState) returns a request body with paper_size-ready fie
     assert.equal(typeof params.command_type, 'string', `${context}: params.command_type must be a string`);
   }
 });
+
+test('examplesFor(defaultState) matches the static examples array (issue #135)', () => {
+  for (const { gradeKey, category, item } of allItems()) {
+    if (!item.examplesFor) continue;
+    const context = `grade ${gradeKey} / ${category} / ${item.id}`;
+    assert.deepEqual(item.examplesFor(defaultSettingsState(item.settings)), item.examples, context);
+  }
+});
+
+test('examplesFor returns a non-empty array of non-empty strings for every option of every choice setting', () => {
+  for (const { gradeKey, category, item } of allItems()) {
+    if (!item.examplesFor) continue;
+    const defaultState = defaultSettingsState(item.settings);
+    for (const setting of item.settings) {
+      if (setting.type !== 'choice') continue;
+      for (const option of setting.options) {
+        const context = `grade ${gradeKey} / ${category} / ${item.id} / ${setting.id}=${option.value}`;
+        const state = { ...defaultState, [setting.id]: option.value };
+        const examples = item.examplesFor(state);
+        assert.ok(Array.isArray(examples) && examples.length > 0, `${context}: examplesFor must return a non-empty array`);
+        for (const example of examples) {
+          assert.equal(typeof example, 'string', `${context}: each example must be a string`);
+          assert.ok(example.length > 0, `${context}: each example must be non-empty`);
+        }
+      }
+    }
+  }
+});

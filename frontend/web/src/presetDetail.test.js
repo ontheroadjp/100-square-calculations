@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PROBLEM_COUNT_OPTIONS, layoutForProblemCount, buildSummaryParts, buildExampleSegments, exampleWithEquals } from './presetDetail.js';
+import { PROBLEM_COUNT_OPTIONS, layoutForProblemCount, buildSummaryParts, buildExampleSegments, exampleWithEquals, selectExamples } from './presetDetail.js';
 
 test('layoutForProblemCount returns rows/columns for every supported problem count', () => {
   assert.deepEqual(layoutForProblemCount(10), { rows: 5, columns: 2 });
@@ -123,4 +123,18 @@ test('exampleWithEquals appends = to a plain arithmetic example', () => {
 test('exampleWithEquals leaves an arrow-based (already-shows-a-result) example untouched', () => {
   assert.equal(exampleWithEquals('18/24 → 3/4'), '18/24 → 3/4');
   assert.equal(exampleWithEquals('37 → 奇数'), '37 → 奇数');
+});
+
+test('selectExamples falls back to the static examples when the item has no examplesFor', () => {
+  const item = { examples: ['3+5', '6+4'] };
+  assert.deepEqual(selectExamples(item, {}), ['3+5', '6+4']);
+});
+
+test('selectExamples delegates to examplesFor(settingsState) when present', () => {
+  const item = {
+    examples: ['34+5', '7+26', '42+35'],
+    examplesFor: (settingsState) => (settingsState.carryMode === 'required' ? ['7+26', '48+37'] : ['34+5', '42+35']),
+  };
+  assert.deepEqual(selectExamples(item, { carryMode: 'required' }), ['7+26', '48+37']);
+  assert.deepEqual(selectExamples(item, { carryMode: 'none' }), ['34+5', '42+35']);
 });

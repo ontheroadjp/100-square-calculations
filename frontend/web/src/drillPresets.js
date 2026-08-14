@@ -56,6 +56,21 @@ function remainderModeParam(state) {
   return state?.remainderMode ?? 'mixed';
 }
 
+// Builds an examplesFor(settingsState) for a menu item's example chips: looks
+// up the example set for the current combination of the given setting ids
+// (joined with "_", e.g. ['denominator', 'numberKind'] -> "same_fraction").
+// The all-'mixed' combination must always be present in byCombo; it is used
+// both for that combination and as the fallback for any unset/unrecognized
+// value, so it stays identical to the item's own static `examples` (every
+// affected setting here defaults to 'mixed').
+function examplesByChoice(settingIds, byCombo) {
+  const mixedKey = settingIds.map(() => 'mixed').join('_');
+  return (settingsState) => {
+    const key = settingIds.map((id) => settingsState?.[id] ?? 'mixed').join('_');
+    return byCombo[key] ?? byCombo[mixedKey];
+  };
+}
+
 // ---------------------------------------------------------------------
 // Grade 1
 // ---------------------------------------------------------------------
@@ -166,6 +181,11 @@ const grade2 = {
       descKey: 'menu_g2_add_2digit_desc',
       difficultyKey: 'difficulty_basic',
       examples: ['34+5', '7+26', '42+35'],
+      examplesFor: examplesByChoice(['carryMode'], {
+        none: ['34+5', '42+35'],
+        required: ['7+26', '48+37'],
+        mixed: ['34+5', '7+26', '42+35'],
+      }),
       settings: [carrySetting('setting_carry_label')],
       supportLevel: 'full',
       latexOnly: true,
@@ -182,6 +202,11 @@ const grade2 = {
       descKey: 'menu_g2_sub_2digit_desc',
       difficultyKey: 'difficulty_basic',
       examples: ['38-5', '32-7', '72-48'],
+      examplesFor: examplesByChoice(['carryMode'], {
+        none: ['38-5', '95-23'],
+        required: ['32-7', '72-48'],
+        mixed: ['38-5', '32-7', '72-48'],
+      }),
       settings: [carrySetting('setting_borrow_label')],
       supportLevel: 'full',
       latexOnly: true,
@@ -198,6 +223,18 @@ const grade2 = {
       descKey: 'menu_g2_kuku_desc',
       difficultyKey: 'difficulty_basic',
       examples: ['3×7', '8×6'],
+      examplesFor: examplesByChoice(['dan'], {
+        1: ['1×6', '1×9'],
+        2: ['2×6', '2×9'],
+        3: ['3×6', '3×9'],
+        4: ['4×6', '4×9'],
+        5: ['5×6', '5×9'],
+        6: ['6×6', '6×9'],
+        7: ['7×6', '7×9'],
+        8: ['8×6', '8×9'],
+        9: ['9×6', '9×9'],
+        mixed: ['3×7', '8×6'],
+      }),
       settings: [
         {
           id: 'dan', labelKey: 'setting_dan_label', type: 'choice',
@@ -271,6 +308,11 @@ const grade3 = {
       descKey: 'menu_g3_add_3digit_desc',
       difficultyKey: 'difficulty_basic',
       examples: ['625+75', '263+1', '521+365'],
+      examplesFor: examplesByChoice(['carryMode'], {
+        none: ['263+1', '521+365'],
+        required: ['625+75', '486+275'],
+        mixed: ['625+75', '263+1', '521+365'],
+      }),
       settings: [carrySetting('setting_carry_label')],
       supportLevel: 'full',
       latexOnly: true,
@@ -285,6 +327,11 @@ const grade3 = {
       descKey: 'menu_g3_add_4digit_desc',
       difficultyKey: 'difficulty_standard',
       examples: ['3258+46', '583+2417'],
+      examplesFor: examplesByChoice(['carryMode'], {
+        none: ['1234+5', '6123+1642'],
+        required: ['3258+46', '583+2417'],
+        mixed: ['3258+46', '583+2417'],
+      }),
       settings: [carrySetting('setting_carry_label')],
       supportLevel: 'full',
       latexOnly: true,
@@ -301,7 +348,14 @@ const grade3 = {
       examples: ['2.4+3.1', '4.7+1.6'],
       // Partial: nuts_calc_tex.py's --carry-borrow family rejects
       // --a-decimal-places/--b-decimal-places (nuts_calc_tex.py:610-611),
-      // so the carry setting can't be honored yet. Tracked in #113.
+      // so the carry setting can't be honored yet. Tracked in #113. The
+      // preview below is illustrative only (matches the setting's meaning,
+      // not what the backend will actually generate).
+      examplesFor: examplesByChoice(['carryMode'], {
+        none: ['2.4+3.1'],
+        required: ['4.7+1.6'],
+        mixed: ['2.4+3.1', '4.7+1.6'],
+      }),
       settings: [carrySetting('setting_carry_label')],
       supportLevel: 'partial',
       latexOnly: true,
@@ -318,6 +372,11 @@ const grade3 = {
       descKey: 'menu_g3_sub_3digit_desc',
       difficultyKey: 'difficulty_basic',
       examples: ['625-75', '521-365'],
+      examplesFor: examplesByChoice(['carryMode'], {
+        none: ['586-123', '768-345'],
+        required: ['625-75', '521-365'],
+        mixed: ['625-75', '521-365'],
+      }),
       settings: [carrySetting('setting_borrow_label')],
       supportLevel: 'full',
       latexOnly: true,
@@ -332,6 +391,11 @@ const grade3 = {
       descKey: 'menu_g3_sub_4digit_desc',
       difficultyKey: 'difficulty_standard',
       examples: ['3258-46', '7234-3587'],
+      examplesFor: examplesByChoice(['carryMode'], {
+        none: ['3258-46', '9876-1234'],
+        required: ['7234-3587', '5000-1234'],
+        mixed: ['3258-46', '7234-3587'],
+      }),
       settings: [carrySetting('setting_borrow_label')],
       supportLevel: 'full',
       latexOnly: true,
@@ -346,7 +410,13 @@ const grade3 = {
       descKey: 'menu_g3_decimal_sub_desc',
       difficultyKey: 'difficulty_basic',
       examples: ['5.7-2.3', '8.4-3.9'],
-      // Partial: see g3-decimal-addsub above (#113).
+      // Partial: see g3-decimal-addsub above (#113). The preview below is
+      // illustrative only, for the same reason.
+      examplesFor: examplesByChoice(['carryMode'], {
+        none: ['5.7-2.3'],
+        required: ['8.4-3.9'],
+        mixed: ['5.7-2.3', '8.4-3.9'],
+      }),
       settings: [carrySetting('setting_borrow_label')],
       supportLevel: 'partial',
       latexOnly: true,
@@ -482,6 +552,11 @@ const grade4 = {
       descKey: 'menu_g4_div_1digit_desc',
       difficultyKey: 'difficulty_basic',
       examples: ['84÷4', '864÷6'],
+      examplesFor: examplesByChoice(['remainderMode'], {
+        none: ['84÷4', '864÷6'],
+        required: ['85÷4', '865÷6'],
+        mixed: ['84÷4', '864÷6'],
+      }),
       settings: [remainderSetting('setting_remainder_label')],
       supportLevel: 'full',
       latexOnly: true,
@@ -496,6 +571,11 @@ const grade4 = {
       descKey: 'menu_g4_div_2digit_desc',
       difficultyKey: 'difficulty_standard',
       examples: ['96÷12', '936÷24'],
+      examplesFor: examplesByChoice(['remainderMode'], {
+        none: ['96÷12', '936÷24'],
+        required: ['97÷12', '937÷24'],
+        mixed: ['96÷12', '936÷24'],
+      }),
       settings: [remainderSetting('setting_remainder_label')],
       supportLevel: 'full',
       latexOnly: true,
@@ -526,7 +606,13 @@ const grade4 = {
       difficultyKey: 'difficulty_basic',
       examples: ['3.74+2.8', '4.36+1.57'],
       // Partial: see grade3 decimal add/sub (#113); carry setting can't be
-      // honored alongside --a-decimal-places/--b-decimal-places yet.
+      // honored alongside --a-decimal-places/--b-decimal-places yet. The
+      // preview below is illustrative only, for the same reason.
+      examplesFor: examplesByChoice(['carryMode'], {
+        none: ['1.23+2.45', '5.12+3.14'],
+        required: ['3.74+2.8', '4.36+1.57'],
+        mixed: ['3.74+2.8', '4.36+1.57'],
+      }),
       settings: [carrySetting('setting_carry_label')],
       supportLevel: 'partial',
       latexOnly: true,
@@ -543,7 +629,13 @@ const grade4 = {
       descKey: 'menu_g4_decimal_sub_desc',
       difficultyKey: 'difficulty_basic',
       examples: ['8.2-3.47', '6.35-2.8'],
-      // Partial: see g4-decimal-add above (#113).
+      // Partial: see g4-decimal-add above (#113). The preview below is
+      // illustrative only, for the same reason.
+      examplesFor: examplesByChoice(['carryMode'], {
+        none: ['9.87-3.21', '8.65-1.23'],
+        required: ['8.2-3.47', '6.35-2.8'],
+        mixed: ['8.2-3.47', '6.35-2.8'],
+      }),
       settings: [carrySetting('setting_borrow_label')],
       supportLevel: 'partial',
       latexOnly: true,
@@ -575,6 +667,11 @@ const grade4 = {
       descKey: 'menu_g4_fraction_add_desc',
       difficultyKey: 'difficulty_basic_standard',
       examples: ['3/8+2/8', '1 2/5+2 4/5'],
+      examplesFor: examplesByChoice(['numberKind'], {
+        fraction: ['3/8+2/8'],
+        mixedNumber: ['1 2/5+2 4/5'],
+        mixed: ['3/8+2/8', '1 2/5+2 4/5'],
+      }),
       settings: [
         fixedSetting('denominator', 'setting_denominator_label', 'setting_option_same_denominator'),
         { id: 'numberKind', labelKey: 'setting_number_kind_label', type: 'choice', options: NUMBER_KIND_OPTIONS, default: 'mixed' },
@@ -592,6 +689,11 @@ const grade4 = {
       descKey: 'menu_g4_fraction_sub_desc',
       difficultyKey: 'difficulty_basic_standard',
       examples: ['7/9-4/9', '3 2/5-1 4/5'],
+      examplesFor: examplesByChoice(['numberKind'], {
+        fraction: ['7/9-4/9'],
+        mixedNumber: ['3 2/5-1 4/5'],
+        mixed: ['7/9-4/9', '3 2/5-1 4/5'],
+      }),
       settings: [
         fixedSetting('denominator', 'setting_denominator_label', 'setting_option_same_denominator'),
         { id: 'numberKind', labelKey: 'setting_number_kind_label', type: 'choice', options: NUMBER_KIND_OPTIONS, default: 'mixed' },
@@ -737,6 +839,17 @@ const grade5 = {
       descKey: 'menu_g5_fraction_add_desc',
       difficultyKey: 'difficulty_standard',
       examples: ['2/3+3/5', '1 2/3+2 3/5'],
+      examplesFor: examplesByChoice(['denominator', 'numberKind'], {
+        same_fraction: ['2/5+1/5'],
+        same_mixedNumber: ['1 2/5+2 1/5'],
+        same_mixed: ['2/5+1/5', '1 2/5+2 1/5'],
+        different_fraction: ['2/3+3/5'],
+        different_mixedNumber: ['1 2/3+2 3/5'],
+        different_mixed: ['2/3+3/5', '1 2/3+2 3/5'],
+        mixed_fraction: ['2/5+1/5', '2/3+3/5'],
+        mixed_mixedNumber: ['1 2/5+2 1/5', '1 2/3+2 3/5'],
+        mixed_mixed: ['2/3+3/5', '1 2/3+2 3/5'],
+      }),
       settings: [
         { id: 'denominator', labelKey: 'setting_denominator_label', type: 'choice', options: DENOMINATOR_CHOICE_OPTIONS, default: 'mixed' },
         { id: 'numberKind', labelKey: 'setting_number_kind_label', type: 'choice', options: NUMBER_KIND_OPTIONS, default: 'mixed' },
@@ -754,6 +867,17 @@ const grade5 = {
       descKey: 'menu_g5_fraction_sub_desc',
       difficultyKey: 'difficulty_standard',
       examples: ['5/6-1/4', '3 5/6-1 1/4'],
+      examplesFor: examplesByChoice(['denominator', 'numberKind'], {
+        same_fraction: ['4/7-1/7'],
+        same_mixedNumber: ['2 4/7-1 1/7'],
+        same_mixed: ['4/7-1/7', '2 4/7-1 1/7'],
+        different_fraction: ['5/6-1/4'],
+        different_mixedNumber: ['3 5/6-1 1/4'],
+        different_mixed: ['5/6-1/4', '3 5/6-1 1/4'],
+        mixed_fraction: ['4/7-1/7', '5/6-1/4'],
+        mixed_mixedNumber: ['2 4/7-1 1/7', '3 5/6-1 1/4'],
+        mixed_mixed: ['5/6-1/4', '3 5/6-1 1/4'],
+      }),
       settings: [
         { id: 'denominator', labelKey: 'setting_denominator_label', type: 'choice', options: DENOMINATOR_CHOICE_OPTIONS, default: 'mixed' },
         { id: 'numberKind', labelKey: 'setting_number_kind_label', type: 'choice', options: NUMBER_KIND_OPTIONS, default: 'mixed' },
@@ -872,7 +996,13 @@ const grade6 = {
       descKey: 'menu_g6_fraction_mul_int_desc',
       difficultyKey: 'difficulty_basic',
       examples: ['3/5×4'],
-      // Partial: no way to force/forbid a reducible raw result. #114.
+      // Partial: no way to force/forbid a reducible raw result. #114. The
+      // preview below is illustrative only, for the same reason.
+      examplesFor: examplesByChoice(['reduction'], {
+        none: ['3/5×4'],
+        required: ['4/6×3'],
+        mixed: ['3/5×4'],
+      }),
       settings: [
         { id: 'reduction', labelKey: 'setting_reduction_label', type: 'choice', options: REDUCTION_OPTIONS, default: 'mixed' },
         fixedSetting('multiplier', 'setting_multiplier_label', 'setting_option_integer'),
@@ -890,7 +1020,13 @@ const grade6 = {
       descKey: 'menu_g6_int_mul_fraction_desc',
       difficultyKey: 'difficulty_basic',
       examples: ['4×3/5'],
-      // Partial: see g6-fraction-mul-int above (#114).
+      // Partial: see g6-fraction-mul-int above (#114). The preview below is
+      // illustrative only, for the same reason.
+      examplesFor: examplesByChoice(['reduction'], {
+        none: ['4×3/5'],
+        required: ['3×4/6'],
+        mixed: ['4×3/5'],
+      }),
       settings: [
         { id: 'reduction', labelKey: 'setting_reduction_label', type: 'choice', options: REDUCTION_OPTIONS, default: 'mixed' },
         fixedSetting('multiplicand', 'setting_multiplicand_label', 'setting_option_integer'),
@@ -908,7 +1044,13 @@ const grade6 = {
       descKey: 'menu_g6_fraction_mul_desc',
       difficultyKey: 'difficulty_basic',
       examples: ['3/5×7/9'],
-      // Partial: see g6-fraction-mul-int above (#114).
+      // Partial: see g6-fraction-mul-int above (#114). The preview below is
+      // illustrative only, for the same reason.
+      examplesFor: examplesByChoice(['reduction'], {
+        none: ['2/5×3/7'],
+        required: ['3/5×7/9'],
+        mixed: ['3/5×7/9'],
+      }),
       settings: [
         { id: 'reduction', labelKey: 'setting_reduction_label', type: 'choice', options: REDUCTION_OPTIONS, default: 'mixed' },
       ],
@@ -925,7 +1067,13 @@ const grade6 = {
       descKey: 'menu_g6_fraction_div_int_desc',
       difficultyKey: 'difficulty_basic',
       examples: ['5/6÷3'],
-      // Partial: see g6-fraction-mul-int above (#114).
+      // Partial: see g6-fraction-mul-int above (#114). The preview below is
+      // illustrative only, for the same reason.
+      examplesFor: examplesByChoice(['reduction'], {
+        none: ['5/6÷3'],
+        required: ['4/6÷2'],
+        mixed: ['5/6÷3'],
+      }),
       settings: [
         { id: 'reduction', labelKey: 'setting_reduction_label', type: 'choice', options: REDUCTION_OPTIONS, default: 'mixed' },
         fixedSetting('divisor', 'setting_divisor_label', 'setting_option_integer'),
@@ -943,7 +1091,13 @@ const grade6 = {
       descKey: 'menu_g6_int_div_fraction_desc',
       difficultyKey: 'difficulty_standard',
       examples: ['4÷2/3'],
-      // Partial: see g6-fraction-mul-int above (#114).
+      // Partial: see g6-fraction-mul-int above (#114). The preview below is
+      // illustrative only, for the same reason.
+      examplesFor: examplesByChoice(['reduction'], {
+        none: ['4÷3/5'],
+        required: ['4÷2/3'],
+        mixed: ['4÷2/3'],
+      }),
       settings: [
         { id: 'reduction', labelKey: 'setting_reduction_label', type: 'choice', options: REDUCTION_OPTIONS, default: 'mixed' },
         fixedSetting('divisor', 'setting_divisor_label', 'setting_option_fraction'),
@@ -961,7 +1115,13 @@ const grade6 = {
       descKey: 'menu_g6_fraction_div_desc',
       difficultyKey: 'difficulty_standard',
       examples: ['3/4÷2/5'],
-      // Partial: see g6-fraction-mul-int above (#114).
+      // Partial: see g6-fraction-mul-int above (#114). The preview below is
+      // illustrative only, for the same reason.
+      examplesFor: examplesByChoice(['reduction'], {
+        none: ['3/4÷2/5'],
+        required: ['2/4÷2/6'],
+        mixed: ['3/4÷2/5'],
+      }),
       settings: [
         { id: 'reduction', labelKey: 'setting_reduction_label', type: 'choice', options: REDUCTION_OPTIONS, default: 'mixed' },
       ],
