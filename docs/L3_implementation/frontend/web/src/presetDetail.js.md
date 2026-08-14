@@ -40,5 +40,7 @@
 
 ## 変更履歴(git log より自動生成)
 
-- 64f005b feat(#100): rebuild frontend/web preset detail settings/completion/preview screens
+- ab9fe98 feat(#126): add missing wireframe icons and unify page headers in frontend/web
+- 90864a5 refactor(frontend/web): replace hand-drawn nav/UI icons with Material Symbols
+- 9d1371e #100 frontend/web: rebuild preset detail settings/completion/preview screens (#118)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

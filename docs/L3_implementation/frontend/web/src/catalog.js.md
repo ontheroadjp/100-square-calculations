@@ -45,6 +45,8 @@
 
 ## 変更履歴(git log より自動生成)
 
-- f111bd7 feat(#99): rebuild frontend/web top and catalog screens to match wireframe screens 1-2
+- ab9fe98 feat(#126): add missing wireframe icons and unify page headers in frontend/web
+- 90864a5 refactor(frontend/web): replace hand-drawn nav/UI icons with Material Symbols
+- 1bd6fa6 #99 Rebuild frontend/web top and catalog screens to match wireframe screens 1-2 (#116)
 - 8007488 #97 frontend/web: rebuild nav shell, design tokens, and remove legacy features (#109)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

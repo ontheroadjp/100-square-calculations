@@ -25,3 +25,8 @@
 
 - 各アイコンの `width`/`height` 属性はハードコードされており、呼び出し側で個別にサイズ変更する仕組みはない(CSS の `svg { width: ... }` 上書きは可能)。
 - ソース: Google の `material-design-icons` リポジトリ(Apache License 2.0)から Outlined スタイルのパスをそのまま転記している。
+
+## 変更履歴(git log より自動生成)
+
+- ab9fe98 feat(#126): add missing wireframe icons and unify page headers in frontend/web
+- 90864a5 refactor(frontend/web): replace hand-drawn nav/UI icons with Material Symbols
