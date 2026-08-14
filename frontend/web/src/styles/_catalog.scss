@@ -1,27 +1,11 @@
 @use 'base' as *;
 
-// Per-grade accent override (issue #130): each .grade-N class sets these
-// custom properties so .catalog-header-title/.category-section h2/
-// .back-button:hover below pick them up via var() with the fixed
-// $color-primary(-hover) as fallback. preset.js/presetDetail.js also render
-// .back-button/.page-header-row but never get a .grade-N class, so their
-// color stays the fixed fallback. There's no separate per-grade hover token,
-// so --color-primary-hover reuses the same $color-grade-N as --color-primary.
-$grade-colors: (
-  1: $color-grade-1,
-  2: $color-grade-2,
-  3: $color-grade-3,
-  4: $color-grade-4,
-  5: $color-grade-5,
-  6: $color-grade-6,
-);
-
-@each $grade, $color in $grade-colors {
-  .grade-#{$grade} {
-    --color-primary: #{$color};
-    --color-primary-hover: #{$color};
-  }
-}
+// Per-grade accent override: the shared .grade-N { --color-primary; ... }
+// rules live in _base.scss (issue #132) since main.scss bundles every page
+// into one stylesheet. .catalog-header-title/.category-section h2/
+// .back-button:hover below pick the override up via var() with the fixed
+// $color-primary(-hover) as fallback. presetDetail.js also gets a .grade-N
+// class on its container (issue #132) and reuses the same custom properties.
 
 .catalog-header {
   margin-bottom: 36px;

@@ -6,9 +6,11 @@
 
 ## 動作の概要
 
-`.catalog-header` と `.category-section` が、それぞれの子見出しを内包する(`frontend/web/src/styles/_catalog.scss:26-51`)。`.page-header-row` と `.back-button` はアイコン付きのページ移動導線を提供する(`frontend/web/src/styles/_catalog.scss:69-119`)。
+`.catalog-header` と `.category-section` が、それぞれの子見出しを内包する(`frontend/web/src/styles/_catalog.scss:10-35`)。`.page-header-row` と `.back-button` はアイコン付きのページ移動導線を提供する(`frontend/web/src/styles/_catalog.scss:53-103`)。
 
-issue #130 で、学年別カタログの配色を動的化した。`$color-grade-1`〜`6`(`_base.scss` 定義)を CSS カスタムプロパティ `--color-primary`/`--color-primary-hover` にマップする `.grade-1`〜`.grade-6` クラスを `@each` ループで生成する(`frontend/web/src/styles/_catalog.scss:1-17`)。`.catalog-header-title` の背景色、`.category-section h2` の左ボーダー、`.back-button:hover` の文字色は `var(--color-primary, #{$color-primary})`(hover は `--color-primary-hover`)という形で参照し、`.grade-N` クラスが祖先に無い場合は既存の固定 `$color-primary`(-hover) にフォールバックする。`--color-primary-hover` は学年別の専用トーンを持たず、`--color-primary` と同じ `$color-grade-N` の値をそのまま使う(hover 専用の別配色を追加しない設計判断、下記参照)。`.grade-N` クラス自体は `catalog.js`([[../../catalog.js]] 参照)が `#catalog` コンテナに付与する。
+issue #130 で、学年別カタログの配色を動的化した。`.catalog-header-title` の背景色、`.category-section h2` の左ボーダー、`.back-button:hover` の文字色は `var(--color-primary, #{$color-primary})`(hover は `--color-primary-hover`)という形で参照し、`.grade-N` クラスが祖先に無い場合は既存の固定 `$color-primary`(-hover) にフォールバックする。`--color-primary-hover` は学年別の専用トーンを持たず、`--color-primary` と同じ `$color-grade-N` の値をそのまま使う(hover 専用の別配色を追加しない設計判断、下記参照)。
+
+`$color-grade-1`〜`6` を `--color-primary`/`--color-primary-hover` にマップする `.grade-1`〜`.grade-6` の `@each` ループ本体は、issue #132 で `_base.scss` へ移設した(下記参照)。`main.scss` が全ページ分の Sass を1本の CSS にバンドルするため、`.grade-N` ルールをどのページ固有パーシャルに置いても全ページへ適用されるが、複数パーシャル(当初は `_catalog.scss` のみだったが issue #132 で `presetDetail.js` の設定画面にも `.grade-N` が必要になった)が同じマップを個別に持つ重複を避けるため、一箇所(`_base.scss`)に集約した。`.grade-N` クラス自体は `catalog.js`([[../../catalog.js]] 参照)が `#catalog` コンテナに、`presetDetail.js`([[../../presetDetail.js]] 参照)が `preset.html` のマウント先コンテナに、それぞれ付与する。
 
 ## 重要な設計判断とその理由
 
@@ -19,10 +21,11 @@ issue #130 で、学年別カタログの配色を動的化した。`$color-grad
 ## 統合ポイント
 
 - 呼び出し元: `main.scss`。
-- 利用元: `catalog.js`(`.grade-N` クラス付与元)、`preset.js`、`presetDetail.js`(`.back-button`/`.page-header-row` を描画するが `.grade-N` クラスは付与されないため、常に固定フォールバック色のまま)。
-- 呼び出し先: `_base.scss` のデザイントークン(`$color-primary`/`$color-primary-hover`/`$color-grade-1`〜`6`)。
+- 利用元: `catalog.js`(`.grade-N` クラス付与元)、`preset.js`、`presetDetail.js`(`.back-button`/`.page-header-row` に加え、issue #132 以降は `.grade-N` クラスも付与するため学年色に追従する)。
+- 呼び出し先: `_base.scss` のデザイントークン(`$color-primary`/`$color-primary-hover`/`$color-grade-1`〜`6`、および `.grade-N` カスタムプロパティルール本体、issue #132)。
 
 ## 変更履歴(git log より自動生成)
 
-- bf48e4c feat(#130): make catalog page accent color switch dynamically per grade
+- 7b5a9b9 feat(#132): add per-grade accent, KaTeX examples, generalized setting hints, and move problem count into common settings on preset detail page
+- d43d1bc #130 frontend/web: make catalog page accent color switch dynamically per grade (#131)
 - 3625e47 #128 Reorganize frontend web Sass by UI hierarchy (#129)

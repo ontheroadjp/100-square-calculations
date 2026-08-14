@@ -1,4 +1,5 @@
 import './styles/main.scss';
+import 'katex/dist/katex.min.css';
 import { t } from './strings.js';
 import { GRADES, UNGRADED, presetsByGrade } from './drillPresets.js';
 import { mountPresetDetail } from './presetDetail.js';

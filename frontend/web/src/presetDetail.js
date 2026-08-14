@@ -1,3 +1,4 @@
+import katex from 'katex';
 import { t } from './strings.js';
 import { getVerticalRows, isVerticalOperation, VERTICAL_COLUMNS } from './verticalLayout.js';
 import { ICONS } from './icons.js';
@@ -27,10 +28,75 @@ function defaultSettingsState(settings) {
   return state;
 }
 
-// Renders examples ("625+75") with spaces around the operator, matching
-// catalog.js's formatExample (docs/uiux/wireframe_v1.png convention).
-function formatExample(example) {
-  return example.replace(/([+\-×÷])/g, ' $1 ').replace(/\s+/g, ' ').trim();
+// Matches, in priority order, the arithmetic tokens worth typesetting as
+// LaTeX: a mixed number ("1 2/3"), a plain fraction ("2/3"), a decimal
+// ("3.6"), a bare integer, or an operator/paren. Anything not matched here
+// (arrows, commas, Japanese words like "奇数"/"最大公約数", "…", the "と"
+// particle) is left as plain text -- KaTeX's own font has no CJK glyphs, so
+// non-arithmetic text must never be handed to it.
+const MATH_TOKEN_RE = /(\d+\s+\d+\/\d+)|(\d+\/\d+)|(\d+\.\d+)|(\d+)|([+\-×÷=()])/g;
+
+function tokenToLatex(token) {
+  const mixed = token.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+  if (mixed) return `${mixed[1]}\\frac{${mixed[2]}}{${mixed[3]}}`;
+  const fraction = token.match(/^(\d+)\/(\d+)$/);
+  if (fraction) return `\\frac{${fraction[1]}}{${fraction[2]}}`;
+  if (token === '×') return '\\times';
+  if (token === '÷') return '\\div';
+  return token;
+}
+
+// Splits an example string into text/math segments so the caller can render
+// each math run through KaTeX while leaving text runs as plain text.
+// Adjacent math tokens (e.g. the "2/3" and "+" and "3/5" in "2/3+3/5") are
+// merged into a single LaTeX expression so KaTeX applies normal operator
+// spacing; a gap of any other character flushes the current expression.
+export function buildExampleSegments(example) {
+  const segments = [];
+  let mathLatex = '';
+  let lastIndex = 0;
+
+  const flushMath = () => {
+    if (mathLatex) {
+      segments.push({ type: 'math', latex: mathLatex });
+      mathLatex = '';
+    }
+  };
+
+  for (const match of example.matchAll(MATH_TOKEN_RE)) {
+    const gap = example.slice(lastIndex, match.index);
+    if (gap) {
+      flushMath();
+      segments.push({ type: 'text', value: gap });
+    }
+    mathLatex += tokenToLatex(match[0]);
+    lastIndex = match.index + match[0].length;
+  }
+  flushMath();
+
+  const tail = example.slice(lastIndex);
+  if (tail) segments.push({ type: 'text', value: tail });
+
+  return segments;
+}
+
+// Appends "=" to a plain arithmetic example ("2/3+3/5" -> "2/3+3/5=") so it
+// reads as an unsolved problem. Examples that already show a result via "→"
+// (frac2dec/simplify/evenodd/etc.) are left untouched -- appending "=" to
+// "18/24 → 3/4" would not make sense.
+export function exampleWithEquals(example) {
+  return example.includes('→') ? example : `${example}=`;
+}
+
+const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+const escapeHtml = (str) => str.replace(/[&<>"']/g, (ch) => HTML_ESCAPES[ch]);
+
+function renderExampleHtml(example) {
+  return buildExampleSegments(exampleWithEquals(example)).map((segment) => (
+    segment.type === 'math'
+      ? katex.renderToString(segment.latex, { throwOnError: false })
+      : escapeHtml(segment.value)
+  )).join('');
 }
 
 // Builds the "20問・標準・繰り上がり：まぜる" style summary shown on the
@@ -53,6 +119,8 @@ export function buildSummaryParts({ problemCount, difficultyKey, settings, setti
 const buildFileName = (grade, item) => `drill_grade${grade}_${item.id}.pdf`;
 
 export function mountPresetDetail(container, { grade, item, onBack }) {
+  container.classList.add(`grade-${grade}`);
+
   const state = {
     screen: 'settings', // settings | done | preview
     problemCount: DEFAULT_PROBLEM_COUNT,
@@ -75,7 +143,7 @@ export function mountPresetDetail(container, { grade, item, onBack }) {
         </div>
       `;
     }
-    const showMixedHint = state.settingsState[setting.id] === 'mixed';
+    const selectedOption = setting.options.find((option) => option.value === state.settingsState[setting.id]);
     return `
       <div class="setting-block">
         <span class="setting-label">${t(setting.labelKey)}</span>
@@ -84,7 +152,7 @@ export function mountPresetDetail(container, { grade, item, onBack }) {
             <button type="button" class="segmented-option ${state.settingsState[setting.id] === option.value ? 'is-selected' : ''}" data-value="${option.value}">${t(option.labelKey)}</button>
           `).join('')}
         </div>
-        ${showMixedHint ? `<p class="setting-hint">${t('setting_mixed_hint')}</p>` : ''}
+        ${selectedOption?.hintKey ? `<p class="setting-hint">${t(selectedOption.hintKey)}</p>` : ''}
       </div>
     `;
   }
@@ -92,29 +160,33 @@ export function mountPresetDetail(container, { grade, item, onBack }) {
   function renderSettingsScreen() {
     return `
       <div class="preset-detail preset-detail-settings">
-        <header class="preset-detail-header">
-          <button type="button" class="page-header-row" data-action="back">${ICONS.chevronLeft}<h3 class="preset-detail-title">${t(item.titleKey)}</h3></button>
+        <header class="catalog-header">
+            <div class="catalog-header-title">
+                <a class="page-header-row" href="index.html">
+                    ${ICONS.chevronLeft}
+                    <h1 class="catalog-heading">${t(item.titleKey)}(${t(`grade_full_${grade}`)})</h1>
+                </a>
+            </div>
+            <p class="category-picker-heading catalog-header-sub-title">${t('category_picker_heading')}</p>
         </header>
+
+
+        <div class="page-header-row" data-action="back">
+            <h3 class="preset-detail-title">問題サンプル</h3>
+        </div>
 
         ${item.examples.length > 0 ? `
           <div class="example-chip-row">
-            ${item.examples.map((example) => `<span class="example-chip">${formatExample(example)}</span>`).join('')}
+            ${item.examples.map((example) => `<span class="example-chip">${renderExampleHtml(example)}</span>`).join('')}
           </div>
         ` : ''}
 
         ${item.supportLevel === 'partial' ? `<p class="support-level-note">${t('support_level_partial_note')}</p>` : ''}
         ${state.status === 'error' ? `<p class="preset-card-error">${t('error_prefix')} ${state.error}</p>` : ''}
 
-        <div class="setting-block">
-          <span class="setting-label">${t('problem_count_label')}</span>
-          <div class="segmented-control" data-role="problem-count">
-            ${PROBLEM_COUNT_OPTIONS.map((count) => `
-              <button type="button" class="segmented-option ${state.problemCount === count ? 'is-selected' : ''}" data-value="${count}">${count}${t('problem_count_unit')}</button>
-            `).join('')}
-          </div>
+        <div class="specific-setting-block">
+            ${item.settings.map((setting) => renderSettingControl(setting)).join('')}
         </div>
-
-        ${item.settings.map((setting) => renderSettingControl(setting)).join('')}
 
         <div class="disclosure">
           <button type="button" class="disclosure-toggle" data-action="toggle-advanced" aria-expanded="${state.advancedOpen}">
@@ -123,6 +195,14 @@ export function mountPresetDetail(container, { grade, item, onBack }) {
           </button>
           ${state.advancedOpen ? `
             <div class="disclosure-body">
+              <div class="setting-block">
+                <h3 class="setting-label">${t('problem_count_label')}</h3>
+                <div class="segmented-control" data-role="problem-count">
+                  ${PROBLEM_COUNT_OPTIONS.map((count) => `
+                  <button type="button" class="segmented-option ${state.problemCount === count ? 'is-selected' : ''}" data-value="${count}">${count}${t('problem_count_unit')}</button>
+                  `).join('')}
+                </div>
+              </div>
               <div class="form-group">
                 <label for="detailPaperSize">${t('paper_size')}</label>
                 <select id="detailPaperSize" data-role="paper-size">

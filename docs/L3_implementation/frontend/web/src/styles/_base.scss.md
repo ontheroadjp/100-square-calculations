@@ -12,6 +12,8 @@ issue #97 で `docs/uiux/wireframe_v1.png` に基づくデザイントークン�
 
 issue #101 で `body` に `box-sizing: border-box` を追加した(下記「重要な設計判断」参照)。
 
+issue #132 で、`$color-grade-1`〜`6` を CSS カスタムプロパティ `--color-primary`/`--color-primary-hover` にマップする `.grade-1`〜`.grade-6` の `@each` ループを追加した(`frontend/web/src/styles/_base.scss:30-49` あたり)。元は issue #130 で `_catalog.scss` にのみ定義されていたが、`main.scss` が全ページの Sass を1本の CSS にバンドルする性質上、複数ページ(`catalog.js`/`presetDetail.js` の両方が自身のコンテナへ `.grade-N` を付与する)が同じマップを必要とするようになったため、ここへ集約した。`--color-primary-hover` は学年別の専用トーンを持たず `--color-primary` と同じ値を使う(`_catalog.scss.md` の「重要な設計判断」参照)。
+
 ## 重要な設計判断とその理由
 
 ### `body` に `box-sizing: border-box` を追加した理由(issue #101)
@@ -26,11 +28,12 @@ issue #101 で `body` に `box-sizing: border-box` を追加した(下記「重�
 ## 注意事項・既知の制限
 
 - [[./main.scss]] と同じく、`frontend/spa/src/App.css` からの追従コピーが必要な保守対象。
-- issue #97 で追加した `$color-grade-*` は本ファイル内では未使用(グレード選択カード自体の再デザインは issue #99 のスコープ)。`[[./navShell.scss]]` が `$space-*`/`$radius-*`/`$font-size-*` を消費している。
+- issue #97 で追加した `$color-grade-*` は issue #132 以降、本ファイル内の `.grade-N` ルールが直接消費する(上記参照)。`[[./navShell.scss]]` が `$space-*`/`$radius-*`/`$font-size-*` を消費している。
 
 ## 変更履歴(git log より自動生成)
 
-- bf48e4c feat(#130): make catalog page accent color switch dynamically per grade
+- 7b5a9b9 feat(#132): add per-grade accent, KaTeX examples, generalized setting hints, and move problem count into common settings on preset detail page
+- d43d1bc #130 frontend/web: make catalog page accent color switch dynamically per grade (#131)
 - 1bb0f69 #126 frontend/web: add missing wireframe icons and unify page headers (#127)
 - 77f95b7 #101 frontend/web: add PC 4-column layout to the make flow (#119)
 - 8007488 #97 frontend/web: rebuild nav shell, design tokens, and remove legacy features (#109)

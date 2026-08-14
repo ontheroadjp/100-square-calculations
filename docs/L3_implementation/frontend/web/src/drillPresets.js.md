@@ -12,7 +12,7 @@
 - `id`/`titleKey`/`descKey`: 全データモデル中で `id` は一意。
 - `difficultyKey`: `difficulty_basic`/`difficulty_standard`/`difficulty_basic_standard` のいずれか(ドキュメントの「難易度」列)。
 - `examples`: ドキュメントの「計算式の例」列をそのまま文字列配列にしたもの。
-- `settings`: ドキュメントの「固有設定」「選択可能値」「固定値・表示」を表す配列。各要素は `type: 'choice'`(セグメントコントロール、`options`/`default` を持つ)または `type: 'fixed'`(表示のみで変更不可、`valueLabelKey` を持つ)。
+- `settings`: ドキュメントの「固有設定」「選択可能値」「固定値・表示」を表す配列。各要素は `type: 'choice'`(セグメントコントロール、`options`/`default` を持つ)または `type: 'fixed'`(表示のみで変更不可、`valueLabelKey` を持つ)。`choice` の各 `option` は任意で `hintKey` を持てる(issue #132)。`presetDetail.js` は選択中の値に対応する `option.hintKey` があれば、その下にヒント文を表示する([[./presetDetail.js]] 参照)。
 - `buildParams(state)`: `state`(`{ <settingId>: <選択値> }`、`choice` 設定のみキーを持つ)から `POST /generate-pdf` のリクエストボディを組み立てる関数。
 - `supportLevel`: `'full'`(`nuts_calc_tex.py` がその項目の全設定を実現できる)/`'partial'`(生成はできるが一部設定を実現できない)/`'none'`。#98 時点では全項目 `full` または `partial` で、`none` は未使用(#91-#96 で対象コマンドが出揃ったため)。
 - `latexOnly`: ほぼ全項目で `true`(carry_mode/remainder_mode/decimal places/terms/frac/mixed/compare/数論系コマンドが `nuts_calc_tex.py` 専用のため)。プレーンな `ope`(掛け算のみ等)や `99`/`aBc`/`squ` の一部項目のみ `false`。
@@ -42,6 +42,10 @@
 
 `--mixed-carry-borrow` は `-o add sub` の両方を指定した場合のみ有効で、単一演算子(`add`のみ・`sub`のみ)には使えない(`nuts_calc_tex.py:603-604`)。そのため `carryModeField(operator, state)` ヘルパーは、単一演算子の項目で `carryMode: 'mixed'` が選ばれた場合、`carry_mode` パラメータ自体を省略する(carry_mode フラグ無指定と同じ意味 = 繰り上がり/繰り下がりを制約しない、が「まぜる」の意図と一致するため)。
 
+### 選択肢ヒント(`hintKey`)の汎用化
+
+旧実装は「値が `'mixed'` の設定は `setting_mixed_hint` を表示する」というハードコードだった。issue #132 でこれを `option.hintKey` ベースの汎用機構へ置き換え、`OPT_MIXED`(`carrySetting`/`remainderSetting`/`REDUCTION_OPTIONS` が共有)および `dan`/`NUMBER_KIND_OPTIONS`/`DENOMINATOR_CHOICE_OPTIONS` それぞれの独立した `'mixed'` オプションリテラル(計4箇所)に `hintKey: 'setting_mixed_hint'` を付与した。表示文言・表示条件(該当オプションが選択されているとき)は旧実装と同一で、挙動の変更はない。
+
 ### 九九(`g2-kuku`)の段選択
 
 「1〜9の段」選択時は `command_type: '99'`(`a_value` に段を指定)、「まぜる」選択時は `command_type: 'ope', operator: ['mul']`(`a_min`/`a_max`/`b_min`/`b_max` を1〜9のランダム)に切り替える。ドキュメントの1つの「固有設定」が実装上は異なる CLI コマンドへの切り替えとして実現されている。
@@ -53,7 +57,7 @@
 - 中学受験対策(examPrep、27プリセット)。
 - 虫食い算(`--missing-value`)。
 
-いずれも `frontend/spa` および CLI では引き続き利用可能。復活させるかどうかは issue #111 で後日判断する。
+いずれも `frontend/spa` および CLI では引き続き利用可能。復活させるかどうかは issue #111 で後日判断する。筆算(縦書き)形式については、issue #133(親)配下の #134 が「表示形式(式/筆算)」設定として `frontend/web` へ個別設定の形で再導入することを起案済み(#111 の筆算部分をこちらで解決する位置づけ)。
 
 ## 統合ポイント
 
@@ -63,10 +67,11 @@
 ## 注意事項・既知の制限
 
 - `frontend/spa/src/drillPresets.js` とはもはや無関係(#98 で分岐)。今後 `frontend/spa` 側のプリセットを変更しても本ファイルには影響しない。
-- `settings`/`buildParams` はデータ構造として定義済みだが、実際にユーザーが選択肢を切り替える UI(セグメントコントロール等)は未実装(#99/#100 のスコープ)。現状 `drillCatalog.js` はデフォルト状態(`choice` 設定の `default` 値)の `buildParams()` 出力のみを使用する。
+- `settings`/`buildParams` を実際にユーザーが切り替える UI は `presetDetail.js`(`preset.html`)が実装している([[./presetDetail.js]] 参照)。`drillCatalog.js` は依然デフォルト状態(`choice` 設定の `default` 値)の `buildParams()` 出力のみを使用する。
 
 ## 変更履歴（git log より自動生成）
 
-- 80f5c5f feat(#112): add mixed-number (帯分数) support to nuts_calc_tex.py frac add/sub
+- 7b5a9b9 feat(#132): add per-grade accent, KaTeX examples, generalized setting hints, and move problem count into common settings on preset detail page
+- e8db9d7 #112 nuts_calc_tex.py: add mixed-number (帯分数) display support to the frac command (#125)
 - 94eb478 #98 Rebuild frontend/web drill menu data model to match calculation_drill_menu_parameters_v1.md (#115)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

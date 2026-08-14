@@ -14,7 +14,7 @@
 ## 統合ポイント
 
 - 呼び出し元: `preset.html` の `<script type="module" src="/src/preset.js">`。
-- 呼び出し先: `strings.js`(`t`)、`drillPresets.js`(`GRADES`/`UNGRADED`/`presetsByGrade`)、`presetDetail.js`(`mountPresetDetail`)、`navShell.js`(`mountNavShell`、issue #97 で追加)、`backend`(`GET /renderer-info`)。`drillCatalog.js` への依存はissue #100で撤去した(ファイル自体の削除は #110 の範囲)。
+- 呼び出し先: `strings.js`(`t`)、`drillPresets.js`(`GRADES`/`UNGRADED`/`presetsByGrade`)、`presetDetail.js`(`mountPresetDetail`)、`navShell.js`(`mountNavShell`、issue #97 で追加)、`backend`(`GET /renderer-info`)。`drillCatalog.js` への依存はissue #100で撤去した(ファイル自体の削除は #110 の範囲)。issue #132 で `katex/dist/katex.min.css` の import を追加した(`presetDetail.js` が `katex.renderToString()` で問題サンプルの分数を描画するために必要な CSS。`node --test` が `presetDetail.js` を Vite 抜きで直接 import するため、plain CSS import はバンドラー経由でのみ読み込まれるこちらに置いている。詳細は [[./presetDetail.js]] の「重要な設計判断」参照)。
 
 ## 注意事項・既知の制限
 
@@ -22,6 +22,7 @@
 
 ## 変更履歴(git log より自動生成)
 
+- 7b5a9b9 feat(#132): add per-grade accent, KaTeX examples, generalized setting hints, and move problem count into common settings on preset detail page
 - 64f005b feat(#100): rebuild frontend/web preset detail settings/completion/preview screens
 - 8007488 #97 frontend/web: rebuild nav shell, design tokens, and remove legacy features (#109)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

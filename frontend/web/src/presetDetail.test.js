@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PROBLEM_COUNT_OPTIONS, layoutForProblemCount, buildSummaryParts } from './presetDetail.js';
+import { PROBLEM_COUNT_OPTIONS, layoutForProblemCount, buildSummaryParts, buildExampleSegments, exampleWithEquals } from './presetDetail.js';
 
 test('layoutForProblemCount returns rows/columns for every supported problem count', () => {
   assert.deepEqual(layoutForProblemCount(10), { rows: 5, columns: 2 });
@@ -64,4 +64,63 @@ test('buildSummaryParts skips a choice setting with no matching option (defensiv
     translate,
   );
   assert.deepEqual(parts.slice(2), []);
+});
+
+test('buildExampleSegments merges a plain fraction expression into one math segment', () => {
+  assert.deepEqual(buildExampleSegments('2/3+3/5'), [
+    { type: 'math', latex: '\\frac{2}{3}+\\frac{3}{5}' },
+  ]);
+});
+
+test('buildExampleSegments converts a mixed number to an integer-plus-frac LaTeX token', () => {
+  assert.deepEqual(buildExampleSegments('1 2/3+2 3/5'), [
+    { type: 'math', latex: '1\\frac{2}{3}+2\\frac{3}{5}' },
+  ]);
+});
+
+test('buildExampleSegments converts × and ÷ to LaTeX operators for decimal arithmetic', () => {
+  assert.deepEqual(buildExampleSegments('3.6×2.5+4.8÷1.2'), [
+    { type: 'math', latex: '3.6\\times2.5+4.8\\div1.2' },
+  ]);
+});
+
+test('buildExampleSegments keeps Japanese text out of the math segment', () => {
+  assert.deepEqual(buildExampleSegments('37 → 奇数'), [
+    { type: 'math', latex: '37' },
+    { type: 'text', value: ' → 奇数' },
+  ]);
+});
+
+test('buildExampleSegments splits an arrow-separated fraction conversion into two math segments', () => {
+  assert.deepEqual(buildExampleSegments('18/24 → 3/4'), [
+    { type: 'math', latex: '\\frac{18}{24}' },
+    { type: 'text', value: ' → ' },
+    { type: 'math', latex: '\\frac{3}{4}' },
+  ]);
+});
+
+test('buildExampleSegments handles a Japanese particle and label interleaved with numbers', () => {
+  assert.deepEqual(buildExampleSegments('18と24 → 最大公約数6'), [
+    { type: 'math', latex: '18' },
+    { type: 'text', value: 'と' },
+    { type: 'math', latex: '24' },
+    { type: 'text', value: ' → 最大公約数' },
+    { type: 'math', latex: '6' },
+  ]);
+});
+
+test('buildExampleSegments merges a trailing = into the preceding math expression', () => {
+  assert.deepEqual(buildExampleSegments('2/3+3/5='), [
+    { type: 'math', latex: '\\frac{2}{3}+\\frac{3}{5}=' },
+  ]);
+});
+
+test('exampleWithEquals appends = to a plain arithmetic example', () => {
+  assert.equal(exampleWithEquals('2/3+3/5'), '2/3+3/5=');
+  assert.equal(exampleWithEquals('1 2/3+2 3/5'), '1 2/3+2 3/5=');
+});
+
+test('exampleWithEquals leaves an arrow-based (already-shows-a-result) example untouched', () => {
+  assert.equal(exampleWithEquals('18/24 → 3/4'), '18/24 → 3/4');
+  assert.equal(exampleWithEquals('37 → 奇数'), '37 → 奇数');
 });

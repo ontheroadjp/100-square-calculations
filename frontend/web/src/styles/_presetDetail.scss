@@ -5,10 +5,6 @@
   flex-direction: column;
   gap: $space-md;
 
-  &-header {
-    margin: 0;
-  }
-
   &-title {
     margin: 0;
     color: $color-text;
@@ -26,15 +22,20 @@
   display: flex;
   flex-wrap: wrap;
   gap: $space-sm;
+  height: 150px;
 
   .example-chip {
-    display: inline-block;
+    display: flex;
+    flex: 1;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
     padding: 6px 12px;
     border: 1px solid $color-border-light;
     border-radius: $radius-sm;
+    font-size: $font-size-lg;
     background: #f8fafc;
     color: $color-text;
-    font-size: $font-size-sm;
   }
 }
 
@@ -53,15 +54,22 @@
   font-size: 0.8rem;
 }
 
+.specific-setting-block {
+  padding: 20px;
+  border: 1px dotted var(--color-primary, #{$color-primary});
+  border-radius: 8px;
+}
+
 .setting-block {
   display: flex;
   flex-direction: column;
   gap: $space-sm;
+  margin-bottom: 20px;
 
   .setting-label {
     color: $color-text;
-    font-size: $font-size-sm;
-    font-weight: 500;
+    font-size: $font-size-base;
+    font-weight: bold;
   }
 
   .setting-fixed-value {
@@ -101,7 +109,7 @@
     font-size: $font-size-sm;
 
     &.is-selected {
-      background: $color-primary;
+      background: var(--color-primary, #{$color-primary});
       color: #fff;
       font-weight: 600;
     }
@@ -165,7 +173,7 @@
     cursor: pointer;
 
     &.is-on {
-      background: $color-primary;
+      background: var(--color-primary, #{$color-primary});
     }
 
     .toggle-switch-thumb {
@@ -197,12 +205,12 @@
 
 .create-pdf-button {
   border: none;
-  background-color: $color-primary;
+  background-color: var(--color-primary, #{$color-primary});
   color: #fff;
   font-weight: 600;
 
   &:hover:not(:disabled) {
-    background-color: $color-primary-hover;
+    background-color: var(--color-primary-hover, #{$color-primary-hover});
   }
 
   &:disabled {
@@ -288,8 +296,8 @@
   text-decoration: none;
 
   &:hover {
-    border-color: $color-primary;
-    color: $color-primary;
+    border-color: var(--color-primary, #{$color-primary});
+    color: var(--color-primary, #{$color-primary});
   }
 }
 

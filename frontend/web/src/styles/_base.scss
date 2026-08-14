@@ -21,6 +21,29 @@ $color-grade-4: #8b5cf6;
 $color-grade-5: #f43f5e;
 $color-grade-6: #06b6d4;
 
+// Per-grade accent override (issue #130, extended #132): any page whose root
+// container carries a .grade-N class (catalog.js, presetDetail.js) picks up
+// these custom properties via var(--color-primary, ...) fallbacks defined in
+// the per-page partials below. Defined once here (rather than per partial)
+// since main.scss bundles every page into a single stylesheet. There's no
+// separate per-grade hover token, so --color-primary-hover reuses the same
+// $color-grade-N as --color-primary.
+$grade-colors: (
+  1: $color-grade-1,
+  2: $color-grade-2,
+  3: $color-grade-3,
+  4: $color-grade-4,
+  5: $color-grade-5,
+  6: $color-grade-6,
+);
+
+@each $grade, $color in $grade-colors {
+  .grade-#{$grade} {
+    --color-primary: #{$color};
+    --color-primary-hover: #{$color};
+  }
+}
+
 $space-xs: 4px;
 $space-sm: 8px;
 $space-md: 16px;
