@@ -28,7 +28,7 @@ issue #132 で、`$color-grade-1`〜`6` を CSS カスタムプロパティ `--c
 ## 注意事項・既知の制限
 
 - [[./main.scss]] と同じく、`frontend/spa/src/App.css` からの追従コピーが必要な保守対象。
-- issue #97 で追加した `$color-grade-*` は本ファイル内では未使用(グレード選択カード自体の再デザインは issue #99 のスコープ)。`[[./navShell.scss]]` が `$space-*`/`$radius-*`/`$font-size-*` を消費している。
+- issue #97 で追加した `$color-grade-*` は issue #132 以降、本ファイル内の `.grade-N` ルールが直接消費する(上記参照)。`[[./navShell.scss]]` が `$space-*`/`$radius-*`/`$font-size-*` を消費している。
 
 ## 変更履歴(git log より自動生成)
 
