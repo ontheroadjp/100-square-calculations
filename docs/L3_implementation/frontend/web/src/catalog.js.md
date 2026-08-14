@@ -46,7 +46,8 @@
 
 ## 変更履歴(git log より自動生成)
 
-- ab9fe98 feat(#126): add missing wireframe icons and unify page headers in frontend/web
+- bf48e4c feat(#130): make catalog page accent color switch dynamically per grade
+- 1bb0f69 #126 frontend/web: add missing wireframe icons and unify page headers (#127)
 - 90864a5 refactor(frontend/web): replace hand-drawn nav/UI icons with Material Symbols
 - 1bd6fa6 #99 Rebuild frontend/web top and catalog screens to match wireframe screens 1-2 (#116)
 - 8007488 #97 frontend/web: rebuild nav shell, design tokens, and remove legacy features (#109)

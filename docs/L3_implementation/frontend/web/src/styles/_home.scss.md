@@ -16,4 +16,5 @@
 
 ## 変更履歴(git log より自動生成)
 
-- ff1576a refactor(#128): reorganize web Sass by UI hierarchy
+- bf48e4c feat(#130): make catalog page accent color switch dynamically per grade
+- 3625e47 #128 Reorganize frontend web Sass by UI hierarchy (#129)

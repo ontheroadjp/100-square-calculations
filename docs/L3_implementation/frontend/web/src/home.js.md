@@ -10,7 +10,7 @@
 - 続けて `mountPcMakeFlow(document.getElementById('pcMakeFlow'))`(issue #101 で追加)を呼び、PC(≥768px)向け4カラムレイアウトをマウントする。`#pcMakeFlow` は `index.html` に追加した空の `<div>` で、モバイル幅では CSS(`_pcMakeFlow.scss`)により非表示。
 - `document.getElementById('appHeader').innerHTML` に `ICONS.brand` + `t('nav_brand')`(「計算ドリル」)を書き込み、`index.html` の空の `<header id="appHeader">` にブランド見出し(`<h1 class="app-header-brand">`)を描画する(issue #126)。`_pcMakeFlow.scss` がデスクトップ幅で `.app-header` を非表示にするため、実質モバイル幅でのみ見える。
 - `document.querySelectorAll('.grade-picker-card')` の各カードへ、`ICONS.face` を包んだ `<span class="grade-picker-avatar" aria-hidden="true">` を `insertAdjacentHTML('afterbegin', ...)` で先頭挿入する(issue #126、wireframe の学年カードアバターに対応)。
-- ヒーローコピー(「毎日の計算練習を、すぐにプリント。」等)と学年カラーの2×3学年カードグリッド(`catalog.html?grade=N` への静的リンク、モバイル専用)は `index.html` に直接ハードコードしており、カードのDOM構造自体はJSが関与しない(アイコン注入のみJS側)。
+- ヒーローコピー(「毎日の計算練習をすぐにプリント」等)と学年カラーの2×3学年カードグリッド(`catalog.html?grade=N` への静的リンク、モバイル専用)は `index.html` に直接ハードコードしており、カードのDOM構造自体はJSが関与しない(アイコン注入のみJS側)。
 
 ## 重要な設計判断とその理由
 
