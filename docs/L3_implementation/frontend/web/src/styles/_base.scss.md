@@ -8,7 +8,7 @@
 
 `App.css`([[../../../../frontend/spa/src/App.css]] 参照)の該当セクション(Basic Reset、App Container、Header、Main Content Area)をそのまま Sass 化し、繰り返し使う色(`#333`/`#6b7280`/`#2563eb` 等)を `$color-text`/`$color-text-muted`/`$color-primary` 等の変数に置き換えている。メディアクエリはネストして各セレクタの直下に記述している(元の CSS はセレクタごとに別ブロックだった)。
 
-issue #97 で `docs/uiux/wireframe_v1.png` に基づくデザイントークンを追加した: `$color-grade-1`〜`$color-grade-6`(学年別カード色)、`$space-xs`〜`$space-xl`(spacing scale)、`$radius-sm`/`$radius-md`/`$radius-pill`、`$font-size-sm`〜`$font-size-xl`。
+issue #97 で `docs/uiux/wireframe_v1.png` に基づくデザイントークンを追加した: `$color-grade-1`〜`$color-grade-6`(学年別カード色)、`$space-xs`〜`$space-xl`(spacing scale)、`$radius-sm`/`$radius-md`/`$radius-pill`、`$font-size-sm`〜`$font-size-xl`。`$radius-xs`(`.drill-badge` 等が利用)は以降に追加された。
 
 issue #101 で `body` に `box-sizing: border-box` を追加した(下記「重要な設計判断」参照)。
 
@@ -30,7 +30,8 @@ issue #101 で `body` に `box-sizing: border-box` を追加した(下記「重�
 
 ## 変更履歴(git log より自動生成)
 
-- ab9fe98 feat(#126): add missing wireframe icons and unify page headers in frontend/web
+- bf48e4c feat(#130): make catalog page accent color switch dynamically per grade
+- 1bb0f69 #126 frontend/web: add missing wireframe icons and unify page headers (#127)
 - 77f95b7 #101 frontend/web: add PC 4-column layout to the make flow (#119)
 - 8007488 #97 frontend/web: rebuild nav shell, design tokens, and remove legacy features (#109)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

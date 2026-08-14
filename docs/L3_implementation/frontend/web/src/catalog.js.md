@@ -9,6 +9,7 @@
 - モジュール読み込み時に `mountNavShell()` を呼ぶ。
 - `render()`: `location.search` から `grade` を読み、`GRADES`(1〜6)に含まれない場合は空状態(`no_drills_found` + 戻るリンク)を表示して終了する。
 - ページヘッダーは `<header class="catalog-header">` 内の `<a class="page-header-row" href="index.html">${ICONS.chevronLeft}<h1 class="catalog-heading">...</h1></a>` という構造(issue #126)。アイコンとタイトルの `<h1>` を同じ `<a>` に包むことで、アイコン・タイトルどちらをクリックしても `index.html` に戻る単一のクリック領域になっている(「戻る」というテキストラベルは廃止)。旧実装は `<a class="back-button">戻るテキスト</a>` と `<h1 class="catalog-heading">` を別要素として横に並べていた。
+- issue #130: grade が確定すると `#catalog` コンテナに `grade-${grade}` クラスを付与する(`frontend/web/src/catalog.js`)。`_catalog.scss`([[./styles/_catalog.scss]] 参照)の `.grade-1`〜`.grade-6` が定義する `--color-primary`/`--color-primary-hover` カスタムプロパティをこのクラス経由でスコープし、ヘッダー背景・カテゴリ見出しの左ボーダー・ドリルカードのhover枠線(`_drillList.scss`)を学年別の `$color-grade-N` に切り替える。grade が無効/欠落の空状態では付与されないため、既定の固定色のまま表示される。
 - `GET /renderer-info` を fetch して `activeRenderer` を確定する(失敗時は `reportlab` にフォールバック)。
 - `CATEGORY_ORDER`(`addition`/`subtraction`/`multiplication`/`division`/`fraction`/`four-operations`/`number-sense` の固定順)でループし、`presetsByGrade[grade]` に存在するカテゴリだけを、各アイテムを `canUseItem(item, activeRenderer)`(`!item.latexOnly || activeRenderer === 'latex'`。`drillCatalog.js` 内の同名関数と同じロジックをこのファイル内に複製)でフィルタしたうえで描画する。`presetsByGrade` のオブジェクトキー挿入順は学年ごとに異なる(例: grade4 は division が addition より先)ため、表示順は `CATEGORY_ORDER` で固定している。
 - `drillCardHtml`: ドリルカード1件を、タイトル・`item.difficultyKey`(`difficulty_basic`/`difficulty_standard`/`difficulty_basic_standard`)そのままを使う難易度バッジ・`item.examples[0]` を `formatExample()`(`+`/`-`/`×`/`÷` の前後にスペースを挿入。`/` は分数の区切りとして扱いスペースを入れない)で整形した例題1件、を `<a href="preset.html?grade=<grade>&drillId=<id>&format=default">` として描画する。カード全体がリンク。
@@ -45,7 +46,8 @@
 
 ## 変更履歴(git log より自動生成)
 
-- ab9fe98 feat(#126): add missing wireframe icons and unify page headers in frontend/web
+- bf48e4c feat(#130): make catalog page accent color switch dynamically per grade
+- 1bb0f69 #126 frontend/web: add missing wireframe icons and unify page headers (#127)
 - 90864a5 refactor(frontend/web): replace hand-drawn nav/UI icons with Material Symbols
 - 1bd6fa6 #99 Rebuild frontend/web top and catalog screens to match wireframe screens 1-2 (#116)
 - 8007488 #97 frontend/web: rebuild nav shell, design tokens, and remove legacy features (#109)
