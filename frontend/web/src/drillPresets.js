@@ -28,7 +28,7 @@ export const UNGRADED = 'ungraded';
 
 const OPT_NONE = { value: 'none', labelKey: 'setting_option_none' };
 const OPT_REQUIRED = { value: 'required', labelKey: 'setting_option_required' };
-const OPT_MIXED = { value: 'mixed', labelKey: 'setting_option_mixed' };
+const OPT_MIXED = { value: 'mixed', labelKey: 'setting_option_mixed', hintKey: 'setting_mixed_hint' };
 
 function carrySetting(labelKey) {
   return { id: 'carryMode', labelKey, type: 'choice', options: [OPT_NONE, OPT_REQUIRED, OPT_MIXED], default: 'mixed' };
@@ -211,7 +211,7 @@ const grade2 = {
             { value: '7', labelKey: 'setting_option_dan_7' },
             { value: '8', labelKey: 'setting_option_dan_8' },
             { value: '9', labelKey: 'setting_option_dan_9' },
-            { value: 'mixed', labelKey: 'setting_option_mixed' },
+            { value: 'mixed', labelKey: 'setting_option_mixed', hintKey: 'setting_mixed_hint' },
           ],
           default: 'mixed',
         },
@@ -460,7 +460,7 @@ const grade3 = {
 const NUMBER_KIND_OPTIONS = [
   { value: 'fraction', labelKey: 'setting_option_fraction_only' },
   { value: 'mixedNumber', labelKey: 'setting_option_fraction_with_mixed' },
-  { value: 'mixed', labelKey: 'setting_option_mixed' },
+  { value: 'mixed', labelKey: 'setting_option_mixed', hintKey: 'setting_mixed_hint' },
 ];
 
 // Maps the 数の種類(分数/帯分数を含む/まぜる) numberKind setting to
@@ -643,7 +643,7 @@ const grade4 = {
 const DENOMINATOR_CHOICE_OPTIONS = [
   { value: 'same', labelKey: 'setting_option_same_denominator' },
   { value: 'different', labelKey: 'setting_option_different_denominator' },
-  { value: 'mixed', labelKey: 'setting_option_mixed' },
+  { value: 'mixed', labelKey: 'setting_option_mixed', hintKey: 'setting_mixed_hint' },
 ];
 
 function denominatorParams(state) {

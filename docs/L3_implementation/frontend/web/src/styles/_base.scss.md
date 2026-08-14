@@ -12,6 +12,8 @@ issue #97 で `docs/uiux/wireframe_v1.png` に基づくデザイントークン�
 
 issue #101 で `body` に `box-sizing: border-box` を追加した(下記「重要な設計判断」参照)。
 
+issue #132 で、`$color-grade-1`〜`6` を CSS カスタムプロパティ `--color-primary`/`--color-primary-hover` にマップする `.grade-1`〜`.grade-6` の `@each` ループを追加した(`frontend/web/src/styles/_base.scss:30-49` あたり)。元は issue #130 で `_catalog.scss` にのみ定義されていたが、`main.scss` が全ページの Sass を1本の CSS にバンドルする性質上、複数ページ(`catalog.js`/`presetDetail.js` の両方が自身のコンテナへ `.grade-N` を付与する)が同じマップを必要とするようになったため、ここへ集約した。`--color-primary-hover` は学年別の専用トーンを持たず `--color-primary` と同じ値を使う(`_catalog.scss.md` の「重要な設計判断」参照)。
+
 ## 重要な設計判断とその理由
 
 ### `body` に `box-sizing: border-box` を追加した理由(issue #101)

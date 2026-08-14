@@ -16,7 +16,7 @@
     transition: border-color 0.15s;
 
     &:hover {
-      border: 1px solid $color-border-light;
+      border: 2px solid $color-border-light;
       border-color: var(--color-primary, #{$color-primary});
     }
 
@@ -30,7 +30,7 @@
       border-bottom-right-radius: $radius-sm;
       border-bottom-left-radius: $radius-sm;
       &:hover {
-        border: 1px solid $color-border-light;
+        border: 2px solid $color-border-light;
         border-color: var(--color-primary, #{$color-primary});
       }
     }
