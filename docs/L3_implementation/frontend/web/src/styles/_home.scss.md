@@ -13,3 +13,7 @@
 - 呼び出し元: `main.scss`。
 - 利用元: `index.html`、`home.js`。
 - 呼び出し先: `_base.scss` のデザイントークン。
+
+## 変更履歴(git log より自動生成)
+
+- ff1576a refactor(#128): reorganize web Sass by UI hierarchy

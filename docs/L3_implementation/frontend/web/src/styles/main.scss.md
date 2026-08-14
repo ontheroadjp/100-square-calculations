@@ -35,6 +35,7 @@ issue #97 で4つ目のパーシャル `_navShell.scss`([[./navShell.scss]] 参�
 
 ## 変更履歴(git log より自動生成)
 
+- ff1576a refactor(#128): reorganize web Sass by UI hierarchy
 - d9599eb feat(#101): add PC 4-column layout to frontend/web's make flow
 - b11ac96 feat(#97): rebuild frontend/web nav shell and design tokens, remove custom generator/search/ungraded UI
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

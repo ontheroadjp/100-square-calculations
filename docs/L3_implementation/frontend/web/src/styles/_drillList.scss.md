@@ -17,3 +17,7 @@
 ## 注意事項・既知の制限
 
 PC作成フローの選択状態は `_pcMakeFlow.scss` の `.pc-drill-list-card` が追加で定義する。
+
+## 変更履歴(git log より自動生成)
+
+- ff1576a refactor(#128): reorganize web Sass by UI hierarchy

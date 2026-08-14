@@ -17,3 +17,7 @@
 ## 注意事項・既知の制限
 
 `.preset-detail` の設定画面はモバイル詳細画面とPC作成フローで共有し、PC固有のレイアウトは `_pcMakeFlow.scss` が追加する。
+
+## 変更履歴(git log より自動生成)
+
+- ff1576a refactor(#128): reorganize web Sass by UI hierarchy

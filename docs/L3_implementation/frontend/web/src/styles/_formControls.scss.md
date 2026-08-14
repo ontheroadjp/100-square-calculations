@@ -17,3 +17,7 @@
 ## 注意事項・既知の制限
 
 iframeのPDF表示機能はブラウザ内蔵ビューアに委ね、操作UIは実装しない。
+
+## 変更履歴(git log より自動生成)
+
+- ff1576a refactor(#128): reorganize web Sass by UI hierarchy
