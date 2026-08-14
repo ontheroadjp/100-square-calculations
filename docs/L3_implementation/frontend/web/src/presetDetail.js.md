@@ -44,6 +44,7 @@
 
 ## 変更履歴(git log より自動生成)
 
+- 7b5a9b9 feat(#132): add per-grade accent, KaTeX examples, generalized setting hints, and move problem count into common settings on preset detail page
 - ab9fe98 feat(#126): add missing wireframe icons and unify page headers in frontend/web
 - 90864a5 refactor(frontend/web): replace hand-drawn nav/UI icons with Material Symbols
 - 9d1371e #100 frontend/web: rebuild preset detail settings/completion/preview screens (#118)

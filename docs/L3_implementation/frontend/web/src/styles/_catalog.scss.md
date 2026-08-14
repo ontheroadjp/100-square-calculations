@@ -26,5 +26,6 @@ issue #130 で、学年別カタログの配色を動的化した。`.catalog-he
 
 ## 変更履歴(git log より自動生成)
 
-- bf48e4c feat(#130): make catalog page accent color switch dynamically per grade
+- 7b5a9b9 feat(#132): add per-grade accent, KaTeX examples, generalized setting hints, and move problem count into common settings on preset detail page
+- d43d1bc #130 frontend/web: make catalog page accent color switch dynamically per grade (#131)
 - 3625e47 #128 Reorganize frontend web Sass by UI hierarchy (#129)

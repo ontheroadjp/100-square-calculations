@@ -32,7 +32,8 @@ issue #132 で、`$color-grade-1`〜`6` を CSS カスタムプロパティ `--c
 
 ## 変更履歴(git log より自動生成)
 
-- bf48e4c feat(#130): make catalog page accent color switch dynamically per grade
+- 7b5a9b9 feat(#132): add per-grade accent, KaTeX examples, generalized setting hints, and move problem count into common settings on preset detail page
+- d43d1bc #130 frontend/web: make catalog page accent color switch dynamically per grade (#131)
 - 1bb0f69 #126 frontend/web: add missing wireframe icons and unify page headers (#127)
 - 77f95b7 #101 frontend/web: add PC 4-column layout to the make flow (#119)
 - 8007488 #97 frontend/web: rebuild nav shell, design tokens, and remove legacy features (#109)

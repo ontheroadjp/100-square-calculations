@@ -8,6 +8,7 @@
 
 - `scripts`: `dev`(`vite`)/`build`(`vite build`)/`preview`(`vite preview`)。`frontend/spa` と同じコマンド体系。
 - `devDependencies`: `vite` と `sass`(Dart Sass CLI 相当。Vite が `.scss` import を検出すると自動的に呼び出す)のみ。`react`/`react-dom`/`i18next` 系の依存は持たない。
+- `dependencies`: `katex`(issue #132、`presetDetail.js` の問題サンプルを分数・帯分数表記でレンダリングするために追加。ブラウザバンドルに含まれるランタイム依存のため `devDependencies` ではなくこちらに置く)。
 
 ## 重要な設計判断とその理由
 
@@ -27,3 +28,8 @@
 ## 注意事項・既知の制限
 
 - バックエンド API は `frontend/spa` と同じ `backend/`([[../../backend/app.py]] 参照)を共有する。`frontend/web` 独自のバックエンドは持たない。
+
+## 変更履歴（git log より自動生成）
+
+- 7b5a9b9 feat(#132): add per-grade accent, KaTeX examples, generalized setting hints, and move problem count into common settings on preset detail page
+- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

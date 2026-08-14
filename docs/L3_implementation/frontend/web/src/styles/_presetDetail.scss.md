@@ -28,4 +28,5 @@
 
 ## 変更履歴(git log より自動生成)
 
+- 7b5a9b9 feat(#132): add per-grade accent, KaTeX examples, generalized setting hints, and move problem count into common settings on preset detail page
 - ff1576a refactor(#128): reorganize web Sass by UI hierarchy
