@@ -33,7 +33,7 @@
 ## 統合ポイント
 
 - 呼び出し元: `preset.js`(`preset.html` のページエントリ。KaTeX の CSS も `preset.js` 側で import する、上記参照)。
-- 呼び出し先: `katex`(`katex.renderToString()`、issue #132)、`strings.js`(`t`)、`verticalLayout.js`、`icons.js`(`ICONS.chevronLeft`、issue #126)、`backend`(`POST /generate-pdf`、`http://127.0.0.1:5000` 固定)。
+- 呼び出し先: `katex`(`katex.renderToString()`、issue #132)、`strings.js`(`t`)、`verticalLayout.js`、`icons.js`(`ICONS.chevronLeft`、issue #126)、`backend`(`POST /generate-pdf`、`http://127.0.0.1:5000` 固定)、`item.examplesFor`(`drillPresets.js` 側の項目定義、issue #135、[[./drillPresets.js]] 参照)。
 
 ## 注意事項・既知の制限
 
