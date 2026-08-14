@@ -1,0 +1,76 @@
+@use 'base' as *;
+
+.catalog-header {
+  margin: 0 0 28px;
+
+  .catalog-heading {
+    margin: 0;
+    color: $color-text;
+    font-size: $font-size-xl;
+  }
+
+  .category-picker-heading {
+    margin: 0;
+    color: $color-text-muted;
+  }
+}
+
+.category-section {
+  margin: 28px 0;
+
+  .category-heading {
+    margin: 0 0 12px;
+    color: $color-text;
+    font-size: 1.15rem;
+    font-weight: 700;
+  }
+}
+
+.page-header-row,
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  text-decoration: none;
+}
+
+.page-header-row {
+  margin: 0;
+  padding: 0;
+  color: inherit;
+
+  svg {
+    flex-shrink: 0;
+    color: $color-primary;
+  }
+
+  h1,
+  h3 {
+    margin: 0;
+  }
+}
+
+.back-button {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: $space-sm 0;
+  color: $color-primary;
+  font-size: $font-size-base;
+
+  span {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  svg {
+    flex-shrink: 0;
+  }
+
+  &:hover {
+    color: $color-primary-hover;
+  }
+}

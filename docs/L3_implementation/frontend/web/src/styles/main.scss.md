@@ -6,16 +6,19 @@
 
 ## 動作の概要
 
-`@use 'base'; @use 'components'; @use 'layout'; @use 'navShell'; @use 'pcMakeFlow';`(issue #97 で `navShell`、issue #101 で `pcMakeFlow` を追加)の5行のみ。各ページエントリ(`home.js`/`catalog.js`/`preset.js`。`custom.js` は issue #97 で削除)の先頭で `import './styles/main.scss'` され、Vite が Dart Sass でコンパイルして `<style>` として注入する。
+`base`、`formControls`、`drillList`、`home`、`catalog`、`presetDetail`、`navShell`、`pcMakeFlow` をこの順で `@use` する(`frontend/web/src/styles/main.scss:1-8`)。各ページエントリ(`home.js`/`catalog.js`/`preset.js`)の先頭で `import './styles/main.scss'` され、Vite が Dart Sass でコンパイルする。
 
 ## 重要な設計判断とその理由
 
-### 3ファイルに分割した理由(_base/_components/_layout)
+### 画面・UI階層で分割する理由
 
-`App.css` は無分割の1ファイル(734行)だったが、`frontend/web` では以下の3分類に分けた:
-- `_base.scss`: リセット・変数(`$color-*`等のデザイントークン)・`.app-container`/`.app-header`/`.main-content` などページ全体のシェル。
-- `_components.scss`: フォーム部品・ボタン・カード・バッジなど、複数画面で再利用される見た目のパーツ。
-- `_layout.scss`: `grade-drills`/`preset-detail` など、特定画面の構造に紐づくレイアウト。
+`frontend/web` は、スタイルの利用箇所と親子関係が追いやすいよう以下の責務で分割する:
+- `_base.scss`: リセット、デザイントークン、ページ全体のシェル。
+- `_formControls.scss`: フォーム入力とPDF iframe。
+- `_drillList.scss`: ドリルリスト、ドリルカード、難易度バッジ、空状態。
+- `_home.scss`: ホーム画面のヒーローと学年選択。
+- `_catalog.scss`: カタログのヘッダー、カテゴリ、戻る導線。
+- `_presetDetail.scss`: プリセット設定・完了・プレビュー画面。
 
 過度な抽象化(mixin・関数の多用)は避け、Sass の機能は「変数」と「ネスト」の2つだけに絞った。`App.css` からの移植であり新規デザインではないため、変数化した色以外は元の値をそのまま踏襲している。
 
@@ -24,14 +27,15 @@ issue #97 で4つ目のパーシャル `_navShell.scss`([[./navShell.scss]] 参�
 ## 統合ポイント
 
 - 呼び出し元: `home.js`/`catalog.js`/`preset.js`(各ページエントリが個別に `import`。`frontend/web` は複数ページ構成のため単一の `main.js` は存在しない、issue #88)。
-- 呼び出し先: `_base.scss`/`_components.scss`/`_layout.scss`/`_navShell.scss`/`_pcMakeFlow.scss`。
+- 呼び出し先: 各スタイルパーシャル。
 
 ## 注意事項・既知の制限
 
-- `frontend/spa/src/App.css` が更新された場合、本ファイル(および `_base`/`_components`/`_layout` の3パーシャル)は追従コピーが必要(issue #88 時点ではほぼ同一内容)。`_navShell.scss`/`_pcMakeFlow.scss` は `App.css` に対応がないため対象外。
+- `frontend/spa/src/App.css` の追従が必要な場合は、対応する責務のパーシャルへ反映する。`_navShell.scss`/`_pcMakeFlow.scss` は `frontend/web` 固有のため対象外。
 
 ## 変更履歴(git log より自動生成)
 
+- ff1576a refactor(#128): reorganize web Sass by UI hierarchy
 - d9599eb feat(#101): add PC 4-column layout to frontend/web's make flow
 - b11ac96 feat(#97): rebuild frontend/web nav shell and design tokens, remove custom generator/search/ungraded UI
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)
