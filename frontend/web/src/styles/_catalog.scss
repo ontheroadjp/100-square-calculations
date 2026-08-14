@@ -1,13 +1,48 @@
 @use 'base' as *;
 
+// Per-grade accent override (issue #130): each .grade-N class sets these
+// custom properties so .catalog-header-title/.category-section h2/
+// .back-button:hover below pick them up via var() with the fixed
+// $color-primary(-hover) as fallback. preset.js/presetDetail.js also render
+// .back-button/.page-header-row but never get a .grade-N class, so their
+// color stays the fixed fallback. There's no separate per-grade hover token,
+// so --color-primary-hover reuses the same $color-grade-N as --color-primary.
+$grade-colors: (
+  1: $color-grade-1,
+  2: $color-grade-2,
+  3: $color-grade-3,
+  4: $color-grade-4,
+  5: $color-grade-5,
+  6: $color-grade-6,
+);
+
+@each $grade, $color in $grade-colors {
+  .grade-#{$grade} {
+    --color-primary: #{$color};
+    --color-primary-hover: #{$color};
+  }
+}
+
 .catalog-header {
-  margin: 0 0 28px;
+  margin-bottom: 36px;
 
   .catalog-heading {
     margin: 0;
-    color: $color-text;
+    /* color: $color-text; */
     font-size: $font-size-xl;
   }
+
+  &-title {
+    margin-bottom: 30px;
+    background-color: var(--color-primary, #{$color-primary});
+    color: #fff;
+  }
+
+  &-sub-title {
+    text-align: center;
+    margin-bottom: 0;
+  }
+
 
   .category-picker-heading {
     margin: 0;
@@ -16,7 +51,12 @@
 }
 
 .category-section {
-  margin: 28px 0;
+  margin-bottom: 28px;
+
+  h2 {
+    padding-left: 10px;
+    border-left: 6px solid var(--color-primary, #{$color-primary});
+  }
 
   .category-heading {
     margin: 0 0 12px;
@@ -45,7 +85,10 @@
 
   svg {
     flex-shrink: 0;
-    color: $color-primary;
+    /* color: $color-primary; */
+    color: #fff;
+    width: 36px;
+    height: 36px;
   }
 
   h1,
@@ -56,9 +99,9 @@
 
 .back-button {
   align-self: flex-start;
-  min-height: 44px;
+  min-height: 64px;
   padding: $space-sm 0;
-  color: $color-primary;
+  /* color: $color-primary; */
   font-size: $font-size-base;
 
   span {
@@ -71,6 +114,6 @@
   }
 
   &:hover {
-    color: $color-primary-hover;
+    color: var(--color-primary-hover, #{$color-primary-hover});
   }
 }

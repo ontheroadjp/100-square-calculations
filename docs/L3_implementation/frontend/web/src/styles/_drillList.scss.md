@@ -8,10 +8,12 @@
 
 `.drill-list` の中に `.drill-list-card*` の見た目をネストする(`frontend/web/src/styles/_drillList.scss:3-53`)。カードは連続したリストとして表示し、最初のカードだけ上側、最後のカードだけ下側に角丸を付ける。最後のカードには下罫線も追加してリストを閉じる(`frontend/web/src/styles/_drillList.scss:22-31`)。バッジの難易度バリエーションと空状態も定義する(`frontend/web/src/styles/_drillList.scss:55-88`)。
 
+issue #130: `.drill-list-card:hover`(通常時・`:last-child` の2箇所)のボーダー色は `border-color: var(--color-primary, #{$color-primary})` で参照する(`frontend/web/src/styles/_drillList.scss:18-21,32-35`)。`catalog.js` が `#catalog` に付与する `.grade-N` クラス(`_catalog.scss` 定義、[[./_catalog.scss]] 参照)の祖先がある場合はカードのhover枠線が学年別の `$color-grade-N` になり、無い場合(`pcMakeFlow.js` 由来のカード等)は既存の固定 `$color-primary` にフォールバックする。
+
 ## 統合ポイント
 
 - 呼び出し元: `main.scss`。
-- 利用元: `catalog.js`、`pcMakeFlow.js`。
+- 利用元: `catalog.js`(hover枠線が `.grade-N` スコープ下で学年別色になる)、`pcMakeFlow.js`(`.grade-N` を付与しないため常に固定色)。
 - 呼び出し先: `_base.scss` の色・余白・角丸トークン。
 
 ## 注意事項・既知の制限
