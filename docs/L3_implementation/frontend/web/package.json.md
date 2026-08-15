@@ -18,7 +18,7 @@
 
 ### 複数ページ構成(SPAではない)にした理由
 
-ユーザーからの明示的な指示により、`frontend/web` は SPA(単一 `index.html` を JS ルーターで画面切替する構成)ではなく、画面ごとに実在の `.html`(`index.html`/`catalog.html`/`preset.html`/`custom.html`)を持つ構成にした(issue #88)。このため `vite.config.js`(`build.rollupOptions.input` に4つの `.html` を列挙)で Vite のマルチページビルドを設定している。
+ユーザーからの明示的な指示により、`frontend/web` は SPA(単一 `index.html` を JS ルーターで画面切替する構成)ではなく、画面ごとに実在の `.html` を持つ構成にした(issue #88)。当初存在した `custom.html` は issue #97 で削除され、現行のページは `index.html`/`catalog.html`/`preset.html` の3つである。このため `vite.config.js` は `build.rollupOptions.input` にこの3つの `.html` を列挙し、Vite のマルチページビルドを設定している。
 
 ## 統合ポイント
 
