@@ -23,3 +23,9 @@ source map は開発サーバーの CSS にだけ有効化する。Chrome DevToo
 
 - 元の Sass ファイル名・行番号を確認する際は `npm run dev` を使用する。production build は source map を出力しない。
 - Chrome DevTools 側でも CSS source map が有効である必要がある。
+
+## 変更履歴（git log より自動生成）
+
+- 215b053 fix(#142): enable development Sass source maps
+- 8007488 #97 frontend/web: rebuild nav shell, design tokens, and remove legacy features (#109)
+- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)
