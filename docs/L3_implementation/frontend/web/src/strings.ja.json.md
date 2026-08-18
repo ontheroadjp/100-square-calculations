@@ -6,7 +6,7 @@
 
 ## 動作の概要
 
-画面見出し、操作ラベル、ドリル名、設定値などの日本語文言を一元管理する。難易度キーは `difficulty_basic`(基礎)、`difficulty_standard`(標準)、`difficulty_basic_standard`(基礎〜標準)、`difficulty_advanced`(発展)を定義する(`frontend/web/src/strings.ja.json:159-162`)。2年生の九九設定では `setting_question_order_label`(出題順序)と `setting_option_order_ascending`/`descending`/`random`(1から/9から/ランダム)を提供する(`frontend/web/src/strings.ja.json:163-195`)。
+画面見出し、操作ラベル、ドリル名、設定値などの日本語文言を一元管理する。難易度キーは `difficulty_basic`(基礎)、`difficulty_standard`(標準)、`difficulty_basic_standard`(基礎〜標準)、`difficulty_advanced`(発展)を定義する(`frontend/web/src/strings.ja.json:159-162`)。2年生の九九設定では `setting_question_order_label`(出題順序)と `setting_option_order_ascending`/`descending`/`random`(1から/9から/ランダム)を提供する(`frontend/web/src/strings.ja.json:163-195`)。2年生の発展項目には「答えが1,000までの足し算」というタイトルと、3桁までの数を使い答えを1,000以下にする説明を提供する(`frontend/web/src/strings.ja.json:214-217`)。
 
 ## 統合ポイント
 
@@ -20,7 +20,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- 51b8d7f feat(#148): add multiplication-table question order
+- 32dd948 feat(#153): add reusable result ceiling for ope drills
+- 06870bb #148 Add multiplication-table question-order options (#150)
 - 85e58b1 #146 Add an advanced difficulty badge to the web UI (#147)
 - 1edfbb5 fix(frontend/web): clarify grade-2/3 arithmetic menu label wording
 - d43d1bc #130 frontend/web: make catalog page accent color switch dynamically per grade (#131)

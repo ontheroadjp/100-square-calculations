@@ -100,6 +100,43 @@ def test_generate_ope_problems_applies_addition_carry_filter(
 
 
 @pytest.mark.parametrize(
+    ("operator", "nums_a", "nums_b", "result_max"),
+    [
+        ("add", [999], [1], 1000),
+        ("sub", [999], [1], 998),
+        ("mul", [25], [4], 100),
+        ("div", [999], [3], 333),
+    ],
+)
+def test_generate_ope_problems_applies_result_max_to_every_operator(
+        operator: str, nums_a: list[int], nums_b: list[int], result_max: int,
+    ) -> None:
+    problems = tex_module.generate_ope_problems(
+        nums_a, nums_b, [operator], order=4, start_index=1,
+        result_max=result_max,
+    )
+
+    assert all(problem.c <= result_max for problem in problems)
+
+
+def test_generate_ope_problems_applies_result_max_to_displayed_decimal_value() -> None:
+    problems = tex_module.generate_ope_problems(
+        [999], [1], ["add"], order=1, start_index=1,
+        a_decimal_places=1, b_decimal_places=1, result_max=100,
+    )
+
+    assert problems[0].c == 1000
+    assert tex_module.ope_result_decimal_places("add", 1, 1) == 1
+
+
+def test_generate_ope_problems_rejects_impossible_result_max() -> None:
+    with pytest.raises(ValueError, match="satisfies --result-max"):
+        tex_module.generate_ope_problems(
+            [999], [2], ["add"], order=1, start_index=1, result_max=1000,
+        )
+
+
+@pytest.mark.parametrize(
     ("a", "b", "expected"),
     [
         (8, 3, False),
@@ -562,6 +599,23 @@ def test_generate_tree_ope_problems_assigns_sequential_indices() -> None:
     assert [problem.result for problem in problems] == [11] * 4
 
 
+def test_generate_tree_ope_problems_applies_result_max() -> None:
+    problems = tex_module.generate_tree_ope_problems(
+        [5], [3], ['add'], mixed=False, terms_min=3, terms_max=3,
+        order=2, start_index=1, result_max=11,
+    )
+
+    assert [problem.result for problem in problems] == [11, 11]
+
+
+def test_generate_tree_ope_problems_rejects_impossible_result_max() -> None:
+    with pytest.raises(ValueError):
+        tex_module.generate_tree_ope_problems(
+            [5], [3], ['add'], mixed=False, terms_min=3, terms_max=3,
+            order=1, start_index=1, result_max=10,
+        )
+
+
 def test_generate_tree_ope_problems_result_matches_manual_tree_evaluation() -> None:
     nums_a = list(range(10, 100))
     nums_bc = list(range(1, 10))
@@ -663,6 +717,23 @@ def test_generate_multi_term_ope_problems_single_operator_matches_left_to_right(
         assert problem.result == tex_module.evaluate_left_to_right(problem.operands, problem.operators)
 
 
+def test_generate_multi_term_ope_problems_applies_result_max() -> None:
+    problems = tex_module.generate_multi_term_ope_problems(
+        [5], [3], ['add'], mixed=False, terms_min=3, terms_max=3,
+        order=2, start_index=1, result_max=11,
+    )
+
+    assert [problem.result for problem in problems] == [11, 11]
+
+
+def test_generate_multi_term_ope_problems_rejects_impossible_result_max() -> None:
+    with pytest.raises(ValueError):
+        tex_module.generate_multi_term_ope_problems(
+            [5], [3], ['add'], mixed=False, terms_min=3, terms_max=3,
+            order=1, start_index=1, result_max=10,
+        )
+
+
 def test_generate_multi_term_ope_problems_mixed_uses_standard_precedence() -> None:
     problems = tex_module.generate_multi_term_ope_problems(
         [10, 20], [1, 2, 3], ['add', 'sub', 'mul'], mixed=True,
@@ -708,6 +779,21 @@ def test_generate_missing_value_problems_assigns_sequential_indices() -> None:
     )
     assert [problem.index for problem in problems] == [11, 12, 13, 14]
     assert [(problem.a, problem.b, problem.c) for problem in problems] == [(5, 3, 8)] * 4
+
+
+def test_generate_missing_value_problems_applies_result_max() -> None:
+    problems = tex_module.generate_missing_value_problems(
+        [999], [1], ['add'], order=2, start_index=1, result_max=1000,
+    )
+
+    assert [problem.c for problem in problems] == [1000, 1000]
+
+
+def test_generate_missing_value_problems_rejects_impossible_result_max() -> None:
+    with pytest.raises(ValueError, match="satisfies --result-max"):
+        tex_module.generate_missing_value_problems(
+            [999], [2], ['add'], order=1, start_index=1, result_max=1000,
+        )
 
 
 def test_generate_missing_value_problems_satisfies_a_op_b_equals_c_for_every_operator() -> None:

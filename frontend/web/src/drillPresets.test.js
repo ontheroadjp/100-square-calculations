@@ -97,6 +97,23 @@ test('grade 2 kuku maps each fixed-row question order to renderer parameters', (
   assert.deepEqual(item.buildParams({ dan: '1', questionOrder: 'random' }), { command_type: '99', a_value: 1, shuffle: true });
 });
 
+test('grade 2 advanced addition caps the answer at 1,000', () => {
+  const item = presetsByGrade[2].addition.find((candidate) => candidate.id === 'g2-add-result-1000');
+
+  assert.ok(item);
+  assert.equal(item.difficultyKey, 'difficulty_advanced');
+  assert.equal(item.latexOnly, true);
+  assert.deepEqual(item.buildParams({ carryMode: 'mixed' }), {
+    command_type: 'ope',
+    operator: ['add'],
+    a_min: 1,
+    a_max: 999,
+    b_min: 1,
+    b_max: 999,
+    result_max: 1000,
+  });
+});
+
 test('grade 2 kuku keeps mixed rows random and ignores the question-order state', () => {
   const item = presetsByGrade[2].multiplication.find((candidate) => candidate.id === 'g2-kuku');
   const expected = { command_type: 'ope', operator: ['mul'], a_min: 1, a_max: 9, b_min: 1, b_max: 9 };

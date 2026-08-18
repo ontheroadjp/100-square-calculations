@@ -190,6 +190,10 @@ def _init() -> argparse.Namespace:
         , default = 9
         , help = 'Maximum value of the second term of the formula'
     )
+    parser.add_argument('--result-max'
+        , type = int
+        , help = 'Maximum final answer for any ope expression'
+    )
     parser.add_argument('-o', '--operator'
         , default = ['add']
         , choices = ['add', 'sub', 'mul', 'div', 'mix']
@@ -612,6 +616,12 @@ def _init() -> argparse.Namespace:
             failure("--terms/--terms-min/--terms-max/--mixed-operators cannot be combined with --intermediate.")
         if args.missing_value:
             failure("--terms/--terms-min/--terms-max/--mixed-operators cannot be combined with --missing-value.")
+
+    if args.result_max is not None:
+        if args.command != 'ope':
+            failure("--result-max is only supported for the 'ope' command.")
+        if args.result_max < 1:
+            failure("--result-max must be at least 1.")
 
     if args.carry_mode is not None:
         allowed_carry_operators = {'add', 'sub'}
@@ -1334,6 +1344,7 @@ def generate_ope_problems(
         a_decimal_places: int = MIN_DECIMAL_PLACES, b_decimal_places: int = MIN_DECIMAL_PLACES,
         carry_mode: CarryMode | None = None,
         remainder_mode: RemainderMode | None = None,
+        result_max: int | None = None,
     ) -> list[OpeProblem]:
     """
     Generate `order` arithmetic problems starting at `start_index`.
@@ -1362,26 +1373,35 @@ def generate_ope_problems(
     effective_operators = MIX_OPERATORS if 'mix' in operators else operators
     problems = []
     for offset in range(order):
-        a = random.choice(nums_a)
-        b = random.choice(nums_b)
-        operator = random.choice(effective_operators)
-        if operator == 'add':
-            carry = None if carry_mode in (None, 'mixed') else carry_mode == 'required'
-            a, b, c = calc_add(a, b, nums_a, nums_b, carry)
-        elif operator == 'sub' and carry_mode is not None:
-            borrow = random.choice((False, True)) if carry_mode == 'mixed' else carry_mode == 'required'
-            a, b, c = calc_sub(a, b, nums_a, nums_b, borrow)
-        elif operator == 'div' and remainder_mode is not None:
-            want_remainder = random.choice((False, True)) if remainder_mode == 'mixed' else remainder_mode == 'required'
-            a, b, c = calc_div(a, b, nums_a, nums_b, want_remainder)
+        for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
+            a = random.choice(nums_a)
+            b = random.choice(nums_b)
+            operator = random.choice(effective_operators)
+            if operator == 'add':
+                carry = None if carry_mode in (None, 'mixed') else carry_mode == 'required'
+                a, b, c = calc_add(a, b, nums_a, nums_b, carry)
+            elif operator == 'sub' and carry_mode is not None:
+                borrow = random.choice((False, True)) if carry_mode == 'mixed' else carry_mode == 'required'
+                a, b, c = calc_sub(a, b, nums_a, nums_b, borrow)
+            elif operator == 'div' and remainder_mode is not None:
+                want_remainder = random.choice((False, True)) if remainder_mode == 'mixed' else remainder_mode == 'required'
+                a, b, c = calc_div(a, b, nums_a, nums_b, want_remainder)
+            else:
+                a, b, c = CALC_FUNCTIONS[operator](a, b, nums_a, nums_b)
+            result_decimal_places = ope_result_decimal_places(
+                operator, a_decimal_places, b_decimal_places,
+            )
+            if result_max is not None and c > result_max * 10 ** result_decimal_places:
+                continue
+            remainder = a - b * c if operator == 'div' else 0
+            problems.append(OpeProblem(
+                index=start_index + offset, a=a, b=b, operator=operator, c=c,
+                a_decimal_places=a_decimal_places, b_decimal_places=b_decimal_places,
+                remainder=remainder,
+            ))
+            break
         else:
-            a, b, c = CALC_FUNCTIONS[operator](a, b, nums_a, nums_b)
-        remainder = a - b * c if operator == 'div' else 0
-        problems.append(OpeProblem(
-            index=start_index + offset, a=a, b=b, operator=operator, c=c,
-            a_decimal_places=a_decimal_places, b_decimal_places=b_decimal_places,
-            remainder=remainder,
-        ))
+            raise ValueError("No ope problem satisfies --result-max within the given number ranges.")
     return problems
 
 
@@ -1749,6 +1769,7 @@ def flatten_tree(node: ExprTreeNode) -> tuple[list[int], list[str]]:
 def generate_tree_ope_problems(
         nums_a: list[int], nums_b: list[int], operators: list[str], mixed: bool,
         terms_min: int, terms_max: int, order: int, start_index: int,
+        result_max: int | None = None,
     ) -> list[TreeOpeProblem]:
     """
     Generate `order` parenthesized N-term problems starting at `start_index`,
@@ -1776,7 +1797,7 @@ def generate_tree_ope_problems(
             assign_tree_operands(tree, nums_a, nums_b)
             assign_tree_operators(tree, effective_operators, mixed, shared_operator)
             result = evaluate_expr_tree(tree)
-            if result is not None:
+            if result is not None and (result_max is None or result <= result_max):
                 operands, tree_operators = flatten_tree(tree)
                 problems.append(TreeOpeProblem(
                     index=start_index + offset, operands=operands,
@@ -1875,7 +1896,7 @@ def build_tree_ope_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page
         start_index = (page_number - 1) * order + 1
         problems = generate_tree_ope_problems(
             nums_a, nums_b, ini.operator, ini.mixed_operators,
-            ini.terms_min, ini.terms_max, order, start_index,
+            ini.terms_min, ini.terms_max, order, start_index, ini.result_max,
         )
         blank_page, filled_page = build_tree_ope_page_pair(problems, ini.columns)
         pages_problems.append(problems)
@@ -1970,6 +1991,7 @@ def evaluate_mixed_expression(
 def generate_multi_term_ope_problems(
         nums_a: list[int], nums_b: list[int], operators: list[str], mixed: bool,
         terms_min: int, terms_max: int, order: int, start_index: int,
+        result_max: int | None = None,
     ) -> list[MultiTermOpeProblem]:
     """
     Generate `order` flat (non-parenthesized) N-term problems starting at
@@ -1998,7 +2020,7 @@ def generate_multi_term_ope_problems(
                 shared_operator = random.choice(effective_operators)
                 problem_operators = [shared_operator] * gap_count
                 result = evaluate_left_to_right(operands, problem_operators)
-            if result is not None:
+            if result is not None and (result_max is None or result <= result_max):
                 problems.append(MultiTermOpeProblem(
                     index=start_index + offset, operands=operands,
                     operators=problem_operators, mixed=mixed, result=result,
@@ -2070,7 +2092,7 @@ def build_multi_term_ope_pages(ini: argparse.Namespace) -> tuple[list[Page], lis
         start_index = (page_number - 1) * order + 1
         problems = generate_multi_term_ope_problems(
             nums_a, nums_b, ini.operator, ini.mixed_operators,
-            ini.terms_min, ini.terms_max, order, start_index,
+            ini.terms_min, ini.terms_max, order, start_index, ini.result_max,
         )
         blank_page, filled_page = build_multi_term_ope_page_pair(problems, ini.columns)
         pages_problems.append(problems)
@@ -2113,7 +2135,7 @@ MISSING_VALUE_POSITIONS = ('a', 'b')
 
 def generate_missing_value_problems(
         nums_a: list[int], nums_b: list[int], operators: list[str],
-        order: int, start_index: int
+        order: int, start_index: int, result_max: int | None = None,
     ) -> list[MissingValueProblem]:
     """
     Generate `order` missing-value problems starting at `start_index`.
@@ -2128,14 +2150,20 @@ def generate_missing_value_problems(
     effective_operators = MIX_OPERATORS if 'mix' in operators else operators
     problems = []
     for offset in range(order):
-        a = random.choice(nums_a)
-        b = random.choice(nums_b)
-        operator = random.choice(effective_operators)
-        a, b, c = CALC_FUNCTIONS[operator](a, b, nums_a, nums_b)
-        blank = random.choice(MISSING_VALUE_POSITIONS)
-        problems.append(MissingValueProblem(
-            index=start_index + offset, a=a, b=b, operator=operator, c=c, blank=blank,
-        ))
+        for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
+            a = random.choice(nums_a)
+            b = random.choice(nums_b)
+            operator = random.choice(effective_operators)
+            a, b, c = CALC_FUNCTIONS[operator](a, b, nums_a, nums_b)
+            if result_max is not None and c > result_max:
+                continue
+            blank = random.choice(MISSING_VALUE_POSITIONS)
+            problems.append(MissingValueProblem(
+                index=start_index + offset, a=a, b=b, operator=operator, c=c, blank=blank,
+            ))
+            break
+        else:
+            raise ValueError("No missing-value problem satisfies --result-max within the given number ranges.")
     return problems
 
 
@@ -2194,7 +2222,9 @@ def build_missing_value_pages(ini: argparse.Namespace) -> tuple[list[Page], list
     pages_problems = []
     for page_number in range(1, ini.page + 1):
         start_index = (page_number - 1) * order + 1
-        problems = generate_missing_value_problems(nums_a, nums_b, ini.operator, order, start_index)
+        problems = generate_missing_value_problems(
+            nums_a, nums_b, ini.operator, order, start_index, ini.result_max,
+        )
         blank_page, filled_page = build_missing_value_page_pair(problems, ini.columns)
         pages_problems.append(problems)
         blank_pages.append(blank_page)
@@ -2728,7 +2758,7 @@ def build_ope_pages(
         problems = generate_ope_problems(
             nums_a, nums_b, ini.operator, order, start_index,
             ini.a_decimal_places, ini.b_decimal_places, ini.carry_mode,
-            ini.remainder_mode,
+            ini.remainder_mode, ini.result_max,
         )
         blank_page, filled_page = build_ope_page_pair(problems, ini.columns, ini.vertical, ini.intermediate)
         pages_problems.append(problems)

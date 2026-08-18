@@ -7,6 +7,7 @@
 ## 動作の概要
 
 - `RendererRequest` と `build_command()` は `frac` 用の `numerator_digits`/`denominator_digits` を値付きCLIオプションへ、`same_denominator`/`different_denominators`/`proper_operands`/`proper_result` を真偽フラグへ変換する。これらは `latex` レンダラーの `nuts_calc_tex.py` だけが解釈するため、呼び出し側がレンダラー情報に基づいて送信可否を制御する(`backend/renderers.py:8-38,83-126`)。
+- `RendererRequest.result_max` は Web リクエストの整数値を `--result-max <value>` へ変換する。これは `nuts_calc_tex.py` の `ope` 全式形式に共通する最終結果上限であり、LaTeX専用パラメーターとして呼び出し側が `latexOnly` 項目からのみ送る(`backend/renderers.py:9-54,130-144`)。
 
 - `RENDERER_SCRIPTS`(`renderers.py:38-41`): レンダラー名(`'reportlab'`/`'latex'`)から呼び出すスクリプトの絶対パス(`BACKEND_DIR / 'nuts_calc.py'` / `BACKEND_DIR / 'nuts_calc_tex.py'`、`BACKEND_DIR` は `Path(__file__).resolve().parent`)へのレジストリ。`nuts_calc.py`/`nuts_calc_tex.py` は `renderers.py` と同じ `backend/` 直下にあるため、単純に `Path(__file__)` の親ディレクトリを基準に解決する(issue #88 のリポジトリ再編で `web/backend/renderers.py` から `backend/renderers.py` へ移動した際、旧 `REPO_ROOT = BACKEND_DIR.parent.parent`(2階層上、当時は `web/backend/` の2階層上がリポジトリルートだった)から変更)。スクリプトパスを絶対パス化しているため、呼び出し元プロセスの cwd に依存せずスクリプトを解決できる。
 - `get_renderer_name()`(`renderers.py:44-56`): env 変数 `NUTS_CALC_RENDERER` を読み、未設定なら `DEFAULT_RENDERER`(`'reportlab'`、既存動作を保つデフォルト)を返す。`RENDERER_SCRIPTS` に無い値が指定された場合は許可値一覧を含む `ValueError` を送出する。
@@ -41,6 +42,7 @@ issue #19 のトラッキング issue にある「将来 `nuts_calc.py`/`nuts_ca
 
 ## 変更履歴(git log より自動生成)
 
+- 32dd948 feat(#153): add reusable result ceiling for ope drills
 - 392edbf feat(#93): add optional name field to nuts_calc_tex.py worksheets
 - eae5107 #91 nuts_calc_tex.py: add remainder control to division (none/required/mixed) (#102)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

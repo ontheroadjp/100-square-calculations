@@ -1,18 +1,19 @@
 # Consistency Checks
 
-CI 定義が存在しないため、整合性はローカルで再現可能なコマンドと実装参照で保証する。以下は `/init-docs` documentation-only mode 再実行(2026-08-12、issue #88 のリポジトリ再編 [`backend/` + `frontend/{spa,web}`] 直後)の結果である。
+CI 定義が存在しないため、整合性はローカルで再現可能なコマンドと実装参照で保証する。以下は `/init-docs` documentation-only mode 再実行(2026-08-18、issue #153)の結果である。
 
 ## 実体に対する検証
 
 | 観点 | 検証 | 結果・根拠 |
 |---|---|---|
 | ReportLab CLI | `cd backend && python3 nuts_calc.py A4 ope ...` を実行 | PDF を生成して成功。コマンド定義は `backend/nuts_calc.py` |
-| Python tests | `cd backend && python3 -m pytest -q --ignore=tests/test_nuts_calc_init.py` | 398 passed。全体は420件、除外ファイルは既知どおり9 failed / 13 passed(除外せずフルスイートを実行すると411 passed, 9 failed) |
+| Python tests | `cd backend && python3 -m pytest -q --ignore=tests/test_nuts_calc_init.py` | 564 passed。全体は586件、除外ファイルは既知どおり9 failed / 13 passed(合算すると577 passed, 9 failed) |
 | Frontend(spa) tests | `node --test frontend/spa/src/drillPresets.test.js frontend/spa/src/drillCatalog.test.js frontend/spa/src/verticalLayout.test.js` | 17 passed |
 | Frontend(spa) build | `cd frontend/spa && npm run build` | 成功 |
 | Frontend(spa) lint | `cd frontend/spa && npm run lint` | 1失敗。`drillPresets.js:433` の全角空白を `no-irregular-whitespace` が拒否(既知、継続中) |
 | Frontend(web) build | `cd frontend/web && npm run build` | 成功。`dist/index.html`/`catalog.html`/`preset.html` の3エントリを出力(`custom.html` は issue #97 で削除) |
-| API | ルートと renderer 変換をソース/pytest で照合 | `POST /generate-pdf` と `GET /renderer-info` の2本。`carry_mode` を含む backend テストは上記398件に含まれ成功 |
+| Frontend(web) tests | `node --test frontend/web/src/drillPresets.test.js frontend/web/src/presetDetail.test.js` | 30 passed |
+| API | ルートと renderer 変換をソース/pytest で照合 | `POST /generate-pdf` と `GET /renderer-info` の2本。`result_max` を含む backend テストは上記564件に含まれ成功 |
 | Web バックエンド実プロセス | `backend/app.py` を起動し `frontend/spa`・`frontend/web` の両方からブラウザで検証(issue #88)。`frontend/web` は issue #99 で学年選択(トップ)→カテゴリ別ドリル一覧(カタログ)の2画面に再構築済み(検索・絞り込みUI・カスタム生成フォームはいずれも issue #97/#99 で撤去済み) | 学年選択→カテゴリ別ドリル一覧→PDF生成/プレビュー/ダウンロードがいずれも正常動作。pytest による自動結合テストではなく手動確認 |
 
 ## docs → 実体
@@ -39,7 +40,7 @@ CI 定義が存在しないため、整合性はローカルで再現可能な�
 - `npm run lint`(`frontend/spa`)は `drillPresets.js:433` のコメント内全角空白で失敗する。修正方針は未決定であり、対象ソースと `frontend/spa/eslint.config.js` を確認する必要がある。
 - `factory.sh` の全量実行、Flask と frontend の実プロセス結合の自動テスト化、production deploy、`backend/generated_pdfs/` の清掃運用は未確認。確定には運用設定または E2E/deploy 定義が必要だが、現行リポジトリには存在しない。
 - README.md と README_ja.md は `Architecture`/`Design Principles` の有無などで完全な対訳ではない。日本語版同期が意図的かはリポジトリから確定できない。
-- `frontend/web` に `frontend/spa` 相当の自動テストを追加するかどうかの方針は未確認。
+- frontendのブラウザDOM/E2Eテスト方針は未確認。現行 `node:test` は純粋関数のみを対象とする。
 
 ## 判定
 

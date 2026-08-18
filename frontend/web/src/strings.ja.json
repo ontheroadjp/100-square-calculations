@@ -213,6 +213,8 @@
   "menu_g1_three_terms_desc": "3つの数を順に計算する練習です。足し算のみ、または足し算・引き算を混ぜて出題します。",
   "menu_g2_add_2digit_title": "100までの足し算",
   "menu_g2_add_2digit_desc": "1桁と2桁、2桁どうしを含む、2桁までの足し算を練習します。",
+  "menu_g2_add_result_1000_title": "答えが1,000までの足し算",
+  "menu_g2_add_result_1000_desc": "答えが1,000までになる、3桁までの数の足し算を練習します。",
   "menu_g2_sub_2digit_title": "100までの引き算",
   "menu_g2_sub_2digit_desc": "1桁を引くものや2桁どうしを含む、2桁までの引き算を練習します。",
   "menu_g2_kuku_title": "九九",
