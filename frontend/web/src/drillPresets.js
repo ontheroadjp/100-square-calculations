@@ -392,22 +392,17 @@ const grade3 = {
       pointKey: 'menu_g3_decimal_addsub_point',
       difficultyKey: 'difficulty_basic',
       examples: ['2.4+3.1', '4.7+1.6'],
-      // Partial: nuts_calc_tex.py's --carry-borrow family rejects
-      // --a-decimal-places/--b-decimal-places (nuts_calc_tex.py:610-611),
-      // so the carry setting can't be honored yet. Tracked in #113. The
-      // preview below is illustrative only (matches the setting's meaning,
-      // not what the backend will actually generate).
       examplesFor: examplesByChoice(['carryMode'], {
         none: ['2.4+3.1'],
         required: ['4.7+1.6'],
         mixed: ['2.4+3.1', '4.7+1.6'],
       }),
       settings: [carrySetting('setting_carry_label')],
-      supportLevel: 'partial',
+      supportLevel: 'full',
       latexOnly: true,
-      buildParams: () => ({
+      buildParams: (state) => ({
         command_type: 'ope', operator: ['add'], a_value: 1, b_value: 1,
-        a_decimal_places: 1, b_decimal_places: 1,
+        a_decimal_places: 1, b_decimal_places: 1, ...carryModeField(['add'], state),
       }),
     },
     {
@@ -454,19 +449,17 @@ const grade3 = {
       pointKey: 'menu_g3_decimal_sub_point',
       difficultyKey: 'difficulty_basic',
       examples: ['5.7-2.3', '8.4-3.9'],
-      // Partial: see g3-decimal-addsub above (#113). The preview below is
-      // illustrative only, for the same reason.
       examplesFor: examplesByChoice(['carryMode'], {
         none: ['5.7-2.3'],
         required: ['8.4-3.9'],
         mixed: ['5.7-2.3', '8.4-3.9'],
       }),
       settings: [carrySetting('setting_borrow_label')],
-      supportLevel: 'partial',
+      supportLevel: 'full',
       latexOnly: true,
-      buildParams: () => ({
+      buildParams: (state) => ({
         command_type: 'ope', operator: ['sub'], a_value: 1, b_value: 1,
-        a_decimal_places: 1, b_decimal_places: 1,
+        a_decimal_places: 1, b_decimal_places: 1, ...carryModeField(['sub'], state),
       }),
     },
     {
@@ -678,20 +671,17 @@ const grade4 = {
       pointKey: 'menu_g4_decimal_add_point',
       difficultyKey: 'difficulty_basic',
       examples: ['3.74+2.8', '4.36+1.57'],
-      // Partial: see grade3 decimal add/sub (#113); carry setting can't be
-      // honored alongside --a-decimal-places/--b-decimal-places yet. The
-      // preview below is illustrative only, for the same reason.
       examplesFor: examplesByChoice(['carryMode'], {
         none: ['1.23+2.45', '5.12+3.14'],
         required: ['3.74+2.8', '4.36+1.57'],
         mixed: ['3.74+2.8', '4.36+1.57'],
       }),
       settings: [carrySetting('setting_carry_label')],
-      supportLevel: 'partial',
+      supportLevel: 'full',
       latexOnly: true,
-      buildParams: () => ({
+      buildParams: (state) => ({
         command_type: 'ope', operator: ['add'], a_value: 3, b_value: 3,
-        a_decimal_places: 2, b_decimal_places: 2,
+        a_decimal_places: 2, b_decimal_places: 2, ...carryModeField(['add'], state),
       }),
     },
   ],
@@ -703,19 +693,17 @@ const grade4 = {
       pointKey: 'menu_g4_decimal_sub_point',
       difficultyKey: 'difficulty_basic',
       examples: ['8.2-3.47', '6.35-2.8'],
-      // Partial: see g4-decimal-add above (#113). The preview below is
-      // illustrative only, for the same reason.
       examplesFor: examplesByChoice(['carryMode'], {
         none: ['9.87-3.21', '8.65-1.23'],
         required: ['8.2-3.47', '6.35-2.8'],
         mixed: ['8.2-3.47', '6.35-2.8'],
       }),
       settings: [carrySetting('setting_borrow_label')],
-      supportLevel: 'partial',
+      supportLevel: 'full',
       latexOnly: true,
-      buildParams: () => ({
+      buildParams: (state) => ({
         command_type: 'ope', operator: ['sub'], a_value: 3, b_value: 3,
-        a_decimal_places: 2, b_decimal_places: 2,
+        a_decimal_places: 2, b_decimal_places: 2, ...carryModeField(['sub'], state),
       }),
     },
   ],

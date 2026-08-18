@@ -6,7 +6,7 @@
 
 ## 動作の概要
 
-四則演算、繰り上がり・繰り下がり、余り、かっこ付き式、平坦なN項式、虫食い算などの生成契約を検証する。`result_max` については四則すべての通常2項式と表示値基準の小数判定、かっこ付き式、N項式、虫食い算を対象に、境界値を受理することと不可能な上限で `ValueError` になることを確認する(`backend/tests/test_nuts_calc_tex_ope_generation.py:103-136,602-617,720-735,784-796`)。
+四則演算、繰り上がり・繰り下がり、余り、かっこ付き式、平坦なN項式、虫食い算などの生成契約を検証する。`result_max` については四則すべての通常2項式と表示値基準の小数判定、かっこ付き式、N項式、虫食い算を対象に、境界値を受理することと不可能な上限で `ValueError` になることを確認する(`backend/tests/test_nuts_calc_tex_ope_generation.py:103-136,602-617,720-735,784-796`)。繰り上がり・繰り下がり(`carry_mode`)は整数専用テストに加え、`a_decimal_places`/`b_decimal_places` を設定した小数版でも同じ契約(`required`/`none` で判定が一致し、`OpeProblem` の桁数メタデータが保持される)を検証する(issue #113、`test_generate_add_sub_problems_applies_carry_and_borrow_filter_with_decimal_places`/`test_generate_ope_problems_decimal_carry_matches_illustrative_example`)。
 
 ## 重要な設計判断とその理由
 
