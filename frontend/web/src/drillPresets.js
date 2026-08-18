@@ -81,6 +81,7 @@ const grade1 = {
       id: 'g1-add-10',
       titleKey: 'menu_g1_add_10_title',
       descKey: 'menu_g1_add_10_desc',
+      pointKey: 'menu_g1_add_10_point',
       difficultyKey: 'difficulty_basic',
       examples: ['3+5', '6+4'],
       settings: [],
@@ -95,6 +96,7 @@ const grade1 = {
       id: 'g1-add-20',
       titleKey: 'menu_g1_add_20_title',
       descKey: 'menu_g1_add_20_desc',
+      pointKey: 'menu_g1_add_20_point',
       difficultyKey: 'difficulty_standard',
       examples: ['8+7', '9+6'],
       settings: [fixedSetting('carryMode', 'setting_carry_label', 'setting_option_required')],
@@ -111,6 +113,7 @@ const grade1 = {
       id: 'g1-sub-10',
       titleKey: 'menu_g1_sub_10_title',
       descKey: 'menu_g1_sub_10_desc',
+      pointKey: 'menu_g1_sub_10_point',
       difficultyKey: 'difficulty_basic',
       examples: ['8-3', '10-6'],
       settings: [],
@@ -125,6 +128,7 @@ const grade1 = {
       id: 'g1-sub-20',
       titleKey: 'menu_g1_sub_20_title',
       descKey: 'menu_g1_sub_20_desc',
+      pointKey: 'menu_g1_sub_20_point',
       difficultyKey: 'difficulty_standard',
       examples: ['13-7', '16-9'],
       settings: [fixedSetting('carryMode', 'setting_borrow_label', 'setting_option_required')],
@@ -141,6 +145,7 @@ const grade1 = {
       id: 'g1-three-terms',
       titleKey: 'menu_g1_three_terms_title',
       descKey: 'menu_g1_three_terms_desc',
+      pointKey: 'menu_g1_three_terms_point',
       difficultyKey: 'difficulty_advanced',
       examples: ['3+4+2', '8-3+4'],
       settings: [
@@ -179,6 +184,7 @@ const grade2 = {
       id: 'g2-add-2digit',
       titleKey: 'menu_g2_add_2digit_title',
       descKey: 'menu_g2_add_2digit_desc',
+      pointKey: 'menu_g2_add_2digit_point',
       difficultyKey: 'difficulty_basic',
       examples: ['34+5', '7+26', '42+35'],
       examplesFor: examplesByChoice(['carryMode'], {
@@ -198,6 +204,7 @@ const grade2 = {
       id: 'g2-add-result-1000',
       titleKey: 'menu_g2_add_result_1000_title',
       descKey: 'menu_g2_add_result_1000_desc',
+      pointKey: 'menu_g2_add_result_1000_point',
       difficultyKey: 'difficulty_advanced',
       examples: ['625+75', '999+1', '321+456'],
       examplesFor: examplesByChoice(['carryMode'], {
@@ -219,6 +226,7 @@ const grade2 = {
       id: 'g2-sub-2digit',
       titleKey: 'menu_g2_sub_2digit_title',
       descKey: 'menu_g2_sub_2digit_desc',
+      pointKey: 'menu_g2_sub_2digit_point',
       difficultyKey: 'difficulty_basic',
       examples: ['38-5', '32-7', '72-48'],
       examplesFor: examplesByChoice(['carryMode'], {
@@ -238,6 +246,7 @@ const grade2 = {
       id: 'g2-sub-result-1000',
       titleKey: 'menu_g2_sub_result_1000_title',
       descKey: 'menu_g2_sub_result_1000_desc',
+      pointKey: 'menu_g2_sub_result_1000_point',
       difficultyKey: 'difficulty_advanced',
       examples: ['500-125', '302-158', '456-321'],
       examplesFor: examplesByChoice(['carryMode'], {
@@ -259,6 +268,7 @@ const grade2 = {
       id: 'g2-kuku',
       titleKey: 'menu_g2_kuku_title',
       descKey: 'menu_g2_kuku_desc',
+      pointKey: 'menu_g2_kuku_point',
       difficultyKey: 'difficulty_basic',
       examples: ['3×7', '8×6'],
       examplesFor: (state) => {
@@ -320,6 +330,7 @@ const grade2 = {
       id: 'g2-addsub-mixed',
       titleKey: 'menu_g2_addsub_mixed_title',
       descKey: 'menu_g2_addsub_mixed_desc',
+      pointKey: 'menu_g2_addsub_mixed_point',
       difficultyKey: 'difficulty_standard',
       examples: ['35+24-18'],
       settings: [fixedSetting('operators', 'setting_operators_label', 'setting_option_addsub_mixed')],
@@ -334,6 +345,7 @@ const grade2 = {
       id: 'g2-parentheses',
       titleKey: 'menu_g2_parentheses_title',
       descKey: 'menu_g2_parentheses_desc',
+      pointKey: 'menu_g2_parentheses_point',
       difficultyKey: 'difficulty_standard',
       examples: ['35-(12+8)'],
       settings: [fixedSetting('parentheses', 'setting_parentheses_label', 'setting_option_present')],
@@ -354,11 +366,20 @@ const grade2 = {
 const grade3 = {
   addition: [
     {
+<<<<<<< HEAD
       id: 'g3-add-result-10000',
       titleKey: 'menu_g3_add_result_10000_title',
       descKey: 'menu_g3_add_result_10000_desc',
       difficultyKey: 'difficulty_advanced',
       examples: ['6250+750', '9999+1', '3210+4560'],
+=======
+      id: 'g3-add-3digit',
+      titleKey: 'menu_g3_add_3digit_title',
+      descKey: 'menu_g3_add_3digit_desc',
+      pointKey: 'menu_g3_add_3digit_point',
+      difficultyKey: 'difficulty_basic',
+      examples: ['625+75', '263+1', '521+365'],
+>>>>>>> main
       examplesFor: examplesByChoice(['carryMode'], {
         none: ['1234+5000', '3210+4560'],
         required: ['6250+750', '9999+1'],
@@ -369,13 +390,38 @@ const grade3 = {
       latexOnly: true,
       buildParams: (state) => ({
         command_type: 'ope', operator: ['add'], ...carryModeField(['add'], state),
+<<<<<<< HEAD
         a_min: 1, a_max: 9999, b_min: 1, b_max: 9999, result_max: 10000,
+=======
+        a_min: 1, a_max: 999, b_min: 1, b_max: 999,
+      }),
+    },
+    {
+      id: 'g3-add-4digit',
+      titleKey: 'menu_g3_add_4digit_title',
+      descKey: 'menu_g3_add_4digit_desc',
+      pointKey: 'menu_g3_add_4digit_point',
+      difficultyKey: 'difficulty_standard',
+      examples: ['3258+46', '583+2417'],
+      examplesFor: examplesByChoice(['carryMode'], {
+        none: ['1234+5', '6123+1642'],
+        required: ['3258+46', '583+2417'],
+        mixed: ['3258+46', '583+2417'],
+      }),
+      settings: [carrySetting('setting_carry_label')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: (state) => ({
+        command_type: 'ope', operator: ['add'], ...carryModeField(['add'], state),
+        a_min: 1, a_max: 9999, b_min: 1, b_max: 9999,
+>>>>>>> main
       }),
     },
     {
       id: 'g3-decimal-addsub',
       titleKey: 'menu_g3_decimal_addsub_title',
       descKey: 'menu_g3_decimal_addsub_desc',
+      pointKey: 'menu_g3_decimal_addsub_point',
       difficultyKey: 'difficulty_basic',
       examples: ['2.4+3.1', '4.7+1.6'],
       // Partial: nuts_calc_tex.py's --carry-borrow family rejects
@@ -413,11 +459,20 @@ const grade3 = {
   ],
   subtraction: [
     {
+<<<<<<< HEAD
       id: 'g3-sub-result-10000',
       titleKey: 'menu_g3_sub_result_10000_title',
       descKey: 'menu_g3_sub_result_10000_desc',
       difficultyKey: 'difficulty_advanced',
       examples: ['5000-1250', '3020-1580', '4560-3210'],
+=======
+      id: 'g3-sub-3digit',
+      titleKey: 'menu_g3_sub_3digit_title',
+      descKey: 'menu_g3_sub_3digit_desc',
+      pointKey: 'menu_g3_sub_3digit_point',
+      difficultyKey: 'difficulty_basic',
+      examples: ['625-75', '521-365'],
+>>>>>>> main
       examplesFor: examplesByChoice(['carryMode'], {
         none: ['4560-3210', '8640-5210'],
         required: ['5000-1250', '3020-1580'],
@@ -428,13 +483,38 @@ const grade3 = {
       latexOnly: true,
       buildParams: (state) => ({
         command_type: 'ope', operator: ['sub'], ...carryModeField(['sub'], state),
+<<<<<<< HEAD
         a_min: 1, a_max: 9999, b_min: 1, b_max: 9999, result_max: 10000,
+=======
+        a_min: 100, a_max: 999, b_min: 1, b_max: 999,
+      }),
+    },
+    {
+      id: 'g3-sub-4digit',
+      titleKey: 'menu_g3_sub_4digit_title',
+      descKey: 'menu_g3_sub_4digit_desc',
+      pointKey: 'menu_g3_sub_4digit_point',
+      difficultyKey: 'difficulty_standard',
+      examples: ['3258-46', '7234-3587'],
+      examplesFor: examplesByChoice(['carryMode'], {
+        none: ['3258-46', '9876-1234'],
+        required: ['7234-3587', '5000-1234'],
+        mixed: ['3258-46', '7234-3587'],
+      }),
+      settings: [carrySetting('setting_borrow_label')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: (state) => ({
+        command_type: 'ope', operator: ['sub'], ...carryModeField(['sub'], state),
+        a_min: 1000, a_max: 9999, b_min: 1, b_max: 9999,
+>>>>>>> main
       }),
     },
     {
       id: 'g3-decimal-sub',
       titleKey: 'menu_g3_decimal_sub_title',
       descKey: 'menu_g3_decimal_sub_desc',
+      pointKey: 'menu_g3_decimal_sub_point',
       difficultyKey: 'difficulty_basic',
       examples: ['5.7-2.3', '8.4-3.9'],
       // Partial: see g3-decimal-addsub above (#113). The preview below is
@@ -472,6 +552,7 @@ const grade3 = {
       id: 'g3-mul-2x1',
       titleKey: 'menu_g3_mul_2x1_title',
       descKey: 'menu_g3_mul_2x1_desc',
+      pointKey: 'menu_g3_mul_2x1_point',
       difficultyKey: 'difficulty_basic',
       examples: ['38×7', '24×5'],
       settings: [],
@@ -483,6 +564,7 @@ const grade3 = {
       id: 'g3-mul-3x1',
       titleKey: 'menu_g3_mul_3x1_title',
       descKey: 'menu_g3_mul_3x1_desc',
+      pointKey: 'menu_g3_mul_3x1_point',
       difficultyKey: 'difficulty_standard',
       examples: ['326×4', '425×7'],
       settings: [],
@@ -494,6 +576,7 @@ const grade3 = {
       id: 'g3-mul-2x2',
       titleKey: 'menu_g3_mul_2x2_title',
       descKey: 'menu_g3_mul_2x2_desc',
+      pointKey: 'menu_g3_mul_2x2_point',
       difficultyKey: 'difficulty_standard',
       examples: ['47×23', '34×28'],
       settings: [],
@@ -507,6 +590,7 @@ const grade3 = {
       id: 'g3-div-kuku',
       titleKey: 'menu_g3_div_kuku_title',
       descKey: 'menu_g3_div_kuku_desc',
+      pointKey: 'menu_g3_div_kuku_point',
       difficultyKey: 'difficulty_basic',
       examples: ['42÷7', '56÷8'],
       settings: [fixedSetting('remainderMode', 'setting_remainder_label', 'setting_option_none')],
@@ -521,6 +605,7 @@ const grade3 = {
       id: 'g3-div-remainder',
       titleKey: 'menu_g3_div_remainder_title',
       descKey: 'menu_g3_div_remainder_desc',
+      pointKey: 'menu_g3_div_remainder_point',
       difficultyKey: 'difficulty_standard',
       examples: ['47÷6', '29÷4'],
       settings: [fixedSetting('remainderMode', 'setting_remainder_label', 'setting_option_required')],
@@ -534,12 +619,22 @@ const grade3 = {
   ],
   'four-operations': [
     {
+<<<<<<< HEAD
       id: 'g3-addsub-mixed-result-1000',
       titleKey: 'menu_g3_addsub_mixed_result_1000_title',
       descKey: 'menu_g3_addsub_mixed_result_1000_desc',
       difficultyKey: 'difficulty_standard',
       examples: ['620+250+90', '840-320+180'],
       settings: [fixedSetting('operators', 'setting_operators_label', 'setting_option_addsub_mixed')],
+=======
+      id: 'g3-fraction-add',
+      titleKey: 'menu_g3_fraction_add_title',
+      descKey: 'menu_g3_fraction_add_desc',
+      pointKey: 'menu_g3_fraction_add_point',
+      difficultyKey: 'difficulty_basic',
+      examples: ['2/7+3/7'],
+      settings: [fixedSetting('denominator', 'setting_denominator_label', 'setting_option_same_denominator')],
+>>>>>>> main
       supportLevel: 'full',
       latexOnly: true,
       buildParams: () => ({
@@ -548,6 +643,7 @@ const grade3 = {
       }),
     },
     {
+<<<<<<< HEAD
       id: 'g3-parentheses-mul-result-1000',
       titleKey: 'menu_g3_parentheses_mul_result_1000_title',
       descKey: 'menu_g3_parentheses_mul_result_1000_desc',
@@ -557,6 +653,15 @@ const grade3 = {
         fixedSetting('operators', 'setting_operators_label', 'setting_option_addsubmul_mixed'),
         fixedSetting('parentheses', 'setting_parentheses_label', 'setting_option_present'),
       ],
+=======
+      id: 'g3-fraction-sub',
+      titleKey: 'menu_g3_fraction_sub_title',
+      descKey: 'menu_g3_fraction_sub_desc',
+      pointKey: 'menu_g3_fraction_sub_point',
+      difficultyKey: 'difficulty_basic',
+      examples: ['6/7-2/7'],
+      settings: [fixedSetting('denominator', 'setting_denominator_label', 'setting_option_same_denominator')],
+>>>>>>> main
       supportLevel: 'full',
       latexOnly: true,
       buildParams: () => ({
@@ -594,6 +699,7 @@ const grade4 = {
       id: 'g4-div-1digit',
       titleKey: 'menu_g4_div_1digit_title',
       descKey: 'menu_g4_div_1digit_desc',
+      pointKey: 'menu_g4_div_1digit_point',
       difficultyKey: 'difficulty_basic',
       examples: ['84÷4', '864÷6'],
       examplesFor: examplesByChoice(['remainderMode'], {
@@ -613,6 +719,7 @@ const grade4 = {
       id: 'g4-div-2digit',
       titleKey: 'menu_g4_div_2digit_title',
       descKey: 'menu_g4_div_2digit_desc',
+      pointKey: 'menu_g4_div_2digit_point',
       difficultyKey: 'difficulty_standard',
       examples: ['96÷12', '936÷24'],
       examplesFor: examplesByChoice(['remainderMode'], {
@@ -632,6 +739,7 @@ const grade4 = {
       id: 'g4-decimal-div-int',
       titleKey: 'menu_g4_decimal_div_int_title',
       descKey: 'menu_g4_decimal_div_int_desc',
+      pointKey: 'menu_g4_decimal_div_int_point',
       difficultyKey: 'difficulty_standard',
       examples: ['8.4÷4', '7.35÷5'],
       settings: [fixedSetting('divisor', 'setting_divisor_label', 'setting_option_integer')],
@@ -647,6 +755,7 @@ const grade4 = {
       id: 'g4-decimal-add',
       titleKey: 'menu_g4_decimal_add_title',
       descKey: 'menu_g4_decimal_add_desc',
+      pointKey: 'menu_g4_decimal_add_point',
       difficultyKey: 'difficulty_basic',
       examples: ['3.74+2.8', '4.36+1.57'],
       // Partial: see grade3 decimal add/sub (#113); carry setting can't be
@@ -671,6 +780,7 @@ const grade4 = {
       id: 'g4-decimal-sub',
       titleKey: 'menu_g4_decimal_sub_title',
       descKey: 'menu_g4_decimal_sub_desc',
+      pointKey: 'menu_g4_decimal_sub_point',
       difficultyKey: 'difficulty_basic',
       examples: ['8.2-3.47', '6.35-2.8'],
       // Partial: see g4-decimal-add above (#113). The preview below is
@@ -694,6 +804,7 @@ const grade4 = {
       id: 'g4-decimal-mul-int',
       titleKey: 'menu_g4_decimal_mul_int_title',
       descKey: 'menu_g4_decimal_mul_int_desc',
+      pointKey: 'menu_g4_decimal_mul_int_point',
       difficultyKey: 'difficulty_standard',
       examples: ['3.6×7', '2.35×4'],
       settings: [fixedSetting('multiplier', 'setting_multiplier_label', 'setting_option_integer')],
@@ -709,6 +820,7 @@ const grade4 = {
       id: 'g4-fraction-add',
       titleKey: 'menu_g4_fraction_add_title',
       descKey: 'menu_g4_fraction_add_desc',
+      pointKey: 'menu_g4_fraction_add_point',
       difficultyKey: 'difficulty_basic_standard',
       examples: ['3/8+2/8', '1 2/5+2 4/5'],
       examplesFor: examplesByChoice(['numberKind'], {
@@ -731,6 +843,7 @@ const grade4 = {
       id: 'g4-fraction-sub',
       titleKey: 'menu_g4_fraction_sub_title',
       descKey: 'menu_g4_fraction_sub_desc',
+      pointKey: 'menu_g4_fraction_sub_point',
       difficultyKey: 'difficulty_basic_standard',
       examples: ['7/9-4/9', '3 2/5-1 4/5'],
       examplesFor: examplesByChoice(['numberKind'], {
@@ -759,6 +872,7 @@ const grade4 = {
       id: 'g4-four-operations',
       titleKey: 'menu_g4_four_operations_title',
       descKey: 'menu_g4_four_operations_desc',
+      pointKey: 'menu_g4_four_operations_point',
       difficultyKey: 'difficulty_standard',
       examples: ['8+12÷3×2'],
       settings: [fixedSetting('operators', 'setting_operators_label', 'setting_option_four_operations')],
@@ -773,6 +887,7 @@ const grade4 = {
       id: 'g4-parentheses',
       titleKey: 'menu_g4_parentheses_title',
       descKey: 'menu_g4_parentheses_desc',
+      pointKey: 'menu_g4_parentheses_point',
       difficultyKey: 'difficulty_standard',
       examples: ['(8+4)×5-6'],
       settings: [fixedSetting('parentheses', 'setting_parentheses_label', 'setting_option_present')],
@@ -811,6 +926,7 @@ const grade5 = {
       id: 'g5-decimal-mul',
       titleKey: 'menu_g5_decimal_mul_title',
       descKey: 'menu_g5_decimal_mul_desc',
+      pointKey: 'menu_g5_decimal_mul_point',
       difficultyKey: 'difficulty_basic',
       examples: ['3.6×2.4', '0.25×1.6'],
       settings: [fixedSetting('multiplier', 'setting_multiplier_label', 'setting_option_decimal')],
@@ -827,6 +943,7 @@ const grade5 = {
       id: 'g5-decimal-div',
       titleKey: 'menu_g5_decimal_div_title',
       descKey: 'menu_g5_decimal_div_desc',
+      pointKey: 'menu_g5_decimal_div_point',
       difficultyKey: 'difficulty_standard',
       examples: ['7.56÷1.2', '4.8÷0.6'],
       settings: [fixedSetting('divisor', 'setting_divisor_label', 'setting_option_decimal')],
@@ -843,6 +960,7 @@ const grade5 = {
       id: 'g5-decimal-four-ops',
       titleKey: 'menu_g5_decimal_four_ops_title',
       descKey: 'menu_g5_decimal_four_ops_desc',
+      pointKey: 'menu_g5_decimal_four_ops_point',
       difficultyKey: 'difficulty_standard',
       examples: ['3.6×2.5+4.8÷1.2'],
       settings: [fixedSetting('operators', 'setting_operators_label', 'setting_option_four_operations')],
@@ -859,6 +977,7 @@ const grade5 = {
       id: 'g5-simplify',
       titleKey: 'menu_g5_simplify_title',
       descKey: 'menu_g5_simplify_desc',
+      pointKey: 'menu_g5_simplify_point',
       difficultyKey: 'difficulty_basic',
       examples: ['18/24 → 3/4'],
       settings: [],
@@ -870,6 +989,7 @@ const grade5 = {
       id: 'g5-commondenom',
       titleKey: 'menu_g5_commondenom_title',
       descKey: 'menu_g5_commondenom_desc',
+      pointKey: 'menu_g5_commondenom_point',
       difficultyKey: 'difficulty_basic',
       examples: ['1/3, 1/4 → 4/12, 3/12'],
       settings: [],
@@ -881,6 +1001,7 @@ const grade5 = {
       id: 'g5-fraction-add',
       titleKey: 'menu_g5_fraction_add_title',
       descKey: 'menu_g5_fraction_add_desc',
+      pointKey: 'menu_g5_fraction_add_point',
       difficultyKey: 'difficulty_standard',
       examples: ['2/3+3/5', '1 2/3+2 3/5'],
       examplesFor: examplesByChoice(['denominator', 'numberKind'], {
@@ -909,6 +1030,7 @@ const grade5 = {
       id: 'g5-fraction-sub',
       titleKey: 'menu_g5_fraction_sub_title',
       descKey: 'menu_g5_fraction_sub_desc',
+      pointKey: 'menu_g5_fraction_sub_point',
       difficultyKey: 'difficulty_standard',
       examples: ['5/6-1/4', '3 5/6-1 1/4'],
       examplesFor: examplesByChoice(['denominator', 'numberKind'], {
@@ -939,6 +1061,7 @@ const grade5 = {
       id: 'g5-frac2dec',
       titleKey: 'menu_g5_frac2dec_title',
       descKey: 'menu_g5_frac2dec_desc',
+      pointKey: 'menu_g5_frac2dec_point',
       difficultyKey: 'difficulty_basic',
       examples: ['3/4 → 0.75'],
       settings: [],
@@ -950,6 +1073,7 @@ const grade5 = {
       id: 'g5-dec2frac',
       titleKey: 'menu_g5_dec2frac_title',
       descKey: 'menu_g5_dec2frac_desc',
+      pointKey: 'menu_g5_dec2frac_point',
       difficultyKey: 'difficulty_basic',
       examples: ['0.6 → 3/5'],
       settings: [],
@@ -961,6 +1085,7 @@ const grade5 = {
       id: 'g5-divfrac',
       titleKey: 'menu_g5_divfrac_title',
       descKey: 'menu_g5_divfrac_desc',
+      pointKey: 'menu_g5_divfrac_point',
       difficultyKey: 'difficulty_basic',
       examples: ['2÷3 → 2/3'],
       settings: [],
@@ -974,6 +1099,7 @@ const grade5 = {
       id: 'g5-evenodd',
       titleKey: 'menu_g5_evenodd_title',
       descKey: 'menu_g5_evenodd_desc',
+      pointKey: 'menu_g5_evenodd_point',
       difficultyKey: 'difficulty_basic',
       examples: ['37 → 奇数', '48 → 偶数'],
       settings: [],
@@ -985,6 +1111,7 @@ const grade5 = {
       id: 'g5-multiples',
       titleKey: 'menu_g5_multiples_title',
       descKey: 'menu_g5_multiples_desc',
+      pointKey: 'menu_g5_multiples_point',
       difficultyKey: 'difficulty_basic',
       examples: ['6 → 6,12,18,…'],
       settings: [],
@@ -996,6 +1123,7 @@ const grade5 = {
       id: 'g5-divisors',
       titleKey: 'menu_g5_divisors_title',
       descKey: 'menu_g5_divisors_desc',
+      pointKey: 'menu_g5_divisors_point',
       difficultyKey: 'difficulty_basic',
       examples: ['12 → 1,2,3,4,6,12'],
       settings: [],
@@ -1007,6 +1135,7 @@ const grade5 = {
       id: 'g5-lcm',
       titleKey: 'menu_g5_lcm_title',
       descKey: 'menu_g5_lcm_desc',
+      pointKey: 'menu_g5_lcm_point',
       difficultyKey: 'difficulty_standard',
       examples: ['6と8 → 最小公倍数24'],
       settings: [],
@@ -1018,6 +1147,7 @@ const grade5 = {
       id: 'g5-gcd',
       titleKey: 'menu_g5_gcd_title',
       descKey: 'menu_g5_gcd_desc',
+      pointKey: 'menu_g5_gcd_point',
       difficultyKey: 'difficulty_standard',
       examples: ['18と24 → 最大公約数6'],
       settings: [],
@@ -1038,6 +1168,7 @@ const grade6 = {
       id: 'g6-fraction-mul-int',
       titleKey: 'menu_g6_fraction_mul_int_title',
       descKey: 'menu_g6_fraction_mul_int_desc',
+      pointKey: 'menu_g6_fraction_mul_int_point',
       difficultyKey: 'difficulty_basic',
       examples: ['3/5×4'],
       // Partial: no way to force/forbid a reducible raw result. #114. The
@@ -1062,6 +1193,7 @@ const grade6 = {
       id: 'g6-int-mul-fraction',
       titleKey: 'menu_g6_int_mul_fraction_title',
       descKey: 'menu_g6_int_mul_fraction_desc',
+      pointKey: 'menu_g6_int_mul_fraction_point',
       difficultyKey: 'difficulty_basic',
       examples: ['4×3/5'],
       // Partial: see g6-fraction-mul-int above (#114). The preview below is
@@ -1086,6 +1218,7 @@ const grade6 = {
       id: 'g6-fraction-mul',
       titleKey: 'menu_g6_fraction_mul_title',
       descKey: 'menu_g6_fraction_mul_desc',
+      pointKey: 'menu_g6_fraction_mul_point',
       difficultyKey: 'difficulty_basic',
       examples: ['3/5×7/9'],
       // Partial: see g6-fraction-mul-int above (#114). The preview below is
@@ -1109,6 +1242,7 @@ const grade6 = {
       id: 'g6-fraction-div-int',
       titleKey: 'menu_g6_fraction_div_int_title',
       descKey: 'menu_g6_fraction_div_int_desc',
+      pointKey: 'menu_g6_fraction_div_int_point',
       difficultyKey: 'difficulty_basic',
       examples: ['5/6÷3'],
       // Partial: see g6-fraction-mul-int above (#114). The preview below is
@@ -1133,6 +1267,7 @@ const grade6 = {
       id: 'g6-int-div-fraction',
       titleKey: 'menu_g6_int_div_fraction_title',
       descKey: 'menu_g6_int_div_fraction_desc',
+      pointKey: 'menu_g6_int_div_fraction_point',
       difficultyKey: 'difficulty_standard',
       examples: ['4÷2/3'],
       // Partial: see g6-fraction-mul-int above (#114). The preview below is
@@ -1157,6 +1292,7 @@ const grade6 = {
       id: 'g6-fraction-div',
       titleKey: 'menu_g6_fraction_div_title',
       descKey: 'menu_g6_fraction_div_desc',
+      pointKey: 'menu_g6_fraction_div_point',
       difficultyKey: 'difficulty_standard',
       examples: ['3/4÷2/5'],
       // Partial: see g6-fraction-mul-int above (#114). The preview below is
@@ -1180,6 +1316,7 @@ const grade6 = {
       id: 'g6-fraction-muldiv-mixed',
       titleKey: 'menu_g6_fraction_muldiv_mixed_title',
       descKey: 'menu_g6_fraction_muldiv_mixed_desc',
+      pointKey: 'menu_g6_fraction_muldiv_mixed_point',
       difficultyKey: 'difficulty_standard',
       examples: ['3/4×2/5÷7/10'],
       settings: [fixedSetting('operators', 'setting_operators_label', 'setting_option_muldiv_mixed')],
@@ -1194,6 +1331,7 @@ const grade6 = {
       id: 'g6-fraction-four-ops',
       titleKey: 'menu_g6_fraction_four_ops_title',
       descKey: 'menu_g6_fraction_four_ops_desc',
+      pointKey: 'menu_g6_fraction_four_ops_point',
       difficultyKey: 'difficulty_standard',
       examples: ['2/3+1/4×6/5'],
       settings: [fixedSetting('operators', 'setting_operators_label', 'setting_option_four_operations')],
@@ -1208,6 +1346,7 @@ const grade6 = {
       id: 'g6-fraction-decimal-mixed',
       titleKey: 'menu_g6_fraction_decimal_mixed_title',
       descKey: 'menu_g6_fraction_decimal_mixed_desc',
+      pointKey: 'menu_g6_fraction_decimal_mixed_point',
       difficultyKey: 'difficulty_standard',
       examples: ['3/4+0.5'],
       settings: [fixedSetting('numberKind', 'setting_number_kind_label', 'setting_option_fraction_decimal_mixed')],
@@ -1236,6 +1375,7 @@ const ungraded = {
       id: 'ungraded-abc',
       titleKey: 'menu_ungraded_abc_title',
       descKey: 'menu_ungraded_abc_desc',
+      pointKey: 'menu_ungraded_abc_point',
       difficultyKey: 'difficulty_standard',
       examples: [],
       settings: [],
@@ -1247,6 +1387,7 @@ const ungraded = {
       id: 'ungraded-squ',
       titleKey: 'menu_ungraded_squ_title',
       descKey: 'menu_ungraded_squ_desc',
+      pointKey: 'menu_ungraded_squ_point',
       difficultyKey: 'difficulty_basic',
       examples: [],
       settings: [],
