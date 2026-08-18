@@ -1,6 +1,6 @@
 # Web API
 
-Flask backend は worksheet 生成と renderer 能力確認の2エンドポイントを提供する。DB は使わず、生成 CLI を subprocess として起動して PDF を返す。この分離により backend は計算問題ロジックを重複実装せず、CLI を唯一の生成実装として再利用する(`backend/app.py:15-58`、`backend/renderers.py:170-189`)。
+Flask backend は worksheet 生成(PDF)・問題データのみ生成(JSON、issue #138)・renderer 能力確認の3エンドポイントを提供する。DB は使わない。`POST /generate-pdf` は生成 CLI を subprocess として起動して PDF を返し、backend はこの生成ロジックを重複実装しない(`backend/app.py:15-50`、`backend/renderers.py:170-189`)。`POST /generate-problems`(`command_type='ope'` のみ対応)は例外で、CLI を subprocess 起動せず、`backend/problem_generation.py` が CLI スクリプト内の既存データ生成関数をプロセス内で直接呼び出す(`backend/problem_generation.py:53-91`)。
 
 ## `POST /generate-pdf`
 
@@ -27,6 +27,24 @@ backend は renderer 互換性を事前検証せず、値を CLI option へ変�
 | renderer 設定/CLI 実行/ファイル/予期しない例外 | 500 | `{ "error": "..." }` |
 
 CLI は validation error を stdout に出すため、`CalledProcessError` 時は stdout を stderr より優先してエラー本文へ使う(`backend/app.py:39-44`)。
+
+## `POST /generate-problems`(issue #138)
+
+### Request
+
+`Content-Type: application/json`。`paper_size`、`command_type`(現時点では `'ope'` のみ)、`num`(生成する問題数、正の整数)が必須で、いずれか欠落・`num` が不正な場合は HTTP 400 を返す(`backend/app.py`)。それ以外の任意フィールドは `POST /generate-pdf` と同じ `RendererRequest` を使う。
+
+### Processing and response
+
+`renderers.get_renderer_name()` で解決した renderer(`reportlab`/`latex`)に応じて `backend/problem_generation.py` の `_generate_ope_problems_reportlab`/`_generate_ope_problems_latex` を呼ぶ。両者とも `nuts_calc.py`/`nuts_calc_tex.py` の既存データ生成関数をプロセス内で直接呼び出すのみで、subprocess は起動せず PDF/LaTeX ファイルも生成しない(`backend/problem_generation.py:53-91`)。
+
+| 条件 | Status | Body |
+|---|---:|---|
+| 成功 | 200 | `{ "problems": [...] }` |
+| JSON なし / 必須値欠落・`num` 不正 | 400 | `{ "error": "..." }` |
+| `command_type` が `'ope'` 以外、未対応の `ope` 亜種フラグ、その他データ層のエラー | 500 | `{ "error": "..." }` |
+
+`ope` の `--use-parentheses`/`--missing-value`/`--terms`系/`--mixed-operators`、および `'ope'` 以外の `command_type` は明示的に拒否される(issue #166 のsub-issueで追って対応)。
 
 ## `GET /renderer-info`
 

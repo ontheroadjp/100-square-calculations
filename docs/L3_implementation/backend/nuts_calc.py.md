@@ -59,6 +59,7 @@
 
 ## 変更履歴(git log より自動生成)
 
+- a29ed4a feat(#138): add POST /generate-problems for PDF-free ope problem generation
 - 72ce344 fix(#155): compute kuku descend order directly instead of reversing the wrapped ascending sequence
 - 486d677 #149 Cap kuku multiplier at 1-9 in nuts_calc.py's 99 command (#151)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

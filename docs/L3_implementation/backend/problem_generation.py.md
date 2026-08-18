@@ -42,4 +42,4 @@
 
 ## 変更履歴(git log より自動生成)
 
-(新規ファイル。issue #138 で追加)
+- a29ed4a feat(#138): add POST /generate-problems for PDF-free ope problem generation

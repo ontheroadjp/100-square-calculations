@@ -43,6 +43,7 @@ issue #19 のトラッキング issue にある「将来 `nuts_calc.py`/`nuts_ca
 
 ## 変更履歴(git log より自動生成)
 
+- a29ed4a feat(#138): add POST /generate-problems for PDF-free ope problem generation
 - f3e823d feat(#114): add reducibility control to frac/mixed multiplication and division
 - 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)
 - 26ec449 #93 nuts_calc_tex.py: add optional name field to generated worksheets (#105)

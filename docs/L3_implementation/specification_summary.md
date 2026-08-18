@@ -23,6 +23,13 @@ DB は存在しないため `database.md` は生成していない(永続化層�
 - 出力: 成功時は PDF attachment。JSON/必須値欠落は HTTP 400、renderer/CLI 等の実行時失敗は HTTP 500(`backend/app.py:17-50`)。
 - 入力検証: 必須キーの存在だけを backend で検証し、値の allowlist は CLI の argparse に委ねる。
 
+### `POST /generate-problems`(issue #138)
+
+- 入力: `POST /generate-pdf` と同じ JSON ボディに加え、生成する問題数を指定する `num`(正の整数、必須)。現時点では `command_type='ope'` の素の2項四則演算のみ対応。
+- 処理: subprocess は起動せず、`backend/problem_generation.py` が `nuts_calc.py`/`nuts_calc_tex.py` の既存データ生成関数(`get_operation_data`/`generate_ope_problems`)をプロセス内で直接呼び出す。PDF/LaTeXファイルは一切生成しない(`backend/problem_generation.py:53-91`)。
+- 出力: 成功時は `{'problems': [...]}` を HTTP 200 で返す。必須値欠落は HTTP 400、`command_type='ope'` 以外や未対応の `ope` 亜種フラグ(`use_parentheses`/`missing_value`/`terms`系/`mixed_operators`)を含む場合は `ValueError` を HTTP 500 で返す(`backend/app.py`)。
+- 位置づけ: issue #166「データ層とプレゼンテーション層の分離」の最初の実装。`ope` 以外の残りコマンドは同issue配下の `agenda` ラベル付き sub-issue(#167-#174)で追って対応する。
+
 ### `GET /renderer-info`(issue #46)
 
 - 入力: なし。
