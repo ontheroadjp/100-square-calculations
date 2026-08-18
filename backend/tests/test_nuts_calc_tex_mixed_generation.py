@@ -9,11 +9,24 @@ fractions.Fraction, rendered as a LaTeX fraction (see
 nuts_calc_tex.py.md's decimal-arithmetic design note).
 """
 
+import math
 from fractions import Fraction
 
 import pytest
 
 import nuts_calc_tex as tex_module
+
+
+def _raw_gcd(problem: tex_module.MixedProblem) -> int:
+    """gcd of a two-term mul/div problem's unreduced (pre-simplification) product/quotient."""
+    a, b = problem.operands
+    if problem.operators[0] == "mul":
+        raw_numerator = a.raw_numerator * b.raw_numerator
+        raw_denominator = a.raw_denominator * b.raw_denominator
+    else:
+        raw_numerator = a.raw_numerator * b.raw_denominator
+        raw_denominator = a.raw_denominator * b.raw_numerator
+    return math.gcd(raw_numerator, raw_denominator)
 
 
 @pytest.mark.parametrize("kind", ["int", "decimal", "fraction"])
@@ -23,6 +36,15 @@ def test_random_mixed_operand_produces_positive_exact_value(kind: str) -> None:
         assert operand.kind == kind
         assert isinstance(operand.value, Fraction)
         assert operand.value > 0
+
+
+@pytest.mark.parametrize("kind", ["int", "decimal", "fraction"])
+def test_random_mixed_operand_populates_raw_numerator_denominator(kind: str) -> None:
+    for _ in range(50):
+        operand = tex_module.random_mixed_operand(kind, 2, 2, 1)
+        assert operand.raw_numerator is not None
+        assert operand.raw_denominator is not None
+        assert Fraction(operand.raw_numerator, operand.raw_denominator) == operand.value
 
 
 def test_random_mixed_operand_decimal_matches_display_string() -> None:
@@ -93,6 +115,37 @@ def test_generate_mixed_problems_first_term_uses_a_kinds_only() -> None:
     for problem in problems:
         assert problem.operands[0].kind == "fraction"
         assert problem.operands[1].kind == "int"
+
+
+@pytest.mark.parametrize("operator", ["mul", "div"])
+def test_generate_mixed_problems_require_reducible_forces_gcd_above_one(operator: str) -> None:
+    problems = tex_module.generate_mixed_problems(
+        ["fraction"], ["int"], [operator], False, 1, 1, 1, 2, 2, 30, 1,
+        reducible_mode="required",
+    )
+    assert len(problems) == 30
+    for problem in problems:
+        assert _raw_gcd(problem) > 1
+
+
+@pytest.mark.parametrize("operator", ["mul", "div"])
+def test_generate_mixed_problems_no_reducible_forces_coprime_raw_result(operator: str) -> None:
+    problems = tex_module.generate_mixed_problems(
+        ["int"], ["fraction"], [operator], False, 1, 1, 1, 2, 2, 30, 1,
+        reducible_mode="none",
+    )
+    assert len(problems) == 30
+    for problem in problems:
+        assert _raw_gcd(problem) == 1
+
+
+def test_generate_mixed_problems_mixed_reducible_covers_both_outcomes() -> None:
+    problems = tex_module.generate_mixed_problems(
+        ["fraction"], ["int"], ["mul"], False, 1, 1, 1, 2, 2, 30, 1,
+        reducible_mode="mixed",
+    )
+    outcomes = {_raw_gcd(problem) > 1 for problem in problems}
+    assert outcomes == {True, False}
 
 
 def test_generate_mixed_problems_division_result_is_exact_fraction_not_decimal() -> None:

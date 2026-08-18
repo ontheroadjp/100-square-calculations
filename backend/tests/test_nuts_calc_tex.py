@@ -22,6 +22,7 @@ test_nuts_calc_tex_conversion_generation.py.
 """
 
 import math
+import re
 import shutil
 import subprocess
 import sys
@@ -1333,6 +1334,137 @@ def test_cli_mixed_kind_options_rejected_on_non_mixed_command(run_tex_cli, tmp_p
     result = run_tex_cli("A4", "frac", "--a-kind", "int", "--out-file", "result.pdf")
     assert result.returncode == 1
     assert not (tmp_path / "result.pdf").exists()
+
+
+def _raw_gcd_frac_row(a_num, a_den, operator, b_num, b_den):
+    if operator == "mul":
+        raw_numerator, raw_denominator = a_num * b_num, a_den * b_den
+    else:
+        raw_numerator, raw_denominator = a_num * b_den, a_den * b_num
+    return math.gcd(raw_numerator, raw_denominator)
+
+
+@pytest.mark.parametrize(
+    ("reducible_flag", "operator", "check"),
+    [
+        ("--require-reducible", "mul", lambda gcd: gcd > 1),
+        ("--require-reducible", "div", lambda gcd: gcd > 1),
+        ("--no-reducible", "mul", lambda gcd: gcd == 1),
+        ("--no-reducible", "div", lambda gcd: gcd == 1),
+    ],
+)
+def test_cli_frac_reducible_flags_control_raw_gcd(run_tex_cli, tmp_path, reducible_flag, operator, check):
+    result = run_tex_cli(
+        "A4", "frac", "-o", operator, reducible_flag,
+        "--numerator-digits", "1", "--denominator-digits", "1", "--proper-operands",
+        "-r", "5", "-c", "5", "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    lines = (tmp_path / "result.csv").read_text().strip().splitlines()
+    assert len(lines) == 25
+    for row in lines:
+        _, _, a_num, a_den, op, b_num, b_den, *_ = row.split(",")
+        assert op == operator
+        gcd = _raw_gcd_frac_row(int(a_num), int(a_den), op, int(b_num), int(b_den))
+        assert check(gcd)
+
+
+def test_cli_frac_mixed_reducible_covers_both_outcomes(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "frac", "-o", "mul", "--mixed-reducible",
+        "--numerator-digits", "1", "--denominator-digits", "1", "--proper-operands",
+        "-r", "5", "-c", "5", "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    outcomes = {
+        _raw_gcd_frac_row(int(a_num), int(a_den), op, int(b_num), int(b_den)) > 1
+        for _, _, a_num, a_den, op, b_num, b_den, *_ in (
+            row.split(",") for row in (tmp_path / "result.csv").read_text().strip().splitlines()
+        )
+    }
+    assert outcomes == {True, False}
+
+
+@pytest.mark.parametrize(
+    "invalid_args",
+    [
+        ("ope", "-o", "mul", "--require-reducible"),
+        ("frac", "-o", "add", "--require-reducible"),
+        ("frac", "-o", "mix", "--require-reducible"),
+        ("mixed", "-o", "mul", "--require-reducible"),
+        ("mixed", "-o", "mul", "--a-kind", "fraction", "--b-kind", "int", "--terms", "3", "--require-reducible"),
+        ("mixed", "-o", "mul", "--a-kind", "fraction", "--b-kind", "fraction", "--require-reducible"),
+    ],
+)
+def test_cli_reducible_modes_reject_invalid_combinations(run_tex_cli, tmp_path, invalid_args):
+    result = run_tex_cli("A4", *invalid_args, "--out-file", "result.pdf")
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_reducible_rejects_combining_flags(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "frac", "-o", "mul", "--require-reducible", "--no-reducible",
+        "--out-file", "result.pdf",
+    )
+    assert result.returncode == 2
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def _parse_mixed_operand_display(display):
+    match = re.fullmatch(r"\\frac\{(\d+)\}\{(\d+)\}", display)
+    if match:
+        return int(match.group(1)), int(match.group(2))
+    return int(display), 1
+
+
+@pytest.mark.parametrize(
+    ("reducible_flag", "operator", "check"),
+    [
+        ("--require-reducible", "mul", lambda gcd: gcd > 1),
+        ("--require-reducible", "div", lambda gcd: gcd > 1),
+        ("--no-reducible", "mul", lambda gcd: gcd == 1),
+        ("--no-reducible", "div", lambda gcd: gcd == 1),
+    ],
+)
+def test_cli_mixed_reducible_flags_control_raw_gcd(run_tex_cli, tmp_path, reducible_flag, operator, check):
+    result = run_tex_cli(
+        "A4", "mixed", "-o", operator, reducible_flag,
+        "--a-kind", "fraction", "--b-kind", "int",
+        "--numerator-digits", "1", "--denominator-digits", "1",
+        "-r", "5", "-c", "5", "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    lines = (tmp_path / "result.csv").read_text().strip().splitlines()
+    assert len(lines) == 25
+    for row in lines:
+        _, _, _, _, expression, *_ = row.split(",")
+        a_display, op, b_display = expression.split(" ")
+        assert op == operator
+        a_num, a_den = _parse_mixed_operand_display(a_display)
+        b_num, b_den = _parse_mixed_operand_display(b_display)
+        gcd = _raw_gcd_frac_row(a_num, a_den, op, b_num, b_den)
+        assert check(gcd)
+
+
+def test_cli_mixed_mixed_reducible_covers_both_outcomes(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "mixed", "-o", "mul", "--mixed-reducible",
+        "--a-kind", "fraction", "--b-kind", "int",
+        "--numerator-digits", "1", "--denominator-digits", "1",
+        "-r", "5", "-c", "5", "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    outcomes = set()
+    for row in (tmp_path / "result.csv").read_text().strip().splitlines():
+        _, _, _, _, expression, *_ = row.split(",")
+        a_display, op, b_display = expression.split(" ")
+        a_num, a_den = _parse_mixed_operand_display(a_display)
+        b_num, b_den = _parse_mixed_operand_display(b_display)
+        outcomes.add(_raw_gcd_frac_row(a_num, a_den, op, b_num, b_den) > 1)
+    assert outcomes == {True, False}
 
 
 @pytest.mark.parametrize("command,check", [

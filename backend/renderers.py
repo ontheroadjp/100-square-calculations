@@ -26,6 +26,7 @@ class RendererRequest(TypedDict, total=False):
     operator: list[str]
     carry_mode: Literal["required", "none", "mixed"]
     remainder_mode: Literal["required", "none", "mixed"]
+    reducible_mode: Literal["required", "none", "mixed"]
     descend: bool
     reverse: bool
     shuffle: bool
@@ -76,6 +77,12 @@ REMAINDER_MODE_FLAGS = {
     "mixed": "--mixed-remainder",
 }
 
+REDUCIBLE_MODE_FLAGS = {
+    "required": "--require-reducible",
+    "none": "--no-reducible",
+    "mixed": "--mixed-reducible",
+}
+
 
 def get_renderer_name() -> str:
     """
@@ -115,7 +122,9 @@ def build_command(renderer_name: str, params: RendererRequest, out_file: str) ->
     unrecognized argument. `carry_mode` is likewise translated to the
     LaTeX-only `--carry-borrow`/`--no-carry-borrow`/`--mixed-carry-borrow`
     flags, and `remainder_mode` to the LaTeX-only `--remainder`/
-    `--no-remainder`/`--mixed-remainder` flags (issue #91).
+    `--no-remainder`/`--mixed-remainder` flags (issue #91). `reducible_mode`
+    is translated the same way to `--require-reducible`/`--no-reducible`/
+    `--mixed-reducible` (issue #114).
     """
     script_path = RENDERER_SCRIPTS[renderer_name]
     command = [sys.executable, str(script_path)]
@@ -170,6 +179,12 @@ def build_command(renderer_name: str, params: RendererRequest, out_file: str) ->
             allowed = ", ".join(REMAINDER_MODE_FLAGS)
             raise ValueError(f"Unknown remainder_mode {remainder_mode!r}. Must be one of: {allowed}.")
         command.append(REMAINDER_MODE_FLAGS[remainder_mode])
+    if "reducible_mode" in params:
+        reducible_mode = params["reducible_mode"]
+        if reducible_mode not in REDUCIBLE_MODE_FLAGS:
+            allowed = ", ".join(REDUCIBLE_MODE_FLAGS)
+            raise ValueError(f"Unknown reducible_mode {reducible_mode!r}. Must be one of: {allowed}.")
+        command.append(REDUCIBLE_MODE_FLAGS[reducible_mode])
     if params.get("descend"):
         command.append("--descend")
     if params.get("reverse"):

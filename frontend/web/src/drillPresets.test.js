@@ -207,6 +207,24 @@ test('grade 3 fraction items live under addition/subtraction, not a separate fra
   assert.ok(presetsByGrade[3].subtraction.some((item) => item.id === 'g3-fraction-sub'));
 });
 
+test('grade 6 fraction mul/div items support reducible_mode and are marked full (#114)', () => {
+  const ids = [
+    'g6-fraction-mul-int', 'g6-int-mul-fraction', 'g6-fraction-mul',
+    'g6-fraction-div-int', 'g6-int-div-fraction', 'g6-fraction-div',
+  ];
+  for (const id of ids) {
+    const item = presetsByGrade[6].fraction.find((candidate) => candidate.id === id);
+    const context = `grade 6 / fraction / ${id}`;
+
+    assert.ok(item, `${context}: item must exist`);
+    assert.equal(item.supportLevel, 'full', `${context}: supportLevel must be 'full'`);
+    assert.equal(item.buildParams({ reduction: 'required' }).reducible_mode, 'required', context);
+    assert.equal(item.buildParams({ reduction: 'none' }).reducible_mode, 'none', context);
+    assert.equal(item.buildParams({ reduction: 'mixed' }).reducible_mode, 'mixed', context);
+    assert.equal(item.buildParams({}).reducible_mode, 'mixed', `${context}: unset state defaults to 'mixed'`);
+  }
+});
+
 test('grade 2 kuku keeps mixed rows random and ignores the question-order state', () => {
   const item = presetsByGrade[2].multiplication.find((candidate) => candidate.id === 'g2-kuku');
   const expected = { command_type: 'ope', operator: ['mul'], a_min: 1, a_max: 9, b_min: 1, b_max: 9 };
