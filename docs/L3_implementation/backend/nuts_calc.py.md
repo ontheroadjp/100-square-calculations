@@ -38,6 +38,7 @@
 
 - **バリデーション失敗時は `exit(1)` を使う**: `com`/`99`/`squ`/`pi`(`-a` 必須)・`100`(`-a`/`-b` は3桁まで)のバリデーションは、かつて引数なし `exit()`(終了コード0)を使っており、`backend/app.py` の `subprocess.run(..., check=True)` がこれを「成功」とみなしてしまう不具合があった(issue #37 で `exit(1)` に修正済み)。ファイル内の他のバリデーションは元から `exit(1)` を使っており、この2箇所だけが例外的に `exit()` になっていた。
 - **`calc_sub`/`calc_div` は無限リトライしない**: `nums_a`/`nums_b` の組み合わせに解(`a - b > 0` あるいは `a % b == 0`)が存在しない場合、`while True` のままだと永久にハングする。`MAX_OPERAND_RETRY_ATTEMPTS`(1000)回で打ち切り、`ValueError` を送出して `main()` の `try/except`(`failure()`)経由で明確に失敗させる(issue #4 Phase 5)。
+- **`99`(九九)の乗数 `b` は常に1〜9に収める**: `get_fixed_format_data()` の `mode == '99'` 分岐(`nuts_calc.py:492-493`)は `num_list = [i % SINGLE_DIGIT_MAX for i in range(order)]`(既存定数 `SINGLE_DIGIT_MAX = 9` を再利用)で乗数列を生成する。`order`(1列あたりの行数、`get_vertical_contents_raw_dataset`: `order = rows`)が9を超える場合、10問目以降は `×1` から折り返して繰り返す。以前は `num_list = [i for i in range(order)]` で `b` が `order` に応じて9を超え(例: `frontend/web` の20問プリセットは `rows=10, columns=2` のため `b` が1〜10まで生成され、実在しない「×10」が出題されていた)、issue #149 で修正した。`squ`/`pi` 分岐(同じ関数、別の `num_list` 構築)はこの折り返しの対象外。`nuts_calc_tex.py::generate_kuku_problems` は独立実装で、`order` が9を超えても折り返さない設計(issue #24 で意図的に確認済み、[[nuts_calc_tex.py]] 参照)のままであり、本修正では変更していない。
 
 ## 統合ポイント
 

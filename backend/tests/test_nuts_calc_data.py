@@ -137,6 +137,20 @@ def test_get_fixed_format_data_99_multiplies_fixed_a_by_increasing_b():
         assert equal_marks[i][0] == "="
 
 
+def test_get_fixed_format_data_99_wraps_multiplier_at_nine_when_order_exceeds_nine():
+    # issue #149: the kuku multiplier must stay within 1-9 even when a
+    # column has more than 9 rows (e.g. the 20-question web preset uses
+    # rows=10, columns=2), repeating from x1 instead of continuing to x10+.
+    order = 10
+    data = nc.get_fixed_format_data("99", start_num=3, order=order, print_index=1)
+    _, vals_a, _, vals_b, _, vals_c = data
+
+    assert [row[0] for row in vals_b] == [1, 2, 3, 4, 5, 6, 7, 8, 9, 1]
+    for i in range(order):
+        assert vals_a[i][0] == 3
+        assert vals_c[i][0] == 3 * vals_b[i][0]
+
+
 def test_get_fixed_format_data_squ_squares_sequential_numbers():
     data = nc.get_fixed_format_data("squ", start_num=1, order=5, print_index=1)
     _, vals_a, _, vals_b, _, vals_c = data
