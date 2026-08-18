@@ -53,6 +53,7 @@ class RendererRequest(TypedDict, total=False):
     merge: bool
     csv: bool
     debug: bool
+    num: int  # problem_generation.py only: number of problems to generate (no PDF)
 
 
 BACKEND_DIR = Path(__file__).resolve().parent

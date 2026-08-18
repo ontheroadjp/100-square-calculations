@@ -47,3 +47,43 @@ def test_renderer_info_rejects_unknown_renderer_env_value(client, monkeypatch) -
     response = client.get("/renderer-info")
     assert response.status_code == 500
     assert "Unknown NUTS_CALC_RENDERER value" in response.get_json()["error"]
+
+
+def test_generate_problems_returns_problems_from_the_data_layer(client, monkeypatch) -> None:
+    monkeypatch.delenv(renderers.RENDERER_ENV_VAR, raising=False)
+    backend_app = sys.modules["app"]
+    monkeypatch.setattr(
+        backend_app.problem_generation, "generate_problems",
+        lambda data, renderer_name: [{"index": 1, "a": 2, "operator": "add", "b": 3, "result": 5}],
+    )
+    response = client.post("/generate-problems", json={"paper_size": "A4", "command_type": "ope", "num": 1})
+    assert response.status_code == 200
+    assert response.get_json() == {"problems": [{"index": 1, "a": 2, "operator": "add", "b": 3, "result": 5}]}
+
+
+def test_generate_problems_requires_paper_size_and_command_type(client) -> None:
+    response = client.post("/generate-problems", json={"num": 1})
+    assert response.status_code == 400
+    assert "Missing required parameters" in response.get_json()["error"]
+
+
+@pytest.mark.parametrize("num", [0, -1, "5", None])
+def test_generate_problems_rejects_invalid_num(client, num) -> None:
+    body = {"paper_size": "A4", "command_type": "ope"}
+    if num is not None:
+        body["num"] = num
+    response = client.post("/generate-problems", json=body)
+    assert response.status_code == 400
+    assert "num" in response.get_json()["error"]
+
+
+def test_generate_problems_maps_data_layer_value_error_to_500(client, monkeypatch) -> None:
+    backend_app = sys.modules["app"]
+
+    def raise_value_error(data, renderer_name):
+        raise ValueError("command_type 'frac' is not yet supported")
+
+    monkeypatch.setattr(backend_app.problem_generation, "generate_problems", raise_value_error)
+    response = client.post("/generate-problems", json={"paper_size": "A4", "command_type": "frac", "num": 1})
+    assert response.status_code == 500
+    assert "not yet supported" in response.get_json()["error"]

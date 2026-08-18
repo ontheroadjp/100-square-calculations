@@ -3,6 +3,7 @@ from flask_cors import CORS
 import subprocess
 import os
 
+import problem_generation
 import renderers
 
 app = Flask(__name__)
@@ -45,6 +46,31 @@ def generate_pdf():
     except FileNotFoundError:
         app.logger.error("Renderer script not found. Is the script in the correct path?")
         return jsonify({'error': 'Renderer script not found. Please ensure the script is in the correct path.'}), 500
+    except Exception as e:
+        app.logger.error(f"An unexpected error occurred: {e}")
+        return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
+
+@app.route('/generate-problems', methods=['POST'])
+def generate_problems():
+    data = request.json
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    if not data.get('paper_size') or not data.get('command_type'):
+        return jsonify({'error': 'Missing required parameters: paper_size or command_type'}), 400
+
+    num = data.get('num')
+    if not isinstance(num, int) or isinstance(num, bool) or num < 1:
+        return jsonify({'error': 'Missing or invalid required parameter: num (must be a positive integer)'}), 400
+
+    try:
+        renderer_name = renderers.get_renderer_name()
+        problems = problem_generation.generate_problems(data, renderer_name)
+        return jsonify({'problems': problems})
+
+    except ValueError as e:
+        app.logger.error(f"Invalid problem-generation request: {e}")
+        return jsonify({'error': str(e)}), 500
     except Exception as e:
         app.logger.error(f"An unexpected error occurred: {e}")
         return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500

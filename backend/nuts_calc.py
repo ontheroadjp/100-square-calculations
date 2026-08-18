@@ -84,6 +84,15 @@ from reportlab.lib import colors
 SINGLE_DIGIT_MAX = 9
 MAX_OPERAND_RETRY_ATTEMPTS = 1000
 MIN_ROWS_OR_COLUMNS = 1
+DIGIT_COUNT_TO_MIN_MAX = ((1, 9), (10, 99), (100, 999), (1000, 9999), (10000, 99999))
+
+
+def set_min_max_value(digit_count: int) -> tuple[int, int]:
+    """
+    Map a "number of digits" value (1-5, as used by -a/-b's digit-count
+    shorthand) to the (min, max) integer range with that many digits.
+    """
+    return DIGIT_COUNT_TO_MIN_MAX[digit_count - 1]
 
 
 def failure(e):
@@ -216,11 +225,6 @@ def _init():
         , help = 'Number of pages included in the output file'
     )
     args = parser.parse_args()
-
-    def set_min_max_value(value):
-        digits_list = ((1, 9), (10, 99), (100, 999), (1000, 9999), (10000, 99999))
-        min_val, max_val = digits_list[value - 1]
-        return [min_val, max_val]
 
     if args.command == 'ope':
         if args.a_value is not None:
