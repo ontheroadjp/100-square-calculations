@@ -68,6 +68,7 @@ TERM_COUNT_FLOOR_DEFAULT = 2
 TERM_COUNT_FLOOR_PARENTHESES = 3
 MAX_OPE_TERMS = 12
 INTERMEDIATE_SINGLE_DIGIT_MAX = 9
+KUKU_MULTIPLIER_MAX = 9
 MIN_COMPLEMENT_TARGET = 2
 ABC_DIGIT_MAX = 9
 TABCOLSEP_COUNT_PER_COLUMN = 2
@@ -2392,18 +2393,23 @@ def generate_kuku_problems(a_value: int, order: int, start_index: int, descend: 
     """
     Generate `order` times-table problems for the fixed row `a_value`, starting at `start_index`.
 
-    The multiplier `b` is drawn from the base sequence `1..order` -- an
-    independent reimplementation of nuts_calc.py's `get_fixed_format_data`
-    `mode == '99'` branch (`nuts_calc.py:508-522`), which likewise ties the
-    multiplier range to the page's row count rather than capping it at 9, so
-    `b` can exceed 9 when `order > 9`. `descend` reverses that sequence
-    (`order..1`); `shuffle` randomizes it after any `descend` reversal,
-    matching nuts_calc.py's `num_list.reverse()` then `random.shuffle()`
-    ordering (`nuts_calc.py:513-516`).
+    The multiplier `b` cycles through `1..KUKU_MULTIPLIER_MAX` -- only
+    genuine kuku facts are valid, so a page with more than 9 rows/columns
+    repeats from x1 instead of continuing past x9 (issue #152, reversing the
+    unbounded-multiplier design decision from issue #24, which mirrored
+    nuts_calc.py's own bug fixed in issue #149,
+    `nuts_calc.py:492-493`). `descend` computes the wrapped sequence in
+    descending order directly (`KUKU_MULTIPLIER_MAX - (i % KUKU_MULTIPLIER_MAX)`,
+    i.e. `9,8,...,1,9,8,...`) rather than reversing the ascending-wrapped
+    list, which would misplace the wrap boundary (issue #155: reversing
+    `1,2,...,9,1` produces `1,9,8,...,2,1`, starting at 1 instead of 9).
+    `shuffle` randomizes the resulting sequence after `descend` is applied,
+    matching nuts_calc.py's ordering (`nuts_calc.py:492-501`).
     """
-    multipliers = list(range(1, order + 1))
     if descend:
-        multipliers.reverse()
+        multipliers = [KUKU_MULTIPLIER_MAX - (i % KUKU_MULTIPLIER_MAX) for i in range(order)]
+    else:
+        multipliers = [(i % KUKU_MULTIPLIER_MAX) + 1 for i in range(order)]
     if shuffle:
         random.shuffle(multipliers)
     return [
