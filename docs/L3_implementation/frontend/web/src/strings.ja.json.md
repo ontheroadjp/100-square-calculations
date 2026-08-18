@@ -6,7 +6,7 @@
 
 ## 動作の概要
 
-画面見出し、操作ラベル、ドリル名、設定値などの日本語文言を一元管理する。難易度キーは `difficulty_basic`(基礎)、`difficulty_standard`(標準)、`difficulty_basic_standard`(基礎〜標準)、`difficulty_advanced`(発展)を定義する(`frontend/web/src/strings.ja.json:159-162`)。2年生の九九設定では `setting_question_order_label`(出題順序)と `setting_option_order_ascending`/`descending`/`random`(1から/9から/ランダム)を提供する(`frontend/web/src/strings.ja.json:163-195`)。2年生の発展項目には「答えが1,000までの足し算」というタイトルと、3桁までの数を使い答えを1,000以下にする説明を提供する(`frontend/web/src/strings.ja.json:214-217`)。
+画面見出し、操作ラベル、ドリル名、設定値などの日本語文言を一元管理する。難易度キーは `difficulty_basic`(基礎)、`difficulty_standard`(標準)、`difficulty_basic_standard`(基礎〜標準)、`difficulty_advanced`(発展)を定義する(`frontend/web/src/strings.ja.json:159-162`)。2年生の九九設定では `setting_question_order_label`(出題順序)と `setting_option_order_ascending`/`descending`/`random`(1から/9から/ランダム)を提供する(`frontend/web/src/strings.ja.json:163-195`)。2年生の発展項目には「答えが1,000までの足し算」「答えが1,000までの引き算」というタイトルと、3桁までの数を使い答えを1,000以下にする説明を提供する(`frontend/web/src/strings.ja.json:216-221`)。
 
 ## 統合ポイント
 
