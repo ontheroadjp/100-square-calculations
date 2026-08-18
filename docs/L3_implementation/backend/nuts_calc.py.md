@@ -57,14 +57,5 @@
 
 ## 変更履歴(git log より自動生成)
 
-- f613008 fix(#43): honor explicit -a/-b digit width for the '100' command
-- e619398 fix(#42): reject --intermediate with a non-mul operator instead of silently coercing it
-- 9ead364 refactor(#46): remove --vertical from nuts_calc.py; gate written-calculation UI on active renderer
-- 53eb72d fix(#37): surface renderer stdout in error responses; use exit(1) for -a/-b validation failures
-- 5d05c55 feat(#11): add vertical long-division (長除法) written-calculation format for div
-- 2a7cd15 feat(#10): support multi-digit multiplier in vertical mul output
-- 4aaf251 fix(#15): fix output filename derivation to use os.path.splitext
-- cfea9ed fix(#4): fix 9 logic bugs found in CLI, web backend, and frontend
-- 0a11eaf feat(#9): add vertical (written-calculation) output format for ope command
-- 5466cdb refactor: Clean up old script and apply flat design to frontend
-- d9fc0a3 refactor: Rename 100masu.py to nuts_calc.py and remove setup.py
+- b6cb2af fix(#149): cap kuku multiplier at 1-9 in nuts_calc.py's 99 command
+- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)
