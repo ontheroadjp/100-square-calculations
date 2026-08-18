@@ -100,7 +100,10 @@
 
 ## 変更履歴（git log より自動生成）
 
-- 1ae72a3 feat(#157): add per-grade/per-drill header descriptions via a shared page header component
+- 047cc4f feat(#161): resolve merge with main, add pointKey to new/moved grade-3 drill items
+- 130794b wip: 2026-08-18 16:09:52 before Edit drillPresets.js
+- d2a9746 feat(#161): rebuild grade-3 addition/subtraction menu and add four-operations drills
+- 9b366c1 #157 Add per-grade/per-drill header descriptions via a shared page header component (#160)
 - c9011f1 #154 Add grade-2 advanced subtraction capped at 1,000 (#159)
 - 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)
 - 06870bb #148 Add multiplication-table question-order options (#150)
