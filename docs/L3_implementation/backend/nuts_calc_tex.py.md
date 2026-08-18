@@ -341,11 +341,8 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴(git log より自動生成)
 
-<<<<<<< HEAD
 - f3e823d feat(#114): add reducibility control to frac/mixed multiplication and division
-=======
 - 8fdd41d fix(#113): allow nuts_calc_tex.py --carry-borrow with decimal operands
->>>>>>> origin/main
 - 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)
 - d2e8744 #152 #155 Fix kuku multiplier range and descend order in both renderers (#156)
 - e8db9d7 #112 nuts_calc_tex.py: add mixed-number (帯分数) display support to the frac command (#125)
