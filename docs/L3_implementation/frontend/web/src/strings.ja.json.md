@@ -20,7 +20,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- 32dd948 feat(#153): add reusable result ceiling for ope drills
+- 5f41b01 feat(#154): add grade-2 advanced subtraction capped at 1,000
+- 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)
 - 06870bb #148 Add multiplication-table question-order options (#150)
 - 85e58b1 #146 Add an advanced difficulty badge to the web UI (#147)
 - 1edfbb5 fix(frontend/web): clarify grade-2/3 arithmetic menu label wording
