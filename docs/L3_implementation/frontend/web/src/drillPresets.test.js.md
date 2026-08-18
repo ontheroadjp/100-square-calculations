@@ -6,7 +6,7 @@
 
 ## 動作の概要
 
-全学年と未分類の全メニュー項目を列挙し、カテゴリ、必須フィールド、設定、IDの一意性、既定設定からのリクエスト生成、動的例題を検証する。`difficultyKey` は `KNOWN_DIFFICULTY_KEYS` に含まれることを要求し、基礎・標準・基礎〜標準・発展以外の未知の値やタイプミスを失敗させる(`frontend/web/src/drillPresets.test.js:5-16,26-34,50-61`)。choice 設定の任意の `disabledWhen`/`resolveValue` が関数であることを検証し、2年生九九の固定段3順序がフラグなし/`descend`/`shuffle` へ変換されること、および「まぜる」が保持中の順序にかかわらず従来のランダム `ope` パラメータを返すことを回帰テストする(`frontend/web/src/drillPresets.test.js:65-107`)。
+全学年と未分類の全メニュー項目を列挙し、カテゴリ、必須フィールド、設定、IDの一意性、既定設定からのリクエスト生成、動的例題を検証する。`difficultyKey` は `KNOWN_DIFFICULTY_KEYS` に含まれることを要求し、基礎・標準・基礎〜標準・発展以外の未知の値やタイプミスを失敗させる(`frontend/web/src/drillPresets.test.js:5-16,26-34,50-61`)。`descKey` と同様に `pointKey`(issue #157、`presetDetail.js` のヘッダーdescription用)が文字列であることも検証する(`frontend/web/src/drillPresets.test.js:55-56`)。choice 設定の任意の `disabledWhen`/`resolveValue` が関数であることを検証し、2年生九九の固定段3順序がフラグなし/`descend`/`shuffle` へ変換されること、および「まぜる」が保持中の順序にかかわらず従来のランダム `ope` パラメータを返すことを回帰テストする(`frontend/web/src/drillPresets.test.js:65-107`)。
 
 2年生の発展足し算について、項目が addition カテゴリに存在し、`difficulty_advanced`/`latexOnly: true` を持ち、既定の「まぜる」状態から1〜999のオペランド範囲と `result_max: 1000` を生成することを検証する(`frontend/web/src/drillPresets.test.js:100-115`)。
 

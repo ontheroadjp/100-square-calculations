@@ -2,6 +2,7 @@ import katex from 'katex';
 import { t } from './strings.js';
 import { getVerticalRows, isVerticalOperation, VERTICAL_COLUMNS } from './verticalLayout.js';
 import { ICONS } from './icons.js';
+import { pageHeaderHtml } from './pageHeader.js';
 
 const API_BASE = 'http://127.0.0.1:5000';
 
@@ -180,16 +181,7 @@ export function mountPresetDetail(container, { grade, item, onBack }) {
     const examples = selectExamples(item, state.settingsState);
     return `
       <div class="preset-detail preset-detail-settings">
-        <header class="catalog-header">
-            <div class="catalog-header-title">
-                <a class="page-header-row" href="index.html">
-                    ${ICONS.chevronLeft}
-                    <h1 class="catalog-heading">${t(item.titleKey)}(${t(`grade_full_${grade}`)})</h1>
-                </a>
-            </div>
-            <p class="category-picker-heading catalog-header-sub-title">${t('category_picker_heading')}</p>
-        </header>
-
+        ${pageHeaderHtml(`${t(item.titleKey)}(${t(`grade_full_${grade}`)})`, t(item.pointKey))}
 
         <div class="page-header-row" data-action="back">
             <h3 class="preset-detail-title">問題サンプル</h3>

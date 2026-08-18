@@ -3,6 +3,7 @@ import { t } from './strings.js';
 import { GRADES, presetsByGrade } from './drillPresets.js';
 import { mountNavShell } from './navShell.js';
 import { ICONS } from './icons.js';
+import { pageHeaderHtml } from './pageHeader.js';
 
 mountNavShell();
 
@@ -97,12 +98,7 @@ async function render() {
     .filter(({ items }) => items.length > 0);
 
   container.innerHTML = `
-    <header class="catalog-header">
-        <div class="catalog-header-title">
-            <a class="page-header-row" href="index.html">${ICONS.chevronLeft}<h1 class="catalog-heading">${t(`grade_full_${grade}`)}</h1></a>
-        </div>
-        <p class="category-picker-heading catalog-header-sub-title">${t('category_picker_heading')}</p>
-    </header>
+    ${pageHeaderHtml(t(`grade_full_${grade}`), t(`grade_point_${grade}`))}
     ${sections.length > 0
       ? sections.map(({ category, items }) => categorySectionHtml(grade, category, items)).join('')
       : emptyStateHtml()}

@@ -9,7 +9,7 @@
 `GRADES`(`[1,2,3,4,5,6]`)・`UNGRADED`(`'ungraded'`)・`presetsByGrade` を export する。`presetsByGrade[grade]` は `{ <categoryId>: menuItem[] }` の形で、`categoryId` は `addition`/`subtraction`/`multiplication`/`division`/`fraction`/`four-operations`/`number-sense` のいずれか(該当する学年にのみ出現)。
 
 各 `menuItem` は以下を持つ:
-- `id`/`titleKey`/`descKey`: 全データモデル中で `id` は一意。
+- `id`/`titleKey`/`descKey`/`pointKey`: 全データモデル中で `id` は一意。`pointKey`(issue #157)は `presetDetail.js` のページヘッダーに表示する、保護者向けの平易な指導ポイント文言(60件、[[./pageHeader.js]] 参照)。既存の `descKey` は旧 `drillCatalog.js`(未使用、削除候補)向けの機械的な説明文のままで、`pointKey` とは用途・文体が異なる別フィールドとして併存する。
 - `difficultyKey`: `difficulty_basic`/`difficulty_standard`/`difficulty_basic_standard`/`difficulty_advanced` のいずれか(ドキュメントの「難易度」列)。1年生の `g1-three-terms` は `difficulty_advanced` を使用する(`frontend/web/src/drillPresets.js:139-145`)。
 - `examples`: ドキュメントの「計算式の例」列をそのまま文字列配列にしたもの。
 - `settings`: ドキュメントの「固有設定」「選択可能値」「固定値・表示」を表す配列。各要素は `type: 'choice'`(セグメントコントロール、`options`/`default` を持つ)または `type: 'fixed'`(表示のみで変更不可、`valueLabelKey` を持つ)。`choice` の各 `option` は任意で `hintKey` を持てる(issue #132)。依存設定には任意の `disabledWhen(state)` と `resolveValue(state)` を持たせ、選択肢を表示したまま非活性化し、その間の表示・サマリ値を強制できる。`presetDetail.js` がこれらを解釈する([[./presetDetail.js]] 参照、`frontend/web/src/drillPresets.js:236-264`)。
@@ -74,7 +74,7 @@
 
 ## 統合ポイント
 
-- 呼び出し元: `drillCatalog.js`(`GRADES`/`UNGRADED`/`presetsByGrade`)、`presetDetail.js`(`item.examplesFor`/`item.examples` を `selectExamples()` 経由で参照、[[./presetDetail.js]] 参照)。
+- 呼び出し元: `drillCatalog.js`(`GRADES`/`UNGRADED`/`presetsByGrade`)、`presetDetail.js`(`item.examplesFor`/`item.examples` を `selectExamples()` 経由で参照、`item.pointKey` をヘッダーdescriptionとして参照、[[./presetDetail.js]] 参照)。
 - 呼び出し先: なし(データ定義のみ)。
 
 ## 注意事項・既知の制限
