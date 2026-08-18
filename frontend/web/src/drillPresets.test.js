@@ -98,6 +98,41 @@ test('grade 2 kuku maps each fixed-row question order to renderer parameters', (
   assert.deepEqual(item.buildParams({ dan: '1', questionOrder: 'random' }), { command_type: '99', a_value: 1, shuffle: true });
 });
 
+test('grade 1 and grade 2 basic drills declare a self-documenting result_max even where already structurally bounded (issue #176)', () => {
+  const grade1 = presetsByGrade[1];
+  const grade2 = presetsByGrade[2];
+
+  const g1AddTen = grade1.addition.find((candidate) => candidate.id === 'g1-add-10');
+  assert.equal(g1AddTen.buildParams().result_max, 10);
+
+  const g1AddTwenty = grade1.addition.find((candidate) => candidate.id === 'g1-add-20');
+  assert.equal(g1AddTwenty.buildParams().result_max, 20);
+
+  const g1SubTen = grade1.subtraction.find((candidate) => candidate.id === 'g1-sub-10');
+  assert.equal(g1SubTen.buildParams().result_max, 10);
+
+  const g1SubTwenty = grade1.subtraction.find((candidate) => candidate.id === 'g1-sub-20');
+  assert.equal(g1SubTwenty.buildParams().result_max, 20);
+
+  const g2SubTwoDigit = grade2.subtraction.find((candidate) => candidate.id === 'g2-sub-2digit');
+  assert.equal(g2SubTwoDigit.buildParams({ carryMode: 'mixed' }).result_max, 100);
+});
+
+test('grade 2 basic addition caps the answer at 100 (issue #176)', () => {
+  const item = presetsByGrade[2].addition.find((candidate) => candidate.id === 'g2-add-2digit');
+
+  assert.ok(item);
+  assert.deepEqual(item.buildParams({ carryMode: 'mixed' }), {
+    command_type: 'ope',
+    operator: ['add'],
+    a_min: 1,
+    a_max: 99,
+    b_min: 1,
+    b_max: 99,
+    result_max: 100,
+  });
+});
+
 test('grade 2 advanced addition caps the answer at 1,000', () => {
   const item = presetsByGrade[2].addition.find((candidate) => candidate.id === 'g2-add-result-1000');
 

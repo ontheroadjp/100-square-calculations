@@ -98,7 +98,7 @@ const grade1 = {
       latexOnly: true,
       buildParams: () => ({
         command_type: 'ope', operator: ['add'], carry_mode: 'none',
-        a_min: 1, a_max: 9, b_min: 1, b_max: 9,
+        a_min: 1, a_max: 9, b_min: 1, b_max: 9, result_max: 10,
       }),
     },
     {
@@ -113,7 +113,7 @@ const grade1 = {
       latexOnly: true,
       buildParams: () => ({
         command_type: 'ope', operator: ['add'], carry_mode: 'required',
-        a_min: 1, a_max: 9, b_min: 1, b_max: 9,
+        a_min: 1, a_max: 9, b_min: 1, b_max: 9, result_max: 20,
       }),
     },
   ],
@@ -130,7 +130,7 @@ const grade1 = {
       latexOnly: true,
       buildParams: () => ({
         command_type: 'ope', operator: ['sub'],
-        a_min: 2, a_max: 10, b_min: 1, b_max: 9,
+        a_min: 2, a_max: 10, b_min: 1, b_max: 9, result_max: 10,
       }),
     },
     {
@@ -145,7 +145,7 @@ const grade1 = {
       latexOnly: true,
       buildParams: () => ({
         command_type: 'ope', operator: ['sub'], carry_mode: 'required',
-        a_min: 10, a_max: 19, b_min: 1, b_max: 9,
+        a_min: 10, a_max: 19, b_min: 1, b_max: 9, result_max: 20,
       }),
     },
   ],
@@ -206,7 +206,7 @@ const grade2 = {
       latexOnly: true,
       buildParams: (state) => ({
         command_type: 'ope', operator: ['add'], ...carryModeField(['add'], state),
-        a_min: 1, a_max: 99, b_min: 1, b_max: 99,
+        a_min: 1, a_max: 99, b_min: 1, b_max: 99, result_max: 100,
       }),
     },
     {
@@ -248,7 +248,7 @@ const grade2 = {
       latexOnly: true,
       buildParams: (state) => ({
         command_type: 'ope', operator: ['sub'], ...carryModeField(['sub'], state),
-        a_min: 10, a_max: 99, b_min: 1, b_max: 99,
+        a_min: 10, a_max: 99, b_min: 1, b_max: 99, result_max: 100,
       }),
     },
     {

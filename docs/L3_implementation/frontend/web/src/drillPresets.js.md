@@ -67,6 +67,12 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 
 「1〜9の段」選択時は `command_type: '99'`(`a_value` に段を指定)、「まぜる」選択時は `command_type: 'ope', operator: ['mul']`(`a_min`/`a_max`/`b_min`/`b_max` を1〜9のランダム)に切り替える。固定段には「出題順序」(`ascending`/`descending`/`random`)があり、それぞれフラグなし/`descend: true`/`shuffle: true` に変換する。「まぜる」では全ての順序選択肢を表示したまま非活性化し、`resolveValue` で `random` を選択表示する。実際の生成は従来通り `ope` の両オペランドランダムであり、保持中の `questionOrder` 値には依存しない(`frontend/web/src/drillPresets.js:220-277`)。例題も固定段では選択順序に応じて先頭2問相当へ切り替える(`frontend/web/src/drillPresets.js:225-235`)。
 
+### 2年生「100までの足し算」の答え上限(issue #176)
+
+`g2-add-2digit`(基礎、「100までの足し算」)はタイトルが答え≤100を示唆するが、修正前の `buildParams` はオペランド範囲(`a_min:1, a_max:99, b_min:1, b_max:99`)のみを制約しており、答え(2桁+2桁の和)は最大198まで生成され得た。全 `examples`/`examplesFor` の値はいずれも実際には答え100以下(例: `34+5=39`, `48+37=85`)で、タイトル・現行desc/pointKey・既存キュレーション済み例題はすべて「答え≤100」の意図で一致していたため、`g2-add-result-1000` と同じ `result_max`(結果上限。前セクション参照)パターンをこの基礎項目にも適用し `result_max: 100` を追加した(`frontend/web/src/drillPresets.js:207-211`)。オペランド範囲・タイトル・descは変更していない。`docs/uiux/calculation_drill_menu_parameters_v1.md` はこの項目を「2桁までの足し算」と記載しているが、現行文言と食い違う古い記述であり、`/init-docs` による再構築を待つ扱いとする。
+
+対称項目 `g2-sub-2digit`(「100までの引き算」)は `a_max` (最小値からの引き算)が99以下のため、答えは構造上常に100未満になり、修正不要。
+
 ### 2年生「1,000までの足し算」「1,000までの引き算」
 
 `g2-add-result-1000` は2年生の addition カテゴリに置く発展項目で、1〜999の両オペランド範囲を保ったまま `result_max: 1000` を送る。単に各オペランドを500以下へ狭める方式では `999+1` のような有効問題を失うため、レンダラー共通の結果上限を利用する。既存の「100までの足し算」と同じ繰り上がり設定・動的例題を持ち、LaTeX専用 `carry_mode`/`result_max` を使うため `latexOnly: true` とする(`frontend/web/src/drillPresets.js:182-223`)。タイトル文言は issue #161 で「答えが1,000までの足し算」から「1,000までの足し算」へ短縮した(desc は「答えが1,000までになる、…」のまま変更なし)。
