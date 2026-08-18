@@ -38,12 +38,23 @@ def test_generate_kuku_problems_shuffle_uses_same_multiplier_set() -> None:
     assert sorted(problem.b for problem in problems) == list(range(1, 10))
 
 
-def test_generate_kuku_problems_order_can_exceed_nine() -> None:
-    # order = rows * columns can exceed the classic 1-9 kuku range (mirrors
-    # nuts_calc.py's order = rows behavior, see nuts_calc.py:508-522).
+def test_generate_kuku_problems_wraps_multiplier_at_nine_when_order_exceeds_nine() -> None:
+    # issue #152: order = rows * columns can exceed 9, but only genuine kuku
+    # facts (1-9) are valid, so the multiplier must wrap back to x1 instead
+    # of continuing past x9 (mirrors nuts_calc.py's fix in issue #149,
+    # nuts_calc.py:492-493).
     problems = tex_module.generate_kuku_problems(a_value=2, order=12, start_index=1, descend=False, shuffle=False)
-    assert [problem.b for problem in problems] == list(range(1, 13))
-    assert problems[-1].c == 2 * 12
+    assert [problem.b for problem in problems] == [1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3]
+    assert problems[-1].c == 2 * 3
+
+
+def test_generate_kuku_problems_descend_wraps_back_to_nine_when_order_exceeds_nine() -> None:
+    # issue #155: reversing the ascending-wrapped sequence misplaces the
+    # wrap boundary (would start at 1 instead of 9). Descend must compute
+    # the wrapped sequence directly so it starts at 9 and wraps back to 9
+    # (not 1) after reaching 1.
+    problems = tex_module.generate_kuku_problems(a_value=2, order=10, start_index=1, descend=True, shuffle=False)
+    assert [problem.b for problem in problems] == [9, 8, 7, 6, 5, 4, 3, 2, 1, 9]
 
 
 def test_build_kuku_block_tex_blank_hides_answer() -> None:

@@ -159,7 +159,7 @@
 ### `99` コマンド(Phase 5)
 
 - `KukuProblem` データクラス(`index`/`a`/`b`/`c`)が1問を表す。`a`(段、`-a/--a-value` から取得)はページ内の全問題で共通。
-- `generate_kuku_problems`(乗数 `b` の生成): `order = ini.rows * ini.columns` 問を1ページ分生成する。乗数 `b` は基本 `1..order` の連番で、`--descend` で `order..1` の降順に反転し、`--shuffle` で(`--descend` 反転後の並びを)`random.shuffle` する。`order` が9を超えると `b` も9を超える値になる(`nuts_calc.py` の `get_fixed_format_data`(`mode == '99'`、`nuts_calc.py:508-522`)が `order = rows` を乗数の生成範囲に直結させている挙動を踏襲し、9問固定にはしていない)。`nuts_calc.py` と同じくコード共有はせず独立に再実装している。
+- `generate_kuku_problems`(乗数 `b` の生成): `order = ini.rows * ini.columns` 問を1ページ分生成する。乗数 `b` は `1..KUKU_MULTIPLIER_MAX`(=9)を周期とする連番(`i % KUKU_MULTIPLIER_MAX + 1`)で、`order` が9を超える場合は10問目以降が `×1` から折り返して繰り返す(issue #152)。`--descend` は昇順リストを反転するのではなく `KUKU_MULTIPLIER_MAX - (i % KUKU_MULTIPLIER_MAX)`(`9,8,...,1,9,8,...`)で降順の折り返し列を直接構築する(issue #155: 昇順の折り返し済みリストをそのまま反転すると境界がずれ、`9` からではなく `1` から始まってしまう不具合があった)。`--shuffle` は(`--descend` 適用後の並びを)`random.shuffle` する。`nuts_calc.py` と同じくコード共有はせず独立に再実装している。issue #24 実装時点では `order` を9問固定にせず `nuts_calc.py` 側の(当時の)未キャップ挙動をそのまま踏襲する設計が意図的に選択されていたが、issue #149 で `nuts_calc.py` 側が先に修正され、issue #152 で本ファイルもその決定を覆して追従した(下記「重要な設計判断」参照)。
 - `build_kuku_block_tex`: 通常は `n) $a \times b = c$` を生成する。blank 版は `c` を、下線を伴わない固定幅の `\hspace{1.5em}` に置き換える。`--reverse` 指定時は式の左右を入れ替えて `n) $c = a \times b$` にする(blank でも隠すのは常に `c`)。この入れ替えの意味論は `nuts_calc.py` の `get_fixed_format_data` が `is_reverse` のとき返すタプルの並びが `vals_c` を `vals_a`/`vals_b` より前に置く(`nuts_calc.py:543-545`)ことから独立に解釈・再実装したもの(`nuts_calc.py` 側のレンダリングパイプラインは完全に別実装のため、表示結果を直接比較検証してはいない)。
 - `build_kuku_page_pair`/`build_kuku_pages`: `ope`/`com` と同じ構造。`Page.layout` は常に `'inline'`(`--vertical` 未対応)。`--with-bottom-answer` 指定時は `build_kuku_bottom_answer_tex` で `(index) c` の一覧を blank ページ末尾に追加する。
 - `build_kuku_csv_rows`: 1問1行、`[page_number, index, a, b, c]` の列で CSV を書き出す。
@@ -209,9 +209,13 @@
 
 `nuts_calc.py` の `get_aBc_data` は `abcd` を整数として結合してから `len(str(abcd)) == 3` の場合だけゼロ埋めする(`nuts_calc.py:577-578`)という部分的な対応で、2桁以下になるケース(例: `a=0, b=0, c=0, d=5` → `"5"`)はゼロ埋めされないまま表示される潜在的な不整合がある。`nuts_calc_tex.py` はこれを踏襲せず、`AbcProblem.abcd_display` が常に `f"{a}{b}{c}{d}"` で4桁全てを個別に文字列化するため、先頭が0の場合も含めて常に4桁で表示される。
 
-### `99` の問題数を `--rows`×`--columns` に連動させ、9問固定にしなかった理由
+### `99` の問題数を `--rows`×`--columns` に連動させた理由
 
-issue #24 の Scope には "single times-table row" とあるが、実装着手時に `nuts_calc.py` の元実装(`order = rows`、乗数がページの行数に連動し9で頭打ちにならない)を確認した上でユーザーと相談し、「1ページ9問固定」ではなく `ope`/`com` と同じ `order = rows * columns` によるタイル化を採用することを明示的に決定した(9問固定案は却下)。`-a/--a-value`(段)の値域も、`nuts_calc.py` に合わせて1〜9への制限を行わないことをあわせて確認済み(`100` コマンドの桁数バリデーションとは異なる判断)。
+issue #24 の Scope には "single times-table row" とあるが、実装着手時に `nuts_calc.py` の元実装(`order = rows`、当時は乗数がページの行数に連動し9で頭打ちにならなかった)を確認した上でユーザーと相談し、「1ページ9問固定」ではなく `ope`/`com` と同じ `order = rows * columns` によるタイル化を採用することを明示的に決定した(9問固定案は却下)。この「問題数を `rows × columns` に連動させる」タイル化自体は issue #152 後も変更していない(変わったのは下記の乗数の値域のみ)。`-a/--a-value`(段)の値域は `nuts_calc.py` に合わせて1〜9への制限を行わない(`100` コマンドの桁数バリデーションとは異なる判断、こちらも変更なし)。
+
+### `99` の乗数(b)を1〜9に制限しなかった判断を issue #152 で覆した理由
+
+上記の issue #24 での決定時点では、乗数 `b` の値域を1〜9に制限しないことも合わせて確認されており(`order` が9を超えれば `b` もそれに応じて9を超える)、`nuts_calc.py` の元実装(修正前)の挙動をそのまま踏襲する設計だった。issue #149 で `nuts_calc.py` 側がこの挙動を「実在しない九九(例: `×10`)を出題してしまうバグ」として修正し(乗数を1〜9で折り返す)、その修正時点では `nuts_calc_tex.py` 側は独立した実験的プロトタイプであり、かつ issue #24 で明示的に確認済みの設計判断だったことを理由にスコープ外とした。しかし `NUTS_CALC_RENDERER=latex` 環境での実機確認により、この「意図的な非対称」が実際のユーザー体験としては同じ不具合(標準の九九に存在しない乗数が出題される)を引き起こすことが判明したため、issue #152 でこの判断を覆し、`nuts_calc.py` と同じ折り返し挙動(`KUKU_MULTIPLIER_MAX = 9` で周期化)に統一した。
 
 ### `100` の `-a`/`-b` 桁数変換を `nuts_calc.py` の挙動から意図的に修正した理由
 
@@ -312,7 +316,7 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - **`pdflatex` が必須**: `shutil.which('pdflatex')` が `None` の場合は明確なエラーメッセージで `exit(1)` する。CI やローカル環境に LaTeX が無い場合、`backend/tests/test_nuts_calc_tex.py` は `pytest.mark.skipif` で自動的にスキップされる(`backend/tests/test_nuts_calc_tex_ope_generation.py`/`backend/tests/test_nuts_calc_tex_com_generation.py`/`backend/tests/test_nuts_calc_tex_kuku_generation.py`/`backend/tests/test_nuts_calc_tex_squ_generation.py`/`backend/tests/test_nuts_calc_tex_pi_generation.py` の純 Python ユニットテストは pdflatex なしでも実行される)。`NUTS_CALC_TEX_ENGINE=lualatex`(issue #121)を使う場合は同様に `lualatex` が必須で、`backend/tests/test_nuts_calc_tex_lualatex_engine.py` は `lualatex` が無い環境では同じ `pytest.mark.skipif` パターンで自動スキップされる(`backend/tests/test_nuts_calc_tex_engine_adapter.py` のアダプター選択・プリアンブル生成テストはどちらの LaTeX バイナリも不要な純 Python テスト)。
 - **`--descend`/`--reverse`/`--shuffle` は `ope`/`com`/`100` でも引数として受理されるが未使用**: `99`/`squ`/`pi` コマンドでのみ意味を持つ。`--debug` はどのコマンドでも未使用のまま。
 - **`com`/`99`/`aBc`/`squ`/`pi` は `--vertical`/`--intermediate` 未対応、ただし挙動が異なる**: `--vertical` は指定しても静かに無視され(`build_com_pages`/`build_kuku_pages`/`build_abc_pages`/`build_squ_pages`/`build_pi_pages` は `Page.layout` を常に `'inline'` にする)、`com` は常に横書き(`n) $a + □ = target$`)、`99` は常に横書き(`n) $a \times b = c$`、`--reverse` 指定時は式の左右が入れ替わる)、`aBc` は常に横書き(`n) $abcd \Rightarrow answer$`)、`squ`/`pi` は常に横書き(それぞれ `n) $a \times a = c$`/`n) $a \times 3.14 = c$`、`--reverse` 指定時は式の左右が入れ替わる)で出力される。一方 `--intermediate` は無視されず、`_init()`(`nuts_calc_tex.py:247-249`)が `command != 'ope'` を検知した時点で `"--intermediate is only supported for the 'ope' command."` として `exit(1)` する(`com`/`99`/`aBc`/`squ`/`pi` いずれでも同様、`--vertical` の有無に関わらない)。それぞれ issue #22/#24/#25/#26/#27 のスコープ外。`evenodd`/`multiples`/`divisors`(issue #94)も同じ扱いで、`--vertical` は静かに無視され常に横書き(`n) $a \Rightarrow 結果$`)、`--intermediate` は同じ `_init()` の汎用チェックで `exit(1)` する。
-- **`99` の乗数(b)・`squ`/`pi` の数列(a)は9で頭打ちにならない**: `order = ini.rows * ini.columns` が9を超えると `99` の乗数、`squ`/`pi` の数列いずれもそれに応じて9を超える(`nuts_calc.py` の元実装を踏襲した意図的な設計、詳細は上記の設計判断を参照)。
+- **`squ`/`pi` の数列(a)は9で頭打ちにならない**: `order = ini.rows * ini.columns` が9を超えると `squ`/`pi` の数列はそれに応じて9を超える(`nuts_calc.py` の元実装を踏襲した意図的な設計、詳細は上記の設計判断を参照)。`99` の乗数(b)は issue #152 でこの挙動から除外され、`KUKU_MULTIPLIER_MAX`(=9)で周期的に折り返すようになった(`squ`/`pi` は対象外、現状維持)。
 - **`--vertical` 指定時の CSV/bottom-answer の桁**: 特別な整形はしておらず、`build_ope_csv_rows`/`build_ope_bottom_answer_tex` は横書き・縦書きで共通(問題データそのものは表示形式に関わらず同一)。
 - **`pi` の答え `c` は丸め済み**: `generate_pi_problems` が `round(a * PI_MULTIPLIER, 2)` を返すため、`build_pi_csv_rows`/`build_pi_bottom_answer_tex`/`build_pi_block_tex` はいずれも丸め後の値のみを扱う(`nuts_calc.py` の生の浮動小数点値との差異、詳細は上記の設計判断を参照)。
 - **`ope --use-parentheses`(N項一般化後)は決定的フォールバックを持たない**: `calc_sub`/`calc_div` と異なり、`generate_tree_ope_problems` は木構造・演算子・オペランドの組み合わせ全体を単純な再抽選(`MAX_OPERAND_RETRY_ATTEMPTS` 回)のみで解を探す。`a`/`b`/`c` の全レンジが広い(特に2桁以上)状態で `sub`/`div` を含む組み合わせ(例: `a - (b × c)`)は、有効な解がほぼ存在せず `ValueError` になりうることをシミュレーションで確認済み(詳細は上記の設計判断を参照)。呼び出し側は最初の葉以外(`-b`/`--b-value` 由来)を狭いレンジに保つことでこれを回避する。**項数(`--terms`等)が増えるほど木のノード数も増え、`ValueError` のリスクは旧3項固定実装よりさらに悪化する**(issue #71)。
@@ -326,7 +330,8 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴(git log より自動生成)
 
-- 80f5c5f feat(#112): add mixed-number (帯分数) support to nuts_calc_tex.py frac add/sub
+- 72ce344 fix(#155): compute kuku descend order directly instead of reversing the wrapped ascending sequence
+- e8db9d7 #112 nuts_calc_tex.py: add mixed-number (帯分数) display support to the frac command (#125)
 - 380c2b1 #121 nuts_calc_tex.py: add Japanese-capable LuaLaTeX engine adapter (#124)
 - 0240d1d #120 nuts_calc_tex.py: introduce pluggable LatexEngineAdapter interface (#123)
 - 241b2e1 #96 nuts_calc_tex.py: add fraction/decimal conversion drill commands (#108)
@@ -335,4 +340,3 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - 26ec449 #93 nuts_calc_tex.py: add optional name field to generated worksheets (#105)
 - bd8f170 #92 nuts_calc_tex.py: fix borrow-required subtraction to respect configured digit range (#103)
 - eae5107 #91 nuts_calc_tex.py: add remainder control to division (none/required/mixed) (#102)
-- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

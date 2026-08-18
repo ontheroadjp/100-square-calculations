@@ -151,6 +151,21 @@ def test_get_fixed_format_data_99_wraps_multiplier_at_nine_when_order_exceeds_ni
         assert vals_c[i][0] == 3 * vals_b[i][0]
 
 
+def test_get_fixed_format_data_99_descend_wraps_back_to_nine_when_order_exceeds_nine():
+    # issue #155: reversing the ascending-wrapped sequence misplaces the
+    # wrap boundary (would start at 1 instead of 9). Descend must compute
+    # the wrapped sequence directly so it starts at 9 and wraps back to 9
+    # (not 1) after reaching 1.
+    order = 10
+    data = nc.get_fixed_format_data("99", start_num=3, order=order, print_index=1, descend=True)
+    _, vals_a, _, vals_b, _, vals_c = data
+
+    assert [row[0] for row in vals_b] == [9, 8, 7, 6, 5, 4, 3, 2, 1, 9]
+    for i in range(order):
+        assert vals_a[i][0] == 3
+        assert vals_c[i][0] == 3 * vals_b[i][0]
+
+
 def test_get_fixed_format_data_squ_squares_sequential_numbers():
     data = nc.get_fixed_format_data("squ", start_num=1, order=5, print_index=1)
     _, vals_a, _, vals_b, _, vals_c = data

@@ -490,12 +490,14 @@ def get_fixed_format_data(mode, start_num=1, order=10, print_index=1,
     vals_c = []
 
     if mode == '99':
-        num_list = [i % SINGLE_DIGIT_MAX for i in range(order)]
+        if descend:
+            num_list = [(SINGLE_DIGIT_MAX - 1 - (i % SINGLE_DIGIT_MAX)) for i in range(order)]
+        else:
+            num_list = [i % SINGLE_DIGIT_MAX for i in range(order)]
     else:
         num_list = [(start_num + i) for i in range(order)]
-
-    if descend:
-        num_list.reverse()
+        if descend:
+            num_list.reverse()
     if is_shuffle:
         random.shuffle(num_list)
 
