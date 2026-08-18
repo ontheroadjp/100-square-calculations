@@ -28,7 +28,7 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 
 以下は #91-#96 のいずれにも含まれない、#98 実装時の検証で新たに判明したバックエンド制約:
 - 4・5年生「分数の足し算/引き算」(`g4-fraction-add`/`sub`、`g5-fraction-add`/`sub`)は issue #112 で `frac` コマンドが `--a-fraction-form`/`--b-fraction-form`(`mixed`/`mix`)による帯分数対応を実装したため `full` に引き上げ済み。詳細は下記「帯分数(#112)対応」を参照。
-- 3年生「小数第1位までの足し算/引き算」・4年生「小数の足し算/引き算」: `--carry-borrow`系フラグは整数専用で、`--a-decimal-places`/`--b-decimal-places` と併用不可(`nuts_calc_tex.py:610-611`)。→ issue #113。
+- 3年生「小数第1位までの足し算/引き算」(`g3-decimal-addsub`/`g3-decimal-sub`)・4年生「小数の足し算/引き算」(`g4-decimal-add`/`g4-decimal-sub`)は issue #113 で `nuts_calc_tex.py` の `--carry-borrow`系フラグが `--a-decimal-places`/`--b-decimal-places` と併用可能になったため `full` に引き上げ済み。`buildParams` に `carryModeField(['add'|'sub'], state)` を配線している(`drillPresets.js:388-407,445-464,667-686,689-708`)。
 - 6年生の分数×整数・整数×分数・分数×分数・分数÷整数・整数÷分数・分数÷分数(計6項目): `frac`/`mixed` とも Python の `Fraction` が自動的に既約分数へ簡約するため、「約分が必要になるかどうか」を制御するフラグが存在しない。→ issue #114。
 
 `partial` の項目も `settings` にはドキュメント通りの選択肢を全て含める(将来 backend 側の issue が閉じた際、データモデルの再設計なしに `supportLevel` を `full` へ引き上げられるようにするため)。
@@ -100,9 +100,9 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 
 ## 変更履歴（git log より自動生成）
 
-- 196a50b chore(#110): remove unused frontend/web drillCatalog.js and dead filter-UI i18n keys
-- 047cc4f feat(#161): resolve merge with main, add pointKey to new/moved grade-3 drill items
-- d2a9746 feat(#161): rebuild grade-3 addition/subtraction menu and add four-operations drills
+- 8fdd41d fix(#113): allow nuts_calc_tex.py --carry-borrow with decimal operands
+- 56aa1d3 #110 Remove frontend/web's unused drillCatalog.js and dead filter-UI i18n keys (#163)
+- 17070be #161 frontend/web: rebuild grade-3 addition/subtraction menu, retire fraction category, add four-operations drills (#162)
 - 9b366c1 #157 Add per-grade/per-drill header descriptions via a shared page header component (#160)
 - c9011f1 #154 Add grade-2 advanced subtraction capped at 1,000 (#159)
 - 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)
@@ -110,5 +110,3 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 - 85e58b1 #146 Add an advanced difficulty badge to the web UI (#147)
 - 1d8ee60 #135 frontend/web: switch preset detail page example problems based on selected settings (#141)
 - 2d9ee47 #132 frontend/web: dynamic grade accent, KaTeX fraction examples, generalized setting hints, and move problem count into common settings on preset detail page (#136)
-- e8db9d7 #112 nuts_calc_tex.py: add mixed-number (帯分数) display support to the frac command (#125)
-- 94eb478 #98 Rebuild frontend/web drill menu data model to match calculation_drill_menu_parameters_v1.md (#115)

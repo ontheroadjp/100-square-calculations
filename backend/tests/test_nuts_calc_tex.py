@@ -314,6 +314,64 @@ def test_cli_ope_carry_modes_reject_invalid_operators(run_tex_cli, tmp_path, inv
     assert not (tmp_path / "result.pdf").exists()
 
 
+@pytest.mark.parametrize(
+    ("carry_flag", "range_args", "expected_carry"),
+    [
+        ("--carry-borrow", ("--a-min", "1", "--a-max", "4", "--b-min", "1", "--b-max", "4"), True),
+        ("--no-carry-borrow", ("--a-min", "9", "--a-max", "9", "--b-min", "9", "--b-max", "9"), False),
+    ],
+)
+def test_cli_ope_add_carry_flags_work_with_decimal_places(
+        run_tex_cli, tmp_path, carry_flag, range_args, expected_carry,
+    ):
+    # issue #113: --carry-borrow/--no-carry-borrow determine carrying from
+    # the raw scaled integers, so this mirrors
+    # test_cli_ope_add_carry_flags_override_impossible_ranges above with
+    # --a-decimal-places/--b-decimal-places added.
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", carry_flag, *range_args,
+        "--a-decimal-places", "1", "--b-decimal-places", "1",
+        "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
+    )
+
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    for row in (tmp_path / "result.csv").read_text().strip().splitlines():
+        _, _, a, operator, b, result_value, _ = row.split(",")
+        assert operator == "add"
+        raw_a, raw_b = round(float(a) * 10), round(float(b) * 10)
+        assert addition_has_carry(raw_a, raw_b) is expected_carry
+        assert float(result_value) == round(float(a) + float(b), 1)
+
+
+def test_cli_ope_sub_carry_borrow_works_with_decimal_places(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "sub", "--carry-borrow",
+        "--a-min", "10", "--a-max", "99", "--b-min", "1", "--b-max", "9",
+        "--a-decimal-places", "1", "--b-decimal-places", "1",
+        "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
+    )
+
+    assert result.returncode == 0, result.stderr
+    for row in (tmp_path / "result.csv").read_text().strip().splitlines():
+        _, _, a, operator, b, result_value, _ = row.split(",")
+        assert operator == "sub"
+        raw_a, raw_b = round(float(a) * 10), round(float(b) * 10)
+        assert subtraction_has_borrow(raw_a, raw_b)
+        assert float(result_value) == round(float(a) - float(b), 1) > 0
+
+
+def test_cli_ope_mixed_carry_borrow_works_with_decimal_places(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "sub", "--mixed-carry-borrow",
+        "--a-decimal-places", "1", "--b-decimal-places", "1",
+        "-r", "2", "-c", "2", "--out-file", "result.pdf",
+    )
+
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
 @pytest.mark.parametrize("legacy_flag", ["--carry", "--no-carry", "--mixed-carry"])
 def test_cli_ope_rejects_legacy_carry_flags(run_tex_cli, tmp_path, legacy_flag):
     result = run_tex_cli("A4", "ope", legacy_flag, "--out-file", "result.pdf")

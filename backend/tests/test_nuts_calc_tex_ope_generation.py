@@ -268,6 +268,50 @@ def test_generate_add_sub_mixed_carry_covers_all_four_conditions() -> None:
             assert 1 <= problem.b <= 9
 
 
+@pytest.mark.parametrize(
+    ("carry_mode", "expected_condition"),
+    [('required', True), ('none', False)],
+)
+def test_generate_add_sub_problems_applies_carry_and_borrow_filter_with_decimal_places(
+        carry_mode: tex_module.CarryMode, expected_condition: bool,
+    ) -> None:
+    # issue #113: --carry-borrow/--no-carry-borrow determine carrying/
+    # borrowing from the raw scaled integers, so decimal operands (equal
+    # a_decimal_places/b_decimal_places, enforced by _init()) behave
+    # identically to the integer case above.
+    problems = tex_module.generate_ope_problems(
+        list(range(1, 10)), list(range(1, 10)), ['add', 'sub'],
+        order=GENERATION_SAMPLE_SIZE, start_index=1, carry_mode=carry_mode,
+        a_decimal_places=1, b_decimal_places=1,
+    )
+
+    for problem in problems:
+        assert problem.a_decimal_places == 1
+        assert problem.b_decimal_places == 1
+        if problem.operator == 'add':
+            assert tex_module.addition_has_carry(problem.a, problem.b) is expected_condition
+        else:
+            assert tex_module.subtraction_has_borrow(problem.a, problem.b) is expected_condition
+
+
+def test_generate_ope_problems_decimal_carry_matches_illustrative_example() -> None:
+    # 4.7 + 1.6 = 6.3 carries at the tenths digit (7 + 6 >= 10), matching the
+    # grade-3/4 frontend/web preset examples that motivated #113.
+    problems = tex_module.generate_ope_problems(
+        [47], [16], ['add'],
+        order=1, start_index=1, carry_mode='required',
+        a_decimal_places=1, b_decimal_places=1,
+    )
+
+    problem = problems[0]
+    assert (problem.a, problem.b, problem.c) == (47, 16, 63)
+    assert tex_module.format_decimal_value(problem.a, problem.a_decimal_places) == "4.7"
+    assert tex_module.format_decimal_value(problem.b, problem.b_decimal_places) == "1.6"
+    assert tex_module.format_decimal_value(
+        problem.c, tex_module.ope_result_decimal_places('add', 1, 1),
+    ) == "6.3"
+
+
 def test_calc_sub_result_is_always_positive() -> None:
     nums_a = list(range(1, 10))
     nums_b = list(range(1, 10))
