@@ -9,6 +9,8 @@ import {
   isSettingDisabled,
   selectedSettingValue,
   selectExamples,
+  isLivePreviewSupported,
+  buildLiveExampleStrings,
 } from './presetDetail.js';
 
 test('layoutForProblemCount returns rows/columns for every supported problem count', () => {
@@ -159,4 +161,40 @@ test('selectExamples delegates to examplesFor(settingsState) when present', () =
   };
   assert.deepEqual(selectExamples(item, { carryMode: 'required' }), ['7+26', '48+37']);
   assert.deepEqual(selectExamples(item, { carryMode: 'none' }), ['34+5', '42+35']);
+});
+
+// isLivePreviewSupported mirrors backend/problem_generation.py's own
+// command_type/UNSUPPORTED_OPE_VARIANT_FLAGS check (issue #139).
+test('isLivePreviewSupported accepts a plain ope request', () => {
+  assert.equal(isLivePreviewSupported({ command_type: 'ope', operator: ['add'] }), true);
+});
+
+test('isLivePreviewSupported rejects every non-ope command_type', () => {
+  for (const commandType of ['frac', 'mixed', 'gcd', 'lcm', 'divisors', 'multiples', 'evenodd', 'divfrac', 'frac2dec', 'dec2frac', 'squ', 'aBc', '99', 'commondenom', 'simplify']) {
+    assert.equal(isLivePreviewSupported({ command_type: commandType }), false, commandType);
+  }
+});
+
+test('isLivePreviewSupported rejects every unsupported ope variant flag', () => {
+  for (const flag of ['use_parentheses', 'missing_value', 'terms', 'terms_min', 'terms_max', 'mixed_operators']) {
+    assert.equal(isLivePreviewSupported({ command_type: 'ope', [flag]: true }), false, flag);
+  }
+});
+
+test('isLivePreviewSupported ignores a falsy ope variant flag', () => {
+  assert.equal(isLivePreviewSupported({ command_type: 'ope', use_parentheses: false, terms: 0 }), true);
+});
+
+test('isLivePreviewSupported handles a missing command_type without throwing', () => {
+  assert.equal(isLivePreviewSupported({}), false);
+});
+
+test('buildLiveExampleStrings formats each problem as an unsolved "a<op>b" example', () => {
+  const problems = [
+    { a: 3, operator: 'add', b: 5 },
+    { a: 10, operator: 'sub', b: 6 },
+    { a: 2, operator: 'mul', b: 4 },
+    { a: 9, operator: 'div', b: 3 },
+  ];
+  assert.deepEqual(buildLiveExampleStrings(problems), ['3+5', '10-6', '2×4', '9÷3']);
 });

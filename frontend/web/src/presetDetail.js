@@ -9,6 +9,28 @@ const API_BASE = 'http://127.0.0.1:5000';
 export const PROBLEM_COUNT_OPTIONS = [10, 20, 30];
 const DEFAULT_PROBLEM_COUNT = 20;
 
+// Mirrors backend/problem_generation.py's UNSUPPORTED_OPE_VARIANT_FLAGS and its
+// `command_type != 'ope'` check (backend/problem_generation.py:28-35,58-68):
+// POST /generate-problems only supports plain two-term 'ope' arithmetic today.
+// Every other command_type (frac/mixed/gcd/... , issue #166's sub-issues) and
+// these ope variant flags raise a 500 there, so items using them keep the
+// static examples/examplesFor from #135 instead of calling the endpoint.
+const UNSUPPORTED_OPE_VARIANT_FLAGS = [
+  'use_parentheses', 'missing_value', 'terms', 'terms_min', 'terms_max', 'mixed_operators',
+];
+
+const LIVE_EXAMPLE_COUNT = 3; // matches the length of every static `examples` array
+const LIVE_EXAMPLE_FETCH_DEBOUNCE_MS = 300;
+const OPERATOR_SYMBOLS = { add: '+', sub: '-', mul: '×', div: '÷' };
+
+export function isLivePreviewSupported(params) {
+  return params?.command_type === 'ope' && !UNSUPPORTED_OPE_VARIANT_FLAGS.some((flag) => params[flag]);
+}
+
+export function buildLiveExampleStrings(problems) {
+  return problems.map((problem) => `${problem.a}${OPERATOR_SYMBOLS[problem.operator]}${problem.b}`);
+}
+
 // Maps the problem-count choice to nuts_calc.py's rows/columns. 20 matches
 // the previous hardcoded default (10 rows x 2 columns).
 const LAYOUT_BY_PROBLEM_COUNT = {
@@ -150,7 +172,56 @@ export function mountPresetDetail(container, { grade, item, onBack }) {
     status: 'idle', // idle | loading | ready | error
     pdfUrl: null,
     error: null,
+    liveExamples: null,
+    liveExamplesStatus: 'idle', // idle | loading | ready | error
   };
+
+  let liveExampleFetchTimer = null;
+  let liveExampleFetchToken = 0;
+
+  async function fetchLiveExamples(params) {
+    const token = ++liveExampleFetchToken;
+    state.liveExamplesStatus = 'loading';
+
+    try {
+      const response = await fetch(`${API_BASE}/generate-problems`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paper_size: state.paperSize, num: LIVE_EXAMPLE_COUNT, ...params }),
+      });
+      if (!response.ok) throw new Error('live example fetch failed');
+      const data = await response.json();
+      if (token !== liveExampleFetchToken) return; // superseded by a newer settings change
+      state.liveExamples = buildLiveExampleStrings(data.problems);
+      state.liveExamplesStatus = 'ready';
+    } catch {
+      if (token !== liveExampleFetchToken) return;
+      // Backend unreachable or erroring: fall back to the static examples
+      // (selectExamples) instead of surfacing this to the user, since the
+      // example chips are a non-critical preview, not the PDF generation path.
+      state.liveExamples = null;
+      state.liveExamplesStatus = 'error';
+    }
+    render();
+  }
+
+  function scheduleLiveExampleFetch() {
+    if (liveExampleFetchTimer) clearTimeout(liveExampleFetchTimer);
+    const params = item.buildParams(state.settingsState);
+    if (!isLivePreviewSupported(params)) {
+      liveExampleFetchToken += 1; // discard any in-flight fetch's result
+      state.liveExamples = null;
+      state.liveExamplesStatus = 'idle';
+      return;
+    }
+    liveExampleFetchTimer = setTimeout(() => fetchLiveExamples(params), LIVE_EXAMPLE_FETCH_DEBOUNCE_MS);
+  }
+
+  function currentExamples() {
+    const params = item.buildParams(state.settingsState);
+    if (isLivePreviewSupported(params) && state.liveExamples) return state.liveExamples;
+    return selectExamples(item, state.settingsState);
+  }
 
   function renderSettingControl(setting) {
     if (setting.type === 'fixed') {
@@ -178,7 +249,7 @@ export function mountPresetDetail(container, { grade, item, onBack }) {
   }
 
   function renderSettingsScreen() {
-    const examples = selectExamples(item, state.settingsState);
+    const examples = currentExamples();
     return `
       <div class="preset-detail preset-detail-settings">
         ${pageHeaderHtml(`${t(item.titleKey)}(${t(`grade_full_${grade}`)})`, t(item.pointKey))}
@@ -372,6 +443,7 @@ export function mountPresetDetail(container, { grade, item, onBack }) {
       render();
     } else if (controlEl.dataset.role === 'setting') {
       state.settingsState[controlEl.dataset.settingId] = optionEl.dataset.value;
+      scheduleLiveExampleFetch();
       render();
     }
   });
@@ -390,5 +462,6 @@ export function mountPresetDetail(container, { grade, item, onBack }) {
     }
   });
 
+  scheduleLiveExampleFetch();
   render();
 }

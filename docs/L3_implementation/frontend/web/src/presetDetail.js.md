@@ -9,7 +9,9 @@
 - `mountPresetDetail(container, { grade, item, onBack })`: `item` は `drillPresets.js` の生アイテム(`settings`/`buildParams`/`supportLevel`/`difficultyKey`/`examples` 等、[[./drillPresets.js]] 参照)をそのまま受け取る。`screen`(`'settings' | 'done' | 'preview'`)を含む状態を持つクロージャを構築するが、マウント時に自動生成は行わない(`screen: 'settings'` で開始)。マウント直後に `container.classList.add(\`grade-${grade}\`)` を実行し(issue #132)、以後全画面の再描画(`container.innerHTML` の丸ごと差し替え)を通じてこのクラスを保持する。`catalog.js` と同じ `.grade-N` カスタムプロパティ(`_base.scss` 参照)経由で、ヘッダー・選択中ボタン・PDF作成ボタン等が学年色に切り替わる。
 - 設定画面(`screen === 'settings'`):
   - ページヘッダーは `catalog.js` と共通の `pageHeaderHtml(title, description)` コンポーネント([[./pageHeader.js]] 参照、issue #157)を呼び出して描画する。`title` には `${t(item.titleKey)}(${t(\`grade_full_${grade}\`)})`、`description` にはドリルごとの指導ポイント文言 `t(item.pointKey)`([[./drillPresets.js]] 参照)を渡す。学年アクセントカラーの背景は `_catalog.scss` の `.catalog-header-title` スタイルをそのまま共用する。
-  - 例題チップは `selectExamples(item, state.settingsState)`(export、issue #135)で取得した配列を `renderExampleHtml()`/`buildExampleSegments()`(共にexport、issue #132)で KaTeX 描画する。`selectExamples` は `item.examplesFor` があればそれを `state.settingsState` で呼んだ結果を、無ければ `item.examples` をそのまま返す純粋関数([[./drillPresets.js]] の「選択中の設定に応じた例題切り替え」参照)。設定を切り替えるたびに `render()` が呼ばれて `renderSettingsScreen()` 内で再計算されるため、`examplesFor` を持つ項目は表示中の例題がリアルタイムに切り替わる。分数・帯分数・演算子(`×`→`\times`、`÷`→`\div`)を数式トークンとして抽出し、日本語(`奇数`/`最大公約数` 等)や矢印はプレーンテキストのまま残す(KaTeX 自身のフォントに CJK グリフが無いため)。`exampleWithEquals()` が矢印を含まない例題の末尾へ `=` を補い(未解決の問題として表示)、矢印を含む例題(frac2dec/simplify/evenodd 等、既に結果を示している)はそのまま。
+  - 例題チップは `currentExamples()`(非export、issue #139)が返す配列を `renderExampleHtml()`/`buildExampleSegments()`(共にexport、issue #132)で KaTeX 描画する。`currentExamples()` は `item.buildParams(state.settingsState)` が `isLivePreviewSupported(params)`(export、issue #139。`command_type === 'ope'` かつ `backend/problem_generation.py` の `UNSUPPORTED_OPE_VARIANT_FLAGS`(`use_parentheses`/`missing_value`/`terms`/`terms_min`/`terms_max`/`mixed_operators`)を含まないかを判定する純粋関数で、同ファイルの実装をそのままミラーしている)を満たし、かつ `state.liveExamples` が取得済みならそれを、そうでなければ `selectExamples(item, state.settingsState)`(export、issue #135。`item.examplesFor` があればそれを `state.settingsState` で呼んだ結果を、無ければ `item.examples` をそのまま返す)を返す。`isLivePreviewSupported` は状態依存(九九プリセットの `dan` 設定など、同一アイテムでも設定値によって `command_type` が `'ope'`/`'99'` に切り替わる場合がある、[[./drillPresets.js]] 参照)なため、アイテム単位ではなく毎回 `buildParams(state.settingsState)` の結果で判定し直す。
+  - Live 対象の場合、マウント時と設定(choice)変更時に `scheduleLiveExampleFetch()` が 300ms デバウンスの `POST /generate-problems` を発火する(`num: LIVE_EXAMPLE_COUNT`=3、既存の静的 `examples` 配列の長さに合わせた値)。レスポンスの `{a, operator, b}` を `buildLiveExampleStrings()`(export)で `"a+b"` 形式の文字列(`OPERATOR_SYMBOLS` で `add/sub/mul/div` → `+/-/×/÷`)へ変換し `state.liveExamples` に格納、以後は `currentExamples()` 経由で表示される。取得中の再設定変更や非対象への切り替わりで古い応答が反映されないよう、`liveExampleFetchToken` をインクリメントして比較するトークンガードを持つ。fetch 失敗時(backend未到達等)は `state.liveExamples = null` に戻し、`currentExamples()` が自動的に `selectExamples()` の静的表示へフォールバックする(クラッシュさせない・ユーザーにエラーを出さない設計、Done Criteria参照)。
+  - 分数・帯分数・演算子(`×`→`\times`、`÷`→`\div`)を数式トークンとして抽出し、日本語(`奇数`/`最大公約数` 等)や矢印はプレーンテキストのまま残す(KaTeX 自身のフォントに CJK グリフが無いため)。`exampleWithEquals()` が矢印を含まない例題の末尾へ `=` を補い(未解決の問題として表示)、矢印を含む例題(frac2dec/simplify/evenodd 等、既に結果を示している)はそのまま。
   - `supportLevel === 'partial'` の制限注記
   - `item.settings` を `.specific-setting-block` 内へ動的レンダリング: `type: 'choice'` は segmented control(選択中の値に対応する `option.hintKey` があればその下にヒント文を表示、issue #132 で `value === 'mixed'` ハードコードから汎用化)、`type: 'fixed'` は読み取り専用表示。choice が任意の `disabledWhen(settingsState)` を持つ場合は全ボタンへ `disabled` を付けて表示したまま操作不能にし、`resolveValue(settingsState)` があれば保持値ではなくその解決値を選択表示と完了サマリに使う(`frontend/web/src/presetDetail.js:31-37,114-124,155-176`)。
   - 「詳細設定(共通設定)」disclosure(初期折りたたみ)に問題数 segmented control(10/20/30問。`layoutForProblemCount()` で `nuts_calc.py` の `rows`/`columns` に変換。20問が旧実装の標準密度=10行×2列と同値)・用紙サイズ・ページ数を格納(issue #132 で問題数をここへ移動。旧実装は `.specific-setting-block` の外、disclosure の手前に独立表示していた)
@@ -33,7 +35,7 @@
 ## 統合ポイント
 
 - 呼び出し元: `preset.js`(`preset.html` のページエントリ。KaTeX の CSS も `preset.js` 側で import する、上記参照)。
-- 呼び出し先: `katex`(`katex.renderToString()`、issue #132)、`strings.js`(`t`)、`verticalLayout.js`、`icons.js`(`ICONS.chevronLeft`、プレビュー画面ヘッダーのみ、issue #126)、`pageHeader.js`(`pageHeaderHtml`、設定画面ヘッダー、issue #157)、`backend`(`POST /generate-pdf`、`http://127.0.0.1:5000` 固定)、`item.examplesFor`/`item.pointKey`(`drillPresets.js` 側の項目定義、[[./drillPresets.js]] 参照)。
+- 呼び出し先: `katex`(`katex.renderToString()`、issue #132)、`strings.js`(`t`)、`verticalLayout.js`、`icons.js`(`ICONS.chevronLeft`、プレビュー画面ヘッダーのみ、issue #126)、`pageHeader.js`(`pageHeaderHtml`、設定画面ヘッダー、issue #157)、`backend`(`POST /generate-pdf`、`POST /generate-problems`(issue #139。対象アイテムの例題チップ取得のみ、リクエストボディの構築は `item.buildParams` の出力に `paper_size`/`num` を足すだけで `POST /generate-pdf` と共有)、`http://127.0.0.1:5000` 固定)、`item.examplesFor`/`item.buildParams`/`item.pointKey`(`drillPresets.js` 側の項目定義、[[./drillPresets.js]] 参照)。
 
 ## 注意事項・既知の制限
 
@@ -42,10 +44,12 @@
 - 完了画面のPDFサムネイルは実PDFレンダリングではなく静的なCSS装飾(`.completion-thumbnail`)。confettiも静的CSS(アニメーションなし)。例題チップは1行表示(wireframeは2行)。いずれもissue #100のスコープ簡略化として意図的に採用した。
 - `frontend/web` は複数ページ構成(issue #88、ユーザー要望)。本モジュールは `preset.html` 用の独立した「マウント可能なウィジェット」として設計されている(`customGenerator.js` と同じパターン、issue #97 で `customGenerator.js` 自体は削除済み)。
 - 非活性な設定ボタンはHTMLの `disabled` 属性とクリックハンドラ双方で変更を拒否する(`frontend/web/src/presetDetail.js:169-172,374-383`)。
+- `POST /generate-problems` は `backend/problem_generation.py` の実装上 `command_type: 'ope'` の素の二項演算のみ対応(issue #138)のため、`frac`/`mixed`/`gcd`/`lcm`/`divisors`/`multiples`/`evenodd`/`divfrac`/`frac2dec`/`dec2frac`/`squ`/`aBc`/`99`(dan指定あり)系アイテムは `isLivePreviewSupported()` が常に false を返し、#135 由来の静的 `examples`/`examplesFor` のまま変わらない。これらコマンド種別を live 化する場合は issue #166 の子issue(#167-#174、`command_type` ごとの別コマンド)側でバックエンドを対応させてから、本ファイルの `isLivePreviewSupported()` の許可条件を広げる形になる想定(issue #139 での意図的なスコープ分割)。
 
 ## 変更履歴（git log より自動生成）
 
-- 1ae72a3 feat(#157): add per-grade/per-drill header descriptions via a shared page header component
+- adec941 feat(#139): switch preset detail example previews to live backend generation for ope presets
+- 9b366c1 #157 Add per-grade/per-drill header descriptions via a shared page header component (#160)
 - 06870bb #148 Add multiplication-table question-order options (#150)
 - 1d8ee60 #135 frontend/web: switch preset detail page example problems based on selected settings (#141)
 - 2d9ee47 #132 frontend/web: dynamic grade accent, KaTeX fraction examples, generalized setting hints, and move problem count into common settings on preset detail page (#136)

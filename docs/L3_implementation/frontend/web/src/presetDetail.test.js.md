@@ -23,7 +23,8 @@ DOMイベント、CSSの見た目、PDF生成APIとの通信はこの単体テ�
 
 ## 変更履歴（git log より自動生成）
 
-- 51b8d7f feat(#148): add multiplication-table question order
+- adec941 feat(#139): switch preset detail example previews to live backend generation for ope presets
+- 06870bb #148 Add multiplication-table question-order options (#150)
 - 1d8ee60 #135 frontend/web: switch preset detail page example problems based on selected settings (#141)
 - 2d9ee47 #132 frontend/web: dynamic grade accent, KaTeX fraction examples, generalized setting hints, and move problem count into common settings on preset detail page (#136)
 - 9d1371e #100 frontend/web: rebuild preset detail settings/completion/preview screens (#118)
