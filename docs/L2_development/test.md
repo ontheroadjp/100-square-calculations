@@ -68,7 +68,7 @@ npm run build
 | full suite相当(上記564件 + staleファイル単独) | 577 passed, 9 failed |
 | `cd backend && python3 -m pytest -q tests/test_nuts_calc_init.py` | 9 failed, 13 passed(既知 stale) |
 | `frontend/spa` `node --test ...`(3ファイル) | 17 passed |
-| `frontend/web` `node --test ...`(2ファイル) | 30 passed |
+| `frontend/web` `node --test ...`(2ファイル) | 36 passed |
 | `cd frontend/spa && npm run build` | 成功 |
 | `cd frontend/spa && npm run lint` | 1失敗: `frontend/spa/src/drillPresets.js:433` の全角空白を `no-irregular-whitespace` が拒否(issue #88 以前から継続する既知の指摘。行番号はプリセット追加により `:363` から変化) |
 | `cd frontend/web && npm run build` | 成功(3 HTML エントリ: `index.html`/`catalog.html`/`preset.html`。`custom.html` は issue #97 で削除) |

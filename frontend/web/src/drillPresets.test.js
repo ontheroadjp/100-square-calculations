@@ -132,6 +132,81 @@ test('grade 2 advanced subtraction caps the answer at 1,000', () => {
   });
 });
 
+test('grade 3 advanced addition caps the answer at 10,000', () => {
+  const item = presetsByGrade[3].addition.find((candidate) => candidate.id === 'g3-add-result-10000');
+
+  assert.ok(item);
+  assert.equal(item.difficultyKey, 'difficulty_advanced');
+  assert.equal(item.latexOnly, true);
+  assert.deepEqual(item.buildParams({ carryMode: 'mixed' }), {
+    command_type: 'ope',
+    operator: ['add'],
+    a_min: 1,
+    a_max: 9999,
+    b_min: 1,
+    b_max: 9999,
+    result_max: 10000,
+  });
+});
+
+test('grade 3 advanced subtraction caps the answer at 10,000', () => {
+  const item = presetsByGrade[3].subtraction.find((candidate) => candidate.id === 'g3-sub-result-10000');
+
+  assert.ok(item);
+  assert.equal(item.difficultyKey, 'difficulty_advanced');
+  assert.equal(item.latexOnly, true);
+  assert.deepEqual(item.buildParams({ carryMode: 'mixed' }), {
+    command_type: 'ope',
+    operator: ['sub'],
+    a_min: 1,
+    a_max: 9999,
+    b_min: 1,
+    b_max: 9999,
+    result_max: 10000,
+  });
+});
+
+test('grade 3 four-operations mix caps the answer at 1,000 without multiplication', () => {
+  const item = presetsByGrade[3]['four-operations'].find((candidate) => candidate.id === 'g3-addsub-mixed-result-1000');
+
+  assert.ok(item);
+  assert.deepEqual(item.buildParams(), {
+    command_type: 'ope',
+    operator: ['add', 'sub'],
+    terms: 3,
+    mixed_operators: true,
+    a_min: 1,
+    a_max: 999,
+    b_min: 1,
+    b_max: 999,
+    result_max: 1000,
+  });
+});
+
+test('grade 3 parenthesized mix caps the answer at 1,000 and multiplication operands at 2 digits', () => {
+  const item = presetsByGrade[3]['four-operations'].find((candidate) => candidate.id === 'g3-parentheses-mul-result-1000');
+
+  assert.ok(item);
+  assert.deepEqual(item.buildParams(), {
+    command_type: 'ope',
+    operator: ['add', 'sub', 'mul'],
+    terms: 3,
+    mixed_operators: true,
+    use_parentheses: true,
+    a_min: 1,
+    a_max: 99,
+    b_min: 1,
+    b_max: 99,
+    result_max: 1000,
+  });
+});
+
+test('grade 3 fraction items live under addition/subtraction, not a separate fraction category', () => {
+  assert.equal(presetsByGrade[3].fraction, undefined);
+  assert.ok(presetsByGrade[3].addition.some((item) => item.id === 'g3-fraction-add'));
+  assert.ok(presetsByGrade[3].subtraction.some((item) => item.id === 'g3-fraction-sub'));
+});
+
 test('grade 2 kuku keeps mixed rows random and ignores the question-order state', () => {
   const item = presetsByGrade[2].multiplication.find((candidate) => candidate.id === 'g2-kuku');
   const expected = { command_type: 'ope', operator: ['mul'], a_min: 1, a_max: 9, b_min: 1, b_max: 9 };
