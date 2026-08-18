@@ -100,9 +100,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- 047cc4f feat(#161): resolve merge with main, add pointKey to new/moved grade-3 drill items
-- 130794b wip: 2026-08-18 16:09:52 before Edit drillPresets.js
-- d2a9746 feat(#161): rebuild grade-3 addition/subtraction menu and add four-operations drills
+- 8fdd41d fix(#113): allow nuts_calc_tex.py --carry-borrow with decimal operands
+- 17070be #161 frontend/web: rebuild grade-3 addition/subtraction menu, retire fraction category, add four-operations drills (#162)
 - 9b366c1 #157 Add per-grade/per-drill header descriptions via a shared page header component (#160)
 - c9011f1 #154 Add grade-2 advanced subtraction capped at 1,000 (#159)
 - 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)
@@ -111,5 +110,3 @@
 - 1d8ee60 #135 frontend/web: switch preset detail page example problems based on selected settings (#141)
 - 2d9ee47 #132 frontend/web: dynamic grade accent, KaTeX fraction examples, generalized setting hints, and move problem count into common settings on preset detail page (#136)
 - e8db9d7 #112 nuts_calc_tex.py: add mixed-number (帯分数) display support to the frac command (#125)
-- 94eb478 #98 Rebuild frontend/web drill menu data model to match calculation_drill_menu_parameters_v1.md (#115)
-- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

@@ -23,7 +23,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- 32dd948 feat(#153): add reusable result ceiling for ope drills
+- 8fdd41d fix(#113): allow nuts_calc_tex.py --carry-borrow with decimal operands
+- 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)
 - bd8f170 #92 nuts_calc_tex.py: fix borrow-required subtraction to respect configured digit range (#103)
 - eae5107 #91 nuts_calc_tex.py: add remainder control to division (none/required/mixed) (#102)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

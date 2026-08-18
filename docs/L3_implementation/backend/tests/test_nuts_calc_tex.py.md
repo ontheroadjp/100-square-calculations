@@ -28,3 +28,15 @@
 
 - `pdflatex` が無い環境ではモジュール全体がスキップされ、CIでの検証は行われない(no CI 定義、`docs/.ai/repo.profile.json` の `notes.ci` 参照)。
 - 実サブプロセス起動 + LaTeX コンパイルを伴うため、他のテストファイルに比べて実行時間が長い(フルスイートで約2分)。
+
+## 変更履歴（git log より自動生成）
+
+- 8fdd41d fix(#113): allow nuts_calc_tex.py --carry-borrow with decimal operands
+- e8db9d7 #112 nuts_calc_tex.py: add mixed-number (帯分数) display support to the frac command (#125)
+- 241b2e1 #96 nuts_calc_tex.py: add fraction/decimal conversion drill commands (#108)
+- a6c52f9 #95 nuts_calc_tex.py: add LCM and GCD pair-number drill commands (#107)
+- 3b25e73 #94 nuts_calc_tex.py: add evenodd/multiples/divisors number-property commands (#106)
+- 26ec449 #93 nuts_calc_tex.py: add optional name field to generated worksheets (#105)
+- bd8f170 #92 nuts_calc_tex.py: fix borrow-required subtraction to respect configured digit range (#103)
+- eae5107 #91 nuts_calc_tex.py: add remainder control to division (none/required/mixed) (#102)
+- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)
