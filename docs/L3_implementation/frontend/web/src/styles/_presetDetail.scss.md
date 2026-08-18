@@ -6,7 +6,7 @@
 
 ## 動作の概要
 
-`.preset-detail` を画面ルートにして、例題、設定ブロック、セグメント選択、開閉領域、トグル、作成ボタン、完了表示、プレビューを各親要素の下にネストして定義する(`frontend/web/src/styles/_presetDetail.scss:3-303`)。
+`.preset-detail` を画面ルートにして、例題、設定ブロック、セグメント選択、開閉領域、トグル、作成ボタン、完了表示、プレビューを各親要素の下にネストして定義する。セグメント選択の `:disabled` は muted text と `not-allowed` cursor、選択中かつ無効な項目は disabled color の背景で、選択状態を維持しつつ非活性であることを表す(`frontend/web/src/styles/_presetDetail.scss:91-127`)。
 
 ## 重要な設計判断とその理由
 
