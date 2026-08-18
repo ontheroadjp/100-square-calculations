@@ -24,7 +24,8 @@ issue #110 で `drillCatalog.js`(旧絞り込み/検索UIのアダプター)を�
 
 ## 変更履歴（git log より自動生成）
 
-- 1ae72a3 feat(#157): add per-grade/per-drill header descriptions via a shared page header component
+- 196a50b chore(#110): remove unused frontend/web drillCatalog.js and dead filter-UI i18n keys
+- 9b366c1 #157 Add per-grade/per-drill header descriptions via a shared page header component (#160)
 - c9011f1 #154 Add grade-2 advanced subtraction capped at 1,000 (#159)
 - 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)
 - 06870bb #148 Add multiplication-table question-order options (#150)
@@ -33,7 +34,3 @@ issue #110 で `drillCatalog.js`(旧絞り込み/検索UIのアダプター)を�
 - d43d1bc #130 frontend/web: make catalog page accent color switch dynamically per grade (#131)
 - 77f95b7 #101 frontend/web: add PC 4-column layout to the make flow (#119)
 - 9d1371e #100 frontend/web: rebuild preset detail settings/completion/preview screens (#118)
-- 1bd6fa6 #99 Rebuild frontend/web top and catalog screens to match wireframe screens 1-2 (#116)
-- 94eb478 #98 Rebuild frontend/web drill menu data model to match calculation_drill_menu_parameters_v1.md (#115)
-- 8007488 #97 frontend/web: rebuild nav shell, design tokens, and remove legacy features (#109)
-- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)
