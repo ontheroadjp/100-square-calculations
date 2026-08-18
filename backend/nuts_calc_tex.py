@@ -664,8 +664,6 @@ def _init() -> argparse.Namespace:
                 "--carry-borrow/--no-carry-borrow/--mixed-carry-borrow cannot be combined with "
                 "--use-parentheses/--missing-value/--terms family."
             )
-        if args.a_decimal_places != MIN_DECIMAL_PLACES or args.b_decimal_places != MIN_DECIMAL_PLACES:
-            failure("--carry-borrow/--no-carry-borrow/--mixed-carry-borrow only support integer operands.")
 
     if args.remainder_mode is not None:
         if args.command != 'ope' or args.operator != ['div']:
