@@ -8,6 +8,12 @@ const KNOWN_CATEGORIES = new Set([
 ]);
 
 const KNOWN_SUPPORT_LEVELS = new Set(['full', 'partial', 'none']);
+const KNOWN_DIFFICULTY_KEYS = new Set([
+  'difficulty_basic',
+  'difficulty_standard',
+  'difficulty_basic_standard',
+  'difficulty_advanced',
+]);
 
 function defaultSettingsState(settings) {
   const state = {};
@@ -47,7 +53,7 @@ test('every menu item has the required shape', () => {
     assert.equal(typeof item.id, 'string', `${context}: id must be a string`);
     assert.equal(typeof item.titleKey, 'string', `${context}: titleKey must be a string`);
     assert.equal(typeof item.descKey, 'string', `${context}: descKey must be a string`);
-    assert.equal(typeof item.difficultyKey, 'string', `${context}: difficultyKey must be a string`);
+    assert.ok(KNOWN_DIFFICULTY_KEYS.has(item.difficultyKey), `${context}: unknown difficultyKey "${item.difficultyKey}"`);
     assert.ok(Array.isArray(item.examples), `${context}: examples must be an array`);
     assert.ok(Array.isArray(item.settings), `${context}: settings must be an array`);
     assert.equal(typeof item.buildParams, 'function', `${context}: buildParams must be a function`);

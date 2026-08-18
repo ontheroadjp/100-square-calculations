@@ -6,7 +6,7 @@
 
 ## 動作の概要
 
-`.drill-list` の中に `.drill-list-card*` の見た目をネストする(`frontend/web/src/styles/_drillList.scss:3-53`)。カードは連続したリストとして表示し、最初のカードだけ上側、最後のカードだけ下側に角丸を付ける。最後のカードには下罫線も追加してリストを閉じる(`frontend/web/src/styles/_drillList.scss:22-31`)。バッジの難易度バリエーションと空状態も定義する(`frontend/web/src/styles/_drillList.scss:55-88`)。
+`.drill-list` の中に `.drill-list-card*` の見た目をネストする(`frontend/web/src/styles/_drillList.scss:3-53`)。カードは連続したリストとして表示し、最初のカードだけ上側、最後のカードだけ下側に角丸を付ける。最後のカードには下罫線も追加してリストを閉じる(`frontend/web/src/styles/_drillList.scss:22-31`)。`.drill-badge` は基礎(緑)・標準(橙)・発展(赤)の難易度バリエーションを定義し、発展には `.badge-advanced` を使う(`frontend/web/src/styles/_drillList.scss:60-91`)。空状態も同ファイルで定義する。
 
 issue #130: `.drill-list-card:hover`(通常時・`:last-child` の2箇所)は `border: 2px solid`(issue #132 で 1px から変更)、ボーダー色は `border-color: var(--color-primary, #{$color-primary})` で参照する(`frontend/web/src/styles/_drillList.scss:18-21,32-35`)。`catalog.js` が `#catalog` に付与する `.grade-N` クラス(`_catalog.scss` 定義、[[./_catalog.scss]] 参照)の祖先がある場合はカードのhover枠線が学年別の `$color-grade-N` になり、無い場合(`pcMakeFlow.js` 由来のカード等)は既存の固定 `$color-primary` にフォールバックする。
 

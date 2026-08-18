@@ -10,7 +10,7 @@
 
 各 `menuItem` は以下を持つ:
 - `id`/`titleKey`/`descKey`: 全データモデル中で `id` は一意。
-- `difficultyKey`: `difficulty_basic`/`difficulty_standard`/`difficulty_basic_standard` のいずれか(ドキュメントの「難易度」列)。
+- `difficultyKey`: `difficulty_basic`/`difficulty_standard`/`difficulty_basic_standard`/`difficulty_advanced` のいずれか(ドキュメントの「難易度」列)。1年生の `g1-three-terms` は `difficulty_advanced` を使用する(`frontend/web/src/drillPresets.js:139-145`)。
 - `examples`: ドキュメントの「計算式の例」列をそのまま文字列配列にしたもの。
 - `settings`: ドキュメントの「固有設定」「選択可能値」「固定値・表示」を表す配列。各要素は `type: 'choice'`(セグメントコントロール、`options`/`default` を持つ)または `type: 'fixed'`(表示のみで変更不可、`valueLabelKey` を持つ)。`choice` の各 `option` は任意で `hintKey` を持てる(issue #132)。`presetDetail.js` は選択中の値に対応する `option.hintKey` があれば、その下にヒント文を表示する([[./presetDetail.js]] 参照)。
 - `buildParams(state)`: `state`(`{ <settingId>: <選択値> }`、`choice` 設定のみキーを持つ)から `POST /generate-pdf` のリクエストボディを組み立てる関数。

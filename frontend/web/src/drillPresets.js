@@ -141,7 +141,7 @@ const grade1 = {
       id: 'g1-three-terms',
       titleKey: 'menu_g1_three_terms_title',
       descKey: 'menu_g1_three_terms_desc',
-      difficultyKey: 'difficulty_standard',
+      difficultyKey: 'difficulty_advanced',
       examples: ['3+4+2', '8-3+4'],
       settings: [
         {

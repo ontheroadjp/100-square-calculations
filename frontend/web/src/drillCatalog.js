@@ -20,6 +20,7 @@ const LEVEL_BY_DIFFICULTY_KEY = {
   difficulty_basic: 'basic',
   difficulty_standard: 'standard',
   difficulty_basic_standard: 'standard',
+  difficulty_advanced: 'advanced',
 };
 
 function defaultSettingsState(settings) {
