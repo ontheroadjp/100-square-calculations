@@ -12,7 +12,7 @@
 
 ## 統合ポイント
 
-- 呼び出し元: `frontend/spa/src/CustomGenerator.jsx`(`POST /generate-pdf`)、`frontend/spa/src/GradeDrills.jsx`(`GET /renderer-info`、マウント時に1回)。`POST /generate-problems` は issue #138 時点でまだフロントエンドから呼ばれていない(issue #137 の動的プレビュー系サブissueが将来の呼び出し元候補)。
+- 呼び出し元: `frontend/spa/src/CustomGenerator.jsx`(`POST /generate-pdf`)、`frontend/spa/src/GradeDrills.jsx`(`GET /renderer-info`、マウント時に1回)、`frontend/web/src/presetDetail.js`(`POST /generate-problems`、issue #139。`command_type: 'ope'` かつ未対応フラグなしのプリセットのみ、マウント時・設定変更時にデバウンスして呼び出す)。
 - 呼び出し先: `backend/renderers.py`(レンダラー選択・PDF生成実行)、`backend/problem_generation.py`(問題データのみのプロセス内直接生成)。
 
 ## 注意事項・既知の制限
