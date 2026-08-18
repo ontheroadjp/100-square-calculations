@@ -1087,13 +1087,7 @@ const grade6 = {
       descKey: 'menu_g6_fraction_mul_int_desc',
       pointKey: 'menu_g6_fraction_mul_int_point',
       difficultyKey: 'difficulty_basic',
-<<<<<<< HEAD
-      examples: ['3/5×4'],
-=======
       examples: ['3/5×4', '4/6×3', '2/7×5'],
-      // Partial: no way to force/forbid a reducible raw result. #114. The
-      // preview below is illustrative only, for the same reason.
->>>>>>> origin/main
       examplesFor: examplesByChoice(['reduction'], {
         none: ['3/5×4', '2/7×5', '3/8×3'],
         required: ['4/6×3', '2/4×3', '6/8×2'],
@@ -1116,13 +1110,7 @@ const grade6 = {
       descKey: 'menu_g6_int_mul_fraction_desc',
       pointKey: 'menu_g6_int_mul_fraction_point',
       difficultyKey: 'difficulty_basic',
-<<<<<<< HEAD
-      examples: ['4×3/5'],
-=======
       examples: ['4×3/5', '3×4/6', '5×2/7'],
-      // Partial: see g6-fraction-mul-int above (#114). The preview below is
-      // illustrative only, for the same reason.
->>>>>>> origin/main
       examplesFor: examplesByChoice(['reduction'], {
         none: ['4×3/5', '5×2/7', '3×3/8'],
         required: ['3×4/6', '3×2/4', '2×6/8'],
@@ -1145,13 +1133,7 @@ const grade6 = {
       descKey: 'menu_g6_fraction_mul_desc',
       pointKey: 'menu_g6_fraction_mul_point',
       difficultyKey: 'difficulty_basic',
-<<<<<<< HEAD
-      examples: ['3/5×7/9'],
-=======
       examples: ['3/5×7/9', '2/5×3/7', '3/8×2/9'],
-      // Partial: see g6-fraction-mul-int above (#114). The preview below is
-      // illustrative only, for the same reason.
->>>>>>> origin/main
       examplesFor: examplesByChoice(['reduction'], {
         none: ['2/5×3/7', '3/8×2/9', '4/7×1/6'],
         required: ['3/5×7/9', '2/4×3/6', '4/6×2/8'],
@@ -1173,13 +1155,7 @@ const grade6 = {
       descKey: 'menu_g6_fraction_div_int_desc',
       pointKey: 'menu_g6_fraction_div_int_point',
       difficultyKey: 'difficulty_basic',
-<<<<<<< HEAD
-      examples: ['5/6÷3'],
-=======
       examples: ['5/6÷3', '4/6÷2', '3/7÷2'],
-      // Partial: see g6-fraction-mul-int above (#114). The preview below is
-      // illustrative only, for the same reason.
->>>>>>> origin/main
       examplesFor: examplesByChoice(['reduction'], {
         none: ['5/6÷3', '3/7÷2', '4/9÷5'],
         required: ['4/6÷2', '6/8÷3', '2/4÷2'],
@@ -1202,13 +1178,7 @@ const grade6 = {
       descKey: 'menu_g6_int_div_fraction_desc',
       pointKey: 'menu_g6_int_div_fraction_point',
       difficultyKey: 'difficulty_standard',
-<<<<<<< HEAD
-      examples: ['4÷2/3'],
-=======
       examples: ['4÷2/3', '4÷3/5', '5÷2/7'],
-      // Partial: see g6-fraction-mul-int above (#114). The preview below is
-      // illustrative only, for the same reason.
->>>>>>> origin/main
       examplesFor: examplesByChoice(['reduction'], {
         none: ['4÷3/5', '5÷2/7', '3÷4/9'],
         required: ['4÷2/3', '3÷2/4', '2÷4/8'],
@@ -1231,13 +1201,7 @@ const grade6 = {
       descKey: 'menu_g6_fraction_div_desc',
       pointKey: 'menu_g6_fraction_div_point',
       difficultyKey: 'difficulty_standard',
-<<<<<<< HEAD
-      examples: ['3/4÷2/5'],
-=======
       examples: ['3/4÷2/5', '2/4÷2/6', '2/7÷3/8'],
-      // Partial: see g6-fraction-mul-int above (#114). The preview below is
-      // illustrative only, for the same reason.
->>>>>>> origin/main
       examplesFor: examplesByChoice(['reduction'], {
         none: ['3/4÷2/5', '2/7÷3/8', '4/9÷1/6'],
         required: ['2/4÷2/6', '3/6÷2/8', '4/8÷2/4'],
