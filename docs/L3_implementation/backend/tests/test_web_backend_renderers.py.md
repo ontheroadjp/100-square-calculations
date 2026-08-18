@@ -6,7 +6,7 @@ FlaskバックエンドがPDF生成リクエストを正しいCLI引数へ変換
 
 ## 動作概要
 
-`compare` リクエストの `comparison_pattern`、`a_fraction_form`、`b_fraction_form` が、LaTeXレンダラーの対応する3オプションへ変換されることを検証する（`backend/tests/test_web_backend_renderers.py:174-186`）。
+`build_command()` の位置引数、値付きオプション、真偽フラグ、LaTeX専用パラメーター変換を検証する。`result_max` は `--result-max 1000` へ変換されることを任意スカラー群のテストで固定する(`backend/tests/test_web_backend_renderers.py:68-83`)。分数・小数・繰り上がり・余り・N項式などの既存変換もそれぞれ独立して検証する。
 
 ## 統合ポイント
 

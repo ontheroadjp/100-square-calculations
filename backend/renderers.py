@@ -15,6 +15,7 @@ class RendererRequest(TypedDict, total=False):
     a_max: int
     b_min: int
     b_max: int
+    result_max: int
     numerator_digits: int
     denominator_digits: int
     a_decimal_places: int
@@ -139,6 +140,8 @@ def build_command(renderer_name: str, params: RendererRequest, out_file: str) ->
         command.extend(["--b-min", str(params["b_min"])])
     if "b_max" in params:
         command.extend(["--b-max", str(params["b_max"])])
+    if "result_max" in params:
+        command.extend(["--result-max", str(params["result_max"])])
     if "numerator_digits" in params:
         command.extend(["--numerator-digits", str(params["numerator_digits"])])
     if "denominator_digits" in params:

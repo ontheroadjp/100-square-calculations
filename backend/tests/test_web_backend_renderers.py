@@ -73,12 +73,14 @@ def test_build_command_translates_optional_scalar_params() -> None:
         "rows": 5,
         "columns": 2,
         "page": 2,
+        "result_max": 1000,
     }
     command = renderers.build_command("reportlab", params, "out.pdf")
     assert "--a-value" in command and command[command.index("--a-value") + 1] == "3"
     assert "--rows" in command and command[command.index("--rows") + 1] == "5"
     assert "--columns" in command and command[command.index("--columns") + 1] == "2"
     assert "--page" in command and command[command.index("--page") + 1] == "2"
+    assert "--result-max" in command and command[command.index("--result-max") + 1] == "1000"
 
 
 def test_build_command_translates_boolean_flags() -> None:

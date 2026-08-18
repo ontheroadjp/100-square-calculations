@@ -194,6 +194,25 @@ const grade2 = {
         a_min: 1, a_max: 99, b_min: 1, b_max: 99,
       }),
     },
+    {
+      id: 'g2-add-result-1000',
+      titleKey: 'menu_g2_add_result_1000_title',
+      descKey: 'menu_g2_add_result_1000_desc',
+      difficultyKey: 'difficulty_advanced',
+      examples: ['625+75', '999+1', '321+456'],
+      examplesFor: examplesByChoice(['carryMode'], {
+        none: ['321+456', '102+304'],
+        required: ['625+75', '999+1'],
+        mixed: ['625+75', '999+1', '321+456'],
+      }),
+      settings: [carrySetting('setting_carry_label')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: (state) => ({
+        command_type: 'ope', operator: ['add'], ...carryModeField(['add'], state),
+        a_min: 1, a_max: 999, b_min: 1, b_max: 999, result_max: 1000,
+      }),
+    },
   ],
   subtraction: [
     {
