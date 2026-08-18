@@ -234,6 +234,25 @@ const grade2 = {
         a_min: 10, a_max: 99, b_min: 1, b_max: 99,
       }),
     },
+    {
+      id: 'g2-sub-result-1000',
+      titleKey: 'menu_g2_sub_result_1000_title',
+      descKey: 'menu_g2_sub_result_1000_desc',
+      difficultyKey: 'difficulty_advanced',
+      examples: ['500-125', '302-158', '456-321'],
+      examplesFor: examplesByChoice(['carryMode'], {
+        none: ['456-321', '864-521'],
+        required: ['500-125', '302-158'],
+        mixed: ['500-125', '302-158', '456-321'],
+      }),
+      settings: [carrySetting('setting_borrow_label')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: (state) => ({
+        command_type: 'ope', operator: ['sub'], ...carryModeField(['sub'], state),
+        a_min: 1, a_max: 999, b_min: 1, b_max: 999, result_max: 1000,
+      }),
+    },
   ],
   multiplication: [
     {
