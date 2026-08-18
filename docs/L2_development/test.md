@@ -9,7 +9,7 @@
 
 ## テスト構成
 
-`backend/tests/` には25個の `test_*.py` がある(issue #88 でリポジトリルートの `tests/` から移動)。主な責務は次のとおり。
+`backend/tests/` には26個の `test_*.py` がある(issue #88 でリポジトリルートの `tests/` から移動)。主な責務は次のとおり。
 
 | 対象 | ファイル | 根拠・理由 |
 |---|---|---|
@@ -18,6 +18,7 @@
 | 小数・混合プリセット | `test_nuts_calc_tex_decimal_generation.py`, `test_nuts_calc_tex_decimal_mixed_presets.py`, `test_nuts_calc_tex_mixed_generation.py` | issue #76 の小数 `ope` と `mixed` を検証する |
 | 中学受験プリセット | `test_nuts_calc_tex_exam_prep_presets.py` | 4〜6年生×3段階×3レベルの組み合わせが retry 上限を枯渇させないことを生成関数で検証する |
 | Web backend | `test_web_backend_app.py`, `test_web_backend_renderers.py` | renderer 選択、HTTP 応答、JSON→CLI 引数変換を検証する。issue #88 の移動に伴い `sys.path` の組み立て(旧: `REPO_ROOT / "web" / "backend"`)を `BACKEND_DIR` 直接参照に修正済み |
+| Web backend(問題データのみ生成) | `test_problem_generation.py` | `POST /generate-problems`(issue #138)が使う `backend/problem_generation.py` の in-process 生成ラッパーを検証する |
 | Frontend 純粋関数(`frontend/spa`) | `drillPresets.test.js`, `drillCatalog.test.js`, `verticalLayout.test.js` | package 追加なしで `node:test` を直接使う |
 | Frontend 純粋関数(`frontend/web`) | `drillPresets.test.js`, `presetDetail.test.js` | メニュー項目の契約、設定サマリ、例題整形を `node:test` で検証する |
 
@@ -59,16 +60,16 @@ cd frontend/web
 npm run build
 ```
 
-## 実行結果(2026-08-18、issue #153 の `/init-docs` documentation-only mode で再検証)
+## 実行結果(2026-08-19、`/init-docs` standalone mode で再検証)
 
 | 検証 | 結果 |
 |---|---|
-| `cd backend && python3 -m pytest --collect-only -q` | 586 tests collected |
-| `cd backend && python3 -m pytest -q --ignore=tests/test_nuts_calc_init.py` | 564 passed |
-| full suite相当(上記564件 + staleファイル単独) | 577 passed, 9 failed |
+| `cd backend && python3 -m pytest --collect-only -q` | 666 tests collected |
+| `cd backend && python3 -m pytest -q --ignore=tests/test_nuts_calc_init.py` | 644 passed |
+| full suite相当(上記644件 + staleファイル単独) | 657 passed, 9 failed |
 | `cd backend && python3 -m pytest -q tests/test_nuts_calc_init.py` | 9 failed, 13 passed(既知 stale) |
 | `frontend/spa` `node --test ...`(3ファイル) | 17 passed |
-| `frontend/web` `node --test ...`(2ファイル) | 36 passed |
+| `frontend/web` `node --test ...`(2ファイル) | 45 passed |
 | `cd frontend/spa && npm run build` | 成功 |
 | `cd frontend/spa && npm run lint` | 1失敗: `frontend/spa/src/drillPresets.js:433` の全角空白を `no-irregular-whitespace` が拒否(issue #88 以前から継続する既知の指摘。行番号はプリセット追加により `:363` から変化) |
 | `cd frontend/web && npm run build` | 成功(3 HTML エントリ: `index.html`/`catalog.html`/`preset.html`。`custom.html` は issue #97 で削除) |

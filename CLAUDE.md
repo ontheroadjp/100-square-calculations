@@ -21,7 +21,7 @@ AI 運用の single source of truth。`AGENTS.md` はこのファイルへの sy
 
 ## Local Tooling Environment
 
-Observed by /init-docs (2026-08-18, issue #153 documentation-only mode):
+Observed by /init-docs (2026-08-19, standalone mode; versions unchanged since the 2026-08-18 observation):
 - gh: 2.97.0
 - gh auth: logged in to github.com as ontheroadjp (ssh protocol, scopes: admin:public_key, gist, read:org, repo)
 - node: v24.16.0 (via mise: `~/.local/share/mise/installs/node/24/bin/node`)
@@ -40,12 +40,12 @@ Notes:
 - No lock file, `requirements.txt`, or `pyproject.toml` exists. CLI dependency is `reportlab`; the web backend additionally needs `Flask`/`Flask-Cors`; the test suite needs `pytest`. Install via `pip install reportlab flask flask-cors pytest` (see `README.md`).
 - Before running `nuts_calc.py`, confirm `python3 -c "import reportlab"` succeeds; if not, ask before installing.
 - repo-local `venv/` has Python 3.12.3, ReportLab 5.0.0, Flask 3.1.3, Flask-Cors 6.0.5, and pytest 9.1.1. System `python3` did not resolve ReportLab/Flask during the 2026-08-07 observation; activate `venv/` or install only after user confirmation.
-- `cd backend && python3 -m pytest` collects 586 tests as of 2026-08-18. Excluding `tests/test_nuts_calc_init.py`, 564 tests pass; that stale file has 9 known failures and 13 passes (577 passed, 9 failed when combined). `pdflatex`-dependent tests ran successfully; see `docs/L2_development/test.md`.
+- `cd backend && python3 -m pytest` collects 666 tests as of 2026-08-19. Excluding `tests/test_nuts_calc_init.py`, 644 tests pass; that stale file has 9 known failures and 13 passes (657 passed, 9 failed when combined). `pdflatex`-dependent tests ran successfully; see `docs/L2_development/test.md`.
 - `nuts_calc_tex.py` (experimental LaTeX prototype) additionally requires `pdflatex` on `PATH`; its `pdflatex`-dependent CLI tests auto-skip when it's absent. Its `vendor/texmf` lookup is resolved relative to its own file location (`backend/vendor/texmf`), so it required no code change when `backend/` was introduced in issue #88. Its optional `lualatex` engine adapter (see Local Tooling Environment above) has its own `lualatex`-gated tests (`backend/tests/test_nuts_calc_tex_lualatex_engine.py`, plus pure-Python adapter-selection tests in `test_nuts_calc_tex_engine_adapter.py` that need neither binary) that auto-skip the same way when `lualatex` is absent.
 
 ## Web Frontend Environments (`frontend/spa`, `frontend/web`)
 
 Two independent frontends share the same `backend/app.py` Flask API (issue #88); neither depends on the other or on a shared internal package.
 
-- `frontend/spa` (React SPA, English/Japanese via i18next): pure-function tests use Node's built-in runner directly and 17 passed on 2026-08-18. There is no `npm test` script. `npm run lint` has one known `no-irregular-whitespace` failure in a Japanese comment.
-- `frontend/web` (lightweight static multi-page site — `index.html`/`catalog.html`/`preset.html` — Vite + Sass + KaTeX, Japanese only): `npm run build` succeeds (verified 2026-08-18, 3 HTML entries). Its two `node:test` files are run directly and 36 tests passed; no npm test/lint scripts are configured. Its grade→category→menu-item model diverged from `frontend/spa` in issue #98.
+- `frontend/spa` (React SPA, English/Japanese via i18next): pure-function tests use Node's built-in runner directly and 17 passed on 2026-08-19. There is no `npm test` script. `npm run lint` has one known `no-irregular-whitespace` failure in a Japanese comment.
+- `frontend/web` (lightweight static multi-page site — `index.html`/`catalog.html`/`preset.html` — Vite + Sass + KaTeX, Japanese only): `npm run build` succeeds (verified 2026-08-19, 3 HTML entries). Its two `node:test` files are run directly and 45 tests passed (up from 36 as of issue #139/#176's live-preview and answer-cap work); no npm test/lint scripts are configured. Its grade→category→menu-item model diverged from `frontend/spa` in issue #98. Its `preset.html` detail screen also calls `backend/app.py`'s `POST /generate-problems` endpoint (issue #138/#139) for live example previews — a feature `frontend/spa` does not have.
