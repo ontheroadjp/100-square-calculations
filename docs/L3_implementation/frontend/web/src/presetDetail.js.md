@@ -44,6 +44,7 @@
 - 完了画面のPDFサムネイルは実PDFレンダリングではなく静的なCSS装飾(`.completion-thumbnail`)。confettiも静的CSS(アニメーションなし)。例題チップは1行表示(wireframeは2行)。いずれもissue #100のスコープ簡略化として意図的に採用した。
 - `frontend/web` は複数ページ構成(issue #88、ユーザー要望)。本モジュールは `preset.html` 用の独立した「マウント可能なウィジェット」として設計されている(`customGenerator.js` と同じパターン、issue #97 で `customGenerator.js` 自体は削除済み)。
 - 非活性な設定ボタンはHTMLの `disabled` 属性とクリックハンドラ双方で変更を拒否する(`frontend/web/src/presetDetail.js:169-172,374-383`)。
+- `POST /generate-problems` は `backend/problem_generation.py` の実装上 `command_type: 'ope'` の素の二項演算のみ対応(issue #138)のため、`frac`/`mixed`/`gcd`/`lcm`/`divisors`/`multiples`/`evenodd`/`divfrac`/`frac2dec`/`dec2frac`/`squ`/`aBc`/`99`(dan指定あり)系アイテムは `isLivePreviewSupported()` が常に false を返し、#135 由来の静的 `examples`/`examplesFor` のまま変わらない。これらコマンド種別を live 化する場合は issue #166 の子issue(#167-#174、`command_type` ごとの別コマンド)側でバックエンドを対応させてから、本ファイルの `isLivePreviewSupported()` の許可条件を広げる形になる想定(issue #139 での意図的なスコープ分割)。
 
 ## 変更履歴（git log より自動生成）
 
