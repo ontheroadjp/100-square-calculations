@@ -27,8 +27,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- 130794b wip: 2026-08-18 16:09:52 before Edit drillPresets.js
-- d2a9746 feat(#161): rebuild grade-3 addition/subtraction menu and add four-operations drills
+- f3e823d feat(#114): add reducibility control to frac/mixed multiplication and division
+- 17070be #161 frontend/web: rebuild grade-3 addition/subtraction menu, retire fraction category, add four-operations drills (#162)
 - 9b366c1 #157 Add per-grade/per-drill header descriptions via a shared page header component (#160)
 - c9011f1 #154 Add grade-2 advanced subtraction capped at 1,000 (#159)
 - 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)

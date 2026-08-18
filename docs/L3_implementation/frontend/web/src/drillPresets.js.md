@@ -109,9 +109,9 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 
 ## 変更履歴（git log より自動生成）
 
-- 196a50b chore(#110): remove unused frontend/web drillCatalog.js and dead filter-UI i18n keys
-- 047cc4f feat(#161): resolve merge with main, add pointKey to new/moved grade-3 drill items
-- d2a9746 feat(#161): rebuild grade-3 addition/subtraction menu and add four-operations drills
+- f3e823d feat(#114): add reducibility control to frac/mixed multiplication and division
+- 56aa1d3 #110 Remove frontend/web's unused drillCatalog.js and dead filter-UI i18n keys (#163)
+- 17070be #161 frontend/web: rebuild grade-3 addition/subtraction menu, retire fraction category, add four-operations drills (#162)
 - 9b366c1 #157 Add per-grade/per-drill header descriptions via a shared page header component (#160)
 - c9011f1 #154 Add grade-2 advanced subtraction capped at 1,000 (#159)
 - 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)

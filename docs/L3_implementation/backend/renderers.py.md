@@ -42,7 +42,8 @@ issue #19 のトラッキング issue にある「将来 `nuts_calc.py`/`nuts_ca
 
 ## 変更履歴(git log より自動生成)
 
-- 32dd948 feat(#153): add reusable result ceiling for ope drills
-- 392edbf feat(#93): add optional name field to nuts_calc_tex.py worksheets
+- f3e823d feat(#114): add reducibility control to frac/mixed multiplication and division
+- 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)
+- 26ec449 #93 nuts_calc_tex.py: add optional name field to generated worksheets (#105)
 - eae5107 #91 nuts_calc_tex.py: add remainder control to division (none/required/mixed) (#102)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)
