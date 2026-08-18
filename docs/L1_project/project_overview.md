@@ -18,7 +18,7 @@ CI 定義・パッケージ定義(lock file 等)は Python 側に存在しない
 | Web フロントエンド(web) | vanilla JS + Vite(React/i18nライブラリ非依存)+ Sass(日本語のみ、issue #88) | `frontend/web/package.json`、[[../L3_implementation/specification_summary]] |
 | バッチ生成 | Bash(`set -Ceu`) | `backend/factory.sh:1,38` |
 | CLI(実験的プロトタイプ) | `nuts_calc_tex.py`(LaTeX/`pdflatex` レンダリング、`nuts_calc.py` とコード共有なし) | `backend/nuts_calc_tex.py:1`、[[../L3_implementation/nuts_calc_tex.py]] |
-| テスト | pytest(`backend/tests/`、18個の `test_*.py`) + Node.js 組み込み `node:test`(`frontend/spa` 3ファイル。`frontend/web` に自動テストなし) | `backend/pytest.ini:1-3`、`backend/tests/`、`frontend/spa/src/*.test.js` |
+| テスト | pytest(`backend/tests/`、25個の `test_*.py`) + Node.js 組み込み `node:test`(`frontend/spa` 3ファイル、`frontend/web` 2ファイル) | `backend/pytest.ini:1-3`、`backend/tests/`、`frontend/{spa,web}/src/*.test.js` |
 | パッケージマネージャ(Python) | pip(lock file なし。旧 `setup.py` は削除済み、`git log` のコミット `d9fc0a3` で確認) | `README.md:13-14` は pip インストールを謳うが検証すると裏付けとなるパッケージ定義ファイルは存在しない |
 | パッケージマネージャ(Web) | npm(`frontend/spa`・`frontend/web` それぞれ独立した `package-lock.json` を持つ) | `frontend/spa/package-lock.json`、`frontend/web/package-lock.json` |
 | ライセンス | MIT | `LICENSE:1-21` |
@@ -39,7 +39,7 @@ CI 定義・パッケージ定義(lock file 等)は Python 側に存在しない
 
 ### `nuts_calc_tex.py`(実験的プロトタイプ)
 
-`nuts_calc.py` と同じ7コマンドにLaTeX専用 `frac`、`mixed`、`compare` を加えた計10コマンドを `pdflatex` でレンダリングする独立プロトタイプ。`frac` は厳密な分数四則演算、`mixed` は整数・小数・分数を混在させた多項式、`compare` は同分母・同分子・異分母の分数比較を生成し、`ope` は小数および2項整数加減算の繰り上がり・繰り下がり条件にも対応する。Webでは `NUTS_CALC_RENDERER=latex` の場合だけ、分数・小数・混合計算・筆算・中学受験準備と、1年生の条件付き加減算6カードを表示する。`factory.sh` からは呼ばれない。
+`nuts_calc.py` と同じ7コマンドにLaTeX専用の分数・混合・比較・数論・変換系を加えた計20コマンドをレンダリングする独立プロトタイプ。`ope` は小数、繰り上がり・繰り下がり、余り、かっこ付き/N項/虫食い式、最終結果上限(`--result-max`)に対応する。Webでは `NUTS_CALC_RENDERER=latex` の場合だけLaTeX専用カードを表示する。`factory.sh` からは呼ばれない(`backend/nuts_calc_tex.py:124-449`)。
 
 ### Web バックエンド(`backend/`、`frontend/spa`・`frontend/web` 共通)
 
@@ -53,7 +53,7 @@ CI 定義・パッケージ定義(lock file 等)は Python 側に存在しない
 
 ### Web フロントエンド(web): `frontend/web`(静的サイト、新規、issue #88)
 
-React・i18n ライブラリを使わず(日本語のみ対応)、HTML/CSS(Sass)/vanilla JS のみで実装されている。ユーザーの明示的な指示により SPA(単一ページを JS ルーターで画面切替)ではなく、画面ごとに実在の `.html` を持つ複数ページ構成(`index.html`/`catalog.html`/`preset.html`。旧 `custom.html` は issue #97 で削除)として実装されており、画面遷移は `<a href>` リンクのみで行う(issue #99 で唯一残っていた `catalog.html` の GET フォームを撤去したため、GET フォーム送信による遷移は現在存在しない)。`index.html` は学年カラーの2×3学年カードグリッド、`catalog.html` は `?grade=N` を読み `drillPresets.js` の `presetsByGrade[grade]` をカテゴリ(たし算/ひき算/かけ算/わり算/分数/四則混合/数の性質)ごとのドリルカード一覧として描画する(issue #99、`docs/uiux/wireframe_v1.png` 画面①②に対応)。`index.html` は PC(≥768px)幅では上記グレードグリッドの代わりに `pcMakeFlow.js`(issue #101)による「学年/計算を選ぶ/ドリル設定/プレビュー」の4カラムレイアウトを表示し、`catalog.html`/`preset.html` へのページ遷移なしに学年選択〜PDFプレビュー/ダウンロードまでを1画面内で完結させる(`wireframe_v1.png` の「PC版レイアウトイメージ」に対応。モバイル3画面フローとは独立した実装)。`preset.html` は `?grade=N&drillId=...` からドリルアイテムを特定し、設定 → 完了 → プレビューの3画面(issue #100、`wireframe_v1.png` 画面③④⑤に対応)を1ページ内の状態遷移として描画する。issue #97 でカスタム生成フォーム・検索・無学年ドリルへの導線を、issue #99 で数の種類/学年/レベル別の絞り込みUIを撤去したため、現時点では `frontend/spa` と機能的に同等ではない(issue #90 の後続issueで段階的に再構築中)。`drillPresets.js`/`drillCatalog.js`/`verticalLayout.js` は `frontend/spa` から複製した純粋データ/ロジック(React/i18n 非依存のため無変更で再利用可能)。ただし `drillCatalog.js` は issue #99 で `catalog.js` が、issue #100 で `preset.js` が経由をやめたため、現在 `frontend/web` のどのページからも参照されていない(ファイル自体の削除は issue #110 の範囲)。詳細は [[../L3_implementation/specification_summary]] を参照。
+React・i18n ライブラリを使わず(日本語のみ対応)、HTML/CSS(Sass)/vanilla JS のみで実装されている。ユーザーの明示的な指示により SPA(単一ページを JS ルーターで画面切替)ではなく、画面ごとに実在の `.html` を持つ複数ページ構成(`index.html`/`catalog.html`/`preset.html`。旧 `custom.html` は issue #97 で削除)として実装されており、画面遷移は `<a href>` リンクのみで行う(issue #99 で唯一残っていた `catalog.html` の GET フォームを撤去したため、GET フォーム送信による遷移は現在存在しない)。`index.html` は学年カラーの2×3学年カードグリッド、`catalog.html` は `?grade=N` を読み `drillPresets.js` の `presetsByGrade[grade]` をカテゴリ(たし算/ひき算/かけ算/わり算/分数/四則混合/数の性質)ごとのドリルカード一覧として描画する(issue #99、`docs/uiux/wireframe_v1.png` 画面①②に対応)。`index.html` は PC(≥768px)幅では上記グレードグリッドの代わりに `pcMakeFlow.js`(issue #101)による「学年/計算を選ぶ/ドリル設定/プレビュー」の4カラムレイアウトを表示し、`catalog.html`/`preset.html` へのページ遷移なしに学年選択〜PDFプレビュー/ダウンロードまでを1画面内で完結させる(`wireframe_v1.png` の「PC版レイアウトイメージ」に対応。モバイル3画面フローとは独立した実装)。`preset.html` は `?grade=N&drillId=...` からドリルアイテムを特定し、設定 → 完了 → プレビューの3画面(issue #100、`wireframe_v1.png` 画面③④⑤に対応)を1ページ内の状態遷移として描画する。issue #97 でカスタム生成フォーム・検索・無学年ドリルへの導線を、issue #99 で数の種類/学年/レベル別の絞り込みUIを撤去したため、現時点では `frontend/spa` と機能的に同等ではない(issue #90 の後続issueで段階的に再構築中)。`drillPresets.js` と `drillCatalog.js` は issue #98 で grade → category → menu-item の web 専用モデルへ書き換えられ、`frontend/spa` との追従コピー関係は終了した。`verticalLayout.js` は引き続き共通ロジックのコピーである。なお、`drillCatalog.js` は issue #99 で `catalog.js` が、issue #100 で `preset.js` が経由をやめたため、現在 `frontend/web` のどのページからも参照されていない(ファイル自体の削除は issue #110 の範囲)。詳細は [[../L3_implementation/specification_summary]] を参照。
 
 ## 補助機能
 
@@ -69,7 +69,7 @@ React・i18n ライブラリを使わず(日本語のみ対応)、HTML/CSS(Sass)
 - `backend/factory.sh` — バッチ実行(`python nuts_calc.py` を内部で呼び出す。`backend/` ディレクトリ内での実行を前提)
 - `backend/app.py` — Flask サーバー起動: `python app.py`(`backend/` ディレクトリ内で実行、`http://127.0.0.1:5000`。`frontend/spa`・`frontend/web` 共通)
 - `frontend/spa/src/main.jsx` — React アプリのエントリ。`npm run dev`(`http://localhost:5173`)または `npm run build` で起動/ビルド
-- `frontend/web/{index,catalog,preset,custom}.html` — 静的サイトの4エントリ。`npm run dev`(Vite dev server)または `npm run build` で起動/ビルド(`vite.config.js` の `build.rollupOptions.input` に4エントリを列挙)
+- `frontend/web/{index,catalog,preset}.html` — 静的サイトの3エントリ。`npm run dev`(Vite dev server)または `npm run build` で起動/ビルド(`frontend/web/vite.config.js:8-12`)
 
 ## 未確認事項
 

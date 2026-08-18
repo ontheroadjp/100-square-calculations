@@ -14,5 +14,7 @@ FlaskバックエンドがPDF生成リクエストを正しいCLI引数へ変換
 
 ## 変更履歴(git log より自動生成)
 
-- 0dcb553 feat(#91): add remainder control to ope division
+- 32dd948 feat(#153): add reusable result ceiling for ope drills
+- 26ec449 #93 nuts_calc_tex.py: add optional name field to generated worksheets (#105)
+- eae5107 #91 nuts_calc_tex.py: add remainder control to division (none/required/mixed) (#102)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

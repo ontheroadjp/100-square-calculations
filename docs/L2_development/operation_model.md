@@ -65,7 +65,7 @@ npm install
 npm run dev      # http://localhost:5174 等(5173が使用中の場合は自動で別ポート)
 ```
 
-`npm run build` は Vite のマルチページビルド(`vite.config.js` の `build.rollupOptions.input` に3つの `.html` を列挙。`custom.html` entry は issue #97 で削除)で `dist/index.html`/`catalog.html`/`preset.html` を出力する。2026-08-13 に実機確認済み(成功)。`package.json` の devDependencies は `vite`/`sass` のみで、React・i18next 系は含まない。`lint` スクリプトは定義されていない。
+`npm run build` は Vite のマルチページビルド(`vite.config.js` の `build.rollupOptions.input` に3つの `.html` を列挙。`custom.html` entry は issue #97 で削除)で `dist/index.html`/`catalog.html`/`preset.html` を出力する。2026-08-18 に実機確認済み(成功)。`package.json` の devDependencies は `vite`/`sass` のみで、React・i18next 系は含まない。`lint` スクリプトは定義されていない。
 
 ## `nuts_calc_tex.py`(実験的LaTeXプロトタイプ)のセットアップと実行
 
@@ -80,6 +80,8 @@ python3 nuts_calc_tex.py A4 ope -o add sub --mixed-carry-borrow --out-file grade
 ```
 `frac` は分子・分母の桁数(1〜3)と四則演算を受け付け、同分母・異分母・真分数条件を追加できる。`compare` は同分母・同分子・異分母の比較パターンと、左右独立の真分数・仮分数・帯分数指定を受け付ける。`mixed` は整数・小数・分数を混在させ、`ope` は `--a-decimal-places`/`--b-decimal-places` と `--carry-borrow`/`--no-carry-borrow`/`--mixed-carry-borrow` を追加で受け付ける。繰り上がり系フラグ指定時は `--a-min` 等の範囲より条件を優先し、必要なら対応する1桁加減算の候補範囲へフォールバックする。繰り下がりありの減算は10〜19−1桁に限定する。`backend/vendor/texmf/tex/latex/longdivision/` は `TEXINPUTS` 経由で解決する(`__file__` からの自己相対パスのため `backend/` 内での実行を前提にしなくても動作するが、CLI 自体は `backend/` 内実行を想定した相対パス例で記載している)。`pdflatex` が無い場合は明確なエラーで終了する。
 
+`ope --result-max N` は通常2項・かっこ付き・N項・虫食いの全式形式で最終表示結果を `N` 以下に制約する。例: `python3 nuts_calc_tex.py A4 ope -o add --a-min 1 --a-max 999 --b-min 1 --b-max 999 --result-max 1000 --out-file result.pdf`。成立する式が retry 上限内に無ければ明示エラーになる(`backend/nuts_calc_tex.py:193-196,620-624,1341-1404`)。
+
 ## テスト(pytest)
 
 ```bash
@@ -89,7 +91,7 @@ python3 -m pytest -q
 # 既知の stale テストだけを分離する場合
 python3 -m pytest -q --ignore=tests/test_nuts_calc_init.py
 ```
-`backend/pytest.ini` により `backend/` ディレクトリ内で実行する。2026-08-12 に420件を収集し、既知 stale ファイルを除く398件は全成功した(フルスイートを除外なしで実行すると411 passed, 9 failed)。`backend/tests/test_nuts_calc_init.py` 単独は既知どおり9失敗・13成功。詳細は [[test]]。
+`backend/pytest.ini` により `backend/` ディレクトリ内で実行する。2026-08-18 に586件を収集し、既知 stale ファイルを除く564件は全成功した。`backend/tests/test_nuts_calc_init.py` 単独は既知どおり9失敗・13成功。詳細は [[test]]。
 
 frontend の純粋関数テストは `package.json` に script がないため直接実行する:
 
@@ -97,7 +99,7 @@ frontend の純粋関数テストは `package.json` に script がないため�
 node --test frontend/spa/src/drillPresets.test.js frontend/spa/src/drillCatalog.test.js frontend/spa/src/verticalLayout.test.js
 ```
 
-2026-08-12 に17件すべて成功した。`frontend/web` には同種の自動テストは存在しない。
+2026-08-18 に17件すべて成功した。`frontend/web` は `node --test frontend/web/src/drillPresets.test.js frontend/web/src/presetDetail.test.js` で30件すべて成功した。
 
 ## ビルド
 

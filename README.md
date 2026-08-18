@@ -8,6 +8,7 @@ For the pedagogical background behind the drills (the mental-arithmetic techniqu
 ## Features
 *   **Diverse Problem Types**: Generate worksheets for integer arithmetic, complements, 100-square tables, multiplication tables, square numbers, mental arithmetic, exact fraction arithmetic, fraction comparison, number properties (even/odd, multiples, divisors, LCM, GCD), and fraction/decimal conversion (simplification, common denominators, fraction-to-decimal, decimal-to-fraction, division-as-fraction) through the LaTeX renderer.
 *   **Customizable Generation**: Extensive command-line options allow users to specify paper size, number ranges, operators, problem counts, and output formats.
+*   **Reusable answer ceilings**: The LaTeX `ope` command accepts `--result-max` for two-term, parenthesized, multi-term, and missing-value expressions; the grade-2 Web menu uses it for advanced addition whose answer is at most 1,000.
 *   **PDF Output**: All worksheets are generated as high-quality PDF files, ready for printing.
 *   **Answer Options**: Include answers at the bottom of the page, merge answer files, or output raw problem data to CSV for further analysis.
 *   **Automated Batch Generation**: The `factory.sh` script provides an automated way to generate a wide variety of pre-configured worksheets.
@@ -129,6 +130,16 @@ so it falls back to the original 10-19-minus-one-digit sampling instead.
 ```bash
 python3 nuts_calc_tex.py A4 ope -o add --carry-borrow --out-file carrying.pdf
 python3 nuts_calc_tex.py A4 ope -o add sub --mixed-carry-borrow --out-file mixed-carry.pdf
+```
+
+Use `--result-max` to cap the final displayed answer for any `ope` expression
+shape. The command retries complete expressions and fails explicitly if the
+requested ranges cannot produce a result under the ceiling.
+
+```bash
+python3 nuts_calc_tex.py A4 ope -o add \
+  --a-min 1 --a-max 999 --b-min 1 --b-max 999 \
+  --result-max 1000 --out-file addition-up-to-1000.pdf
 ```
 
 For `ope -o div`, use `--remainder`, `--no-remainder`, or `--mixed-remainder` to

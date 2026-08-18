@@ -331,7 +331,8 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴(git log より自動生成)
 
-- 72ce344 fix(#155): compute kuku descend order directly instead of reversing the wrapped ascending sequence
+- 32dd948 feat(#153): add reusable result ceiling for ope drills
+- d2e8744 #152 #155 Fix kuku multiplier range and descend order in both renderers (#156)
 - e8db9d7 #112 nuts_calc_tex.py: add mixed-number (帯分数) display support to the frac command (#125)
 - 380c2b1 #121 nuts_calc_tex.py: add Japanese-capable LuaLaTeX engine adapter (#124)
 - 0240d1d #120 nuts_calc_tex.py: introduce pluggable LatexEngineAdapter interface (#123)
@@ -340,4 +341,3 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - 3b25e73 #94 nuts_calc_tex.py: add evenodd/multiples/divisors number-property commands (#106)
 - 26ec449 #93 nuts_calc_tex.py: add optional name field to generated worksheets (#105)
 - bd8f170 #92 nuts_calc_tex.py: fix borrow-required subtraction to respect configured digit range (#103)
-- eae5107 #91 nuts_calc_tex.py: add remainder control to division (none/required/mixed) (#102)

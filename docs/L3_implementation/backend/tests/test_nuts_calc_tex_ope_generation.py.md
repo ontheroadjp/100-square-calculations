@@ -20,3 +20,10 @@
 ## 注意事項・既知の制限
 
 - 純粋関数テストのため `pdflatex` は不要。PDF/CSV出力は別のCLIテストが担う。
+
+## 変更履歴（git log より自動生成）
+
+- 32dd948 feat(#153): add reusable result ceiling for ope drills
+- bd8f170 #92 nuts_calc_tex.py: fix borrow-required subtraction to respect configured digit range (#103)
+- eae5107 #91 nuts_calc_tex.py: add remainder control to division (none/required/mixed) (#102)
+- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

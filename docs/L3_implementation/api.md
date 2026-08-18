@@ -8,13 +8,13 @@ Flask backend は worksheet 生成と renderer 能力確認の2エンドポイ�
 
 `Content-Type: application/json`。`paper_size` と `command_type` が必須で、欠落時は HTTP 400 を返す(`backend/app.py:17-22`)。
 
-任意フィールドは `RendererRequest` に列挙される(`backend/renderers.py:9-42`)。
+任意フィールドは `RendererRequest` に列挙される(`backend/renderers.py:9-54`)。
 
-- 数値/範囲: `a_value`, `b_value`, `a_min`, `a_max`, `b_min`, `b_max`, `numerator_digits`, `denominator_digits`, `a_decimal_places`, `b_decimal_places`, `decimal_places`, `terms`, `terms_min`, `terms_max`, `rows`, `columns`, `page`
-- 演算: `operator`, `a_kind`, `b_kind`(いずれも文字列配列)、`carry_mode`(`required`|`none`|`mixed`)
+- 数値/範囲: `a_value`, `b_value`, `a_min`, `a_max`, `b_min`, `b_max`, `result_max`, `numerator_digits`, `denominator_digits`, `a_decimal_places`, `b_decimal_places`, `decimal_places`, `terms`, `terms_min`, `terms_max`, `rows`, `columns`, `page`
+- 演算: `operator`, `a_kind`, `b_kind`(いずれも文字列配列)、`carry_mode`/`remainder_mode`(`required`|`none`|`mixed`)
 - flag: `descend`, `reverse`, `shuffle`, `intermediate`, `vertical`, `use_parentheses`, `missing_value`, `mixed_operators`, `same_denominator`, `different_denominators`, `proper_operands`, `proper_result`, `with_bottom_answer`, `merge`, `csv`, `debug`
 
-backend は renderer 互換性を事前検証せず、値を CLI option へ変換する。`carry_mode` だけは3値を allowlist 検証し、それぞれ `--carry`/`--no-carry`/`--mixed-carry` へ変換する。`vertical`、`use_parentheses`、`missing_value`、`terms` 系、小数・mixed 系、`carry_mode` は LaTeX 専用だが、reportlab 選択時にも request に含まれればそのまま渡され、`nuts_calc.py` が unknown option として失敗する。frontend が `GET /renderer-info` で機能を gate する理由はこの差にある。
+backend は renderer 互換性を事前検証せず、値を CLI option へ変換する。`carry_mode`/`remainder_mode` は3値をallowlist検証し、対応する `--carry-borrow` 系/`--remainder` 系フラグへ変換する。`result_max` は `--result-max` へ変換する。これらと `vertical`、`use_parentheses`、`missing_value`、`terms` 系、小数・mixed 系は LaTeX 専用だが、reportlab 選択時にも request に含まれればそのまま渡され、`nuts_calc.py` が unknown option として失敗する。frontend が `GET /renderer-info` で機能を gate する理由はこの差にある(`backend/renderers.py:130-170`)。
 
 ### Processing and response
 
