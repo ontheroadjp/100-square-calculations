@@ -22,11 +22,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-<<<<<<< HEAD
 - 1ae72a3 feat(#157): add per-grade/per-drill header descriptions via a shared page header component
-=======
-- 5f41b01 feat(#154): add grade-2 advanced subtraction capped at 1,000
->>>>>>> origin/main
+- c9011f1 #154 Add grade-2 advanced subtraction capped at 1,000 (#159)
 - 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)
 - 06870bb #148 Add multiplication-table question-order options (#150)
 - 85e58b1 #146 Add an advanced difficulty badge to the web UI (#147)

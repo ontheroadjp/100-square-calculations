@@ -246,6 +246,7 @@ const grade2 = {
       id: 'g2-sub-result-1000',
       titleKey: 'menu_g2_sub_result_1000_title',
       descKey: 'menu_g2_sub_result_1000_desc',
+      pointKey: 'menu_g2_sub_result_1000_point',
       difficultyKey: 'difficulty_advanced',
       examples: ['500-125', '302-158', '456-321'],
       examplesFor: examplesByChoice(['carryMode'], {
