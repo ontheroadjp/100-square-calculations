@@ -8,7 +8,7 @@ For the pedagogical background behind the drills (the mental-arithmetic techniqu
 ## Features
 *   **Diverse Problem Types**: Generate worksheets for integer arithmetic, complements, 100-square tables, multiplication tables, square numbers, mental arithmetic, exact fraction arithmetic, fraction comparison, number properties (even/odd, multiples, divisors, LCM, GCD), and fraction/decimal conversion (simplification, common denominators, fraction-to-decimal, decimal-to-fraction, division-as-fraction) through the LaTeX renderer.
 *   **Customizable Generation**: Extensive command-line options allow users to specify paper size, number ranges, operators, problem counts, and output formats.
-*   **Reusable answer ceilings**: The LaTeX `ope` command accepts `--result-max` for two-term, parenthesized, multi-term, and missing-value expressions; the grade-2 Web menu uses it for advanced addition whose answer is at most 1,000.
+*   **Reusable answer ceilings**: The LaTeX `ope` command accepts `--result-max` for two-term, parenthesized, multi-term, and missing-value expressions; the grade-2 Web menu uses it for advanced addition and subtraction whose answer is at most 1,000.
 *   **PDF Output**: All worksheets are generated as high-quality PDF files, ready for printing.
 *   **Answer Options**: Include answers at the bottom of the page, merge answer files, or output raw problem data to CSV for further analysis.
 *   **Automated Batch Generation**: The `factory.sh` script provides an automated way to generate a wide variety of pre-configured worksheets.
