@@ -153,6 +153,16 @@ Japanese "あまり" label.
 python3 nuts_calc_tex.py A4 ope -o div --remainder --out-file division-remainder.pdf
 ```
 
+For `frac -o mul`/`div` and two-term `mixed -o mul`/`div` (with one `fraction`
+and one `int` operand kind), use `--require-reducible`, `--no-reducible`, or
+`--mixed-reducible` to require, forbid, or mix whether the raw (pre-
+simplification) product/quotient needs reduction.
+
+```bash
+python3 nuts_calc_tex.py A4 frac -o mul --numerator-digits 1 --denominator-digits 1 \
+  --proper-operands --require-reducible --out-file reducible-fractions.pdf
+```
+
 Use `--with-name-field` to print a `Name: ___` line in the page header (a
 common setting shared across all twenty commands, not just `ope`). Since plain
 `pdflatex` has no CJK font support, the label is rendered as English `Name:`

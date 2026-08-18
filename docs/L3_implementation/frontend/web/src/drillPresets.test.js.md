@@ -10,6 +10,8 @@
 
 2年生の発展足し算・発展引き算(issue #154)について、それぞれ addition/subtraction カテゴリに存在し、`difficulty_advanced`/`latexOnly: true` を持ち、既定の「まぜる」状態から1〜999のオペランド範囲と `result_max: 1000` を生成することを検証する(`frontend/web/src/drillPresets.test.js:100-132`)。
 
+6年生の分数×整数・整数×分数・分数×分数・分数÷整数・整数÷分数・分数÷分数(計6項目、issue #114)について、`supportLevel` が `'full'` であること、および `reduction` 設定の `required`/`none`/`mixed` の各値と未設定時のフォールバック(`'mixed'`)が `buildParams(state).reducible_mode` へそのまま反映されることを検証する。
+
 ## 重要な設計判断とその理由
 
 難易度は単なる文字列型ではなくUIの文言・CSS・互換分類と結び付く列挙値であるため、文字列であることだけでなく既知キーとの一致を検証する。
@@ -25,8 +27,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- 130794b wip: 2026-08-18 16:09:52 before Edit drillPresets.js
-- d2a9746 feat(#161): rebuild grade-3 addition/subtraction menu and add four-operations drills
+- f3e823d feat(#114): add reducibility control to frac/mixed multiplication and division
+- 17070be #161 frontend/web: rebuild grade-3 addition/subtraction menu, retire fraction category, add four-operations drills (#162)
 - 9b366c1 #157 Add per-grade/per-drill header descriptions via a shared page header component (#160)
 - c9011f1 #154 Add grade-2 advanced subtraction capped at 1,000 (#159)
 - 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)

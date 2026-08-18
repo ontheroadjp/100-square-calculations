@@ -175,6 +175,38 @@ def test_build_command_rejects_unknown_remainder_mode() -> None:
         renderers.build_command("latex", params, "out.pdf")
 
 
+@pytest.mark.parametrize(
+    ("reducible_mode", "expected_flag"),
+    [
+        ("required", "--require-reducible"),
+        ("none", "--no-reducible"),
+        ("mixed", "--mixed-reducible"),
+    ],
+)
+def test_build_command_translates_reducible_mode(reducible_mode: str, expected_flag: str) -> None:
+    params = {
+        "paper_size": "A4",
+        "command_type": "frac",
+        "operator": ["mul"],
+        "reducible_mode": reducible_mode,
+    }
+
+    command = renderers.build_command("latex", params, "out.pdf")
+
+    assert expected_flag in command
+
+
+def test_build_command_rejects_unknown_reducible_mode() -> None:
+    params = {
+        "paper_size": "A4",
+        "command_type": "frac",
+        "reducible_mode": "unknown",
+    }
+
+    with pytest.raises(ValueError, match="Unknown reducible_mode"):
+        renderers.build_command("latex", params, "out.pdf")
+
+
 def test_build_command_translates_fraction_params() -> None:
     params = {
         "paper_size": "A4",

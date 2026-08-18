@@ -93,6 +93,7 @@ BORROWING_SUBTRAHENDS = tuple(range(1, 10))
 
 CarryMode = Literal['required', 'none', 'mixed']
 RemainderMode = Literal['required', 'none', 'mixed']
+ReducibleMode = Literal['required', 'none', 'mixed']
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 VENDOR_TEXMF_DIR = os.path.join(SCRIPT_DIR, 'vendor', 'texmf')
@@ -239,6 +240,32 @@ def _init() -> argparse.Namespace:
         , action = 'store_const'
         , const = 'mixed'
         , help = 'Mix exact and remainder division (ope -o div only)'
+    )
+    reducible_group = parser.add_mutually_exclusive_group()
+    reducible_group.add_argument('--require-reducible'
+        , dest = 'reducible_mode'
+        , action = 'store_const'
+        , const = 'required'
+        , default = None
+        , help = (
+            'Require the raw (pre-simplification) product/quotient to need '
+            'reduction (frac/mixed -o mul/div, two-term only)'
+        )
+    )
+    reducible_group.add_argument('--no-reducible'
+        , dest = 'reducible_mode'
+        , action = 'store_const'
+        , const = 'none'
+        , help = (
+            'Require the raw (pre-simplification) product/quotient to already '
+            'be in lowest terms (frac/mixed -o mul/div, two-term only)'
+        )
+    )
+    reducible_group.add_argument('--mixed-reducible'
+        , dest = 'reducible_mode'
+        , action = 'store_const'
+        , const = 'mixed'
+        , help = 'Mix problems that do and do not need reduction (frac/mixed -o mul/div, two-term only)'
     )
     parser.add_argument('--numerator-digits'
         , type = int
@@ -648,6 +675,36 @@ def _init() -> argparse.Namespace:
             )
         if args.a_decimal_places != MIN_DECIMAL_PLACES or args.b_decimal_places != MIN_DECIMAL_PLACES:
             failure("--remainder/--no-remainder/--mixed-remainder only support integer operands.")
+
+    if args.reducible_mode is not None:
+        allowed_reducible_operators = {'mul', 'div'}
+        if (
+                args.command not in ('frac', 'mixed') or not args.operator
+                or not set(args.operator) <= allowed_reducible_operators
+            ):
+            failure(
+                "--require-reducible/--no-reducible/--mixed-reducible only support "
+                "'frac'/'mixed' mul/div operators."
+            )
+        if args.command == 'mixed':
+            if terms_options_given:
+                failure(
+                    "--require-reducible/--no-reducible/--mixed-reducible cannot be combined "
+                    "with --terms/--terms-min/--terms-max/--mixed-operators for the 'mixed' command."
+                )
+            # Reducibility of the raw product/quotient is only well-defined
+            # for a fraction operand paired with an integer operand (the
+            # curriculum shape in docs/uiux/calculation_drill_menu_parameters_v1.md's
+            # grade-6 分数×整数/整数×分数 items) -- 'decimal' kind values are
+            # already float-scaled integers with no comparable "unreduced"
+            # display form, and fraction/fraction pairs belong to the 'frac'
+            # command instead.
+            if {tuple(args.a_kind), tuple(args.b_kind)} != {('fraction',), ('int',)}:
+                failure(
+                    "--require-reducible/--no-reducible/--mixed-reducible require exactly "
+                    "one '--a-kind fraction'/'--b-kind int' pairing (in either order) for "
+                    "the 'mixed' command."
+                )
 
     if args.command == 'mixed' and terms_options_given and args.terms_min > args.terms_max:
         failure("--terms-min must be less than or equal to --terms-max.")
@@ -3209,18 +3266,43 @@ def calculate_fraction(a: Fraction, b: Fraction, operator: str) -> Fraction:
     return a / b
 
 
+def raw_mul_div_is_reducible(
+        a_numerator: int, a_denominator: int, b_numerator: int, b_denominator: int, operator: str,
+    ) -> bool:
+    """
+    Whether the unreduced product/quotient of two raw (pre-simplification)
+    fractions needs reduction (gcd > 1), i.e. whether naively multiplying/
+    dividing the displayed numerators and denominators together yields a
+    non-lowest-terms fraction. Shared by `frac`/`mixed` -o mul/div's
+    --require-reducible/--no-reducible/--mixed-reducible (#114).
+    """
+    if operator == 'mul':
+        raw_numerator, raw_denominator = a_numerator * b_numerator, a_denominator * b_denominator
+    else:
+        raw_numerator, raw_denominator = a_numerator * b_denominator, a_denominator * b_numerator
+    return math.gcd(raw_numerator, raw_denominator) > 1
+
+
 def generate_fraction_problems(
         numerator_digits: int, denominator_digits: int, operators: list[str],
         order: int, start_index: int, same_denominator: bool,
         proper_operands: bool, proper_result: bool,
         different_denominators: bool = False,
         a_form: str = 'proper', b_form: str = 'proper',
+        reducible_mode: ReducibleMode | None = None,
     ) -> list[FractionProblem]:
     """Generate exact fraction problems satisfying the requested constraints.
 
     a_form/b_form (default 'proper') select each operand's display form for
     frac add/sub (#112); leaving both at 'proper' routes every operand
     through the pre-#112 random_fraction_operand call unchanged.
+
+    reducible_mode (#114, frac -o mul/div only -- _init() enforces this)
+    constrains whether the raw a*b/a÷b product/quotient needs reduction:
+    'required' retries until it does, 'none' retries until it doesn't, and
+    'mixed' decides the requirement once per problem (mirroring
+    carry_mode/remainder_mode's 'mixed' handling) so both occur across a
+    worksheet.
     """
     effective_operators = MIX_OPERATORS if 'mix' in operators else operators
     denominator_min, denominator_max = digit_range(denominator_digits)
@@ -3229,6 +3311,11 @@ def generate_fraction_problems(
     problems = []
     for offset in range(order):
         operator = random.choice(effective_operators)
+        wants_reducible = (
+            None if reducible_mode is None
+            else random.choice((False, True)) if reducible_mode == 'mixed'
+            else reducible_mode == 'required'
+        )
         for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
             common_denominator = (
                 random.randint(denominator_min, denominator_max)
@@ -3252,6 +3339,10 @@ def generate_fraction_problems(
                 continue
             if proper_result and c >= 1:
                 continue
+            if wants_reducible is not None:
+                is_reducible = raw_mul_div_is_reducible(a.numerator, a.denominator, b.numerator, b.denominator, operator)
+                if is_reducible is not wants_reducible:
+                    continue
             problems.append(FractionProblem(start_index + offset, a, b, operator, c, mixed_number_display))
             break
         else:
@@ -3336,7 +3427,7 @@ def build_fraction_pages(
             ini.numerator_digits, ini.denominator_digits, ini.operator, order,
             (page_number - 1) * order + 1, ini.same_denominator,
             ini.proper_operands, ini.proper_result, ini.different_denominators,
-            ini.a_fraction_form, ini.b_fraction_form,
+            ini.a_fraction_form, ini.b_fraction_form, ini.reducible_mode,
         )
         blank_page, filled_page = build_fraction_page_pair(problems, ini.columns)
         if ini.with_bottom_answer:
@@ -3494,10 +3585,22 @@ def build_fraction_comparison_pages(
 
 @dataclass(frozen=True)
 class MixedOperand:
-    """One "mixed"-command operand: its kind, ready-to-embed TeX, and exact value."""
+    """One "mixed"-command operand: its kind, ready-to-embed TeX, and exact value.
+
+    raw_numerator/raw_denominator (#114, default None -- existing callers
+    that only need `value` are unaffected) hold the operand's own
+    pre-simplification numerator/denominator ('int' as n/1, 'decimal' as its
+    scaled integer/10^places, 'fraction' as its FractionOperand's unreduced
+    pair) so a caller can compute raw --require-reducible/--no-reducible/
+    --mixed-reducible reducibility without re-deriving it from `value`
+    (which is always the auto-reduced Fraction). random_mixed_operand always
+    populates both.
+    """
     kind: str  # 'int' | 'decimal' | 'fraction'
     display: str
     value: Fraction
+    raw_numerator: int | None = None
+    raw_denominator: int | None = None
 
 
 @dataclass(frozen=True)
@@ -3524,18 +3627,25 @@ def random_mixed_operand(
     """
     if kind == 'int':
         value = random.randint(*digit_range(numerator_digits))
-        return MixedOperand('int', str(value), Fraction(value))
+        return MixedOperand('int', str(value), Fraction(value), value, 1)
     if kind == 'decimal':
         scaled = random.randint(*digit_range(numerator_digits))
-        return MixedOperand('decimal', format_decimal_value(scaled, decimal_places), Fraction(scaled, 10 ** decimal_places))
+        return MixedOperand(
+            'decimal', format_decimal_value(scaled, decimal_places),
+            Fraction(scaled, 10 ** decimal_places), scaled, 10 ** decimal_places,
+        )
     fraction_operand = random_fraction_operand(numerator_digits, denominator_digits, proper=False)
-    return MixedOperand('fraction', fraction_to_tex(fraction_operand), fraction_operand.value)
+    return MixedOperand(
+        'fraction', fraction_to_tex(fraction_operand), fraction_operand.value,
+        fraction_operand.numerator, fraction_operand.denominator,
+    )
 
 
 def generate_mixed_problems(
         a_kinds: list[str], b_kinds: list[str], operators: list[str], mixed: bool,
         numerator_digits: int, denominator_digits: int, decimal_places: int,
         terms_min: int, terms_max: int, order: int, start_index: int,
+        reducible_mode: ReducibleMode | None = None,
     ) -> list[MixedProblem]:
     """
     Generate `order` flat (non-parenthesized) N-term "mixed" problems, each
@@ -3550,12 +3660,24 @@ def generate_mixed_problems(
 
     The first term is drawn from a_kinds, every later term from b_kinds
     (mirrors generate_multi_term_ope_problems's nums_a/nums_b convention).
+
+    reducible_mode (#114) constrains whether the raw product/quotient of the
+    two operands needs reduction, mirroring generate_fraction_problems's
+    handling. _init() only allows it for two-term (terms_min==terms_max==2)
+    problems with one 'fraction' and one 'int' operand kind, so gap_count is
+    always 1 here and raw_numerator/raw_denominator (always populated by
+    random_mixed_operand for those two kinds) are always available.
     """
     effective_operators = MIX_OPERATORS if 'mix' in operators else operators
     problems = []
     for offset in range(order):
         term_count = random.randint(terms_min, terms_max)
         gap_count = term_count - 1
+        wants_reducible = (
+            None if reducible_mode is None
+            else random.choice((False, True)) if reducible_mode == 'mixed'
+            else reducible_mode == 'required'
+        )
         for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
             operands = [random_mixed_operand(random.choice(a_kinds), numerator_digits, denominator_digits, decimal_places)]
             operands += [
@@ -3571,6 +3693,14 @@ def generate_mixed_problems(
                 problem_operators = [shared_operator] * gap_count
                 result = evaluate_left_to_right(values, problem_operators, MIXED_STAGE_FUNCTIONS)
             if result is not None:
+                if wants_reducible is not None:
+                    is_reducible = raw_mul_div_is_reducible(
+                        operands[0].raw_numerator, operands[0].raw_denominator,
+                        operands[1].raw_numerator, operands[1].raw_denominator,
+                        problem_operators[0],
+                    )
+                    if is_reducible is not wants_reducible:
+                        continue
                 problems.append(MixedProblem(
                     index=start_index + offset, operands=operands,
                     operators=problem_operators, mixed=mixed, result=result,
@@ -3646,6 +3776,7 @@ def build_mixed_pages(
             ini.a_kind, ini.b_kind, ini.operator, ini.mixed_operators,
             ini.numerator_digits, ini.denominator_digits, ini.decimal_places,
             ini.terms_min, ini.terms_max, order, (page_number - 1) * order + 1,
+            ini.reducible_mode,
         )
         blank_page, filled_page = build_mixed_page_pair(problems, ini.columns)
         if ini.with_bottom_answer:

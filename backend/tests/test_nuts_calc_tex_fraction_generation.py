@@ -1,10 +1,22 @@
 """Pure-Python tests for the LaTeX fraction worksheet generator."""
 
+import math
 from fractions import Fraction
 
 import pytest
 
 import nuts_calc_tex as tex_module
+
+
+def _raw_gcd(problem: tex_module.FractionProblem) -> int:
+    """gcd of the unreduced (pre-simplification) mul/div product/quotient."""
+    if problem.operator == "mul":
+        raw_numerator = problem.a.numerator * problem.b.numerator
+        raw_denominator = problem.a.denominator * problem.b.denominator
+    else:
+        raw_numerator = problem.a.numerator * problem.b.denominator
+        raw_denominator = problem.a.denominator * problem.b.numerator
+    return math.gcd(raw_numerator, raw_denominator)
 
 
 @pytest.mark.parametrize("operator", ["add", "sub", "mul", "div"])
@@ -46,6 +58,37 @@ def test_generate_fraction_problems_requires_different_denominators() -> None:
         1, 1, ["add", "sub"], 30, 1, False, True, False, True,
     )
     assert all(problem.a.denominator != problem.b.denominator for problem in problems)
+
+
+@pytest.mark.parametrize("operator", ["mul", "div"])
+def test_generate_fraction_problems_require_reducible_forces_gcd_above_one(operator: str) -> None:
+    problems = tex_module.generate_fraction_problems(
+        1, 1, [operator], 30, 1, False, True, False,
+        reducible_mode="required",
+    )
+    assert len(problems) == 30
+    for problem in problems:
+        assert _raw_gcd(problem) > 1
+
+
+@pytest.mark.parametrize("operator", ["mul", "div"])
+def test_generate_fraction_problems_no_reducible_forces_coprime_raw_result(operator: str) -> None:
+    problems = tex_module.generate_fraction_problems(
+        1, 1, [operator], 30, 1, False, True, False,
+        reducible_mode="none",
+    )
+    assert len(problems) == 30
+    for problem in problems:
+        assert _raw_gcd(problem) == 1
+
+
+def test_generate_fraction_problems_mixed_reducible_covers_both_outcomes() -> None:
+    problems = tex_module.generate_fraction_problems(
+        1, 1, ["mul"], 30, 1, False, True, False,
+        reducible_mode="mixed",
+    )
+    outcomes = {_raw_gcd(problem) > 1 for problem in problems}
+    assert outcomes == {True, False}
 
 
 def test_fraction_to_tex_reduces_exact_answers_but_preserves_operands() -> None:

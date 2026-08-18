@@ -68,6 +68,15 @@
 - CSV は `[page_number, index, terms, mixed, expression, result_numerator, result_denominator]` の7列(`expression` は多項 `ope` の `build_multi_term_ope_expression_text` と同じ自己記述文字列、各オペランドは `display`(例: `"0.5"`/`"3"`/`"\frac{1}{4}"`)をそのまま使う)。
 - 根拠資料: 学習指導要領解説 p.293-294 の「内容の取扱い」注記「整数や小数の乗法や除法を分数の場合の計算にまとめることも取り扱うものとする」、および同ページの例示 `5÷2×0.3` を分数の積にまとめる計算。この記述は乗法・除法のみに言及しているが、ユーザーの明示的な指示により四則すべて(`MIX_OPERATORS` = add/sub/mul/div)を許可している。
 
+### `frac`/`mixed --require-reducible`/`--no-reducible`/`--mixed-reducible`(issue #114)
+
+- `docs/uiux/calculation_drill_menu_parameters_v1.md` の小学6年生・分数×整数/整数×分数/分数×分数/分数÷整数/整数÷分数/分数÷分数の6項目が要求する固有設定「約分: なし / あり / まぜる」に対応する。3フラグは `carry_group`/`remainder_group` と同じ形の argparse 排他グループで、内部では `reducible_mode: ReducibleMode = Literal['required', 'none', 'mixed']` に正規化する(`nuts_calc_tex.py:94-96,244-267`)。
+- `raw_mul_div_is_reducible(a_numerator, a_denominator, b_numerator, b_denominator, operator)`: 2つの未約分(表示用の生の)分子・分母を `mul` なら単純に、`div` なら `a` の分子×`b` の分母/`a` の分母×`b` の分子で掛け合わせ、`math.gcd(raw_numerator, raw_denominator) > 1` で「表示されている生の分子・分母のまま計算すると約分が必要か」を判定する。`simplify` コマンドの `math.gcd(...) > 1` 再抽選パターン(前述)を `frac`/`mixed` の乗除算1問に一般化したもの(`nuts_calc_tex.py` の `generate_fraction_problems` 直前)。
+- `frac`: `-o mul`/`-o div`(`{'mul', 'div'}` の部分集合、複数指定も可)にのみ許可する。`_init()` は `command not in ('frac', 'mixed')` または演算子が `mul`/`div` 以外を含む場合を拒否する。`generate_fraction_problems(..., reducible_mode=None)` は問題ごとに(`'mixed'` モードなら `random.choice((False, True))` で、それ以外は固定で)`wants_reducible` を決め、生成した `a`/`b`(いずれも未約分の `FractionOperand`)の raw reducibility が一致するまでリトライする(`--proper-result` 等の既存条件と同じ retry ループに追加条件として合流)。
+- `mixed`: 2項(`terms_min == terms_max == 2`、`--terms`系/`--mixed-operators` との併用禁止)かつ `--a-kind`/`--b-kind` が `{('fraction',), ('int',)}`(順不同)である場合のみ許可する。「未約分」の概念は `decimal` kind(`Fraction` コンストラクタが常に自動約分するスケール整数)や fraction×fraction(`frac` コマンドの領分)には自然に定義できないため、curriculum の分数×整数/整数×分数の形にスコープを絞った(`nuts_calc_tex.py` の `reducible_mode` validation ブロック内コメント参照)。
+- `MixedOperand` に `raw_numerator`/`raw_denominator`(既定 `None`)を追加した。`random_mixed_operand()` は `int` を `(value, 1)`、`decimal` を `(scaled, 10**decimal_places)`、`fraction` を元の `FractionOperand.numerator`/`.denominator`(未約分)としてこれらを常に埋める。`value: Fraction` フィールド自体は変更しておらず(常に自動約分済み)、新フィールドはオペランド自身の表示形に対応する未約分値を別途保持する目的のみに使う。既定 `None` のため、3引数(`kind`/`display`/`value`)だけで構築する既存呼び出し・テストは無変更。
+- `generate_mixed_problems(..., reducible_mode=None)` は `frac` と同じ per-problem `wants_reducible` パターンを使うが、`gap_count` が常に1(2項限定)であることが validation で保証されているため、`operands[0]`/`operands[1]` と `problem_operators[0]` だけを見れば足りる。
+
 ### `ope --use-parentheses`(issue #67、issue #71 でN項に一般化)
 
 - `_init()` は `command == 'ope'` のときのみ `--use-parentheses` を許可し、`--vertical`/`--intermediate` との併用を拒否する。`-o/--operator` の受け付け方は通常の `ope`(`mix` を含む1〜4個の演算子)と全く同じで、「かっこ内外の演算子をちょうど2つ指定する」といった専用の制約は課さない。
@@ -332,6 +341,7 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴(git log より自動生成)
 
+- f3e823d feat(#114): add reducibility control to frac/mixed multiplication and division
 - 8fdd41d fix(#113): allow nuts_calc_tex.py --carry-borrow with decimal operands
 - 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)
 - d2e8744 #152 #155 Fix kuku multiplier range and descend order in both renderers (#156)

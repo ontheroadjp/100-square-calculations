@@ -57,6 +57,14 @@ function remainderModeParam(state) {
   return state?.remainderMode ?? 'mixed';
 }
 
+// nuts_calc_tex.py's --require-reducible/--no-reducible/--mixed-reducible
+// (#114) has no single-operator restriction (unlike carryModeField above),
+// so 'mixed' is always sent through explicitly, mirroring
+// remainderModeParam rather than carryModeField.
+function reducibleModeParam(state) {
+  return state?.reduction ?? 'mixed';
+}
+
 // Builds an examplesFor(settingsState) for a menu item's example chips: looks
 // up the example set for the current combination of the given setting ids
 // (joined with "_", e.g. ['denominator', 'numberKind'] -> "same_fraction").
@@ -1080,8 +1088,6 @@ const grade6 = {
       pointKey: 'menu_g6_fraction_mul_int_point',
       difficultyKey: 'difficulty_basic',
       examples: ['3/5×4', '4/6×3', '2/7×5'],
-      // Partial: no way to force/forbid a reducible raw result. #114. The
-      // preview below is illustrative only, for the same reason.
       examplesFor: examplesByChoice(['reduction'], {
         none: ['3/5×4', '2/7×5', '3/8×3'],
         required: ['4/6×3', '2/4×3', '6/8×2'],
@@ -1091,11 +1097,11 @@ const grade6 = {
         { id: 'reduction', labelKey: 'setting_reduction_label', type: 'choice', options: REDUCTION_OPTIONS, default: 'mixed' },
         fixedSetting('multiplier', 'setting_multiplier_label', 'setting_option_integer'),
       ],
-      supportLevel: 'partial',
+      supportLevel: 'full',
       latexOnly: true,
-      buildParams: () => ({
+      buildParams: (state) => ({
         command_type: 'mixed', operator: ['mul'], a_kind: ['fraction'], b_kind: ['int'],
-        numerator_digits: 1, denominator_digits: 1,
+        numerator_digits: 1, denominator_digits: 1, reducible_mode: reducibleModeParam(state),
       }),
     },
     {
@@ -1105,8 +1111,6 @@ const grade6 = {
       pointKey: 'menu_g6_int_mul_fraction_point',
       difficultyKey: 'difficulty_basic',
       examples: ['4×3/5', '3×4/6', '5×2/7'],
-      // Partial: see g6-fraction-mul-int above (#114). The preview below is
-      // illustrative only, for the same reason.
       examplesFor: examplesByChoice(['reduction'], {
         none: ['4×3/5', '5×2/7', '3×3/8'],
         required: ['3×4/6', '3×2/4', '2×6/8'],
@@ -1116,11 +1120,11 @@ const grade6 = {
         { id: 'reduction', labelKey: 'setting_reduction_label', type: 'choice', options: REDUCTION_OPTIONS, default: 'mixed' },
         fixedSetting('multiplicand', 'setting_multiplicand_label', 'setting_option_integer'),
       ],
-      supportLevel: 'partial',
+      supportLevel: 'full',
       latexOnly: true,
-      buildParams: () => ({
+      buildParams: (state) => ({
         command_type: 'mixed', operator: ['mul'], a_kind: ['int'], b_kind: ['fraction'],
-        numerator_digits: 1, denominator_digits: 1,
+        numerator_digits: 1, denominator_digits: 1, reducible_mode: reducibleModeParam(state),
       }),
     },
     {
@@ -1130,8 +1134,6 @@ const grade6 = {
       pointKey: 'menu_g6_fraction_mul_point',
       difficultyKey: 'difficulty_basic',
       examples: ['3/5×7/9', '2/5×3/7', '3/8×2/9'],
-      // Partial: see g6-fraction-mul-int above (#114). The preview below is
-      // illustrative only, for the same reason.
       examplesFor: examplesByChoice(['reduction'], {
         none: ['2/5×3/7', '3/8×2/9', '4/7×1/6'],
         required: ['3/5×7/9', '2/4×3/6', '4/6×2/8'],
@@ -1140,11 +1142,11 @@ const grade6 = {
       settings: [
         { id: 'reduction', labelKey: 'setting_reduction_label', type: 'choice', options: REDUCTION_OPTIONS, default: 'mixed' },
       ],
-      supportLevel: 'partial',
+      supportLevel: 'full',
       latexOnly: true,
-      buildParams: () => ({
+      buildParams: (state) => ({
         command_type: 'frac', operator: ['mul'], numerator_digits: 1, denominator_digits: 1,
-        proper_operands: true,
+        proper_operands: true, reducible_mode: reducibleModeParam(state),
       }),
     },
     {
@@ -1154,8 +1156,6 @@ const grade6 = {
       pointKey: 'menu_g6_fraction_div_int_point',
       difficultyKey: 'difficulty_basic',
       examples: ['5/6÷3', '4/6÷2', '3/7÷2'],
-      // Partial: see g6-fraction-mul-int above (#114). The preview below is
-      // illustrative only, for the same reason.
       examplesFor: examplesByChoice(['reduction'], {
         none: ['5/6÷3', '3/7÷2', '4/9÷5'],
         required: ['4/6÷2', '6/8÷3', '2/4÷2'],
@@ -1165,11 +1165,11 @@ const grade6 = {
         { id: 'reduction', labelKey: 'setting_reduction_label', type: 'choice', options: REDUCTION_OPTIONS, default: 'mixed' },
         fixedSetting('divisor', 'setting_divisor_label', 'setting_option_integer'),
       ],
-      supportLevel: 'partial',
+      supportLevel: 'full',
       latexOnly: true,
-      buildParams: () => ({
+      buildParams: (state) => ({
         command_type: 'mixed', operator: ['div'], a_kind: ['fraction'], b_kind: ['int'],
-        numerator_digits: 1, denominator_digits: 1,
+        numerator_digits: 1, denominator_digits: 1, reducible_mode: reducibleModeParam(state),
       }),
     },
     {
@@ -1179,8 +1179,6 @@ const grade6 = {
       pointKey: 'menu_g6_int_div_fraction_point',
       difficultyKey: 'difficulty_standard',
       examples: ['4÷2/3', '4÷3/5', '5÷2/7'],
-      // Partial: see g6-fraction-mul-int above (#114). The preview below is
-      // illustrative only, for the same reason.
       examplesFor: examplesByChoice(['reduction'], {
         none: ['4÷3/5', '5÷2/7', '3÷4/9'],
         required: ['4÷2/3', '3÷2/4', '2÷4/8'],
@@ -1190,11 +1188,11 @@ const grade6 = {
         { id: 'reduction', labelKey: 'setting_reduction_label', type: 'choice', options: REDUCTION_OPTIONS, default: 'mixed' },
         fixedSetting('divisor', 'setting_divisor_label', 'setting_option_fraction'),
       ],
-      supportLevel: 'partial',
+      supportLevel: 'full',
       latexOnly: true,
-      buildParams: () => ({
+      buildParams: (state) => ({
         command_type: 'mixed', operator: ['div'], a_kind: ['int'], b_kind: ['fraction'],
-        numerator_digits: 1, denominator_digits: 1,
+        numerator_digits: 1, denominator_digits: 1, reducible_mode: reducibleModeParam(state),
       }),
     },
     {
@@ -1204,8 +1202,6 @@ const grade6 = {
       pointKey: 'menu_g6_fraction_div_point',
       difficultyKey: 'difficulty_standard',
       examples: ['3/4÷2/5', '2/4÷2/6', '2/7÷3/8'],
-      // Partial: see g6-fraction-mul-int above (#114). The preview below is
-      // illustrative only, for the same reason.
       examplesFor: examplesByChoice(['reduction'], {
         none: ['3/4÷2/5', '2/7÷3/8', '4/9÷1/6'],
         required: ['2/4÷2/6', '3/6÷2/8', '4/8÷2/4'],
@@ -1214,11 +1210,11 @@ const grade6 = {
       settings: [
         { id: 'reduction', labelKey: 'setting_reduction_label', type: 'choice', options: REDUCTION_OPTIONS, default: 'mixed' },
       ],
-      supportLevel: 'partial',
+      supportLevel: 'full',
       latexOnly: true,
-      buildParams: () => ({
+      buildParams: (state) => ({
         command_type: 'frac', operator: ['div'], numerator_digits: 1, denominator_digits: 1,
-        proper_operands: true,
+        proper_operands: true, reducible_mode: reducibleModeParam(state),
       }),
     },
     {
