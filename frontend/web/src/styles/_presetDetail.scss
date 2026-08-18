@@ -20,9 +20,13 @@
 
 .example-chip-row {
   display: flex;
+  // Wraps at the row level only (a whole chip moves to the next line) --
+  // each chip itself is kept to one line below, so this never splits a
+  // single problem across two lines. min-height (not a fixed height) lets
+  // the row grow if that per-chip wrap ever triggers.
   flex-wrap: wrap;
   gap: $space-sm;
-  height: 150px;
+  min-height: 56px;
 
   .example-chip {
     display: flex;
@@ -33,9 +37,24 @@
     padding: 6px 12px;
     border: 1px solid $color-border-light;
     border-radius: $radius-sm;
-    font-size: $font-size-lg;
+    // Shrinks continuously with viewport width instead of a fixed size, so
+    // a chip is less likely to need the row-level wrap above.
+    font-size: clamp(0.85rem, 4vw, #{$font-size-lg});
+    white-space: nowrap;
     background: #f8fafc;
     color: $color-text;
+
+    .katex {
+      white-space: nowrap;
+    }
+  }
+
+  // Last resort for screens too narrow for 3 legible chips: drop the 3rd
+  // sample so the remaining two get its space instead of shrinking further.
+  @media (max-width: 360px) {
+    .example-chip:nth-child(n + 3) {
+      display: none;
+    }
   }
 }
 
