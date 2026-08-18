@@ -45,7 +45,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- 51b8d7f feat(#148): add multiplication-table question order
+- 1ae72a3 feat(#157): add per-grade/per-drill header descriptions via a shared page header component
+- 06870bb #148 Add multiplication-table question-order options (#150)
 - 1d8ee60 #135 frontend/web: switch preset detail page example problems based on selected settings (#141)
 - 2d9ee47 #132 frontend/web: dynamic grade accent, KaTeX fraction examples, generalized setting hints, and move problem count into common settings on preset detail page (#136)
 - 1bb0f69 #126 frontend/web: add missing wireframe icons and unify page headers (#127)

@@ -25,3 +25,7 @@
 - href は `index.html` 固定で引数化していない(現状の2呼び出し元がいずれも同じ遷移先のため、YAGNI)。
 - `presetDetail.js` のプレビュー画面ヘッダー(`<header class="preview-header">`、`ICONS.chevronLeft` + `<h3>` + `data-action="back-to-done"`)は構造が異なる別コンポーネントで、本モジュールの対象外。
 - `catalog.js` の空状態(grade が不正な場合の `emptyStateHtml()`)はヘッダー自体を表示しないため、本モジュールを経由しない。
+
+## 変更履歴（git log より自動生成）
+
+- 1ae72a3 feat(#157): add per-grade/per-drill header descriptions via a shared page header component

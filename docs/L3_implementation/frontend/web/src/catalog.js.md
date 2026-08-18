@@ -46,7 +46,8 @@
 
 ## 変更履歴(git log より自動生成)
 
-- e8ce3ec feat(#146): add advanced difficulty badge
+- 1ae72a3 feat(#157): add per-grade/per-drill header descriptions via a shared page header component
+- 85e58b1 #146 Add an advanced difficulty badge to the web UI (#147)
 - d43d1bc #130 frontend/web: make catalog page accent color switch dynamically per grade (#131)
 - 1bb0f69 #126 frontend/web: add missing wireframe icons and unify page headers (#127)
 - 90864a5 refactor(frontend/web): replace hand-drawn nav/UI icons with Material Symbols
