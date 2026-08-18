@@ -9,7 +9,7 @@
 `GRADES`(`[1,2,3,4,5,6]`)・`UNGRADED`(`'ungraded'`)・`presetsByGrade` を export する。`presetsByGrade[grade]` は `{ <categoryId>: menuItem[] }` の形で、`categoryId` は `addition`/`subtraction`/`multiplication`/`division`/`fraction`/`four-operations`/`number-sense` のいずれか(該当する学年にのみ出現)。`fraction` は3年生(issue #161で撤廃)を除く4〜6年生に残る。カテゴリキーは `catalog.js` の固定 `CATEGORY_ORDER`(`addition, subtraction, multiplication, division, fraction, four-operations, number-sense`)による学年ページのセクション見出し順序付けにのみ使われ、`drillCatalog.js` の絞り込み分類(`numberType`/`operationGroup`)には影響しない(`Object.values(categories)` でカテゴリキーを捨ててフラット化するため)。
 
 各 `menuItem` は以下を持つ:
-- `id`/`titleKey`/`descKey`/`pointKey`: 全データモデル中で `id` は一意。`pointKey`(issue #157)は `presetDetail.js` のページヘッダーに表示する、保護者向けの平易な指導ポイント文言(60件、[[./pageHeader.js]] 参照)。既存の `descKey` は旧 `drillCatalog.js`(未使用、削除候補)向けの機械的な説明文のままで、`pointKey` とは用途・文体が異なる別フィールドとして併存する。
+- `id`/`titleKey`/`descKey`/`pointKey`: 全データモデル中で `id` は一意。`pointKey`(issue #157)は `presetDetail.js` のページヘッダーに表示する、保護者向けの平易な指導ポイント文言(60件、[[./pageHeader.js]] 参照)。既存の `descKey` はもともと旧 `drillCatalog.js` 向けの機械的な説明文で、同ファイルが issue #110 で削除された現在は本データモデル上のフィールドとしてのみ残る(`drillPresets.test.js` が全項目に `descKey` が存在することを検証しているため、フィールド自体は残置)。`pointKey` とは用途・文体が異なる別系統のキーとして併存する。
 - `difficultyKey`: `difficulty_basic`/`difficulty_standard`/`difficulty_basic_standard`/`difficulty_advanced` のいずれか(ドキュメントの「難易度」列)。1年生の `g1-three-terms` は `difficulty_advanced` を使用する(`frontend/web/src/drillPresets.js:139-145`)。
 - `examples`: ドキュメントの「計算式の例」列をそのまま文字列配列にしたもの。
 - `settings`: ドキュメントの「固有設定」「選択可能値」「固定値・表示」を表す配列。各要素は `type: 'choice'`(セグメントコントロール、`options`/`default` を持つ)または `type: 'fixed'`(表示のみで変更不可、`valueLabelKey` を持つ)。`choice` の各 `option` は任意で `hintKey` を持てる(issue #132)。依存設定には任意の `disabledWhen(state)` と `resolveValue(state)` を持たせ、選択肢を表示したまま非活性化し、その間の表示・サマリ値を強制できる。`presetDetail.js` がこれらを解釈する([[./presetDetail.js]] 参照、`frontend/web/src/drillPresets.js:236-264`)。
@@ -20,9 +20,9 @@
 
 ## 重要な設計判断とその理由
 
-### `drillCatalog.js` との役割分担
+### （削除済み）`drillCatalog.js` との役割分担
 
-`drillCatalog.js` は本ファイルを消費する側で、`buildDrillCatalog`/`filterDrillCatalog` の公開 API を変更せず内部実装だけをこの新データモデルに対応させた(issue #98)。`home.js`/`catalog.js`/`preset.js` は無変更(#97/PR #109 で作られた既存 UI をそのまま維持するため)。詳細は [[./drillCatalog.js]] を参照。
+issue #98 時点では `drillCatalog.js` が本ファイルを消費する側として存在し、`buildDrillCatalog`/`filterDrillCatalog` の公開 API を変更せず内部実装だけをこの新データモデルに対応させていた。issue #99/#100 で `home.js`/`catalog.js`/`preset.js` が `presetsByGrade` を直接消費する方式へ移行して依存がなくなり、issue #110 で `drillCatalog.js` 自体を削除した。
 
 ### `partial` サポートの項目と根拠(実機検証で判明した未追跡ギャップ)
 
@@ -90,18 +90,18 @@
 
 ## 統合ポイント
 
-- 呼び出し元: `drillCatalog.js`(`GRADES`/`UNGRADED`/`presetsByGrade`)、`presetDetail.js`(`item.examplesFor`/`item.examples` を `selectExamples()` 経由で参照、`item.pointKey` をヘッダーdescriptionとして参照、[[./presetDetail.js]] 参照)。
+- 呼び出し元: `catalog.js`/`preset.js`(`GRADES`/`UNGRADED`/`presetsByGrade` を直接消費)、`presetDetail.js`(`item.examplesFor`/`item.examples` を `selectExamples()` 経由で参照、`item.pointKey` をヘッダーdescriptionとして参照、[[./presetDetail.js]] 参照)。
 - 呼び出し先: なし(データ定義のみ)。
 
 ## 注意事項・既知の制限
 
 - `frontend/spa/src/drillPresets.js` とはもはや無関係(#98 で分岐)。今後 `frontend/spa` 側のプリセットを変更しても本ファイルには影響しない。
-- `settings`/`buildParams`/`examplesFor` を実際にユーザーが切り替える UI は `presetDetail.js`(`preset.html`)が実装している([[./presetDetail.js]] 参照)。`drillCatalog.js` は依然デフォルト状態(`choice` 設定の `default` 値)の `buildParams()` 出力のみを使用し、`examplesFor` は参照しない。
+- `settings`/`buildParams`/`examplesFor` を実際にユーザーが切り替える UI は `presetDetail.js`(`preset.html`)が実装している([[./presetDetail.js]] 参照)。
 
 ## 変更履歴（git log より自動生成）
 
+- 196a50b chore(#110): remove unused frontend/web drillCatalog.js and dead filter-UI i18n keys
 - 047cc4f feat(#161): resolve merge with main, add pointKey to new/moved grade-3 drill items
-- 130794b wip: 2026-08-18 16:09:52 before Edit drillPresets.js
 - d2a9746 feat(#161): rebuild grade-3 addition/subtraction menu and add four-operations drills
 - 9b366c1 #157 Add per-grade/per-drill header descriptions via a shared page header component (#160)
 - c9011f1 #154 Add grade-2 advanced subtraction capped at 1,000 (#159)
@@ -112,4 +112,3 @@
 - 2d9ee47 #132 frontend/web: dynamic grade accent, KaTeX fraction examples, generalized setting hints, and move problem count into common settings on preset detail page (#136)
 - e8db9d7 #112 nuts_calc_tex.py: add mixed-number (帯分数) display support to the frac command (#125)
 - 94eb478 #98 Rebuild frontend/web drill menu data model to match calculation_drill_menu_parameters_v1.md (#115)
-- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

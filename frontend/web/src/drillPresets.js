@@ -18,9 +18,10 @@
 // and the number-theory commands) cover essentially every doc item; the
 // handful of plain ope/'99' items work on both renderers but are still
 // marked latexOnly for consistency with canUsePreset's renderer gate, since
-// mixing gate semantics per item would complicate drillCatalog.js for no
-// practical benefit (frontend/web only ever runs against one active
-// renderer at a time, selected server-side via NUTS_CALC_RENDERER).
+// mixing gate semantics per item would complicate catalog.js/preset.js's
+// canUseItem for no practical benefit (frontend/web only ever runs against
+// one active renderer at a time, selected server-side via
+// NUTS_CALC_RENDERER).
 
 export const GRADES = [1, 2, 3, 4, 5, 6];
 
