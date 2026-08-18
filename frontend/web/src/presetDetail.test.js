@@ -1,6 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PROBLEM_COUNT_OPTIONS, layoutForProblemCount, buildSummaryParts, buildExampleSegments, exampleWithEquals, selectExamples } from './presetDetail.js';
+import {
+  PROBLEM_COUNT_OPTIONS,
+  layoutForProblemCount,
+  buildSummaryParts,
+  buildExampleSegments,
+  exampleWithEquals,
+  isSettingDisabled,
+  selectedSettingValue,
+  selectExamples,
+} from './presetDetail.js';
 
 test('layoutForProblemCount returns rows/columns for every supported problem count', () => {
   assert.deepEqual(layoutForProblemCount(10), { rows: 5, columns: 2 });
@@ -64,6 +73,19 @@ test('buildSummaryParts skips a choice setting with no matching option (defensiv
     translate,
   );
   assert.deepEqual(parts.slice(2), []);
+});
+
+test('dependent choice settings can be disabled and resolve a forced display value', () => {
+  const setting = {
+    id: 'questionOrder',
+    disabledWhen: (state) => state.dan === 'mixed',
+    resolveValue: (state) => (state.dan === 'mixed' ? 'random' : state.questionOrder),
+  };
+
+  assert.equal(isSettingDisabled(setting, { dan: 'mixed', questionOrder: 'ascending' }), true);
+  assert.equal(selectedSettingValue(setting, { dan: 'mixed', questionOrder: 'ascending' }), 'random');
+  assert.equal(isSettingDisabled(setting, { dan: '1', questionOrder: 'ascending' }), false);
+  assert.equal(selectedSettingValue(setting, { dan: '1', questionOrder: 'ascending' }), 'ascending');
 });
 
 test('buildExampleSegments merges a plain fraction expression into one math segment', () => {

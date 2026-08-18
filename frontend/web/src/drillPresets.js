@@ -223,18 +223,16 @@ const grade2 = {
       descKey: 'menu_g2_kuku_desc',
       difficultyKey: 'difficulty_basic',
       examples: ['3×7', '8×6'],
-      examplesFor: examplesByChoice(['dan'], {
-        1: ['1×6', '1×9'],
-        2: ['2×6', '2×9'],
-        3: ['3×6', '3×9'],
-        4: ['4×6', '4×9'],
-        5: ['5×6', '5×9'],
-        6: ['6×6', '6×9'],
-        7: ['7×6', '7×9'],
-        8: ['8×6', '8×9'],
-        9: ['9×6', '9×9'],
-        mixed: ['3×7', '8×6'],
-      }),
+      examplesFor: (state) => {
+        const dan = state?.dan ?? 'mixed';
+        if (dan === 'mixed') return ['3×7', '8×6'];
+        const examplesByOrder = {
+          ascending: [`${dan}×1`, `${dan}×2`],
+          descending: [`${dan}×9`, `${dan}×8`],
+          random: [`${dan}×6`, `${dan}×3`],
+        };
+        return examplesByOrder[state?.questionOrder ?? 'ascending'] ?? examplesByOrder.ascending;
+      },
       settings: [
         {
           id: 'dan', labelKey: 'setting_dan_label', type: 'choice',
@@ -252,6 +250,17 @@ const grade2 = {
           ],
           default: 'mixed',
         },
+        {
+          id: 'questionOrder', labelKey: 'setting_question_order_label', type: 'choice',
+          options: [
+            { value: 'ascending', labelKey: 'setting_option_order_ascending' },
+            { value: 'descending', labelKey: 'setting_option_order_descending' },
+            { value: 'random', labelKey: 'setting_option_order_random' },
+          ],
+          default: 'ascending',
+          disabledWhen: (state) => state?.dan === 'mixed',
+          resolveValue: (state) => (state?.dan === 'mixed' ? 'random' : (state?.questionOrder ?? 'ascending')),
+        },
       ],
       supportLevel: 'full',
       latexOnly: false,
@@ -260,7 +269,11 @@ const grade2 = {
         if (dan === 'mixed') {
           return { command_type: 'ope', operator: ['mul'], a_min: 1, a_max: 9, b_min: 1, b_max: 9 };
         }
-        return { command_type: '99', a_value: Number(dan) };
+        const params = { command_type: '99', a_value: Number(dan) };
+        const questionOrder = state?.questionOrder ?? 'ascending';
+        if (questionOrder === 'descending') params.descend = true;
+        if (questionOrder === 'random') params.shuffle = true;
+        return params;
       },
     },
   ],

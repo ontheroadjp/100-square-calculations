@@ -78,6 +78,8 @@ test('every settings entry is a valid choice or fixed setting', () => {
           setting.options.some((option) => option.value === setting.default),
           `${context}: default "${setting.default}" must match one of the options`,
         );
+        if (setting.disabledWhen) assert.equal(typeof setting.disabledWhen, 'function', `${context}: disabledWhen must be a function`);
+        if (setting.resolveValue) assert.equal(typeof setting.resolveValue, 'function', `${context}: resolveValue must be a function`);
       } else if (setting.type === 'fixed') {
         assert.equal(typeof setting.valueLabelKey, 'string', `${context}: fixed setting must have valueLabelKey`);
       } else {
@@ -85,6 +87,23 @@ test('every settings entry is a valid choice or fixed setting', () => {
       }
     }
   }
+});
+
+test('grade 2 kuku maps each fixed-row question order to renderer parameters', () => {
+  const item = presetsByGrade[2].multiplication.find((candidate) => candidate.id === 'g2-kuku');
+
+  assert.deepEqual(item.buildParams({ dan: '1', questionOrder: 'ascending' }), { command_type: '99', a_value: 1 });
+  assert.deepEqual(item.buildParams({ dan: '1', questionOrder: 'descending' }), { command_type: '99', a_value: 1, descend: true });
+  assert.deepEqual(item.buildParams({ dan: '1', questionOrder: 'random' }), { command_type: '99', a_value: 1, shuffle: true });
+});
+
+test('grade 2 kuku keeps mixed rows random and ignores the question-order state', () => {
+  const item = presetsByGrade[2].multiplication.find((candidate) => candidate.id === 'g2-kuku');
+  const expected = { command_type: 'ope', operator: ['mul'], a_min: 1, a_max: 9, b_min: 1, b_max: 9 };
+
+  assert.deepEqual(item.buildParams({ dan: 'mixed', questionOrder: 'ascending' }), expected);
+  assert.deepEqual(item.buildParams({ dan: 'mixed', questionOrder: 'descending' }), expected);
+  assert.deepEqual(item.buildParams({ dan: 'mixed', questionOrder: 'random' }), expected);
 });
 
 test('menu item ids are unique across the entire data model', () => {

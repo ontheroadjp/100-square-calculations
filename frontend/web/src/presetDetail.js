@@ -28,6 +28,14 @@ function defaultSettingsState(settings) {
   return state;
 }
 
+export function selectedSettingValue(setting, settingsState) {
+  return setting.resolveValue?.(settingsState) ?? settingsState[setting.id];
+}
+
+export function isSettingDisabled(setting, settingsState) {
+  return setting.disabledWhen?.(settingsState) ?? false;
+}
+
 // Matches, in priority order, the arithmetic tokens worth typesetting as
 // LaTeX: a mixed number ("1 2/3"), a plain fraction ("2/3"), a decimal
 // ("3.6"), a bare integer, or an operator/paren. Anything not matched here
@@ -107,7 +115,8 @@ export function buildSummaryParts({ problemCount, difficultyKey, settings, setti
   const parts = [`${problemCount}${translate('problem_count_unit')}`, translate(difficultyKey)];
   for (const setting of settings) {
     if (setting.type === 'choice') {
-      const option = setting.options.find((candidate) => candidate.value === settingsState[setting.id]);
+      const selectedValue = selectedSettingValue(setting, settingsState);
+      const option = setting.options.find((candidate) => candidate.value === selectedValue);
       if (option) parts.push(`${translate(setting.labelKey)}：${translate(option.labelKey)}`);
     } else {
       parts.push(`${translate(setting.labelKey)}：${translate(setting.valueLabelKey)}`);
@@ -151,13 +160,15 @@ export function mountPresetDetail(container, { grade, item, onBack }) {
         </div>
       `;
     }
-    const selectedOption = setting.options.find((option) => option.value === state.settingsState[setting.id]);
+    const selectedValue = selectedSettingValue(setting, state.settingsState);
+    const disabled = isSettingDisabled(setting, state.settingsState);
+    const selectedOption = setting.options.find((option) => option.value === selectedValue);
     return `
       <div class="setting-block">
         <span class="setting-label">${t(setting.labelKey)}</span>
-        <div class="segmented-control" data-role="setting" data-setting-id="${setting.id}">
+        <div class="segmented-control ${disabled ? 'is-disabled' : ''}" data-role="setting" data-setting-id="${setting.id}" aria-disabled="${disabled}">
           ${setting.options.map((option) => `
-            <button type="button" class="segmented-option ${state.settingsState[setting.id] === option.value ? 'is-selected' : ''}" data-value="${option.value}">${t(option.labelKey)}</button>
+            <button type="button" class="segmented-option ${selectedValue === option.value ? 'is-selected' : ''}" data-value="${option.value}" ${disabled ? 'disabled' : ''}>${t(option.labelKey)}</button>
           `).join('')}
         </div>
         ${selectedOption?.hintKey ? `<p class="setting-hint">${t(selectedOption.hintKey)}</p>` : ''}
@@ -361,7 +372,7 @@ export function mountPresetDetail(container, { grade, item, onBack }) {
     }
 
     const optionEl = event.target.closest('[data-value]');
-    if (!optionEl) return;
+    if (!optionEl || optionEl.disabled) return;
     const controlEl = optionEl.closest('[data-role]');
     if (!controlEl) return;
     if (controlEl.dataset.role === 'problem-count') {
