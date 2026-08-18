@@ -43,10 +43,12 @@
 - `frontend/web` は複数ページ構成(issue #88、ユーザー要望)。本モジュールは `preset.html` 用の独立した「マウント可能なウィジェット」として設計されている(`customGenerator.js` と同じパターン、issue #97 で `customGenerator.js` 自体は削除済み)。
 - 非活性な設定ボタンはHTMLの `disabled` 属性とクリックハンドラ双方で変更を拒否する(`frontend/web/src/presetDetail.js:169-172,374-383`)。
 
-## 変更履歴(git log より自動生成)
+## 変更履歴（git log より自動生成）
 
-- 7b5a9b9 feat(#132): add per-grade accent, KaTeX examples, generalized setting hints, and move problem count into common settings on preset detail page
-- ab9fe98 feat(#126): add missing wireframe icons and unify page headers in frontend/web
+- 51b8d7f feat(#148): add multiplication-table question order
+- 1d8ee60 #135 frontend/web: switch preset detail page example problems based on selected settings (#141)
+- 2d9ee47 #132 frontend/web: dynamic grade accent, KaTeX fraction examples, generalized setting hints, and move problem count into common settings on preset detail page (#136)
+- 1bb0f69 #126 frontend/web: add missing wireframe icons and unify page headers (#127)
 - 90864a5 refactor(frontend/web): replace hand-drawn nav/UI icons with Material Symbols
 - 9d1371e #100 frontend/web: rebuild preset detail settings/completion/preview screens (#118)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

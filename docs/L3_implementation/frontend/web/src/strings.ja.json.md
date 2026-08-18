@@ -20,7 +20,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- e8ce3ec feat(#146): add advanced difficulty badge
+- 51b8d7f feat(#148): add multiplication-table question order
+- 85e58b1 #146 Add an advanced difficulty badge to the web UI (#147)
 - 1edfbb5 fix(frontend/web): clarify grade-2/3 arithmetic menu label wording
 - d43d1bc #130 frontend/web: make catalog page accent color switch dynamically per grade (#131)
 - 77f95b7 #101 frontend/web: add PC 4-column layout to the make flow (#119)

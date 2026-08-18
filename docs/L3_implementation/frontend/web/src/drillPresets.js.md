@@ -80,7 +80,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- e8ce3ec feat(#146): add advanced difficulty badge
+- 51b8d7f feat(#148): add multiplication-table question order
+- 85e58b1 #146 Add an advanced difficulty badge to the web UI (#147)
 - 1d8ee60 #135 frontend/web: switch preset detail page example problems based on selected settings (#141)
 - 2d9ee47 #132 frontend/web: dynamic grade accent, KaTeX fraction examples, generalized setting hints, and move problem count into common settings on preset detail page (#136)
 - e8db9d7 #112 nuts_calc_tex.py: add mixed-number (帯分数) display support to the frac command (#125)

@@ -23,6 +23,7 @@
 
 ## 変更履歴（git log より自動生成）
 
-- e8ce3ec feat(#146): add advanced difficulty badge
+- 51b8d7f feat(#148): add multiplication-table question order
+- 85e58b1 #146 Add an advanced difficulty badge to the web UI (#147)
 - 1d8ee60 #135 frontend/web: switch preset detail page example problems based on selected settings (#141)
 - 94eb478 #98 Rebuild frontend/web drill menu data model to match calculation_drill_menu_parameters_v1.md (#115)

@@ -26,7 +26,8 @@
 
 `.preset-detail` の設定画面はモバイル詳細画面とPC作成フローで共有し、PC固有のレイアウトは `_pcMakeFlow.scss` が追加する。`pcMakeFlow.js` の `container` には `grade-N` クラスが付かないため、そちら側は常に `var()` のフォールバック値(固定の `$color-primary`)のままになる(issue #132 のスコープ外)。
 
-## 変更履歴(git log より自動生成)
+## 変更履歴（git log より自動生成）
 
-- 7b5a9b9 feat(#132): add per-grade accent, KaTeX examples, generalized setting hints, and move problem count into common settings on preset detail page
-- ff1576a refactor(#128): reorganize web Sass by UI hierarchy
+- 51b8d7f feat(#148): add multiplication-table question order
+- 2d9ee47 #132 frontend/web: dynamic grade accent, KaTeX fraction examples, generalized setting hints, and move problem count into common settings on preset detail page (#136)
+- 3625e47 #128 Reorganize frontend web Sass by UI hierarchy (#129)
