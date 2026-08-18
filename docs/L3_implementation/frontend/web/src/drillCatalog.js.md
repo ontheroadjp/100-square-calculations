@@ -40,5 +40,6 @@
 
 ## 変更履歴（git log より自動生成）
 
-- 21a7b33 feat(#98): rebuild frontend/web drill menu data model to match calculation_drill_menu_parameters_v1.md
+- e8ce3ec feat(#146): add advanced difficulty badge
+- 94eb478 #98 Rebuild frontend/web drill menu data model to match calculation_drill_menu_parameters_v1.md (#115)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

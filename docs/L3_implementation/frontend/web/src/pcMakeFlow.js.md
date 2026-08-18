@@ -43,5 +43,6 @@ wireframe の PC レイアウトはドリル設定とプレビューが同一画
 
 ## 変更履歴(git log より自動生成)
 
-- ab9fe98 feat(#126): add missing wireframe icons and unify page headers in frontend/web
+- e8ce3ec feat(#146): add advanced difficulty badge
+- 1bb0f69 #126 frontend/web: add missing wireframe icons and unify page headers (#127)
 - 77f95b7 #101 frontend/web: add PC 4-column layout to the make flow (#119)

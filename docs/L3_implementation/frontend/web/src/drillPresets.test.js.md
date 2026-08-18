@@ -20,3 +20,9 @@
 ## 注意事項・既知の制限
 
 - DOM描画やSassの見た目は検証せず、データモデルの契約だけを対象とする。
+
+## 変更履歴（git log より自動生成）
+
+- e8ce3ec feat(#146): add advanced difficulty badge
+- 1d8ee60 #135 frontend/web: switch preset detail page example problems based on selected settings (#141)
+- 94eb478 #98 Rebuild frontend/web drill menu data model to match calculation_drill_menu_parameters_v1.md (#115)

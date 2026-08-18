@@ -17,3 +17,15 @@
 
 - `frontend/web` は日本語専用であり、言語別JSONの切り替え機構はない。
 - 未定義キーは `strings.js` によりキー文字列そのものが表示される。
+
+## 変更履歴（git log より自動生成）
+
+- e8ce3ec feat(#146): add advanced difficulty badge
+- 1edfbb5 fix(frontend/web): clarify grade-2/3 arithmetic menu label wording
+- d43d1bc #130 frontend/web: make catalog page accent color switch dynamically per grade (#131)
+- 77f95b7 #101 frontend/web: add PC 4-column layout to the make flow (#119)
+- 9d1371e #100 frontend/web: rebuild preset detail settings/completion/preview screens (#118)
+- 1bd6fa6 #99 Rebuild frontend/web top and catalog screens to match wireframe screens 1-2 (#116)
+- 94eb478 #98 Rebuild frontend/web drill menu data model to match calculation_drill_menu_parameters_v1.md (#115)
+- 8007488 #97 frontend/web: rebuild nav shell, design tokens, and remove legacy features (#109)
+- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)
