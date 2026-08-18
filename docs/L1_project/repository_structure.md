@@ -42,7 +42,7 @@
 │       │   ├── home.js / catalog.js / preset.js  # 各ページのエントリスクリプト。custom.js は issue #97 で削除
 │       │   ├── navShell.js  # モバイル下部タブバー/PCサイドバーの共通ナビゲーションシェル(issue #97)
 │       │   ├── pcMakeFlow.js  # index.html のPC(≥768px)向け4カラムレイアウト(学年/計算を選ぶ/ドリル設定/プレビュー、issue #101)。マウント可能な独立ウィジェット(home.js から呼ばれる)
-│       │   ├── drillPresets.js / drillCatalog.js / verticalLayout.js  # 前2ファイルはissue #98でweb専用モデルへ分岐。verticalLayout.jsのみspa由来の共通ロジック
+│       │   ├── drillPresets.js / verticalLayout.js  # 前者はissue #98でweb専用モデルへ分岐。後者のみspa由来の共通ロジック。旧drillCatalog.jsはissue #110で削除
 │       │   ├── presetDetail.js  # マウント可能な独立ウィジェット(preset.js から呼ばれる)。customGenerator.js は issue #97 で削除
 │       │   ├── strings.js / strings.ja.json  # 静的日本語文字列テーブル。issue #97 でナビシェル用キー、issue #101 でPC4カラムレイアウト用キーを追加(この差分により `frontend/spa` の `ja/translation.json` との完全一致ではなくなった)
 │       │   └── styles/main.scss (+ _base/_components/_layout/_navShell/_pcMakeFlow.scss)  # frontend/spa の App.css を移植した Sass + issue #97 で追加したナビシェル用パーシャル + issue #101 で追加したPC4カラムレイアウト用パーシャル
