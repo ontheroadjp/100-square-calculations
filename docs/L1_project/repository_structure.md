@@ -13,10 +13,11 @@
 │   ├── nuts_calc.py        # PDF生成CLI本体(実行可能。旧 100masu.py)
 │   ├── nuts_calc_tex.py    # LaTeX(pdflatex)レンダリングの実験的プロトタイプCLI(実行可能。nuts_calc.pyとコード共有なし)
 │   ├── factory.sh          # バッチ生成シェルスクリプト(実行可能)
-│   ├── app.py              # Flask API(POST /generate-pdf, GET /renderer-info)
+│   ├── app.py              # Flask API(POST /generate-pdf, POST /generate-problems, GET /renderer-info)
 │   ├── renderers.py        # レンダラー選択・CLIコマンド構築・subprocess実行(Flask非依存、issue #36)
+│   ├── problem_generation.py  # POST /generate-problems 用、CLIの生成関数をin-processで呼ぶラッパー(issue #138)
 │   ├── pytest.ini          # pytest 設定(testpaths=tests, pythonpath=.)
-│   ├── tests/               # pytestテストスイート(25個のtest_*.py)。nuts_calc.py/nuts_calc_tex.py/app.py/renderers.pyを対象
+│   ├── tests/               # pytestテストスイート(26個のtest_*.py)。nuts_calc.py/nuts_calc_tex.py/app.py/renderers.py/problem_generation.pyを対象
 │   └── vendor/
 │       └── texmf/tex/latex/longdivision/  # CTAN 'longdivision' パッケージのvendoring(nuts_calc_tex.pyの--vertical divで使用)
 ├── frontend/
@@ -60,11 +61,12 @@
 - `memo.md`: コードではなく、暗算指導法・学習ステップ・受験算数における計算力の重要性を説明する日本語の教育コンテンツ。
 - `LICENSE`: MIT License(`LICENSE:1-21`、Copyright (c) 2025 ontheroadjp)。
 - `README.md` / `README_ja.md`: 英語/日本語で内容が対応した利用者向け説明。CLI・`factory.sh`・Web UI(バックエンド/フロントエンド起動手順)をカバーしている。README.md には `Architecture`/`Design Principles` セクションがあるが README_ja.md には対応するセクションがなく、両者は完全な対訳ではなくなっている(下記「未確認事項」参照)。
-- `backend/tests/`: pytestテストスイート(25個の `test_*.py`)。両レンダラー、Flask/CLI変換、各ドリル生成を検証する。`frontend/spa` には `node:test` 3ファイル、`frontend/web` には2ファイルがある。詳細は [[../L2_development/test]]。
+- `backend/tests/`: pytestテストスイート(26個の `test_*.py`、`test_problem_generation.py` は issue #138 の `backend/problem_generation.py` を検証する)。両レンダラー、Flask/CLI変換、各ドリル生成を検証する。`frontend/spa` には `node:test` 3ファイル、`frontend/web` には2ファイルがある。詳細は [[../L2_development/test]]。
 - `docs/reference/`: 教材仕様の根拠となる一次資料を出典・取得日・SHA-256と共に保存する(`docs/reference/README.md:1-24`)。
 - `backend/vendor/texmf/tex/latex/longdivision/`: CTAN の `longdivision` パッケージ(LPPLライセンス)を vendoring したもの。Ubuntu の `texlive-latex-extra` に同梱されていないため、`nuts_calc_tex.py` が `TEXINPUTS` 経由でこのパスを解決する([[../L3_implementation/nuts_calc_tex.py]] 参照)。
-- `backend/app.py`: Flask アプリ。`POST /generate-pdf`(PDF生成)と `GET /renderer-info`(有効レンダラー名の取得)の2エンドポイント。コマンド構築・レンダラー選択・subprocess実行は `backend/renderers.py` に切り出されている(詳細は [[../L1_project/project_overview]])。`frontend/spa` と `frontend/web` の両方から共通利用される。
+- `backend/app.py`: Flask アプリ。`POST /generate-pdf`(PDF生成)、`POST /generate-problems`(PDFを生成せず問題データのみJSONで返す、issue #138)、`GET /renderer-info`(有効レンダラー名の取得)の3エンドポイント。コマンド構築・レンダラー選択・subprocess実行は `backend/renderers.py` に切り出されている(詳細は [[../L1_project/project_overview]])。`frontend/spa` と `frontend/web` の両方から共通利用されるが、`POST /generate-problems` は現状 `frontend/web` の `preset.html` のみが呼ぶ。
 - `backend/renderers.py`: `NUTS_CALC_RENDERER` env 変数(`reportlab`|`latex`)で `nuts_calc.py`/`nuts_calc_tex.py` を切り替えて呼び出す、Flask 非依存の純粋関数群(issue #36)。`RENDERER_SCRIPTS` はスクリプトパスを `Path(__file__).resolve().parent`(=`backend/`)基準で解決する(issue #88 で `web/backend/` からの移動に伴い repo-root 基準から変更)。
+- `backend/problem_generation.py`: `POST /generate-problems` が使う、`nuts_calc.py`/`nuts_calc_tex.py` の既存データ生成関数をsubprocessを起動せずプロセス内で直接呼び出すラッパー(issue #138)。現時点では `command_type='ope'` のみ対応。詳細は [[../L3_implementation/api]]。
 - `frontend/spa/`: Vite ベースの React SPA。`node_modules/` と `dist/` は `.gitignore` で除外済み。トップ画面は学年別ドリル選択(`GradeDrills.jsx`)で、LaTeX 時の4〜6年生には中学受験準備セクションも表示する。そこから「カスタム」を選ぶと詳細パラメータ指定フォーム(`CustomGenerator.jsx`)に切り替わる。
 - `frontend/web/`: HTML/CSS(Sass)/JS のみの軽量フロントエンド(新規、issue #88)。`frontend/spa` と機能的に同等だが、React・i18n ライブラリを使わず日本語のみに対応する。ユーザーの明示的な指示により、SPA(単一 `index.html` を JS ルーターで画面切替する構成)ではなく、画面ごとに実在の `.html` を持つ複数ページ構成として実装されている(通常の `<a href>` リンクと GET フォームで画面遷移する)。
 

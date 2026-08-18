@@ -91,7 +91,7 @@ python3 -m pytest -q
 # 既知の stale テストだけを分離する場合
 python3 -m pytest -q --ignore=tests/test_nuts_calc_init.py
 ```
-`backend/pytest.ini` により `backend/` ディレクトリ内で実行する。2026-08-18 に586件を収集し、既知 stale ファイルを除く564件は全成功した。`backend/tests/test_nuts_calc_init.py` 単独は既知どおり9失敗・13成功。詳細は [[test]]。
+`backend/pytest.ini` により `backend/` ディレクトリ内で実行する。2026-08-19 に666件を収集し、既知 stale ファイルを除く644件は全成功した。`backend/tests/test_nuts_calc_init.py` 単独は既知どおり9失敗・13成功。詳細は [[test]]。
 
 frontend の純粋関数テストは `package.json` に script がないため直接実行する:
 
@@ -99,7 +99,7 @@ frontend の純粋関数テストは `package.json` に script がないため�
 node --test frontend/spa/src/drillPresets.test.js frontend/spa/src/drillCatalog.test.js frontend/spa/src/verticalLayout.test.js
 ```
 
-2026-08-18 に17件すべて成功した。`frontend/web` は `node --test frontend/web/src/drillPresets.test.js frontend/web/src/presetDetail.test.js` で30件すべて成功した。
+2026-08-19 に17件すべて成功した。`frontend/web` は `node --test frontend/web/src/drillPresets.test.js frontend/web/src/presetDetail.test.js` で45件すべて成功した。
 
 ## ビルド
 
