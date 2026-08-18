@@ -58,5 +58,6 @@
 
 ## 変更履歴(git log より自動生成)
 
-- b6cb2af fix(#149): cap kuku multiplier at 1-9 in nuts_calc.py's 99 command
+- 72ce344 fix(#155): compute kuku descend order directly instead of reversing the wrapped ascending sequence
+- 486d677 #149 Cap kuku multiplier at 1-9 in nuts_calc.py's 99 command (#151)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)
