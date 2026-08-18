@@ -366,20 +366,12 @@ const grade2 = {
 const grade3 = {
   addition: [
     {
-<<<<<<< HEAD
       id: 'g3-add-result-10000',
       titleKey: 'menu_g3_add_result_10000_title',
       descKey: 'menu_g3_add_result_10000_desc',
+      pointKey: 'menu_g3_add_result_10000_point',
       difficultyKey: 'difficulty_advanced',
       examples: ['6250+750', '9999+1', '3210+4560'],
-=======
-      id: 'g3-add-3digit',
-      titleKey: 'menu_g3_add_3digit_title',
-      descKey: 'menu_g3_add_3digit_desc',
-      pointKey: 'menu_g3_add_3digit_point',
-      difficultyKey: 'difficulty_basic',
-      examples: ['625+75', '263+1', '521+365'],
->>>>>>> main
       examplesFor: examplesByChoice(['carryMode'], {
         none: ['1234+5000', '3210+4560'],
         required: ['6250+750', '9999+1'],
@@ -390,31 +382,7 @@ const grade3 = {
       latexOnly: true,
       buildParams: (state) => ({
         command_type: 'ope', operator: ['add'], ...carryModeField(['add'], state),
-<<<<<<< HEAD
         a_min: 1, a_max: 9999, b_min: 1, b_max: 9999, result_max: 10000,
-=======
-        a_min: 1, a_max: 999, b_min: 1, b_max: 999,
-      }),
-    },
-    {
-      id: 'g3-add-4digit',
-      titleKey: 'menu_g3_add_4digit_title',
-      descKey: 'menu_g3_add_4digit_desc',
-      pointKey: 'menu_g3_add_4digit_point',
-      difficultyKey: 'difficulty_standard',
-      examples: ['3258+46', '583+2417'],
-      examplesFor: examplesByChoice(['carryMode'], {
-        none: ['1234+5', '6123+1642'],
-        required: ['3258+46', '583+2417'],
-        mixed: ['3258+46', '583+2417'],
-      }),
-      settings: [carrySetting('setting_carry_label')],
-      supportLevel: 'full',
-      latexOnly: true,
-      buildParams: (state) => ({
-        command_type: 'ope', operator: ['add'], ...carryModeField(['add'], state),
-        a_min: 1, a_max: 9999, b_min: 1, b_max: 9999,
->>>>>>> main
       }),
     },
     {
@@ -446,6 +414,7 @@ const grade3 = {
       id: 'g3-fraction-add',
       titleKey: 'menu_g3_fraction_add_title',
       descKey: 'menu_g3_fraction_add_desc',
+      pointKey: 'menu_g3_fraction_add_point',
       difficultyKey: 'difficulty_basic',
       examples: ['2/7+3/7'],
       settings: [fixedSetting('denominator', 'setting_denominator_label', 'setting_option_same_denominator')],
@@ -459,20 +428,12 @@ const grade3 = {
   ],
   subtraction: [
     {
-<<<<<<< HEAD
       id: 'g3-sub-result-10000',
       titleKey: 'menu_g3_sub_result_10000_title',
       descKey: 'menu_g3_sub_result_10000_desc',
+      pointKey: 'menu_g3_sub_result_10000_point',
       difficultyKey: 'difficulty_advanced',
       examples: ['5000-1250', '3020-1580', '4560-3210'],
-=======
-      id: 'g3-sub-3digit',
-      titleKey: 'menu_g3_sub_3digit_title',
-      descKey: 'menu_g3_sub_3digit_desc',
-      pointKey: 'menu_g3_sub_3digit_point',
-      difficultyKey: 'difficulty_basic',
-      examples: ['625-75', '521-365'],
->>>>>>> main
       examplesFor: examplesByChoice(['carryMode'], {
         none: ['4560-3210', '8640-5210'],
         required: ['5000-1250', '3020-1580'],
@@ -483,31 +444,7 @@ const grade3 = {
       latexOnly: true,
       buildParams: (state) => ({
         command_type: 'ope', operator: ['sub'], ...carryModeField(['sub'], state),
-<<<<<<< HEAD
         a_min: 1, a_max: 9999, b_min: 1, b_max: 9999, result_max: 10000,
-=======
-        a_min: 100, a_max: 999, b_min: 1, b_max: 999,
-      }),
-    },
-    {
-      id: 'g3-sub-4digit',
-      titleKey: 'menu_g3_sub_4digit_title',
-      descKey: 'menu_g3_sub_4digit_desc',
-      pointKey: 'menu_g3_sub_4digit_point',
-      difficultyKey: 'difficulty_standard',
-      examples: ['3258-46', '7234-3587'],
-      examplesFor: examplesByChoice(['carryMode'], {
-        none: ['3258-46', '9876-1234'],
-        required: ['7234-3587', '5000-1234'],
-        mixed: ['3258-46', '7234-3587'],
-      }),
-      settings: [carrySetting('setting_borrow_label')],
-      supportLevel: 'full',
-      latexOnly: true,
-      buildParams: (state) => ({
-        command_type: 'ope', operator: ['sub'], ...carryModeField(['sub'], state),
-        a_min: 1000, a_max: 9999, b_min: 1, b_max: 9999,
->>>>>>> main
       }),
     },
     {
@@ -536,6 +473,7 @@ const grade3 = {
       id: 'g3-fraction-sub',
       titleKey: 'menu_g3_fraction_sub_title',
       descKey: 'menu_g3_fraction_sub_desc',
+      pointKey: 'menu_g3_fraction_sub_point',
       difficultyKey: 'difficulty_basic',
       examples: ['6/7-2/7'],
       settings: [fixedSetting('denominator', 'setting_denominator_label', 'setting_option_same_denominator')],
@@ -619,22 +557,13 @@ const grade3 = {
   ],
   'four-operations': [
     {
-<<<<<<< HEAD
       id: 'g3-addsub-mixed-result-1000',
       titleKey: 'menu_g3_addsub_mixed_result_1000_title',
       descKey: 'menu_g3_addsub_mixed_result_1000_desc',
+      pointKey: 'menu_g3_addsub_mixed_result_1000_point',
       difficultyKey: 'difficulty_standard',
       examples: ['620+250+90', '840-320+180'],
       settings: [fixedSetting('operators', 'setting_operators_label', 'setting_option_addsub_mixed')],
-=======
-      id: 'g3-fraction-add',
-      titleKey: 'menu_g3_fraction_add_title',
-      descKey: 'menu_g3_fraction_add_desc',
-      pointKey: 'menu_g3_fraction_add_point',
-      difficultyKey: 'difficulty_basic',
-      examples: ['2/7+3/7'],
-      settings: [fixedSetting('denominator', 'setting_denominator_label', 'setting_option_same_denominator')],
->>>>>>> main
       supportLevel: 'full',
       latexOnly: true,
       buildParams: () => ({
@@ -643,25 +572,16 @@ const grade3 = {
       }),
     },
     {
-<<<<<<< HEAD
       id: 'g3-parentheses-mul-result-1000',
       titleKey: 'menu_g3_parentheses_mul_result_1000_title',
       descKey: 'menu_g3_parentheses_mul_result_1000_desc',
+      pointKey: 'menu_g3_parentheses_mul_result_1000_point',
       difficultyKey: 'difficulty_standard',
       examples: ['(45+38)×12-56'],
       settings: [
         fixedSetting('operators', 'setting_operators_label', 'setting_option_addsubmul_mixed'),
         fixedSetting('parentheses', 'setting_parentheses_label', 'setting_option_present'),
       ],
-=======
-      id: 'g3-fraction-sub',
-      titleKey: 'menu_g3_fraction_sub_title',
-      descKey: 'menu_g3_fraction_sub_desc',
-      pointKey: 'menu_g3_fraction_sub_point',
-      difficultyKey: 'difficulty_basic',
-      examples: ['6/7-2/7'],
-      settings: [fixedSetting('denominator', 'setting_denominator_label', 'setting_option_same_denominator')],
->>>>>>> main
       supportLevel: 'full',
       latexOnly: true,
       buildParams: () => ({
