@@ -27,7 +27,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- f3e823d feat(#114): add reducibility control to frac/mixed multiplication and division
+- 1c865a9 fix(#176): cap the answer for grade-1/2 basic ope drills at their titled bound
+- 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)
 - 17070be #161 frontend/web: rebuild grade-3 addition/subtraction menu, retire fraction category, add four-operations drills (#162)
 - 9b366c1 #157 Add per-grade/per-drill header descriptions via a shared page header component (#160)
 - c9011f1 #154 Add grade-2 advanced subtraction capped at 1,000 (#159)

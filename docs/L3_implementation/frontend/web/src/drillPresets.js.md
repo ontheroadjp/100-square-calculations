@@ -114,14 +114,13 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 
 ## 変更履歴（git log より自動生成）
 
-- f3e823d feat(#114): add reducibility control to frac/mixed multiplication and division
-- 8fdd41d fix(#113): allow nuts_calc_tex.py --carry-borrow with decimal operands
+- 1c865a9 fix(#176): cap the answer for grade-1/2 basic ope drills at their titled bound
+- 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)
+- 5864f10 refactor: standardize drill preset problem-sample examples to 3 each
+- bc0eef5 #113 nuts_calc_tex.py: allow --carry-borrow with decimal operands (#164)
 - 56aa1d3 #110 Remove frontend/web's unused drillCatalog.js and dead filter-UI i18n keys (#163)
 - 17070be #161 frontend/web: rebuild grade-3 addition/subtraction menu, retire fraction category, add four-operations drills (#162)
 - 9b366c1 #157 Add per-grade/per-drill header descriptions via a shared page header component (#160)
 - c9011f1 #154 Add grade-2 advanced subtraction capped at 1,000 (#159)
 - 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)
 - 06870bb #148 Add multiplication-table question-order options (#150)
-- 85e58b1 #146 Add an advanced difficulty badge to the web UI (#147)
-- 1d8ee60 #135 frontend/web: switch preset detail page example problems based on selected settings (#141)
-- 2d9ee47 #132 frontend/web: dynamic grade accent, KaTeX fraction examples, generalized setting hints, and move problem count into common settings on preset detail page (#136)
