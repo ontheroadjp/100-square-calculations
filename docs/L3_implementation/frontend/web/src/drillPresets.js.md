@@ -10,7 +10,7 @@
 
 各 `menuItem` は以下を持つ:
 - `id`/`titleKey`/`descKey`: 全データモデル中で `id` は一意。
-- `difficultyKey`: `difficulty_basic`/`difficulty_standard`/`difficulty_basic_standard` のいずれか(ドキュメントの「難易度」列)。
+- `difficultyKey`: `difficulty_basic`/`difficulty_standard`/`difficulty_basic_standard`/`difficulty_advanced` のいずれか(ドキュメントの「難易度」列)。1年生の `g1-three-terms` は `difficulty_advanced` を使用する(`frontend/web/src/drillPresets.js:139-145`)。
 - `examples`: ドキュメントの「計算式の例」列をそのまま文字列配列にしたもの。
 - `settings`: ドキュメントの「固有設定」「選択可能値」「固定値・表示」を表す配列。各要素は `type: 'choice'`(セグメントコントロール、`options`/`default` を持つ)または `type: 'fixed'`(表示のみで変更不可、`valueLabelKey` を持つ)。`choice` の各 `option` は任意で `hintKey` を持てる(issue #132)。`presetDetail.js` は選択中の値に対応する `option.hintKey` があれば、その下にヒント文を表示する([[./presetDetail.js]] 参照)。
 - `buildParams(state)`: `state`(`{ <settingId>: <選択値> }`、`choice` 設定のみキーを持つ)から `POST /generate-pdf` のリクエストボディを組み立てる関数。
@@ -80,7 +80,9 @@
 
 ## 変更履歴（git log より自動生成）
 
-- 7b5a9b9 feat(#132): add per-grade accent, KaTeX examples, generalized setting hints, and move problem count into common settings on preset detail page
+- e8ce3ec feat(#146): add advanced difficulty badge
+- 1d8ee60 #135 frontend/web: switch preset detail page example problems based on selected settings (#141)
+- 2d9ee47 #132 frontend/web: dynamic grade accent, KaTeX fraction examples, generalized setting hints, and move problem count into common settings on preset detail page (#136)
 - e8db9d7 #112 nuts_calc_tex.py: add mixed-number (帯分数) display support to the frac command (#125)
 - 94eb478 #98 Rebuild frontend/web drill menu data model to match calculation_drill_menu_parameters_v1.md (#115)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

@@ -159,6 +159,7 @@
   "difficulty_basic": "基礎",
   "difficulty_standard": "標準",
   "difficulty_basic_standard": "基礎〜標準",
+  "difficulty_advanced": "発展",
   "setting_carry_label": "繰り上がり",
   "setting_borrow_label": "繰り下がり",
   "setting_remainder_label": "余り",

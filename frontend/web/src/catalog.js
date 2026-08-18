@@ -22,6 +22,7 @@ const DIFFICULTY_BADGE_CLASS = {
   difficulty_basic: 'badge-basic',
   difficulty_standard: 'badge-standard',
   difficulty_basic_standard: 'badge-standard',
+  difficulty_advanced: 'badge-advanced',
 };
 
 function canUseItem(item, renderer) {

@@ -14,7 +14,7 @@
 
 - `numberType`/`operationGroup` は #97 以前と同じ**paramsベースの分類ロジック**(`getNumberType`/`getOperationGroup`)で算出する。`catalog.js` の `NUMBER_TYPE_GROUPS` が `'addition-subtraction'`/`'multiplication-division'`/`'four-operations'`/`'comparison'` という旧分類名をハードコードしているため、`drillPresets.js` 側の新カテゴリ名(`addition`/`subtraction`/...)をそのまま出力せず、このアダプターが旧分類名へ変換する。新設された数論系コマンド(`evenodd`/`multiples`/`divisors`/`lcm`/`gcd`/`simplify`/`commondenom`/`frac2dec`/`dec2frac`/`divfrac`)は `number-sense` に分類する。
 - `forms` は常に空配列(#98 で筆算/虫食い算の format 区別を廃止したため。[[./drillPresets.js]] の「ドキュメントにない既存機能の扱い」参照)。`DRILL_FORMS` も空配列で export しており、`home.js` の「出題形式・目的で選ぶ」セクションは常に非表示になる。
-- `level` は `item.difficultyKey` を `catalog.js` が使う `level_<slug>` 形式の短いスラグ(`basic`/`standard`)へ変換する(`LEVEL_BY_DIFFICULTY_KEY`)。`difficulty_basic_standard` は `standard` にフォールバックする。
+- `level` は `item.difficultyKey` を短いスラグへ変換する(`LEVEL_BY_DIFFICULTY_KEY`)。`difficulty_basic` は `basic`、`difficulty_standard` と `difficulty_basic_standard` は `standard`、`difficulty_advanced` は `advanced` になり、未知のキーは `standard` にフォールバックする(`frontend/web/src/drillCatalog.js:19-24,52-53`)。
 - `presets` は単一キー `default` のみを持つ(#98 で `written`/`horizontal` の複数フォーマットを廃止したため)。`catalog.js`/`preset.js` は `Object.entries(drill.presets)` の件数が1件なら `t('generate_pdf')` を、複数なら `t(\`format_${format}\`)` をボタンラベルにする分岐を持つため、この変更で自動的に単一ボタン表示になる(`catalog.js` 自体は無変更)。
 
 ## 重要な設計判断とその理由
@@ -40,5 +40,6 @@
 
 ## 変更履歴（git log より自動生成）
 
-- 21a7b33 feat(#98): rebuild frontend/web drill menu data model to match calculation_drill_menu_parameters_v1.md
+- e8ce3ec feat(#146): add advanced difficulty badge
+- 94eb478 #98 Rebuild frontend/web drill menu data model to match calculation_drill_menu_parameters_v1.md (#115)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)
