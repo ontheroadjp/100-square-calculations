@@ -53,6 +53,7 @@ test('every menu item has the required shape', () => {
     assert.equal(typeof item.id, 'string', `${context}: id must be a string`);
     assert.equal(typeof item.titleKey, 'string', `${context}: titleKey must be a string`);
     assert.equal(typeof item.descKey, 'string', `${context}: descKey must be a string`);
+    assert.equal(typeof item.pointKey, 'string', `${context}: pointKey must be a string`);
     assert.ok(KNOWN_DIFFICULTY_KEYS.has(item.difficultyKey), `${context}: unknown difficultyKey "${item.difficultyKey}"`);
     assert.ok(Array.isArray(item.examples), `${context}: examples must be an array`);
     assert.ok(Array.isArray(item.settings), `${context}: settings must be an array`);
