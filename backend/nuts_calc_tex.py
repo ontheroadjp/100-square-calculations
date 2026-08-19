@@ -56,6 +56,7 @@ PAGE_SIDE_MARGIN_MM = 15
 PAGE_TOP_MARGIN_MM = 20
 PAGE_BOTTOM_MARGIN_MM = 40
 FOOTER_TEXT_LOWERING_MM = 20
+CONTENT_AREA_NUMBER_BOX_WIDTH_MM = 8
 VERTICAL_DEFAULT_ROWS_BY_PAPER_SIZE = {
     'a3': 4,
     'a4': 4,
@@ -1043,6 +1044,57 @@ def build_page_shell_body_tex(
     if bottom_answer_tex:
         parts.append(f"\\vfill\n{{\\small {bottom_answer_tex}}}\n")
     return "\n".join(parts)
+
+
+@dataclass(frozen=True)
+class ContentAreaLayout:
+    """
+    Layer 2 of #166's presentation-layer model (#184): the content area's
+    per-page grid template (problem-slot count and arrangement), placed
+    inside Layer 1's page shell (PageShell, #182) and containing Layer 3
+    content formats (#122). Owns each slot's number-box width, decoupled
+    from problem content per docs/latex/tex_calculation_drill_layout_guidelines.md
+    items 2 and 10 ("number position independent of content"). rows/columns
+    accept any positive value; CONTENT_AREA_LAYOUT_PRESETS below are named
+    shortcuts on top, not a restriction.
+    """
+
+    rows: int | None
+    columns: int
+    number_box_width_mm: int = CONTENT_AREA_NUMBER_BOX_WIDTH_MM
+
+
+# Mirrors frontend/web/src/presetDetail.js's LAYOUT_BY_PROBLEM_COUNT rows/columns values.
+CONTENT_AREA_LAYOUT_PRESETS: dict[int, ContentAreaLayout] = {
+    10: ContentAreaLayout(rows=5, columns=2),
+    20: ContentAreaLayout(rows=10, columns=2),
+    30: ContentAreaLayout(rows=10, columns=3),
+}
+
+
+def build_content_area_slot_tex(index: int, content_tex: str, layout: ContentAreaLayout) -> str:
+    """
+    Layer-2 slot composition: prepend a fixed-width number box to one
+    slot's already-rendered, number-free Layer-3 content_tex. This is the
+    only place a problem's number is emitted, so callers must pass
+    number-free content (see e.g. build_com_slot_content_tex) rather than
+    the existing build_*_block_tex() output, which embeds the number itself.
+    """
+    return f"\\makebox[{layout.number_box_width_mm}mm][l]{{{index})}}{content_tex}"
+
+
+def build_content_area_tex(
+    indices: list[int], slot_bodies: list[str], layout: ContentAreaLayout
+) -> list[str]:
+    """
+    Compose each slot's number box + Layer-3 content into one block per
+    slot, ready to hand to the existing page grid builders
+    (build_inline_grid_tex/build_tabular_grid_tex/build_block_grid_tex).
+    """
+    return [
+        build_content_area_slot_tex(index, content_tex, layout)
+        for index, content_tex in zip(indices, slot_bodies)
+    ]
 
 
 def build_preamble_tex(paper_size: str, engine_adapter: LatexEngineAdapter | None = None) -> str:
@@ -2430,6 +2482,17 @@ def build_com_block_tex(problem: ComProblem, show_answer: bool) -> str:
     """Render one `com` problem with a boxed missing operand in the blank version."""
     result_tex = str(problem.c) if show_answer else BOXED_BLANK_TEX
     return f"{problem.index}) ${problem.a} + {result_tex} = {problem.target}$"
+
+
+def build_com_slot_content_tex(problem: ComProblem, show_answer: bool) -> str:
+    """
+    Number-free Layer-3 content for one `com` problem (#184): the same
+    body as build_com_block_tex but without the embedded `problem.index)`
+    prefix, for use with build_content_area_slot_tex, which owns the
+    number box instead.
+    """
+    result_tex = str(problem.c) if show_answer else BOXED_BLANK_TEX
+    return f"${problem.a} + {result_tex} = {problem.target}$"
 
 
 def build_com_page_pair(problems: list[ComProblem], columns: int) -> tuple[Page, Page]:
