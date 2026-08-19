@@ -91,7 +91,7 @@ def test_generate_problems_intermediate_rejects_multi_digit_b_max(renderer_name:
 
 def test_generate_problems_rejects_unsupported_command_type() -> None:
     with pytest.raises(ValueError, match="not yet supported"):
-        problem_generation.generate_problems({"paper_size": "A4", "command_type": "evenodd", "num": 1}, "latex")
+        problem_generation.generate_problems({"paper_size": "A4", "command_type": "simplify", "num": 1}, "latex")
 
 
 @pytest.mark.parametrize("flag", ["use_parentheses", "missing_value", "terms"])
@@ -558,3 +558,87 @@ def test_generate_problems_compare_pattern_requires_fraction_kinds() -> None:
     }
     with pytest.raises(ValueError, match="comparison_pattern requires"):
         problem_generation.generate_problems(params, "latex")
+
+
+@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
+def test_generate_problems_evenodd_returns_valid_judgment_problems(renderer_name: str) -> None:
+    params = {"paper_size": "A4", "command_type": "evenodd", "num": 10, "a_min": 1, "a_max": 20}
+    problems = problem_generation.generate_problems(params, renderer_name)
+    assert len(problems) == 10
+    for problem in problems:
+        assert set(problem) == {"index", "a", "is_even"}
+        assert 1 <= problem["a"] <= 20
+        assert problem["is_even"] == (problem["a"] % 2 == 0)
+
+
+@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
+def test_generate_problems_multiples_returns_valid_multiples_lists(renderer_name: str) -> None:
+    params = {
+        "paper_size": "A4", "command_type": "multiples", "num": 6,
+        "a_min": 2, "a_max": 9, "multiples_count": 3,
+    }
+    problems = problem_generation.generate_problems(params, renderer_name)
+    assert len(problems) == 6
+    for problem in problems:
+        assert set(problem) == {"index", "a", "multiples"}
+        assert problem["multiples"] == [problem["a"] * n for n in (1, 2, 3)]
+
+
+def test_generate_problems_multiples_defaults_multiples_count() -> None:
+    params = {"paper_size": "A4", "command_type": "multiples", "num": 1, "a_min": 5, "a_max": 5}
+    problems = problem_generation.generate_problems(params, "latex")
+    assert len(problems[0]["multiples"]) == nuts_calc_tex.DEFAULT_MULTIPLES_COUNT
+
+
+def test_generate_problems_multiples_rejects_a_min_below_one() -> None:
+    params = {"paper_size": "A4", "command_type": "multiples", "num": 1, "a_min": 0, "a_max": 9}
+    with pytest.raises(ValueError, match="a_min must be at least 1"):
+        problem_generation.generate_problems(params, "latex")
+
+
+def test_generate_problems_multiples_rejects_multiples_count_below_minimum() -> None:
+    params = {"paper_size": "A4", "command_type": "multiples", "num": 1, "multiples_count": 0}
+    with pytest.raises(ValueError, match="multiples_count must be at least"):
+        problem_generation.generate_problems(params, "latex")
+
+
+@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
+def test_generate_problems_divisors_returns_valid_divisor_lists(renderer_name: str) -> None:
+    params = {"paper_size": "A4", "command_type": "divisors", "num": 6, "a_min": 2, "a_max": 20}
+    problems = problem_generation.generate_problems(params, renderer_name)
+    assert len(problems) == 6
+    for problem in problems:
+        assert set(problem) == {"index", "a", "divisors"}
+        a = problem["a"]
+        assert problem["divisors"] == [d for d in range(1, a + 1) if a % d == 0]
+
+
+def test_generate_problems_divisors_rejects_a_min_below_one() -> None:
+    params = {"paper_size": "A4", "command_type": "divisors", "num": 1, "a_min": 0, "a_max": 9}
+    with pytest.raises(ValueError, match="a_min must be at least 1"):
+        problem_generation.generate_problems(params, "latex")
+
+
+@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
+@pytest.mark.parametrize("command_type,compute", [("lcm", math.lcm), ("gcd", math.gcd)])
+def test_generate_problems_number_pair_returns_valid_results(
+    renderer_name: str, command_type: str, compute,
+) -> None:
+    params = {
+        "paper_size": "A4", "command_type": command_type, "num": 8,
+        "a_min": 2, "a_max": 12, "b_min": 2, "b_max": 12,
+    }
+    problems = problem_generation.generate_problems(params, renderer_name)
+    assert len(problems) == 8
+    for problem in problems:
+        assert set(problem) == {"index", "a", "b", "c"}
+        assert problem["c"] == compute(problem["a"], problem["b"])
+
+
+@pytest.mark.parametrize("command_type", ["lcm", "gcd"])
+def test_generate_problems_number_pair_a_value_shorthand_derives_range(command_type: str) -> None:
+    params = {"paper_size": "A4", "command_type": command_type, "num": 5, "a_value": 1, "b_value": 1}
+    problems = problem_generation.generate_problems(params, "latex")
+    for problem in problems:
+        assert 1 <= problem["a"] <= 9
+        assert 1 <= problem["b"] <= 9

@@ -6,8 +6,9 @@ subprocess-based, PDF-generation (presentation) layer.
 
 `command_type == 'ope'` is supported, including its --use-parentheses/
 --missing-value/--terms*/--mixed-operators variants (issue #168), as are
-`com`/`99`/`aBc`/`squ`/`pi` (issue #169), `frac`/`mixed` (issue #170), and
-`compare` (issue #171) via `_COMMAND_GENERATORS`. `100` is intentionally
+`com`/`99`/`aBc`/`squ`/`pi` (issue #169), `frac`/`mixed` (issue #170),
+`compare` (issue #171), and `evenodd`/`multiples`/`divisors`/`lcm`/`gcd`
+(issue #172) via `_COMMAND_GENERATORS`. `100` is intentionally
 excluded (raises ValueError): nuts_calc_tex.py's generate_hundred_square()
 returns a single HundredSquareTable object, not a `num`-many problem list,
 so it does not fit the `{"problems": [...]}` envelope this endpoint
@@ -18,8 +19,9 @@ bigger contract decision left for a future issue if real demand shows up
 """
 
 import dataclasses
+import math
 from fractions import Fraction
-from typing import TypedDict
+from typing import Callable, TypedDict
 
 import nuts_calc
 import nuts_calc_tex
@@ -502,6 +504,67 @@ def _generate_compare_problems(params: renderers.RendererRequest, num: int) -> l
     return result
 
 
+def _generate_evenodd_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+    a_min = params.get("a_min", DEFAULT_A_MIN)
+    a_max = params.get("a_max", DEFAULT_A_MAX)
+    nums_a = list(range(a_min, a_max + 1))
+    problems = nuts_calc_tex.generate_evenodd_problems(nums_a, num, 1)
+    return [_dataclass_to_dict(problem) for problem in problems]
+
+
+def _generate_multiples_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+    a_min = params.get("a_min", DEFAULT_A_MIN)
+    a_max = params.get("a_max", DEFAULT_A_MAX)
+    if a_min < 1:
+        raise ValueError("a_min must be at least 1 for the 'multiples' command.")
+
+    multiples_count = params.get("multiples_count", nuts_calc_tex.DEFAULT_MULTIPLES_COUNT)
+    if multiples_count < nuts_calc_tex.MIN_MULTIPLES_COUNT:
+        raise ValueError(
+            f"multiples_count must be at least {nuts_calc_tex.MIN_MULTIPLES_COUNT} for the 'multiples' command."
+        )
+
+    nums_a = list(range(a_min, a_max + 1))
+    problems = nuts_calc_tex.generate_multiples_problems(nums_a, num, 1, multiples_count)
+    return [_dataclass_to_dict(problem) for problem in problems]
+
+
+def _generate_divisors_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+    a_min = params.get("a_min", DEFAULT_A_MIN)
+    a_max = params.get("a_max", DEFAULT_A_MAX)
+    if a_min < 1:
+        raise ValueError("a_min must be at least 1 for the 'divisors' command.")
+
+    nums_a = list(range(a_min, a_max + 1))
+    problems = nuts_calc_tex.generate_divisors_problems(nums_a, num, 1)
+    return [_dataclass_to_dict(problem) for problem in problems]
+
+
+def _generate_number_pair_problems(
+    params: renderers.RendererRequest, num: int, compute: Callable[[int, int], int],
+) -> list[dict[str, object]]:
+    """
+    Shared by 'lcm'/'gcd' (issue #172): math.lcm/math.gcd (via `compute`) is
+    the only difference between the two, mirroring how
+    nuts_calc_tex.py's own build_number_pair_pages() shares one function
+    between the two CLI commands (nuts_calc_tex.py:3959-3969).
+    """
+    a_min, a_max = _resolve_ope_range(params, "a_value", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
+    b_min, b_max = _resolve_ope_range(params, "b_value", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
+    nums_a = list(range(a_min, a_max + 1))
+    nums_b = list(range(b_min, b_max + 1))
+    problems = nuts_calc_tex.generate_number_pair_problems(compute, nums_a, nums_b, num, 1)
+    return [_dataclass_to_dict(problem) for problem in problems]
+
+
+def _generate_lcm_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+    return _generate_number_pair_problems(params, num, math.lcm)
+
+
+def _generate_gcd_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+    return _generate_number_pair_problems(params, num, math.gcd)
+
+
 # command_type -> generator dispatch table (issue #167's contract): each
 # sub-issue of #166 adds one generator function and one entry here, without
 # touching the shared if/elif chain generate_problems() used to have.
@@ -516,4 +579,9 @@ _COMMAND_GENERATORS = {
     "frac": _generate_frac_problems,
     "mixed": _generate_mixed_problems,
     "compare": _generate_compare_problems,
+    "evenodd": _generate_evenodd_problems,
+    "multiples": _generate_multiples_problems,
+    "divisors": _generate_divisors_problems,
+    "lcm": _generate_lcm_problems,
+    "gcd": _generate_gcd_problems,
 }
