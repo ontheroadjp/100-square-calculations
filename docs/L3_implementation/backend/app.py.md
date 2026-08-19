@@ -14,14 +14,16 @@
 
 ## 統合ポイント
 
-- 呼び出し元: `frontend/spa/src/CustomGenerator.jsx`(`POST /generate-pdf`)、`frontend/spa/src/GradeDrills.jsx`(`GET /renderer-info`、マウント時に1回)、`frontend/web/src/presetDetail.js`(`POST /generate-problems`、issue #139。`command_type: 'ope'` かつ未対応フラグなしのプリセットのみ、マウント時・設定変更時にデバウンスして呼び出す)。
-- 呼び出し先: `backend/renderers.py`(レンダラー選択・PDF生成実行)、`backend/problem_generation.py`(問題データのみのプロセス内直接生成)。
+- 呼び出し元: `frontend/spa/src/CustomGenerator.jsx`(`POST /generate-pdf`。`command_type: 'com'` を選択できる唯一のフロントエンド — `frontend/spa/src/drillPresets.js` の「10のあわせて」`a_value: 10`/「100のあわせて」`a_value: 100` プリセットと、自由入力フォームの `<option value="com">` から到達する。`frontend/web` には `com` を使うプリセットも自由入力フォームも存在せず(`command_type_com` という翻訳文字列だけが `frontend/web/src/strings.ja.json` に孤立して残っている)、`frontend/web` からは `com` の PDF 生成に到達不可)、`frontend/spa/src/GradeDrills.jsx`(`GET /renderer-info`、マウント時に1回)、`frontend/web/src/presetDetail.js`(`POST /generate-problems`、issue #139。`command_type: 'ope'` かつ未対応フラグなしのプリセットのみ、マウント時・設定変更時にデバウンスして呼び出す)。
+- 呼び出し先: `command_type == 'com'` の場合は `backend/nuts_calc_tex.py` の内部プレゼンテーション API(`generate_com_problems`/`build_com_slot_content_tex`/`PresentationPage`/`ContentAreaLayout`/`DEFAULT_PAGE_SHELL`/`build_presentation_document_tex`/`get_latex_engine_adapter`、issue #199)を直接呼ぶ。それ以外は従来どおり `backend/renderers.py`(レンダラー選択・PDF生成実行の subprocess 経路)、`backend/problem_generation.py`(問題データのみのプロセス内直接生成)。
 
 ## 注意事項・既知の制限
 
 - `nuts_calc.py`/`nuts_calc_tex.py` 側のバリデーション失敗メッセージは `print()`(stdout)に出力されるため、`subprocess.CalledProcessError` ハンドラは `e.stdout` を優先し(空なら `e.stderr` にフォールバック)、それを `error` フィールドに含める(issue #37 で修正)。`nuts_calc.py` 側でも `com`/`99`/`squ`/`pi`/`100` のバリデーション失敗が引数なし `exit()`(終了コード0、`subprocess.run(check=True)` が例外を送出しない)になっていた不具合を同 issue で `exit(1)` に修正済み([[../../../nuts_calc.py]] 参照)。修正前はこの経路で `CalledProcessError` すら発生せず、後続の `send_file` が `FileNotFoundError` になり実際の理由と無関係な「Renderer script not found」を返していた。
 - backend の URL がフロントエンド側にハードコードされている(`frontend/spa/src/CustomGenerator.jsx`/`GradeDrills.jsx` 側の既知の制約、[[../../frontend/src/CustomGenerator.jsx]] 参照)。
 - レンダラー選択は env 変数のみで、リクエストごとの指定はできない(issue #36 のスコープ)。`GET /renderer-info` はこの env 変数由来のレンダラー名をフロントエンドに公開する読み取り専用エンドポイントであり、フロントエンドからレンダラーを切り替える手段ではない。
+- `command_type == 'com'` は `nuts_calc_tex.get_latex_engine_adapter()` を `_generate_com_pdf` から直接呼ぶため、`NUTS_CALC_TEX_ENGINE` 環境変数が不正な場合の失敗経路が他コマンドと異なる: 他コマンド(subprocess 経路)ではこの `ValueError` は CLI 側の `main()` 内で `failure()`(`exit(1)`)に変換され `CalledProcessError` として 500 になるが、`com` では素の `ValueError` がそのまま 500 になる(いずれも HTTP 500 自体は同じだが `error` フィールドの文言が異なる)。環境設定ミス由来でリクエストごとに変動しないため許容している既知の差異(issue #199)。
+- `com` は常に1ページ・blank(練習用)版のみを返す。`with_bottom_answer`/`with_name_field`/複数ページ(`page` > 1)/`merge` は `_generate_com_pdf` に配線しておらず、リクエストに含めても無視される(issue #199 のスコープ外。`#174`(B-5)の以降のコマンドグループ移行、または `com` 自体の追加スコープ issue で対応)。
 
 ## 変更履歴(git log より自動生成)
 
