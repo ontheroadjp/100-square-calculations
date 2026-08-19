@@ -216,3 +216,93 @@ def test_generate_problems_latex_decimal_places_are_recorded() -> None:
     }
     problems = problem_generation.generate_problems(params, "latex")
     assert all(problem["a_decimal_places"] == 1 and problem["b_decimal_places"] == 0 for problem in problems)
+
+
+def test_generate_problems_hundred_square_is_explicitly_unsupported() -> None:
+    params = {"paper_size": "A4", "command_type": "100", "num": 1, "a_value": 1, "b_value": 1}
+    with pytest.raises(ValueError, match="not yet supported"):
+        problem_generation.generate_problems(params, "latex")
+
+
+@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
+def test_generate_problems_com_returns_valid_complement_problems(renderer_name: str) -> None:
+    params = {"paper_size": "A4", "command_type": "com", "num": 10, "a_value": 10}
+    problems = problem_generation.generate_problems(params, renderer_name)
+    assert len(problems) == 10
+    for problem in problems:
+        assert set(problem) == {"index", "a", "target", "c"}
+        assert problem["target"] == 10
+        assert 1 <= problem["a"] < 10
+        assert problem["a"] + problem["c"] == 10
+
+
+def test_generate_problems_com_requires_a_value() -> None:
+    params = {"paper_size": "A4", "command_type": "com", "num": 1}
+    with pytest.raises(ValueError, match="a_value .* is required for the 'com' command"):
+        problem_generation.generate_problems(params, "latex")
+
+
+def test_generate_problems_com_rejects_target_below_minimum() -> None:
+    params = {"paper_size": "A4", "command_type": "com", "num": 1, "a_value": 1}
+    with pytest.raises(ValueError, match="must be at least"):
+        problem_generation.generate_problems(params, "latex")
+
+
+@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
+def test_generate_problems_kuku_returns_valid_times_table_problems(renderer_name: str) -> None:
+    params = {"paper_size": "A4", "command_type": "99", "num": 9, "a_value": 7}
+    problems = problem_generation.generate_problems(params, renderer_name)
+    assert len(problems) == 9
+    for problem in problems:
+        assert set(problem) == {"index", "a", "b", "c"}
+        assert problem["a"] == 7
+        assert problem["a"] * problem["b"] == problem["c"]
+
+
+def test_generate_problems_kuku_requires_a_value() -> None:
+    params = {"paper_size": "A4", "command_type": "99", "num": 1}
+    with pytest.raises(ValueError, match="a_value .* is required for the '99' command"):
+        problem_generation.generate_problems(params, "latex")
+
+
+@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
+def test_generate_problems_abc_returns_valid_conversion_problems(renderer_name: str) -> None:
+    params = {"paper_size": "A4", "command_type": "aBc", "num": 10}
+    problems = problem_generation.generate_problems(params, renderer_name)
+    assert len(problems) == 10
+    for problem in problems:
+        assert set(problem) == {"index", "a", "b", "c", "d"}
+        for digit_key in ("a", "b", "c", "d"):
+            assert 0 <= problem[digit_key] <= 9
+
+
+@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
+def test_generate_problems_squ_returns_valid_square_problems(renderer_name: str) -> None:
+    params = {"paper_size": "A4", "command_type": "squ", "num": 5, "a_value": 3}
+    problems = problem_generation.generate_problems(params, renderer_name)
+    assert len(problems) == 5
+    for problem in problems:
+        assert set(problem) == {"index", "a", "c"}
+        assert problem["a"] * problem["a"] == problem["c"]
+
+
+def test_generate_problems_squ_requires_a_value() -> None:
+    params = {"paper_size": "A4", "command_type": "squ", "num": 1}
+    with pytest.raises(ValueError, match="a_value .* is required for the 'squ' command"):
+        problem_generation.generate_problems(params, "latex")
+
+
+@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
+def test_generate_problems_pi_returns_valid_pi_multiplication_problems(renderer_name: str) -> None:
+    params = {"paper_size": "A4", "command_type": "pi", "num": 5, "a_value": 3}
+    problems = problem_generation.generate_problems(params, renderer_name)
+    assert len(problems) == 5
+    for problem in problems:
+        assert set(problem) == {"index", "a", "c"}
+        assert problem["c"] == round(problem["a"] * nuts_calc_tex.PI_MULTIPLIER, 2)
+
+
+def test_generate_problems_pi_requires_a_value() -> None:
+    params = {"paper_size": "A4", "command_type": "pi", "num": 1}
+    with pytest.raises(ValueError, match="a_value .* is required for the 'pi' command"):
+        problem_generation.generate_problems(params, "latex")
