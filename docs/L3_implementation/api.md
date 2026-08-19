@@ -36,15 +36,17 @@ CLI は validation error を stdout に出すため、`CalledProcessError` 時�
 
 ### Processing and response
 
-`renderers.get_renderer_name()` で解決した renderer(`reportlab`/`latex`)に応じて `backend/problem_generation.py` の `_generate_ope_problems_reportlab`/`_generate_ope_problems_latex` を呼ぶ。両者とも `nuts_calc.py`/`nuts_calc_tex.py` の既存データ生成関数をプロセス内で直接呼び出すのみで、subprocess は起動せず PDF/LaTeX ファイルも生成しない(`backend/problem_generation.py:53-91`)。
+`command_type='ope'` の `--use-parentheses`/`--missing-value`/`--terms`系(`terms`/`terms_min`/`terms_max`/`mixed_operators`)が指定された場合、`backend/problem_generation.py` の `_determine_ope_variant()` が対象亜種を判定し(`nuts_calc_tex.py`の`_init()`と同じ相互排他バリデーション・term数レンジ解決を再現)、`_generate_tree_ope_problems`/`_generate_missing_value_problems`/`_generate_multi_term_ope_problems` のいずれかへディスパッチする。いずれも対応する `nuts_calc_tex.py` の既存生成関数をプロセス内で直接呼び出すのみで、subprocess は起動せず PDF/LaTeX ファイルも生成しない。亜種フラグが指定されない場合は従来どおり `renderers.get_renderer_name()` で解決した renderer(`reportlab`/`latex`)に応じて `_generate_ope_problems_reportlab`/`_generate_ope_problems_latex` を呼ぶ(`backend/problem_generation.py:41-181`)。
+
+亜種ごとに item の形状が異なる(issue #167 で決定した JSON contract: dataclass のフィールド名をそのまま JSON key にする): `--use-parentheses` は `{index, operands, operators, tree, result}`(`tree` はネストした式木)、`--terms`系は `{index, operands, operators, mixed, result}`、`--missing-value` は `{index, a, b, operator, c, blank}`。
 
 | 条件 | Status | Body |
 |---|---:|---|
 | 成功 | 200 | `{ "problems": [...] }` |
 | JSON なし / 必須値欠落・`num` 不正 | 400 | `{ "error": "..." }` |
-| `command_type` が `'ope'` 以外、未対応の `ope` 亜種フラグ、その他データ層のエラー | 500 | `{ "error": "..." }` |
+| `command_type` が `'ope'` 以外、亜種フラグの相互排他違反、`terms_min > terms_max`、reportlab レンダラーへの亜種フラグ指定、その他データ層のエラー | 500 | `{ "error": "..." }` |
 
-`ope` の `--use-parentheses`/`--missing-value`/`--terms`系/`--mixed-operators`、および `'ope'` 以外の `command_type` は明示的に拒否される(issue #166 のsub-issueで追って対応)。
+`ope` の `--use-parentheses`/`--missing-value`/`--terms`系/`--mixed-operators` は issue #168 で対応した(reportlab レンダラーには `nuts_calc.py` に対応実装がないため明示的に拒否される)。`'ope'` 以外の `command_type` は引き続き明示的に拒否される(issue #166 のsub-issueで追って対応)。
 
 ## `GET /renderer-info`
 
