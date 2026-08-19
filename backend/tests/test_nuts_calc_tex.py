@@ -22,6 +22,7 @@ test_nuts_calc_tex_conversion_generation.py.
 """
 
 import math
+import os
 import re
 import shutil
 import subprocess
@@ -127,15 +128,24 @@ def run_tex_cli(tmp_path: Path):
     """Run nuts_calc_tex.py as a subprocess, with tmp_path as the working
     directory so relative --out-file paths land in an isolated, auto-cleaned
     directory.
+
+    Defaults NUTS_CALC_TEX_ENGINE to pdflatex (~9x faster than the
+    production default, lualatex, issue #186): none of these generation
+    tests exercise CJK output, and lualatex-specific behavior is covered
+    separately in test_nuts_calc_tex_lualatex_engine.py. A caller-set
+    NUTS_CALC_TEX_ENGINE is left untouched.
     """
 
     def _run(*args: str) -> subprocess.CompletedProcess:
+        env = os.environ.copy()
+        env.setdefault("NUTS_CALC_TEX_ENGINE", "pdflatex")
         return subprocess.run(
             [sys.executable, str(NUTS_CALC_TEX), *args],
             cwd=tmp_path,
             capture_output=True,
             text=True,
             timeout=CLI_TIMEOUT_SECONDS,
+            env=env,
         )
 
     return _run
