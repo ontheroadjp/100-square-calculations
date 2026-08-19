@@ -6,7 +6,7 @@
 
 ## 動作の概要
 
-`App.css`([[../../../../frontend/spa/src/App.css]] 参照)の該当セクション(Basic Reset、App Container、Header、Main Content Area)をそのまま Sass 化し、繰り返し使う色(`#333`/`#6b7280`/`#2563eb` 等)を `$color-text`/`$color-text-muted`/`$color-primary` 等の変数に置き換えている。メディアクエリはネストして各セレクタの直下に記述している(元の CSS はセレクタごとに別ブロックだった)。
+かつて併存していた `frontend/spa/src/App.css`(`frontend/spa` 自体は issue #233 で削除)の該当セクション(Basic Reset、App Container、Header、Main Content Area)をそのまま Sass 化し、繰り返し使う色(`#333`/`#6b7280`/`#2563eb` 等)を `$color-text`/`$color-text-muted`/`$color-primary` 等の変数に置き換えている。メディアクエリはネストして各セレクタの直下に記述している(元の CSS はセレクタごとに別ブロックだった)。
 
 issue #97 で `docs/uiux/wireframe_v1.png` に基づくデザイントークンを追加した: `$color-grade-1`〜`$color-grade-6`(学年別カード色)、`$space-xs`〜`$space-xl`(spacing scale)、`$radius-sm`/`$radius-md`/`$radius-pill`、`$font-size-sm`〜`$font-size-xl`。`$radius-xs`(`.drill-badge` 等が利用)は以降に追加された。
 
@@ -27,7 +27,7 @@ issue #132 で、`$color-grade-1`〜`6` を CSS カスタムプロパティ `--c
 
 ## 注意事項・既知の制限
 
-- [[./main.scss]] と同じく、`frontend/spa/src/App.css` からの追従コピーが必要な保守対象。
+- [[./main.scss]] と同じく、かつて併存していた `frontend/spa/src/App.css` からの追従コピーが必要な保守対象だった(`frontend/spa` 自体は issue #233 で削除され、以後追従コピー元は存在しない)。
 - issue #97 で追加した `$color-grade-*` は issue #132 以降、本ファイル内の `.grade-N` ルールが直接消費する(上記参照)。`[[./navShell.scss]]` が `$space-*`/`$radius-*`/`$font-size-*` を消費している。
 
 ## 変更履歴(git log より自動生成)

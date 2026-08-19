@@ -12,8 +12,7 @@ For the pedagogical background behind the drills (the mental-arithmetic techniqu
 *   **PDF Output**: All worksheets are generated as high-quality PDF files, ready for printing.
 *   **Answer Options**: Include answers at the bottom of the page, merge answer files, or output raw problem data to CSV for further analysis.
 *   **Automated Batch Generation**: The `factory.sh` script provides an automated way to generate a wide variety of pre-configured worksheets.
-*   **Grade and exam-prep presets** (`frontend/spa`): groups drills by grades 1-6. With the LaTeX renderer, grade 1 has six addition/subtraction cards split by carrying/borrowing conditions, and grades 4-6 add 27 entrance-exam-prep presets (three stages and three levels per grade).
-*   **Two independent Web UI frontends**: `frontend/spa` is a React SPA with English/Japanese language switching. `frontend/web` is a lightweight, Japanese-only, static multi-page implementation (plain HTML/CSS(Sass)/JS, no React or i18n library) whose drill menu is a grade -> category -> menu-item hierarchy matching `docs/uiux/calculation_drill_menu_parameters_v1.md` (issue #98; no exam-prep presets). Written/vertical-format (筆算) output is available as a per-preset "出題形式" (式/筆算) setting on 18 add/sub/mul/div presets, not a separate preset category (issue #134). Both talk to the same Flask backend.
+*   **Web UI frontend** (`frontend/web`): a lightweight, Japanese-only, static multi-page implementation (plain HTML/CSS(Sass)/JS, no React or i18n library) whose drill menu is a grade -> category -> menu-item hierarchy matching `docs/uiux/calculation_drill_menu_parameters_v1.md` (issue #98). Written/vertical-format (筆算) output is available as a per-preset "出題形式" (式/筆算) setting on 18 add/sub/mul/div presets, not a separate preset category (issue #134). Talks to the Flask backend. (A second frontend, `frontend/spa` — a React SPA with English/Japanese switching and grade/exam-prep presets — existed alongside it until it was removed in issue #233.)
 
 ## Installation
 The CLI (`nuts_calc_tex.py`) needs Python 3 and a LaTeX environment (`lualatex` by default, or `pdflatex` via `NUTS_CALC_TEX_ENGINE=pdflatex`) — it has no pip dependencies of its own. The Web UI additionally needs Flask, Flask-Cors, Node.js, and npm.
@@ -35,8 +34,7 @@ The CLI (`nuts_calc_tex.py`) needs Python 3 and a LaTeX environment (`lualatex` 
 3.  **Install Web dependencies when using the Web UI** (the CLI itself needs no pip packages):
     ```bash
     pip install flask flask-cors
-    cd frontend/spa && npm install && cd ../..   # React SPA
-    cd frontend/web && npm install && cd ../..   # lightweight static UI (optional, only one is needed)
+    cd frontend/web && npm install && cd ../..
     ```
 
 4.  **Install a LaTeX environment** (required for both the CLI and the Web UI): `nuts_calc_tex.py`, including fraction, written-calculation, and entrance-exam-prep worksheets, uses the Japanese-capable `lualatex` engine by default (requires the `lualatex` binary, the `texlive-luatex` package for `luaotfload`, and the `fonts-noto-cjk` package on Debian/Ubuntu). Set `NUTS_CALC_TEX_ENGINE=pdflatex` to compile with `pdflatex` instead (on Debian/Ubuntu, install the TeX Live base and extra packages; the repository already vendors `longdivision`).
@@ -231,50 +229,40 @@ To use either web interface, you need to start the Flask backend and one of the 
         NUTS_CALC_TEX_ENGINE=pdflatex python app.py
         ```
 
-2.  **Start a frontend** — pick one:
-    *   **React SPA** (`frontend/spa`, English/Japanese):
-        ```bash
-        cd frontend/spa
-        npm install
-        npm run dev
-        ```
-        Typically runs on `http://localhost:5173`.
-    *   **Lightweight static UI** (`frontend/web`, Japanese only, no React/i18n library):
-        ```bash
-        cd frontend/web
-        npm install
-        npm run dev
-        ```
-        Typically runs on `http://localhost:5173` as well (Vite picks the next free port, e.g. `5174`, if both dev servers are running at once).
+2.  **Start the frontend** (`frontend/web`, Japanese only, no React/i18n library):
+    ```bash
+    cd frontend/web
+    npm install
+    npm run dev
+    ```
+    Typically runs on `http://localhost:5173`.
 
-Once both are running, open your browser to the frontend's address (e.g., `http://localhost:5173`) to access the web interface.
+Once running, open your browser to the frontend's address (e.g., `http://localhost:5173`) to access the web interface.
 
 ### Running checks
 
 ```bash
 cd backend && python3 -m pytest -q --ignore=tests/test_nuts_calc_init.py
-node --test frontend/spa/src/drillPresets.test.js frontend/spa/src/drillCatalog.test.js frontend/spa/src/verticalLayout.test.js
 node --test frontend/web/src/drillPresets.test.js frontend/web/src/presetDetail.test.js
-cd frontend/spa && npm run build
 cd frontend/web && npm run build
 ```
 
-`backend/tests/test_nuts_calc_init.py` is excluded above because 9 expectations still pin the old `exit()` status while the implementation correctly uses `exit(1)`; see `docs/L2_development/test.md`. `npm run lint` is also available for `frontend/spa`, but currently reports one `no-irregular-whitespace` error at `frontend/spa/src/drillPresets.js:433`. `frontend/web` has no lint script and no `npm test` script, but `frontend/web/src/drillPresets.test.js` (node:test) covers its own drill-menu data model directly (issue #98), and `frontend/web/src/presetDetail.test.js` covers `presetDetail.js`'s pure problem-count/summary-building/example-to-KaTeX helpers (issues #100, #132); `frontend/web/src/drillPresets.js` no longer copies `frontend/spa`'s version (they diverged in #98); its former `drillCatalog.js` adapter was removed in #110 once `catalog.js`/`preset.js` stopped depending on it.
+`backend/tests/test_nuts_calc_init.py` is excluded above because 9 expectations still pin the old `exit()` status while the implementation correctly uses `exit(1)`; see `docs/L2_development/test.md`. `frontend/web` has no lint script and no `npm test` script, but `frontend/web/src/drillPresets.test.js` (node:test) covers its own drill-menu data model directly (issue #98), and `frontend/web/src/presetDetail.test.js` covers `presetDetail.js`'s pure problem-count/summary-building/example-to-KaTeX helpers (issues #100, #132); `frontend/web/src/drillPresets.js` diverged from the former `frontend/spa`'s version in #98 and no longer copies it (`frontend/spa` itself was removed entirely in issue #233); its former `drillCatalog.js` adapter was removed in #110 once `catalog.js`/`preset.js` stopped depending on it.
 
 ## Dependencies
 *   Python 3
 *   Flask (`pip install Flask`)
 *   Flask-Cors (`pip install Flask-Cors`)
-*   Node.js and npm (for either `frontend/spa` or `frontend/web`)
+*   Node.js and npm (for `frontend/web`)
 *   `lualatex`, `texlive-luatex`, and `fonts-noto-cjk` -- required for the Web UI's default renderer (`nuts_calc_tex.py` with the Japanese-capable `lualatex` engine, issue #186; see Architecture below)
 *   (Optional) `pdflatex` -- an alternative LaTeX engine for `nuts_calc_tex.py`, selectable via `NUTS_CALC_TEX_ENGINE=pdflatex`; not needed with the default `lualatex` engine
 
 ## Architecture
 
-The repository is organized as `backend/` + `frontend/{spa,web}`, so the Flask backend can be shared by two independent frontends (and so `backend`/`frontend` could be split into separate repositories in the future if needed). There are three user-facing ways to generate a worksheet:
+The repository is organized as `backend/` + `frontend/{web}` (`backend`/`frontend` could still be split into separate repositories in the future if needed). It previously held two independent frontends, `frontend/{spa,web}`, until `frontend/spa` was removed in issue #233. There are three user-facing ways to generate a worksheet:
 
 *   **CLI**: `backend/nuts_calc_tex.py` → LaTeX (`lualatex`/`pdflatex`) → PDF/CSV. No server, no database, no persisted state. The original ReportLab CLI, `nuts_calc.py`, was removed entirely in issue #232 (previously unreachable via the Web UI since issue #186).
-*   **Web UI**: a frontend (`frontend/spa`, a React SPA, or `frontend/web`, a lightweight static multi-page site) → Flask backend (`backend/app.py`) → `backend/renderers.py` → `subprocess` call to `nuts_calc_tex.py` (the only renderer since issue #232; the renderer-switching mechanism itself, via `NUTS_CALC_RENDERER`, is kept for a possible future renderer) → generated PDF is streamed back to the browser. The backend holds no drill-generation logic of its own; it only translates form input into CLI arguments. As of issue #199, `command_type: 'com'` is the one exception: `backend/app.py` calls `nuts_calc_tex.py`'s internal presentation API (`build_presentation_document_tex`, issue #183) directly instead of going through the `subprocess` path, for the first command group migrated under the staged `/generate-pdf` migration tracked in issue #174; every other command type is unaffected. `frontend/spa` is currently the only frontend with a UI path to `command_type: 'com'` (presets and a free-form generator form); `frontend/web` has none. Both frontends call `POST /generate-pdf` and `GET /renderer-info` and are independent npm projects rather than sharing a package, since a future repo split was anticipated; `frontend/web`'s `verticalLayout.js` still mirrors `frontend/spa`'s copy, but its `drillPresets.js` has its own grade -> category -> menu-item data model (issue #98) and no longer duplicates `frontend/spa`'s version. `frontend/web` additionally calls a third endpoint, `POST /generate-problems` (issue #138), to fetch live-generated example problems (JSON, no PDF) for its preset detail screen; `backend/problem_generation.py` serves it by calling the CLI's data-generation functions in-process instead of shelling out. `frontend/spa` does not use this endpoint. See `docs/L3_implementation/api.md`.
+*   **Web UI**: `frontend/web`, a lightweight static multi-page site, → Flask backend (`backend/app.py`) → `backend/renderers.py` → `subprocess` call to `nuts_calc_tex.py` (the only renderer since issue #232; the renderer-switching mechanism itself, via `NUTS_CALC_RENDERER`, is kept for a possible future renderer) → generated PDF is streamed back to the browser. The backend holds no drill-generation logic of its own; it only translates form input into CLI arguments. As of issue #199, `command_type: 'com'` is the one exception: `backend/app.py` calls `nuts_calc_tex.py`'s internal presentation API (`build_presentation_document_tex`, issue #183) directly instead of going through the `subprocess` path, for the first command group migrated under the staged `/generate-pdf` migration tracked in issue #174; every other command type is unaffected. The former `frontend/spa` was the only frontend with a UI path to `command_type: 'com'` (presets and a free-form generator form); `frontend/web` has none. `frontend/web` calls `POST /generate-pdf` and `GET /renderer-info`, and is an independent npm project (not sharing a package with `backend`), since a future repo split was anticipated; its `verticalLayout.js` still mirrors the former `frontend/spa`'s copy, but its `drillPresets.js` has its own grade -> category -> menu-item data model (issue #98) and no longer duplicates `frontend/spa`'s version. `frontend/web` additionally calls a third endpoint, `POST /generate-problems` (issue #138), to fetch live-generated example problems (JSON, no PDF) for its preset detail screen; `backend/problem_generation.py` serves it by calling the CLI's data-generation functions in-process instead of shelling out. See `docs/L3_implementation/api.md`.
 *   **Batch**: `backend/factory.sh` is a third, batch-oriented entry point that calls `nuts_calc_tex.py` repeatedly to populate a `dist/` directory with a fixed set of worksheets.
 
 `nuts_calc_tex.py` implements twenty commands: seven with 1:1 semantics to the removed `nuts_calc.py`, the LaTeX-only `frac`, `mixed`, and `compare` commands, the LaTeX-only `evenodd`, `multiples`, and `divisors` number-property commands, the LaTeX-only `lcm` and `gcd` pair-number commands, and the LaTeX-only `simplify`, `commondenom`, `frac2dec`, `dec2frac`, and `divfrac` fraction/decimal conversion commands. It also owns decimal, written-calculation, and carry-aware drill behavior. Its LaTeX compilation step is pluggable via a `LatexEngineAdapter` (`NUTS_CALC_TEX_ENGINE`, default `lualatex` as of issue #186); the Japanese-capable `lualatex` adapter is the default (see Installation above), and `pdflatex` remains available via `NUTS_CALC_TEX_ENGINE=pdflatex`, though existing English-label workarounds for `pdflatex`'s lack of CJK font support are unchanged by either engine. See `docs/L3_implementation/backend/nuts_calc_tex.py.md`.
@@ -285,8 +273,8 @@ See `docs/L1_project/project_overview.md` and `docs/L0_concept/concept.md` for t
 
 *   **Renderer-owned drill logic.** The web backend does not implement worksheet generation; it translates requests and shells out to the selected renderer. Most CLI parameters are shared; LaTeX-only features such as `frac` are always available now that `latex` is the Web UI's default and only reachable renderer (issue #186).
 *   **No dependency pinning on the Python side.** There is no lock file, `requirements.txt`, or `pyproject.toml`; dependencies are installed ad hoc. This reflects the project's scope as a small personal/batch-generation tool rather than a deployed service.
-*   **Local tests are the current quality gate (no CI yet).** pytest covers both generators and backend translation; Node's built-in test runner covers `frontend/spa`'s preset/catalog/layout pure functions and `frontend/web`'s own `drillPresets.test.js` (issue #98). Renderer-dependent tests compile PDF/CSV output when dependencies are available.
-*   **Two frontends, one contract, no shared package.** `frontend/web` was added as a lightweight (no React, no i18n library, Japanese-only) alternative to `frontend/spa`, built as a genuine static multi-page site rather than a single-page JS router. Both frontends are independent npm projects; `frontend/web`'s `verticalLayout.js` still duplicates `frontend/spa`'s copy, but its drill-menu data model (`drillPresets.js`) diverged from `frontend/spa`'s in issue #98 to match `docs/uiux/calculation_drill_menu_parameters_v1.md` exactly. Neither module set depends on a shared internal package, anticipating a possible future split of `backend`/`frontend` into separate repositories.
+*   **Local tests are the current quality gate (no CI yet).** pytest covers both generators and backend translation; Node's built-in test runner covers `frontend/web`'s own `drillPresets.test.js` (issue #98). Renderer-dependent tests compile PDF/CSV output when dependencies are available.
+*   **One frontend, no shared package.** `frontend/web` was added as a lightweight (no React, no i18n library, Japanese-only) alternative to the former `frontend/spa` (removed in issue #233), built as a genuine static multi-page site rather than a single-page JS router. It is an independent npm project; its `verticalLayout.js` still duplicates the former `frontend/spa`'s copy, but its drill-menu data model (`drillPresets.js`) diverged from `frontend/spa`'s in issue #98 to match `docs/uiux/calculation_drill_menu_parameters_v1.md` exactly. It does not depend on a shared internal package, anticipating a possible future split of `backend`/`frontend` into separate repositories.
 
 ## License
 MIT License

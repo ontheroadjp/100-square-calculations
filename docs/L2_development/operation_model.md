@@ -27,7 +27,7 @@ cd backend
 ```
 `factory.sh` は内部で `python nuts_calc_tex.py ...`(`python` コマンド、`python3` ではない点に注意。issue #232 で `nuts_calc.py` から切替)を呼び出す(`backend/factory.sh:127` 等)。`backend/` ディレクトリ内で実行し、`python` が有効な LaTeX ディストリビューションを解決できる状態であることが前提。`_main`(`factory.sh` 内)が `dist/` 配下のディレクトリを作った上で `_basic` を呼ぶ(`_kuku` 系はコメントアウトされており現状は実行されない)。
 
-## Web バックエンド(Flask、`frontend/spa`・`frontend/web` 共通)
+## Web バックエンド(Flask、`frontend/web` が利用)
 
 ```bash
 cd backend
@@ -38,17 +38,7 @@ python app.py
 ```
 根拠: `README.md:77-90`。パッケージ定義ファイル(`requirements.txt`/`pyproject.toml`/`setup.py`)は存在しないため、`pip install Flask Flask-Cors` を手動実行する必要がある([[../L0_concept/policy]] 参照)。`http://127.0.0.1:5000` で起動し、`POST /generate-pdf` にフォーム相当の JSON を送ると `nuts_calc_tex.py` を `subprocess` 実行して PDF を返す(`backend/app.py:14-79`)。`renderers.py` のスクリプトパス解決は `Path(__file__).resolve().parent`(=`backend/`)基準のため、`backend/` 直下に `nuts_calc_tex.py` が存在することを前提にしている(issue #88)。
 
-## Web フロントエンド(spa): React + Vite
-
-```bash
-cd frontend/spa
-node --version
-npm --version
-npm install
-npm run dev      # http://localhost:5173
-```
-
-`npm run build` は 2026-08-12 に実機確認済み(成功)。`package.json` に `i18next`/`react-i18next`/`i18next-browser-languagedetector`/`i18next-http-backend` が揃っている。`npm run lint` は同日の検証で `frontend/spa/src/drillPresets.js:433` の日本語コメント内全角空白を `no-irregular-whitespace` が拒否し、1件失敗する(行番号は issue #88 以前の観測時点(`:363`)から、プリセット追加に伴い `:433` へ変化しているが、指摘内容は同一)。
+**(削除済み、issue #233)** かつては React SPA `frontend/spa`(`cd frontend/spa && npm install && npm run dev`、`http://localhost:5173`)ももう1つの Web フロントエンドとして存在した。`npm run build` は2026-08-12時点で実機確認済み(成功)だったが、`npm run lint` は `frontend/spa/src/drillPresets.js:433` の日本語コメント内全角空白を `no-irregular-whitespace` が拒否し1件失敗していた。`frontend/spa` 自体が issue #233 で削除されたため、以下は現在唯一の Web フロントエンドである `frontend/web` の手順。
 
 ## Web フロントエンド(web): 静的サイト(vanilla JS + Sass、新規、issue #88)
 
@@ -89,16 +79,15 @@ python3 -m pytest -q
 frontend の純粋関数テストは `package.json` に script がないため直接実行する:
 
 ```bash
-node --test frontend/spa/src/drillPresets.test.js frontend/spa/src/drillCatalog.test.js frontend/spa/src/verticalLayout.test.js
+node --test frontend/web/src/drillPresets.test.js frontend/web/src/presetDetail.test.js
 ```
 
-2026-08-19 に17件すべて成功した。`frontend/web` は `node --test frontend/web/src/drillPresets.test.js frontend/web/src/presetDetail.test.js` で45件すべて成功した。
+45件すべて成功した(かつて併存していた `frontend/spa` は2026-08-19時点で `node --test frontend/spa/src/drillPresets.test.js frontend/spa/src/drillCatalog.test.js frontend/spa/src/verticalLayout.test.js` の17件すべて成功していたが、`frontend/spa` 自体が issue #233 で削除された)。
 
 ## ビルド
 
 - CLI/Web バックエンド: ビルド工程なし(PDF/CSV 生成そのものが成果物)。
-- `frontend/spa`: `npm run build`(Vite)。2026-08-12 実機確認済み(成功)。
-- `frontend/web`: `npm run build`(Vite、マルチページ)。2026-08-12 実機確認済み(成功)。
+- `frontend/web`: `npm run build`(Vite、マルチページ)。2026-08-12 実機確認済み(成功)。(かつて併存していた `frontend/spa` の `npm run build` も同日実機確認済み(成功)だったが、`frontend/spa` 自体が issue #233 で削除された。)
 
 ## 未確認事項
 

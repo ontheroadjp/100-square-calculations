@@ -48,7 +48,7 @@
 
 ## 注意事項・既知の制限
 
-- backend の URL がハードコードされている点は `frontend/spa` と同じ既知の制約([[../../frontend/spa/src/CustomGenerator.jsx]] 参照)。
+- backend の URL がハードコードされている点は既知の制約(`frontend/web/src/presetDetail.js:7` の `API_BASE = 'http://127.0.0.1:5000'`)。かつて併存していた `frontend/spa/src/CustomGenerator.jsx` も同様の制約を持っていたが、`frontend/spa` 自体は issue #233 で削除された。
 - `preset.html` は元々静的な `<header class="app-header"><h1>100マス計算ジェネレーター</h1></header>` を持っていたが、このファイルが描画する設定画面の見出し(旧: 独立した `<h3 class="preset-detail-title">`)と重複していた(issue #126)ため、静的ヘッダーを削除し本ファイル側の `<header>` に一本化した([[./home.js]] 参照)。設定画面の見出しはその後 issue #132 で `.catalog-header` パターンへ再度差し替わっている(上記「動作の概要」参照)。
 - 完了画面のPDFサムネイルは実PDFレンダリングではなく静的なCSS装飾(`.completion-thumbnail`)。confettiも静的CSS(アニメーションなし)。例題チップは1行表示(wireframeは2行)。いずれもissue #100のスコープ簡略化として意図的に採用した。
 - `frontend/web` は複数ページ構成(issue #88、ユーザー要望)。本モジュールは `preset.html` 用の独立した「マウント可能なウィジェット」として設計されている(`customGenerator.js` と同じパターン、issue #97 で `customGenerator.js` 自体は削除済み)。

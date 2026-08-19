@@ -9,8 +9,7 @@
 *   **PDF出力**: すべてのワークシートは、印刷に適した高品質なPDFファイルとして生成されます。
 *   **解答オプション**: ページ下部に解答を含めたり、解答ファイルを結合したり、さらなる分析のために生の問題データをCSVに出力したりできます。
 *   **自動一括生成**: `factory.sh`スクリプトは、事前に設定された様々なワークシートを自動で生成し、構造化された出力ディレクトリ (`dist/`) を作成します。
-*   **学年別・中学受験準備プリセット**: Web UIは1〜6年生のカードを提供します。LaTeXレンダラーでは、1年生に繰り上がり・繰り下がり条件で分けた加算2・減算2・混合2の6カード、4〜6年生に中学受験準備27カードを追加します。
-*   **独立した2つのWeb UIフロントエンド**: `frontend/spa` は英語/日本語切替対応の React SPA です。`frontend/web` は日本語のみに対応した、HTML/CSS(Sass)/JSのみ(React・i18nライブラリ不要)の軽量な静的サイト実装で、ドリルカタログの閲覧機能を提供します。いずれも同じ Flask バックエンドを利用します。
+*   **Web UIフロントエンド** (`frontend/web`): 日本語のみに対応した、HTML/CSS(Sass)/JSのみ(React・i18nライブラリ不要)の軽量な静的サイト実装で、ドリルカタログの閲覧機能を提供します。同じ Flask バックエンドを利用します。(学年別・中学受験準備プリセットを提供する英語/日本語切替対応の React SPA `frontend/spa` がもう1つのフロントエンドとして存在していましたが、issue #233 で削除されました。)
 
 ## セットアップ
 CLI(`nuts_calc_tex.py`)にはPython 3とLaTeX環境(`pdflatex`/`lualatex`)が必要です(pipパッケージへの依存はありません)。Web UIにはさらにFlask、Flask-Cors、Node.js、npmが必要です。Python側には `requirements.txt`/`pyproject.toml`/`setup.py` がないため、依存関係は手動で導入します。
@@ -34,8 +33,7 @@ CLI(`nuts_calc_tex.py`)にはPython 3とLaTeX環境(`pdflatex`/`lualatex`)が必
 
 4.  **Webフロントエンドの依存関係をインストールする**:
     ```bash
-    cd frontend/spa && npm install && cd ../..   # React SPA
-    cd frontend/web && npm install && cd ../..   # 軽量な静的UI(どちらか一方で構いません)
+    cd frontend/web && npm install && cd ../..
     ```
 
 5.  **LaTeX環境のインストール（オプション）**: `nuts_calc_tex.py` は `pdflatex` を使います。分数、筆算、小数、整数・小数・分数混合、中学受験準備、繰り上がり条件付きカードを使う場合に必要です。`longdivision` はリポジトリ内に同梱されています。
@@ -114,21 +112,13 @@ Webインターフェースを使用するには、Flaskバックエンドと、
         ```
     *   バックエンドは通常 `http://127.0.0.1:5000` で実行されます。
 
-2.  **フロントエンドを起動する**(いずれか一方を選択):
-    *   **React SPA**(`frontend/spa`、英語/日本語):
-        ```bash
-        cd frontend/spa
-        npm install
-        npm run dev
-        ```
-        通常 `http://localhost:5173` で実行されます。
-    *   **軽量な静的UI**(`frontend/web`、日本語のみ、React・i18nライブラリ不要):
-        ```bash
-        cd frontend/web
-        npm install
-        npm run dev
-        ```
-        通常 `http://localhost:5173` で実行されます(両方の開発サーバーを同時に起動した場合、Vite が自動的に次の空きポート、例えば `5174` を選びます)。
+2.  **フロントエンドを起動する**(`frontend/web`、日本語のみ、React・i18nライブラリ不要):
+    ```bash
+    cd frontend/web
+    npm install
+    npm run dev
+    ```
+    通常 `http://localhost:5173` で実行されます。
 
 起動できたら、ブラウザでフロントエンドのアドレス（例: `http://localhost:5173`）を開いてWebインターフェースにアクセスしてください。
 
@@ -136,26 +126,25 @@ Webインターフェースを使用するには、Flaskバックエンドと、
 
 ```bash
 cd backend && python3 -m pytest -q
-node --test frontend/spa/src/drillPresets.test.js frontend/spa/src/drillCatalog.test.js frontend/spa/src/verticalLayout.test.js
-cd frontend/spa && npm run build
+node --test frontend/web/src/drillPresets.test.js frontend/web/src/presetDetail.test.js
 cd frontend/web && npm run build
 ```
 
-`npm run lint`(`frontend/spa`)は現在 `frontend/spa/src/drillPresets.js:433` の全角空白で1件失敗します。`frontend/web` には lint/test スクリプトはありません。
+`frontend/web` には lint/test スクリプトはありません。
 
 ## 依存関係
 *   Python 3
 *   Flask (`pip install Flask`)
 *   Flask-Cors (`pip install Flask-Cors`)
-*   Node.js と npm (`frontend/spa` または `frontend/web` 用)
-*   `pdflatex`/`lualatex`（`nuts_calc_tex.py` / LaTeXレンダラー用。CLI自体の唯一の外部依存で、pipパッケージは不要)
+*   Node.js と npm (`frontend/web` 用)
+*   `pdflatex`/`lualatex`(`nuts_calc_tex.py` / LaTeXレンダラー用。CLI自体の唯一の外部依存で、pipパッケージは不要)
 
 ## アーキテクチャ
 
-リポジトリは `backend/` + `frontend/{spa,web}` 構成で、Flask バックエンドを2つの独立したフロントエンドで共有する(将来 `backend`/`frontend` を別リポジトリに分離する可能性も見据えている)。
+リポジトリは `backend/` + `frontend/{web}` 構成(将来 `backend`/`frontend` を別リポジトリに分離する可能性も見据えている)。かつては `frontend/{spa,web}` として2つの独立したフロントエンドを持っていたが、`frontend/spa` は issue #233 で削除された。
 
 *   **CLI**: `backend/nuts_calc_tex.py` → LaTeX(`lualatex`/`pdflatex`) → PDF/CSV。サーバー、DB、永続状態はありません。旧 ReportLab版 `nuts_calc.py` は issue #232 で削除されました。
-*   **Web UI**: フロントエンド(`frontend/spa` の React SPA、または `frontend/web` の軽量静的サイト) → Flask backend(`backend/app.py`) → `backend/renderers.py` → `nuts_calc_tex.py` をsubprocess実行し、PDFを返します。レンダラー切り替えの仕組み(`NUTS_CALC_RENDERER`)自体は将来の別レンダラー追加に備えて維持されています。
+*   **Web UI**: フロントエンド(`frontend/web` の軽量静的サイト) → Flask backend(`backend/app.py`) → `backend/renderers.py` → `nuts_calc_tex.py` をsubprocess実行し、PDFを返します。レンダラー切り替えの仕組み(`NUTS_CALC_RENDERER`)自体は将来の別レンダラー追加に備えて維持されています。
 *   **バッチ**: `backend/factory.sh` が `nuts_calc_tex.py` を繰り返し呼び出し、`dist/` に成果物を生成します。
 
 `nuts_calc_tex.py` は旧 ReportLab版とコード共有しない独立実装で、互換7コマンドにLaTeX専用の分数・混合・比較・数論・変換系コマンドを加えた計20コマンドを持ちます。
@@ -165,7 +154,7 @@ cd frontend/web && npm run build
 *   問題生成ロジックは各renderer CLIが所有し、Web backendはJSONをCLI引数へ変換します。
 *   Python側は依存関係を固定していないため、必要なパッケージを手動で導入します。
 *   CIはなく、pytest、Node組み込みテスト、Vite buildによるローカル検証が品質ゲートです。
-*   `frontend/web` は React・i18nライブラリを使わない軽量な代替フロントエンドとして追加され、SPA(JSルーターによる単一ページ切替)ではなく、実在の複数ページで構成される静的サイトとして実装されている。両フロントエンドは共有パッケージに依存せず、少数の純粋データモジュールをそれぞれ複製している(将来のリポジトリ分離を見据えた設計)。
+*   `frontend/web` は React・i18nライブラリを使わない軽量なフロントエンドとして追加され、SPA(JSルーターによる単一ページ切替)ではなく、実在の複数ページで構成される静的サイトとして実装されている(かつて存在した `frontend/spa` はこの対比のもとで issue #233 まで併存していたが、現在は削除済み)。共有パッケージには依存せず、少数の純粋データモジュールを自身の中に持つ(将来のリポジトリ分離を見据えた設計)。
 
 ## ライセンス
 MIT License

@@ -53,7 +53,5 @@ build/
 .claude/
 
 # Web Frontend
-frontend/spa/node_modules/
-frontend/spa/dist/
 frontend/web/node_modules/
 frontend/web/dist/

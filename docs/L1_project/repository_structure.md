@@ -1,6 +1,6 @@
 # Repository Structure
 
-単一リポジトリだが、CLI/バックエンド関連は `backend/` に、フロントエンドは `frontend/` 配下の `spa`/`web` 2実装に、それぞれ分かれたミニ・モノレポ構成(それぞれ独立した実行環境: Python venv / npm)。issue #88 で `web/backend`・`web/frontend`・リポジトリルート直下の CLI/テストを再編し、`backend`/`frontend/{spa,web}` レイアウトに変更した(将来 `backend`/`frontend` を別リポジトリへ分離する可能性を見据えた構成、[[../L0_concept/policy]] 未記載・issue #88 の背景)。ディレクトリ一覧で確認済み。
+単一リポジトリだが、CLI/バックエンド関連は `backend/` に、フロントエンドは `frontend/web` に、それぞれ分かれたミニ・モノレポ構成(それぞれ独立した実行環境: Python venv / npm)。issue #88 で `web/backend`・`web/frontend`・リポジトリルート直下の CLI/テストを再編し、`backend`/`frontend/{spa,web}` レイアウトに変更した(将来 `backend`/`frontend` を別リポジトリへ分離する可能性を見据えた構成、[[../L0_concept/policy]] 未記載・issue #88 の背景)。当初は `frontend/spa`(React SPA)も併存していたが、issue #233 で削除され `frontend/web` が唯一のフロントエンドになった。ディレクトリ一覧で確認済み。
 
 ```
 100-square-calculations/
@@ -20,22 +20,7 @@
 │   └── vendor/
 │       └── texmf/tex/latex/longdivision/  # CTAN 'longdivision' パッケージのvendoring(nuts_calc_tex.pyの--vertical divで使用)
 ├── frontend/
-│   ├── spa/              # React + Vite + Tailwind の SPA(旧 web/frontend、issue #88 で無変更のまま移動)
-│   │   ├── src/
-│   │   │   ├── main.jsx           # エントリポイント
-│   │   │   ├── App.jsx            # ヘッダー(タイトル・言語切替)+ GradeDrills を描画するシェル
-│   │   │   ├── GradeDrills.jsx    # 学年別(1-6+無学年+カスタム)ドリルPDF選択画面(メインUI)
-│   │   │   ├── CustomGenerator.jsx # 詳細パラメータ指定フォーム(「カスタム」選択時)
-│   │   │   ├── drillPresets.js    # 学年→/generate-pdf パラメータのプリセット定義(1年生条件付き加減算・中学受験準備等)
-│   │   │   ├── drillCatalog.js    # プリセットから検索・絞り込み可能なカタログを構築する純粋関数群
-│   │   │   ├── drillPresets.test.js / drillCatalog.test.js # node:test によるプリセット/カタログ構造テスト
-│   │   │   ├── verticalLayout.js / verticalLayout.test.js # 筆算行数の純粋関数と node:test
-│   │   │   ├── App.css
-│   │   │   └── i18n.js            # react-i18next 設定
-│   │   ├── public/locales/{en,ja}/translation.json  # 翻訳文言
-│   │   ├── package.json         # i18next系4パッケージを含む
-│   │   └── package-lock.json
-│   └── web/               # HTML/CSS(Sass)/JS のみの軽量実装(新規、issue #88)。日本語のみ、i18nライブラリ不要
+│   └── web/               # HTML/CSS(Sass)/JS のみの軽量実装(新規、issue #88)。日本語のみ、i18nライブラリ不要。かつて併存していた spa/(React SPA)は issue #233 で削除
 │       ├── index.html / catalog.html / preset.html  # 画面ごとに実在するページ(SPAではない複数ページ構成、ユーザー要望)。custom.html は issue #97 で削除
 │       ├── vite.config.js       # Vite マルチページビルド設定(3 HTML エントリ、issue #97 で custom entry を削除)
 │       ├── src/
@@ -59,14 +44,13 @@
 - `memo.md`: コードではなく、暗算指導法・学習ステップ・受験算数における計算力の重要性を説明する日本語の教育コンテンツ。
 - `LICENSE`: MIT License(`LICENSE:1-21`、Copyright (c) 2025 ontheroadjp)。
 - `README.md` / `README_ja.md`: 英語/日本語で内容が対応した利用者向け説明。CLI・`factory.sh`・Web UI(バックエンド/フロントエンド起動手順)をカバーしている。README.md には `Architecture`/`Design Principles` セクションがあるが README_ja.md には対応するセクションがなく、両者は完全な対訳ではなくなっている(下記「未確認事項」参照)。
-- `backend/tests/`: pytestテストスイート(26個の `test_*.py`、`test_problem_generation.py` は issue #138 の `backend/problem_generation.py` を検証する)。Flask/CLI変換、各ドリル生成を検証する(issue #232 でレンダラーは `latex` の1種類のみになった)。`frontend/spa` には `node:test` 3ファイル、`frontend/web` には2ファイルがある。詳細は [[../L2_development/test]]。
+- `backend/tests/`: pytestテストスイート(26個の `test_*.py`、`test_problem_generation.py` は issue #138 の `backend/problem_generation.py` を検証する)。Flask/CLI変換、各ドリル生成を検証する(issue #232 でレンダラーは `latex` の1種類のみになった)。`frontend/web` には `node:test` 2ファイルがある(かつて併存していた `frontend/spa` には3ファイルあったが issue #233 で削除)。詳細は [[../L2_development/test]]。
 - `docs/reference/`: 教材仕様の根拠となる一次資料を出典・取得日・SHA-256と共に保存する(`docs/reference/README.md:1-24`)。
 - `backend/vendor/texmf/tex/latex/longdivision/`: CTAN の `longdivision` パッケージ(LPPLライセンス)を vendoring したもの。Ubuntu の `texlive-latex-extra` に同梱されていないため、`nuts_calc_tex.py` が `TEXINPUTS` 経由でこのパスを解決する([[../L3_implementation/nuts_calc_tex.py]] 参照)。
-- `backend/app.py`: Flask アプリ。`POST /generate-pdf`(PDF生成)、`POST /generate-problems`(PDFを生成せず問題データのみJSONで返す、issue #138)、`GET /renderer-info`(有効レンダラー名の取得)の3エンドポイント。コマンド構築・レンダラー選択・subprocess実行は `backend/renderers.py` に切り出されている(詳細は [[../L1_project/project_overview]])。`frontend/spa` と `frontend/web` の両方から共通利用されるが、`POST /generate-problems` は現状 `frontend/web` の `preset.html` のみが呼ぶ。
+- `backend/app.py`: Flask アプリ。`POST /generate-pdf`(PDF生成)、`POST /generate-problems`(PDFを生成せず問題データのみJSONで返す、issue #138)、`GET /renderer-info`(有効レンダラー名の取得)の3エンドポイント。コマンド構築・レンダラー選択・subprocess実行は `backend/renderers.py` に切り出されている(詳細は [[../L1_project/project_overview]])。`frontend/web` から利用される(かつては `frontend/spa` も共通利用していたが issue #233 で削除)。`POST /generate-problems` は現状 `frontend/web` の `preset.html` のみが呼ぶ。
 - `backend/renderers.py`: `NUTS_CALC_RENDERER` env 変数(デフォルト `latex`、issue #186 で `reportlab` から変更)経由で `nuts_calc_tex.py` を呼び出す、Flask 非依存の純粋関数群(issue #36)。レンダラー切り替えの仕組み自体は将来の別レンダラー追加に備えて温存しているが、`nuts_calc.py`(ReportLab)は issue #232 でコード自体が削除され、`RENDERER_SCRIPTS` は現在 `latex` の1エントリのみを持つ。`RENDERER_SCRIPTS` はスクリプトパスを `Path(__file__).resolve().parent`(=`backend/`)基準で解決する(issue #88 で `web/backend/` からの移動に伴い repo-root 基準から変更)。
 - `backend/problem_generation.py`: `POST /generate-problems` が使う、`nuts_calc_tex.py` の既存データ生成関数をsubprocessを起動せずプロセス内で直接呼び出すラッパー(issue #138)。`ope` を含む19コマンド(`100` を除く全対応コマンド)に対応する。詳細は [[../L3_implementation/api]]。
-- `frontend/spa/`: Vite ベースの React SPA。`node_modules/` と `dist/` は `.gitignore` で除外済み。トップ画面は学年別ドリル選択(`GradeDrills.jsx`)で、LaTeX 時の4〜6年生には中学受験準備セクションも表示する。そこから「カスタム」を選ぶと詳細パラメータ指定フォーム(`CustomGenerator.jsx`)に切り替わる。
-- `frontend/web/`: HTML/CSS(Sass)/JS のみの軽量フロントエンド(新規、issue #88)。`frontend/spa` と機能的に同等だが、React・i18n ライブラリを使わず日本語のみに対応する。ユーザーの明示的な指示により、SPA(単一 `index.html` を JS ルーターで画面切替する構成)ではなく、画面ごとに実在の `.html` を持つ複数ページ構成として実装されている(通常の `<a href>` リンクと GET フォームで画面遷移する)。
+- `frontend/web/`: HTML/CSS(Sass)/JS のみの軽量フロントエンド(新規、issue #88)。React・i18n ライブラリを使わず日本語のみに対応する。ユーザーの明示的な指示により、SPA(単一 `index.html` を JS ルーターで画面切替する構成)ではなく、画面ごとに実在の `.html` を持つ複数ページ構成として実装されている(通常の `<a href>` リンクと GET フォームで画面遷移する)。かつて併存していた `frontend/spa/`(Vite ベースの React SPA。トップ画面は学年別ドリル選択の `GradeDrills.jsx`、「カスタム」選択時の詳細パラメータ指定フォーム `CustomGenerator.jsx` を持ち、`frontend/web` と機能的に同等だった)は issue #233 で削除された。
 
 ## 未確認事項
 

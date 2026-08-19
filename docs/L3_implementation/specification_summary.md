@@ -33,21 +33,21 @@ DB は存在しないため `database.md` は生成していない(永続化層�
 - 入力: なし。
 - 処理: `renderers.get_renderer_name()` を呼び、env 変数 `NUTS_CALC_RENDERER`(未設定時は `latex`、issue #186 で `reportlab` から変更)から解決した renderer 名を返す(`backend/renderers.py:90-107`)。
 - 出力: 成功時は `{'renderer': 'latex'}` を HTTP 200 で返す。`NUTS_CALC_RENDERER` に `latex` 以外の値が設定されている場合(`reportlab` を含む。`nuts_calc.py`/reportlab は issue #232 でコード自体が削除され、`RENDERER_SCRIPTS` の1エントリではなくなった)は `{'error': ...}` を HTTP 500 で返す。レンダラー切り替えの仕組み自体は将来の別レンダラー追加に備えて維持されている。
-- 用途: `frontend/spa`・`frontend/web`(issue #88 で追加された軽量静的サイト、両者とも `backend/app.py` を共通利用)がリクエスト前にどちらのレンダラーが有効かを判定し、`latex` のときのみ筆算(`vertical`)関連の UI を表示するために使う([[../../frontend/spa/src/GradeDrills.jsx]]/[[../../frontend/spa/src/CustomGenerator.jsx]] 参照)。
+- 用途: `frontend/web`(issue #88 で追加された軽量静的サイト、`backend/app.py` を利用。かつては `frontend/spa` も同様に利用していたが issue #233 で削除)がリクエスト前にどちらのレンダラーが有効かを判定し、`latex` のときのみ筆算(`vertical`)関連の UI を表示するために使う。
 
 ## 既知の欠陥1(解消済み): 旧 `ini.intermediate` 未定義参照、および issue #4 の9件のロジックバグ
 
 `100masu.py`(旧 ReportLab CLI。issue #232 で削除された `nuts_calc.py` の前身)には、`command` が `ope` 以外だと `NameError: name 'ini' is not defined` で必ず失敗するバグが存在していた。`dev` ブランチのマージ(`nuts_calc.py`)で `if args.command == 'ope' or ini.intermediate:` が `if args.command == 'ope' or args.intermediate:` に修正されており、実機で7種類の `command` すべてが正常終了することを確認済み(当時)。修正コミット: `d9fc0a3`/`5466cdb` 系列(`100masu.py` → `nuts_calc.py` へのリネームと整理)。
 
-その後の logic review(issue #4)で見つかった9件の独立したロジックバグも修正済み(`nuts_calc.py`/`backend/app.py`/`frontend/spa/src/CustomGenerator.jsx`)。この中で上記の条件式はさらに `if args.command == 'ope':` へ変更されている(`--intermediate` が `ope` 以外のコマンドの `-a` 必須チェックを迂回してしまう問題を修正)。`nuts_calc.py` 自体は issue #232 で削除済み(対応する L3 doc `docs/L3_implementation/backend/nuts_calc.py.md` も削除済み)のため、詳細は各ファイルの L3 doc([[../../backend/app.py]]、[[../../frontend/spa/src/CustomGenerator.jsx]])のうち現存するものを参照。
+その後の logic review(issue #4)で見つかった9件の独立したロジックバグも修正済み(`nuts_calc.py`/`backend/app.py`/`frontend/spa/src/CustomGenerator.jsx`)。この中で上記の条件式はさらに `if args.command == 'ope':` へ変更されている(`--intermediate` が `ope` 以外のコマンドの `-a` 必須チェックを迂回してしまう問題を修正)。`nuts_calc.py` 自体は issue #232 で、`frontend/spa`(`CustomGenerator.jsx` を含む)自体は issue #233 で削除済み(対応する L3 doc `docs/L3_implementation/backend/nuts_calc.py.md`・`docs/L3_implementation/frontend/spa/src/CustomGenerator.jsx.md` もいずれも削除済み)のため、詳細は各ファイルの L3 doc([[../../backend/app.py]])のうち現存するものを参照。
 
 同じくテスト作成中に見つかった issue #15(`OUTFILE_NAME_READ`/`OUTFILE_NAME_CSV` の導出が `str.rstrip('.pdf')` による文字クラス除去だったため、特定のファイル名で末尾が欠ける)も修正済み。上記の UUID ファイル名(`worksheet_<uuid>.pdf`)は16進数文字列のため末尾が `d`/`f` になり得ることから、CLI の直接指定に限らず Web API 経由でも実際に踏みうる不具合だった。`nuts_calc.py` 自体は issue #232 で削除済み(この修正は削除前の履歴上の事実)。
 
 ## 既知の欠陥2(解消済み): `frontend/spa` のビルド失敗(依存関係欠落)
 
-`frontend/spa/src/i18n.js` が import する `i18next`/`react-i18next`/`i18next-browser-languagedetector`/`i18next-http-backend` が、かつて `frontend/spa/package.json` の `dependencies` に含まれておらず `npm run build` が `Rollup failed to resolve import "i18next"` で失敗していた。現行の `frontend/spa/package.json` にはこれら4パッケージがすべて記載されており(コミット `724f752` 等)、実機で `npm install && npm run build` が成功することを確認済み。
+`frontend/spa/src/i18n.js` が import する `i18next`/`react-i18next`/`i18next-browser-languagedetector`/`i18next-http-backend` が、かつて `frontend/spa/package.json` の `dependencies` に含まれておらず `npm run build` が `Rollup failed to resolve import "i18next"` で失敗していた。`frontend/spa/package.json` にはこれら4パッケージがすべて記載され(コミット `724f752` 等)、実機で `npm install && npm run build` が成功することを確認済みだった。`frontend/spa` 自体は issue #233 で削除済み(履歴上の事実)。
 
 ## 未確認事項
 
 - `backend/app.py` を実際に起動し、修正前の壊れた状態のフロントエンドを経由せず直接 `POST /generate-pdf` を叩いた場合に正常に PDF が返るか(バックエンド単体の動作確認)は本ドキュメント作業では未実施。
-- `--intermediate` オプション(`nuts_calc_tex.py`、`ope` コマンドの中間式表示)は、CLI レベルでは `memo.md` の暗算法(2桁×1桁)と数式上一致することを自動テストで確認済み。フロントエンド経由(`frontend/spa/src/CustomGenerator.jsx` の `vertical` チェックボックスと同様の UI)で意図通り動作するかは引き続き未検証。
+- `--intermediate` オプション(`nuts_calc_tex.py`、`ope` コマンドの中間式表示)は、CLI レベルでは `memo.md` の暗算法(2桁×1桁)と数式上一致することを自動テストで確認済み。フロントエンド経由(`frontend/spa/src/CustomGenerator.jsx` の `vertical` チェックボックスと同様の UI)で意図通り動作するかは検証されないまま `frontend/spa` が issue #233 で削除された。`frontend/web` に同種の UI 経路があるかは本ドキュメント作業では未確認。
