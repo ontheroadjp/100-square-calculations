@@ -30,6 +30,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- 51b8d7f feat(#148): add multiplication-table question order
+- aca0f4f feat(#134): add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages
+- d38fa0d fix: prevent mid-problem line wrap in preset example chips
+- 06870bb #148 Add multiplication-table question-order options (#150)
 - 2d9ee47 #132 frontend/web: dynamic grade accent, KaTeX fraction examples, generalized setting hints, and move problem count into common settings on preset detail page (#136)
 - 3625e47 #128 Reorganize frontend web Sass by UI hierarchy (#129)
