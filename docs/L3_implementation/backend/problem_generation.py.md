@@ -29,6 +29,22 @@
 
 `frac`/`mixed`/`compare` 等の残り19コマンド、および `ope` の `--use-parentheses`/`--missing-value`/多項formatは、それぞれ別の生成関数を使い、出力の型(fraction・真偽値・リスト等)も `ope` の a/b/operator/result 形とは異なる。1つのissue(#138)でこれら全てを実装すると、データ層のレスポンス形状(envelope)の設計判断を全コマンド分一度に確定させることになりスコープが過大になるため、issue #166 のsub-issue群(#167でアーキテクチャ決定、#168-#173で各コマンド群)へ意図的に分割した。未対応の呼び出しは黙って無視/変換せず、明示的なエラーメッセージ(該当issue番号付き)で失敗させる。
 
+### 非-`ope` コマンド群向け JSON contract 規約(issue #167、未実装・設計のみ)
+
+issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマンド生成関数(`generate_com_problems`/`generate_kuku_problems`/`generate_abc_problems`/`generate_squ_problems`/`generate_pi_problems`/`generate_evenodd_problems`/`generate_multiples_problems`/`generate_divisors_problems`/`generate_fraction_problems`/`generate_fraction_comparison_problems`/`generate_mixed_problems`/`generate_number_pair_problems`/`generate_simplify_problems`/`generate_commondenom_problems`/`generate_frac2dec_problems`/`generate_dec2frac_problems`/`generate_divfrac_problems`、および `--use-parentheses`/`--missing-value`/多項系の `generate_tree_ope_problems`/`generate_multi_term_ope_problems`/`generate_missing_value_problems`)を `backend/problem_generation.py` へ本実装する #168-#173 が従う契約を以下のとおり決定した(このセクション自体はコード変更を伴わない設計記録)。
+
+- **envelope**: `{"problems": [...]}` を変更しない(#138 踏襲)。item の形状はコマンド群ごとに異なってよい(単一の汎用スキーマには寄せない)。
+- **item マッピング**: dataclass のフィールド名をそのまま JSON key として使う(`dataclasses.fields()` 相当の1:1変換)。非JSONネイティブな値型は以下のとおり変換する:
+    - 標準 `Fraction`(`fractions` モジュール) → `{"numerator": f.numerator, "denominator": f.denominator}`(2キー、`whole` は持たない)。
+    - `FractionOperand`/`FractionComparisonOperand`(`nuts_calc_tex.py:3207-3216`/`3466-3476`。いずれも既に `numerator`/`denominator`/`whole`(既定0)を持つ) → そのフィールドをそのまま JSON へ写す(3キー)。`Fraction` 変換と別形状なのは、`FractionOperand` 側だけが混合数の整数部(`whole`)概念を持つため。
+    - ネストした dataclass(例: `TreeOpeProblem.tree: ExprTreeNode`、`nuts_calc_tex.py:1668-1686`)は同じ規則を再帰適用する(`left`/`right` が `None` なら `null`、`ExprTreeNode` ならネストした dict)。専用の木シリアライズ形式は起こさない。この項目は #168(`ope` variants)が最初の消費者になる想定。
+    - `list[int]`/`list[str]` フィールド(`MultiplesProblem.multiples`/`DivisorsProblem.divisors`/`MultiTermOpeProblem.operands` 等)はそのまま JSON 配列にする。
+- **計算プロパティ(`@property`)の扱い**: 上記の汎用変換は dataclass の実フィールドのみを対象とし、`EvenOddProblem.label`/`AbcProblem.abcd_display`/`AbcProblem.answer`/`FractionComparisonProblem.relation`/`Frac2DecProblem.decimal_display`/`Dec2FracProblem.decimal_display` のような派生プロパティは**自動では含めない**。各 family の sub-issue が、クライアント側でのロジック再実装(例: 偶数/奇数の日本語ラベルを JS 側で持つ)を避けたい場合にのみ、明示的な追加 key として個別に採用するかどうかを判断する。既存の `OpeProblemData.intermediate_memo`(`problem_generation.py:47`、`_generate_ope_problems_latex` が `nuts_calc_tex.build_intermediate_memo` を再利用して追加)がこのパターンの先例。
+- **未対応の組み合わせのエラー**: 既存の `UNSUPPORTED_OPE_VARIANT_FLAGS` と同じ「issue番号付き `ValueError`」パターンを継続する。新規 family もサポート外のフラグ組み合わせを黙って無視・変換せず、明示的に失敗させる。
+- **`command_type` の許可判定**: 現在の `if command_type != 'ope': raise`(`problem_generation.py:58-62`)を、`command_type` → 生成関数のディスパッチテーブルに置き換える。各 sub-issue は「関数を1つ追加し、テーブルに1エントリ追加する」だけで済み、共有の if/elif チェーンを編集しない(#168-#173 が並行作業してもコンフリクトしにくい)。`nuts_calc_tex.py` 側で既にジェネレータを共有しているコマンド群(例: `lcm`/`gcd` は `generate_number_pair_problems(compute, nums_a, nums_b, order, start_index)` を `compute=math.lcm`/`math.gcd` で呼び分けるだけ、`nuts_calc_tex.py:3821-3892`)は、`problem_generation.py` 側でも1関数を共有してよい。
+- **reportlab 分岐は持たない**: `nuts_calc.py` は `['ope', 'com', '100', '99', 'aBc', 'squ', 'pi']` の7コマンドのみを実装しており(`nuts_calc.py:131`)、#167-#173 が対象とする残りコマンドは元から reportlab 側に存在しない。加えて `renderers.get_renderer_name()`(`renderers.py:90-108`)は `NUTS_CALC_RENDERER=reportlab` が明示指定された場合、`problem_generation.generate_problems()` に到達する前(`app.py`の`generate_problems`ハンドラ内)に `ValueError` を送出する(issue #186 以降)。したがって本番の HTTP 経路で `problem_generation.generate_problems()` に渡る `renderer_name` は常に `'latex'` であり、新規 family の生成関数は `_generate_ope_problems_reportlab`/`_generate_ope_problems_latex` のような二重実装を持たず、`nuts_calc_tex.py` を直接呼び出すだけでよい。
+- **ファイル構成**: 当面は `problem_generation.py` を単一ファイルのまま維持する(パッケージ分割は本ファイルが概ね800行を超えた時点で再検討する)。
+
 ## 統合ポイント
 
 - 呼び出し元: `backend/app.py` の `POST /generate-problems` ルートハンドラ。
