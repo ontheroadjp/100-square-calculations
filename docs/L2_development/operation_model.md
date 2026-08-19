@@ -1,29 +1,23 @@
 # Operation Model
 
-CI 定義が存在しないため(`.github/workflows` 等なし、確認済み)、以下は `README.md`/`README_ja.md` および `backend/factory.sh`/`backend/nuts_calc.py`/`frontend/` の実装から逆引きした手順である。issue #88 でリポジトリを `backend/` + `frontend/{spa,web}` に再編したため、CLI/Flask 関連のコマンドはすべて `backend/` ディレクトリ内での実行が前提になっている。
+CI 定義が存在しないため(`.github/workflows` 等なし、確認済み)、以下は `README.md`/`README_ja.md` および `backend/factory.sh`/`backend/nuts_calc_tex.py`/`frontend/` の実装から逆引きした手順である。issue #88 でリポジトリを `backend/` + `frontend/{spa,web}` に再編したため、CLI/Flask 関連のコマンドはすべて `backend/` ディレクトリ内での実行が前提になっている。
 
 ## CLI: セットアップと実行
 
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install reportlab
-```
-根拠: `README.md:22-26,35`。パッケージ定義ファイル(`requirements.txt`/`pyproject.toml`/`setup.py`)は存在しないため、`pip install reportlab` を手動実行する必要がある([[../L0_concept/policy]] 参照)。
+旧 ReportLab CLI(`nuts_calc.py`)は issue #232 で削除され、CLI は `nuts_calc_tex.py`(LaTeX レンダリング)のみになった。`nuts_calc_tex.py` は標準ライブラリのみで書かれており(`import argparse`/`csv`/`math`/`os`/`random`/`shutil`/`subprocess`/`tempfile` 等、`backend/nuts_calc_tex.py:40-50`)、pip パッケージのインストールは不要。ただし LaTeX ディストリビューション(既定エンジン `lualatex`。`pdflatex` も選択可、issue #121/#186、[[../L3_implementation/nuts_calc_tex.py]] 参照)が別途必要:
 
 ```bash
 cd backend
-python3 nuts_calc.py <paper_size> <command> [options]
+python3 nuts_calc_tex.py <paper_size> <command> [options]
 ```
 - `paper_size`: `A3` | `A4` | `B5` | `a4l`(A4横向き、大文字小文字どちらも可)
-- `command`: `ope` | `com` | `100` | `99` | `aBc` | `squ` | `pi`
+- `command`: `ope` | `com` | `100` | `99` | `aBc` | `squ` | `pi` | `frac` | `mixed` | `compare` | `evenodd` | `multiples` | `divisors` | `lcm` | `gcd` | `simplify` | `commondenom` | `frac2dec` | `dec2frac` | `divfrac`
 
-実行例(2026-08-12 に repo-local `venv/` で `backend/` から実行、成功):
+実行例:
 ```bash
 cd backend
-python3 nuts_calc.py A4 ope --a-min 1 --a-max 9 --b-min 1 --b-max 9 --operator add --rows 5 --columns 2 --page 1 --out-file result.pdf
+python3 nuts_calc_tex.py A4 ope --a-min 1 --a-max 9 --b-min 1 --b-max 9 --operator add --rows 5 --columns 2 --page 1 --out-file result.pdf
 ```
-`All done` で終了し `result.pdf` を生成することを確認済み。
 
 ## バッチ実行
 
@@ -31,17 +25,18 @@ python3 nuts_calc.py A4 ope --a-min 1 --a-max 9 --b-min 1 --b-max 9 --operator a
 cd backend
 ./factory.sh
 ```
-`factory.sh` は内部で `python nuts_calc.py ...`(`python` コマンド、`python3` ではない点に注意)を呼び出す(`backend/factory.sh:127` 等)。`backend/` ディレクトリ内で実行し、`python` が有効な venv 等で `reportlab` を解決できる状態であることが前提。`_main`(`factory.sh` 内)が `dist/` 配下のディレクトリを作った上で `_basic` を呼ぶ(`_kuku` 系はコメントアウトされており現状は実行されない)。
+`factory.sh` は内部で `python nuts_calc_tex.py ...`(`python` コマンド、`python3` ではない点に注意。issue #232 で `nuts_calc.py` から切替)を呼び出す(`backend/factory.sh:127` 等)。`backend/` ディレクトリ内で実行し、`python` が有効な LaTeX ディストリビューションを解決できる状態であることが前提。`_main`(`factory.sh` 内)が `dist/` 配下のディレクトリを作った上で `_basic` を呼ぶ(`_kuku` 系はコメントアウトされており現状は実行されない)。
 
 ## Web バックエンド(Flask、`frontend/spa`・`frontend/web` 共通)
 
 ```bash
 cd backend
-source ../venv/bin/activate   # 上記でvenvを作成している場合
+python3 -m venv venv
+source venv/bin/activate
 pip install Flask Flask-Cors
 python app.py
 ```
-根拠: `README.md:77-90`。`http://127.0.0.1:5000` で起動し、`POST /generate-pdf` にフォーム相当の JSON を送ると `nuts_calc.py` を `subprocess` 実行して PDF を返す(`backend/app.py:14-79`)。`renderers.py` のスクリプトパス解決は `Path(__file__).resolve().parent`(=`backend/`)基準のため、`backend/` 直下に `nuts_calc.py`/`nuts_calc_tex.py` が存在することを前提にしている(issue #88)。
+根拠: `README.md:77-90`。パッケージ定義ファイル(`requirements.txt`/`pyproject.toml`/`setup.py`)は存在しないため、`pip install Flask Flask-Cors` を手動実行する必要がある([[../L0_concept/policy]] 参照)。`http://127.0.0.1:5000` で起動し、`POST /generate-pdf` にフォーム相当の JSON を送ると `nuts_calc_tex.py` を `subprocess` 実行して PDF を返す(`backend/app.py:14-79`)。`renderers.py` のスクリプトパス解決は `Path(__file__).resolve().parent`(=`backend/`)基準のため、`backend/` 直下に `nuts_calc_tex.py` が存在することを前提にしている(issue #88)。
 
 ## Web フロントエンド(spa): React + Vite
 
@@ -67,7 +62,7 @@ npm run dev      # http://localhost:5174 等(5173が使用中の場合は自動�
 
 `npm run build` は Vite のマルチページビルド(`vite.config.js` の `build.rollupOptions.input` に3つの `.html` を列挙。`custom.html` entry は issue #97 で削除)で `dist/index.html`/`catalog.html`/`preset.html` を出力する。2026-08-18 に実機確認済み(成功)。`package.json` の devDependencies は `vite`/`sass` のみで、React・i18next 系は含まない。`lint` スクリプトは定義されていない。
 
-## `nuts_calc_tex.py`(実験的LaTeXプロトタイプ)のセットアップと実行
+## `nuts_calc_tex.py` の追加コマンド例
 
 ```bash
 cd backend
@@ -88,10 +83,8 @@ python3 nuts_calc_tex.py A4 ope -o add sub --mixed-carry-borrow --out-file grade
 cd backend
 pip install pytest
 python3 -m pytest -q
-# 既知の stale テストだけを分離する場合
-python3 -m pytest -q --ignore=tests/test_nuts_calc_init.py
 ```
-`backend/pytest.ini` により `backend/` ディレクトリ内で実行する。2026-08-19 に666件を収集し、既知 stale ファイルを除く644件は全成功した。`backend/tests/test_nuts_calc_init.py` 単独は既知どおり9失敗・13成功。詳細は [[test]]。
+`backend/pytest.ini` により `backend/` ディレクトリ内で実行する。issue #232(`nuts_calc.py` 削除)後は687件全てが成功する。詳細は [[test]]。
 
 frontend の純粋関数テストは `package.json` に script がないため直接実行する:
 
@@ -109,6 +102,6 @@ node --test frontend/spa/src/drillPresets.test.js frontend/spa/src/drillCatalog.
 
 ## 未確認事項
 
-- `factory.sh` を実際に実行して `dist/` 配下の全生成物が意図通りかは未検証(今回は `nuts_calc.py` を直接呼び出しての動作確認のみ実施)。
+- `factory.sh` を実際に実行して `dist/` 配下の全生成物が意図通りかは未検証(今回は `nuts_calc_tex.py` を直接呼び出しての動作確認のみ実施)。
 - Web バックエンドを実際に起動し、フロントエンドと結合して `POST /generate-pdf`/`GET /renderer-info` が動作するかの pytest による結合確認(`backend/tests/test_web_backend_app.py` はモジュールレベルの単体テストで、実プロセス起動を伴う結合確認ではない)は本ドキュメント作業では未実施。ただし issue #88 の実装過程では、`backend/app.py` を実プロセスで起動し `frontend/spa`・`frontend/web` の両方から手動ブラウザ検証を行い、正常動作を確認している(pytest によるものではない)。
 - frontend の production build をどこへ配備するか、および Flask と結合したブラウザ E2E の実行方法は未確認。確定にはデプロイ設定または E2E 設定ファイルが必要だが、現行リポジトリには存在しない。

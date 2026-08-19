@@ -13,7 +13,7 @@
 *   **独立した2つのWeb UIフロントエンド**: `frontend/spa` は英語/日本語切替対応の React SPA です。`frontend/web` は日本語のみに対応した、HTML/CSS(Sass)/JSのみ(React・i18nライブラリ不要)の軽量な静的サイト実装で、ドリルカタログの閲覧機能を提供します。いずれも同じ Flask バックエンドを利用します。
 
 ## セットアップ
-ReportLab版にはPython 3、Web UIにはさらにFlask、Flask-Cors、Node.js、npmが必要です。`nuts_calc_tex.py` または `NUTS_CALC_RENDERER=latex` を使う場合は `pdflatex` を含むLaTeX環境も必要です。Python側には `requirements.txt`/`pyproject.toml`/`setup.py` がないため、依存関係は手動で導入します。
+CLI(`nuts_calc_tex.py`)にはPython 3とLaTeX環境(`pdflatex`/`lualatex`)が必要です(pipパッケージへの依存はありません)。Web UIにはさらにFlask、Flask-Cors、Node.js、npmが必要です。Python側には `requirements.txt`/`pyproject.toml`/`setup.py` がないため、依存関係は手動で導入します。
 
 1.  **リポジトリをクローンする**:
     ```bash
@@ -27,9 +27,9 @@ ReportLab版にはPython 3、Web UIにはさらにFlask、Flask-Cors、Node.js�
     source venv/bin/activate
     ```
 
-3.  **Python依存関係をインストールする**:
+3.  **Python依存関係をインストールする**(Web UIを使う場合。CLI自体はpipパッケージ不要):
     ```bash
-    pip install reportlab flask flask-cors
+    pip install flask flask-cors
     ```
 
 4.  **Webフロントエンドの依存関係をインストールする**:
@@ -47,32 +47,32 @@ ReportLab版にはPython 3、Web UIにはさらにFlask、Flask-Cors、Node.js�
 
 ## 使用方法
 
-### `nuts_calc.py`を使ったワークシートの生成
-`nuts_calc.py`スクリプト(`backend/` 内)は、主要なジェネレーターです。様々なオプションを付けて直接実行できます。
+### `nuts_calc_tex.py`を使ったワークシートの生成
+`nuts_calc_tex.py`スクリプト(`backend/` 内)は、主要なジェネレーターです。様々なオプションを付けて直接実行できます。旧 ReportLab版 `nuts_calc.py` は issue #232 で削除されました。
 
 ```bash
 cd backend
-python nuts_calc.py <用紙サイズ> <コマンド> [オプション]
+python nuts_calc_tex.py <用紙サイズ> <コマンド> [オプション]
 ```
 
 **例: A4サイズの足し算問題を5ページ生成する**
 ```bash
-python nuts_calc.py A4 ope -o add -p 5 --out-file addition_A4_5pages.pdf
+python nuts_calc_tex.py A4 ope -o add -p 5 --out-file addition_A4_5pages.pdf
 ```
 
 **例: 100マス計算表を生成する（A3サイズ）**
 ```bash
-python nuts_calc.py A3 100 --out-file 100_square_A3.pdf
+python nuts_calc_tex.py A3 100 --out-file 100_square_A3.pdf
 ```
 
 **例: 九九の「7の段」をランダムな順序で生成する（A4横向き）**
 ```bash
-python nuts_calc.py a4l 99 -a 7 --shuffle --out-file kuku_7_random_A4L.pdf
+python nuts_calc_tex.py a4l 99 -a 7 --shuffle --out-file kuku_7_random_A4L.pdf
 ```
 
 すべてのオプションのリストを表示するには、以下を実行してください。
 ```bash
-python nuts_calc.py -h
+python nuts_calc_tex.py -h
 ```
 
 ### `nuts_calc_tex.py` のLaTeX専用ドリル
@@ -135,30 +135,30 @@ Webインターフェースを使用するには、Flaskバックエンドと、
 ### チェックの実行
 
 ```bash
-cd backend && python3 -m pytest -q --ignore=tests/test_nuts_calc_init.py
+cd backend && python3 -m pytest -q
 node --test frontend/spa/src/drillPresets.test.js frontend/spa/src/drillCatalog.test.js frontend/spa/src/verticalLayout.test.js
 cd frontend/spa && npm run build
 cd frontend/web && npm run build
 ```
 
-`backend/tests/test_nuts_calc_init.py` の9件は、修正済みの終了コードに期待値が追従していない既知の stale テストです。`npm run lint`(`frontend/spa`)は現在 `frontend/spa/src/drillPresets.js:433` の全角空白で1件失敗します。`frontend/web` には lint/test スクリプトはありません。
+`npm run lint`(`frontend/spa`)は現在 `frontend/spa/src/drillPresets.js:433` の全角空白で1件失敗します。`frontend/web` には lint/test スクリプトはありません。
 
 ## 依存関係
 *   Python 3
 *   Flask (`pip install Flask`)
 *   Flask-Cors (`pip install Flask-Cors`)
 *   Node.js と npm (`frontend/spa` または `frontend/web` 用)
-*   (オプション) `pdflatex`（`nuts_calc_tex.py` / LaTeXレンダラー用）
+*   `pdflatex`/`lualatex`（`nuts_calc_tex.py` / LaTeXレンダラー用。CLI自体の唯一の外部依存で、pipパッケージは不要)
 
 ## アーキテクチャ
 
 リポジトリは `backend/` + `frontend/{spa,web}` 構成で、Flask バックエンドを2つの独立したフロントエンドで共有する(将来 `backend`/`frontend` を別リポジトリに分離する可能性も見据えている)。
 
-*   **CLI**: `backend/nuts_calc.py` → ReportLab → PDF/CSV。サーバー、DB、永続状態はありません。
-*   **Web UI**: フロントエンド(`frontend/spa` の React SPA、または `frontend/web` の軽量静的サイト) → Flask backend(`backend/app.py`) → `backend/renderers.py` → `nuts_calc.py`（既定）または `nuts_calc_tex.py`（`NUTS_CALC_RENDERER=latex`）をsubprocess実行し、PDFを返します。
-*   **バッチ**: `backend/factory.sh` が `nuts_calc.py` を繰り返し呼び出し、`dist/` に成果物を生成します。
+*   **CLI**: `backend/nuts_calc_tex.py` → LaTeX(`lualatex`/`pdflatex`) → PDF/CSV。サーバー、DB、永続状態はありません。旧 ReportLab版 `nuts_calc.py` は issue #232 で削除されました。
+*   **Web UI**: フロントエンド(`frontend/spa` の React SPA、または `frontend/web` の軽量静的サイト) → Flask backend(`backend/app.py`) → `backend/renderers.py` → `nuts_calc_tex.py` をsubprocess実行し、PDFを返します。レンダラー切り替えの仕組み(`NUTS_CALC_RENDERER`)自体は将来の別レンダラー追加に備えて維持されています。
+*   **バッチ**: `backend/factory.sh` が `nuts_calc_tex.py` を繰り返し呼び出し、`dist/` に成果物を生成します。
 
-`nuts_calc_tex.py` はReportLab版とコード共有しない独立実装で、互換7コマンドにLaTeX専用 `frac`/`mixed`/`compare` を加えた計10コマンドを持ちます。
+`nuts_calc_tex.py` は旧 ReportLab版とコード共有しない独立実装で、互換7コマンドにLaTeX専用の分数・混合・比較・数論・変換系コマンドを加えた計20コマンドを持ちます。
 
 ## 設計原則
 
