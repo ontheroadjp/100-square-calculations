@@ -310,3 +310,59 @@ test('examplesFor returns a non-empty array of non-empty strings for every optio
     }
   }
 });
+
+// The exact set of items 出題形式(式/筆算, issue #134) was added to:
+// grade2/3/4's plain-integer or symmetric-decimal-places add/sub/mul/div
+// items (--vertical-compatible in nuts_calc_tex.py), plus grade5's
+// decimal-by-decimal multiplication. Explicitly enumerated (not derived by
+// scanning for compatible items) per the issue's scope decision.
+const DISPLAY_FORMAT_ITEM_IDS = [
+  'g2-add-2digit', 'g2-add-result-1000', 'g2-sub-2digit', 'g2-sub-result-1000',
+  'g3-add-result-10000', 'g3-decimal-addsub', 'g3-sub-result-10000', 'g3-decimal-sub',
+  'g3-mul-2x1', 'g3-mul-3x1', 'g3-mul-2x2',
+  'g4-decimal-add', 'g4-decimal-sub', 'g4-decimal-mul-int',
+  'g4-div-1digit', 'g4-div-2digit', 'g4-decimal-div-int',
+  'g5-decimal-mul',
+];
+
+test('exactly the enumerated 18 items carry a displayFormat setting (issue #134)', () => {
+  const actualIds = allItems()
+    .filter(({ item }) => item.settings.some((setting) => setting.id === 'displayFormat'))
+    .map(({ item }) => item.id)
+    .sort();
+  assert.deepEqual(actualIds, [...DISPLAY_FORMAT_ITEM_IDS].sort());
+});
+
+test('displayFormat defaults to horizontal (no vertical field) for every displayFormat item', () => {
+  for (const { gradeKey, category, item } of allItems()) {
+    if (!DISPLAY_FORMAT_ITEM_IDS.includes(item.id)) continue;
+    const context = `grade ${gradeKey} / ${category} / ${item.id}`;
+    const params = item.buildParams(defaultSettingsState(item.settings));
+    assert.equal(params.vertical, undefined, `${context}: default state must not set vertical`);
+  }
+});
+
+test('displayFormat: written sets vertical: true in buildParams for every displayFormat item', () => {
+  for (const { gradeKey, category, item } of allItems()) {
+    if (!DISPLAY_FORMAT_ITEM_IDS.includes(item.id)) continue;
+    const context = `grade ${gradeKey} / ${category} / ${item.id}`;
+    const state = { ...defaultSettingsState(item.settings), displayFormat: 'written' };
+    const params = item.buildParams(state);
+    assert.equal(params.vertical, true, `${context}: displayFormat: written must set vertical: true`);
+    assert.equal(params.command_type, 'ope', `${context}: --vertical is only implemented for the 'ope' command`);
+  }
+});
+
+test('displayFormat setting options are labeled 式 (horizontal) and 筆算 (written)', () => {
+  for (const { gradeKey, category, item } of allItems()) {
+    if (!DISPLAY_FORMAT_ITEM_IDS.includes(item.id)) continue;
+    const context = `grade ${gradeKey} / ${category} / ${item.id}`;
+    const setting = item.settings.find((candidate) => candidate.id === 'displayFormat');
+    assert.equal(setting.default, 'horizontal', context);
+    assert.deepEqual(
+      setting.options.map((option) => option.value).sort(),
+      ['horizontal', 'written'],
+      context,
+    );
+  }
+});

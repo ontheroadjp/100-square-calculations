@@ -51,9 +51,10 @@
 - blank PDF は既存の `BOXED_BLANK_TEX` を比較記号位置に置き、解答PDFは `<` または `>` を出力する。CSVは整数部・分子・分母・関係記号を左右それぞれ保存する。`main()` は専用ページ生成・CSV出力へ分岐する（`nuts_calc_tex.py:2761-2816,3001-3065`）。
 - 分数四則専用フラグと比較専用フラグは `_init()` で相互に拒否し、既存の `frac`/`mixed` の挙動を変えない（`nuts_calc_tex.py:452-473`）。
 
-### `ope --a-decimal-places`/`--b-decimal-places`(issue #76)
+### `ope --a-decimal-places`/`--b-decimal-places`(issue #76、`--vertical` との併用は issue #134)
 
-- `_init()` は `command == 'ope'` のときのみこれらを許可する(`command != 'ope'` の場合は拒否)。横書きのみ対応で、`--vertical`/`--intermediate`/`--use-parentheses`/`--missing-value`/`--terms`系との併用は全て拒否する(N項系の infra を一切共有しない、独立した拡張)。値域は `MIN_DECIMAL_PLACES`(0)〜`MAX_DECIMAL_PLACES`(2)。
+- `_init()` は `command == 'ope'` のときのみこれらを許可する(`command != 'ope'` の場合は拒否)。`--intermediate`/`--use-parentheses`/`--missing-value`/`--terms`系との併用は引き続き全て拒否する(N項系の infra を一切共有しない、独立した拡張)。値域は `MIN_DECIMAL_PLACES`(0)〜`MAX_DECIMAL_PLACES`(2)。
+- **`--vertical` との併用(issue #134)**: 当初 `_init()` が一律拒否していたが、`xlop`(add/sub/mul)・vendor済み `longdivision`(div、divisor が整数の場合)がいずれも小数点付きオペランドをそのまま正しく描画できることを実機の `pdflatex` コンパイルで確認できたため、緩和した。`build_vertical_block_tex()`(後述)が横書きビルダーと同じ `format_decimal_value()` を経由するよう変更されており、`places<=0` では従来と出力が変わらない(後方互換)。ただし `'div'` オペレーターかつ `b_decimal_places > 0`(除数が小数)の組み合わせだけは引き続き明示的に拒否する: vendor済み `longdivision` の `\intlongdivision` は除数に整数しか受け付けず(`Divisor 'X.X' is not an integer` エラー、実機確認済み)、除数の小数点をシフトして整数化する回避策(教科書的には標準の手法だが、`--vertical` の表示内容が横書きと異なる数値になってしまう)はユーザーの意向で不採用とした。この組み合わせ(小数×小数の割り算)の筆算対応は issue #180(agenda)で検討中、対応方針が決まるまで実装しない(`nuts_calc_tex.py:746-757` 付近)。
 - **設計の核心**: `OpeProblem.a`/`b`/`c` は常に `calc_add`/`calc_sub`/`calc_mul`/`calc_div` が返す生の整数のまま保持し(この4関数自体は一切変更していない)、`a_decimal_places`/`b_decimal_places`(既定 0)という表示用メタデータだけを新設した。`format_decimal_value(raw, places)` が `raw` を文字列化してから小数点を挿入するだけ(整数演算・文字列操作のみ、浮動小数点は一切使わない)なので、`a`/`b` は「スケールされた整数」として生成・検証され、表示時にだけ `10^places` で割った位置に小数点を置く。これにより、加減算は `a_decimal_places == b_decimal_places` の場合そのまま整数加減算が正しい答えになり(`calc_sub` の正の結果保証がそのまま「引き算の答えが正」の保証になる)、乗算は `c` の小数桁数が `a_decimal_places + b_decimal_places`、除算は `a_decimal_places - b_decimal_places`(`_init()` が `a_decimal_places >= b_decimal_places` を強制)になる。`ope_result_decimal_places(operator, a_places, b_places)` がこの3パターンを計算する。
 - **無限小数を一切生成しない不変条件**: 除算の答えは `calc_div` の「`a % b == 0` の場合のみ成立」という既存の厳密割り切れ判定をそのまま再利用しているため、生成される小数の答えは常に有限小数になる(浮動小数点誤差も、循環小数も発生しない)。ユーザー要件により、この不変条件は本コマンド・`mixed` コマンド共通の設計原則。
 - `a_decimal_places != b_decimal_places` の場合(小数×整数・小数÷整数などの非対称ケース)は `-o/--operator` を `['mul']` または `['div']` の単独指定に限定する(`_init()` が拒否)。等しい場合(小数×小数・小数÷小数を含む)は `add`/`sub`/`mul`/`div`/`mix` を制限なく使える。
@@ -142,9 +143,11 @@
 - フラグ未指定時の `calc_add`/`calc_mul` は単純計算。`calc_sub`/`calc_div` は `nuts_calc.py` の同名関数と同じ意味論(結果が正になるまで/割り切れるまで、最大 `MAX_OPERAND_RETRY_ATTEMPTS`(1000)回オペランドを再抽選)をベースに独立に再実装し、再抽選後は `calc_sub` が `(max(nums_a), min(nums_b))`、`calc_div` が `find_exact_division_pair` へ決定的にフォールバックする。`--carry-borrow`系指定時だけ、上記issue #78の条件付き経路へ分岐する(`nuts_calc_tex.py:874-999`)。
 - `generate_ope_problems`(`nuts_calc_tex.py:433-451`): `operators` に `'mix'` が含まれる場合は `add`/`sub`/`mul`/`div` の4種から**問題ごとに**ランダムな演算子を選ぶ(`nuts_calc.py` の `mix` 展開と同じ意味論)。
 - 横書き: `build_horizontal_block_tex` が `n) $a op b = c$` を生成する。blank 版は `c` の代わりに、下線を伴わない固定幅の `\hspace{1.5em}` を出力する。`--intermediate` 指定時は `build_horizontal_intermediate_block_tex` が代わりに使われ、`build_intermediate_memo`(`memo.md` STEP 1 の2桁×1桁暗算メモ技法: `a` の十の位×`b` と一の位×`b` をそれぞれ2桁ゼロ埋めして連結)を挟んだ `n) $a \times b \Rightarrow memo \Rightarrow c$` を出力する。同じ固定幅の空欄を使うため、通常・途中式とも解答欄のレイアウトを維持する。
-- `--vertical`(筆算): `build_vertical_block_tex`(`nuts_calc_tex.py:478-505`)が問題の `operator` に応じて分岐する。
-  - `add`/`sub`/`mul`: `xlop` の `\opadd`/`\opsub`/`\opmul` を使用(多桁の乗数は自動で部分積の複数段表示になる)。blank 版は `\opset{resultstyle=\phantom,carrystyle=\phantom,intermediarystyle=\phantom}` を `\begingroup`/`\endgroup` で局所適用し、結果・繰り上がり・部分積の**数字だけ**を不可視化する(レイアウトの高さ・幅は保持されるため、罫線位置は blank/filled で一致する)。
-  - `div`: `longdivision` の `\intlongdivision` を使用。blank 版は `stage=0` オプションで除数・被除数の枠のみを表示する。
+- `--vertical`(筆算): `build_vertical_block_tex`(`nuts_calc_tex.py:1517-1554`)が問題の `operator` に応じて分岐する。
+  - `add`/`sub`/`mul`: `xlop` の `\opadd`/`\opsub`/`\opmul` を使用(多桁の乗数は自動で部分積の複数段表示になる)。blank 版は `\opset{resultstyle=\phantom,carrystyle=\phantom,intermediarystyle=\phantom}` を `\begingroup`/`\endgroup` で局所適用し、結果・繰り上がり・部分積の**数字だけ**を不可視化する(レイアウトの高さ・幅は保持されるため、罫線位置は blank/filled で一致する)。オペランドは `format_decimal_value(problem.a, problem.a_decimal_places)`/同 `b` を経由して渡す(issue #134。`places<=0` では `str(raw)` と等しいため既存の整数専用出力に影響なし)。
+    - **既知の制限(xlopの表示上の癖)**: `xlop` は小数第1位が0の値(例: `"8.0"`)の末尾ゼロを自動的に省略して `"8"` と描画する(パッケージ自身の数値パーサーの挙動で、こちら側の入力文字列は正しく `"8.0"` を渡している)。答え自体の計算・表示は正しい(実機確認: `\opmul{8.7}{8.0}` → `8.7 × 8`(本来 `8.0`)、答え `69.6` は正しい)。横書き(`build_horizontal_block_tex`)は `xlop` を経由せず `format_decimal_value()` の文字列をそのまま出すため、この癖の影響を受けない。
+  - `div`: `longdivision` の `\intlongdivision` を使用。blank 版は `stage=0` オプションで除数・被除数の枠のみを表示する。被除数は `format_decimal_value(problem.a, problem.a_decimal_places)`、除数は `format_decimal_value(problem.b, problem.b_decimal_places)` を経由する(issue #134)。`b_decimal_places > 0`(除数が小数)の組み合わせは `_init()` が拒否するため、この関数に到達する時点で除数は常に整数(前述の `ope --a-decimal-places`/`--b-decimal-places` セクション参照)。
+    - **既知の制限(罫線のスタイル)**: `longdivision` パッケージ(vendor版)が描く枠は、英語圏教科書に典型的な「丸みのある括弧+上部の横線」スタイル(`\smash{\big)}` ベース)で、日本の教科書に典型的な「直角に近い逆L字」の罫線とは見た目が異なる。パッケージの `style` オプション(`default`/`standard`/`tikz`/`german`/`brazilian`)のうち `tikz`(要 `\usepackage{tikz}`、現状のプリアンブルには含めていない)を試したところ、`arc` によるやや滑らかな曲線にはなるが、依然として英語圏スタイルの範疇に留まることを実機確認した。日本式の罫線が必要な場合はパッケージの `style` 切り替えでは不十分で、自前の罫線描画(TikZ等)が要る規模の変更になる。issue #134 では対応しないと決定した(新規 issue も起票しない)。
   - `mix` の場合、各問題は生成時点で具体的な演算子(add/sub/mul/div のいずれか)に確定しているため、`build_vertical_block_tex` は追加の分岐なしに機能する。
 - `build_ope_page_pair`(`nuts_calc_tex.py:508-528`): `vertical`/`intermediate` フラグに応じて上記のブロックビルダーと `Page.layout`(`vertical` なら `'tabular'`、それ以外は `'inline'`)を選び、同一の問題リストから blank/filled の `Page` ペアを作る(blank/filled は同じ問題を使い、表示のみが異なる)。
 - `build_ope_pages`(`nuts_calc_tex.py:557-578`): `ini.a_min`〜`ini.b_max` から候補集合を作り、ページごとに `rows*columns` 問を生成してページペアを積み上げる。`--with-bottom-answer` 指定時は `build_ope_bottom_answer_tex` で `(index) c` の一覧を blank ページ末尾に追加する。
@@ -341,13 +344,13 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴(git log より自動生成)
 
+- b2c1d27 docs: sync documentation
+- 550f35f docs(#186): note lualatex default and binary-missing test coverage in nuts_calc_tex.py.md
 - 506d7b4 feat(#186): make latex+lualatex the default reachable configuration
+- 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
 - 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)
 - bc0eef5 #113 nuts_calc_tex.py: allow --carry-borrow with decimal operands (#164)
 - 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)
 - d2e8744 #152 #155 Fix kuku multiplier range and descend order in both renderers (#156)
 - e8db9d7 #112 nuts_calc_tex.py: add mixed-number (帯分数) display support to the frac command (#125)
 - 380c2b1 #121 nuts_calc_tex.py: add Japanese-capable LuaLaTeX engine adapter (#124)
-- 0240d1d #120 nuts_calc_tex.py: introduce pluggable LatexEngineAdapter interface (#123)
-- 241b2e1 #96 nuts_calc_tex.py: add fraction/decimal conversion drill commands (#108)
-- a6c52f9 #95 nuts_calc_tex.py: add LCM and GCD pair-number drill commands (#107)

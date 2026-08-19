@@ -19,6 +19,16 @@
 - CSV の `a`/`b`/`result` フィールドは `format_decimal_value` で小数点が挿入された文字列(例 `"4.7"`)なので、`round(float(value) * 10 ** places)` でスケール済み整数へ戻してから `addition_has_carry`/`subtraction_has_borrow` で検証する(`int()` による切り捨てだと浮動小数点誤差で桁がずれる可能性があるため `round()` を使う)。
 - `--remainder`/`--no-remainder`/`--mixed-remainder`(除算の余り制御)は小数オペランドとの併用を引き続き拒否する。issue #113 のスコープは加減算の `--carry-borrow` 系に限定され、除算の余り制御は対象外(`docs/L3_implementation/backend/nuts_calc_tex.py.md` 参照)。
 
+### `--vertical` と小数オペランドの併用(issue #134)
+
+- `test_cli_ope_decimal_rejects_vertical_combo`(小数+`--vertical`を一律拒否することを検証する失敗系テスト)を、実際にPDFが生成されることを検証する正常系テストへ置き換えた:
+  - `test_cli_ope_decimal_add_sub_mul_vertical_produces_pdfs`(足し算/引き算/掛け算、対称小数桁数)
+  - `test_cli_ope_decimal_multiply_by_integer_vertical_produces_pdfs`(小数×整数)
+  - `test_cli_ope_decimal_divide_by_integer_vertical_produces_pdfs`(小数÷整数)
+  - `test_cli_ope_decimal_multiply_by_decimal_vertical_produces_pdfs`(小数×小数)
+  - いずれも既存の `test_cli_ope_vertical_add_sub_mul_produces_pdfs`/`test_cli_ope_vertical_div_produces_pdfs` と同じ `_assert_is_pdf` パターン(実際に `pdflatex` を通し PDF/CSV が生成されることを検証)。
+- `test_cli_ope_decimal_rejects_vertical_with_decimal_divisor` を新設し、`div` オペレーターかつ `--b-decimal-places > 0`(小数÷小数)の組み合わせだけは引き続き明示的に拒否されることを検証する(除数に整数しか受け付けない vendor済み `longdivision` の制約。issue #180 で対応方針を検討中、`docs/L3_implementation/backend/nuts_calc_tex.py.md` 参照)。
+
 ## 統合ポイント
 
 - テスト対象: `backend/nuts_calc_tex.py`(CLI エントリポイント全体)。
@@ -32,6 +42,7 @@
 ## 変更履歴（git log より自動生成）
 
 - 506d7b4 feat(#186): make latex+lualatex the default reachable configuration
+- 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
 - 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)
 - bc0eef5 #113 nuts_calc_tex.py: allow --carry-borrow with decimal operands (#164)
 - e8db9d7 #112 nuts_calc_tex.py: add mixed-number (帯分数) display support to the frac command (#125)
