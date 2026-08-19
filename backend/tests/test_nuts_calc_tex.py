@@ -1674,6 +1674,26 @@ def test_cli_divfrac_csv_rows_are_not_reduced(run_tex_cli, tmp_path):
 def test_cli_fails_clearly_when_pdflatex_missing(run_tex_cli, tmp_path, monkeypatch):
     # Simulate a PATH with no pdflatex, matching the environment-detection
     # error path (rather than the argparse validation path above).
+    # NUTS_CALC_TEX_ENGINE is set explicitly since pdflatex is no longer the
+    # default engine (issue #186); see
+    # test_cli_fails_clearly_when_lualatex_missing_by_default for the
+    # default-engine equivalent of this test.
+    result = subprocess.run(
+        [sys.executable, str(NUTS_CALC_TEX), "A4", "ope", "--out-file", "result.pdf"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=CLI_TIMEOUT_SECONDS,
+        env={"PATH": "/nonexistent", "NUTS_CALC_TEX_ENGINE": "pdflatex"},
+    )
+    assert result.returncode == 1
+    assert "pdflatex not found" in result.stdout
+
+
+def test_cli_fails_clearly_when_lualatex_missing_by_default(run_tex_cli, tmp_path, monkeypatch):
+    # Same as test_cli_fails_clearly_when_pdflatex_missing above, but without
+    # setting NUTS_CALC_TEX_ENGINE, exercising the default engine (lualatex,
+    # issue #186)'s binary-missing error path.
     result = subprocess.run(
         [sys.executable, str(NUTS_CALC_TEX), "A4", "ope", "--out-file", "result.pdf"],
         cwd=tmp_path,
@@ -1683,4 +1703,4 @@ def test_cli_fails_clearly_when_pdflatex_missing(run_tex_cli, tmp_path, monkeypa
         env={"PATH": "/nonexistent"},
     )
     assert result.returncode == 1
-    assert "pdflatex not found" in result.stdout
+    assert "lualatex not found" in result.stdout

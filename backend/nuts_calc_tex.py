@@ -891,7 +891,7 @@ class LuaLatexEngineAdapter(_SubprocessLatexEngineAdapter):
 
 
 LATEX_ENGINE_ENV_VAR = 'NUTS_CALC_TEX_ENGINE'
-DEFAULT_LATEX_ENGINE = 'pdflatex'
+DEFAULT_LATEX_ENGINE = 'lualatex'
 LATEX_ENGINE_ADAPTERS: dict[str, Callable[[], LatexEngineAdapter]] = {
     'pdflatex': PdflatexEngineAdapter,
     'lualatex': LuaLatexEngineAdapter,
@@ -901,7 +901,8 @@ LATEX_ENGINE_ADAPTERS: dict[str, Callable[[], LatexEngineAdapter]] = {
 def get_latex_engine_name() -> str:
     """
     Resolve which LaTeX engine adapter to use from NUTS_CALC_TEX_ENGINE,
-    defaulting to `pdflatex` to preserve existing behavior when unset.
+    defaulting to `lualatex` (issue #186) when unset. `pdflatex` remains
+    explicitly selectable.
     """
     name = os.environ.get(LATEX_ENGINE_ENV_VAR, DEFAULT_LATEX_ENGINE)
     if name not in LATEX_ENGINE_ADAPTERS:

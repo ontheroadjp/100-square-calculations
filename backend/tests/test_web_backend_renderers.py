@@ -16,14 +16,20 @@ import pytest
 import renderers  # noqa: E402
 
 
-def test_get_renderer_name_defaults_to_reportlab_when_unset(monkeypatch) -> None:
+def test_get_renderer_name_defaults_to_latex_when_unset(monkeypatch) -> None:
     monkeypatch.delenv(renderers.RENDERER_ENV_VAR, raising=False)
-    assert renderers.get_renderer_name() == "reportlab"
+    assert renderers.get_renderer_name() == "latex"
 
 
 def test_get_renderer_name_reads_env_var(monkeypatch) -> None:
     monkeypatch.setenv(renderers.RENDERER_ENV_VAR, "latex")
     assert renderers.get_renderer_name() == "latex"
+
+
+def test_get_renderer_name_rejects_explicit_reportlab(monkeypatch) -> None:
+    monkeypatch.setenv(renderers.RENDERER_ENV_VAR, "reportlab")
+    with pytest.raises(ValueError, match="not currently available"):
+        renderers.get_renderer_name()
 
 
 def test_get_renderer_name_rejects_unknown_value(monkeypatch) -> None:
