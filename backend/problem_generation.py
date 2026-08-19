@@ -6,13 +6,13 @@ subprocess-based, PDF-generation (presentation) layer.
 
 `command_type == 'ope'` is supported, including its --use-parentheses/
 --missing-value/--terms*/--mixed-operators variants (issue #168), as are
-`com`/`99`/`aBc`/`squ`/`pi` (issue #169) and `frac`/`mixed` (issue #170)
-via `_COMMAND_GENERATORS`. `100` is intentionally excluded (raises
-ValueError): nuts_calc_tex.py's generate_hundred_square() returns a
-single HundredSquareTable object, not a `num`-many problem list, so it
-does not fit the `{"problems": [...]}` envelope this endpoint returns;
-representing it would need its own response shape, which is a bigger
-contract decision left for a future issue if real demand shows up
+`com`/`99`/`aBc`/`squ`/`pi` (issue #169), `frac`/`mixed` (issue #170), and
+`compare` (issue #171) via `_COMMAND_GENERATORS`. `100` is intentionally
+excluded (raises ValueError): nuts_calc_tex.py's generate_hundred_square()
+returns a single HundredSquareTable object, not a `num`-many problem list,
+so it does not fit the `{"problems": [...]}` envelope this endpoint
+returns; representing it would need its own response shape, which is a
+bigger contract decision left for a future issue if real demand shows up
 (issue #169). Every other command type raises ValueError; see issue
 #166 and its remaining sub-issues.
 """
@@ -458,6 +458,50 @@ def _generate_mixed_problems(params: renderers.RendererRequest, num: int) -> lis
     return [_dataclass_to_dict(problem) for problem in problems]
 
 
+DEFAULT_COMPARISON_KIND = ["fraction"]
+
+
+def _generate_compare_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+    numerator_digits = params.get("numerator_digits", 1)
+    denominator_digits = params.get("denominator_digits", 1)
+    _validate_fraction_digits(numerator_digits, denominator_digits, "compare")
+
+    decimal_places = params.get("decimal_places", 1)
+    if not nuts_calc_tex.MIN_DECIMAL_PLACES <= decimal_places <= nuts_calc_tex.MAX_DECIMAL_PLACES:
+        raise ValueError(
+            f"decimal_places must be between {nuts_calc_tex.MIN_DECIMAL_PLACES} and "
+            f"{nuts_calc_tex.MAX_DECIMAL_PLACES} for the 'compare' command."
+        )
+
+    a_kind = list(params.get("a_kind") or DEFAULT_COMPARISON_KIND)
+    b_kind = list(params.get("b_kind") or DEFAULT_COMPARISON_KIND)
+
+    pattern = params.get("comparison_pattern", "different-denominators")
+    if pattern != "different-denominators" and (a_kind != DEFAULT_COMPARISON_KIND or b_kind != DEFAULT_COMPARISON_KIND):
+        # Mirrors nuts_calc_tex.py's _init(): same-denominator/same-numerator/
+        # different-denominators only have meaning when both sides are
+        # fractions (int operands always have denominator 1, decimal operands
+        # always have denominator 10**decimal_places).
+        raise ValueError(
+            "comparison_pattern requires a_kind=['fraction'] and b_kind=['fraction'] "
+            "for the 'compare' command."
+        )
+
+    a_fraction_form = params.get("a_fraction_form", "proper")
+    b_fraction_form = params.get("b_fraction_form", "proper")
+
+    problems = nuts_calc_tex.generate_fraction_comparison_problems(
+        pattern, a_fraction_form, b_fraction_form, numerator_digits, denominator_digits, num, 1,
+        a_kind, b_kind, decimal_places,
+    )
+    result = []
+    for problem in problems:
+        item = _dataclass_to_dict(problem)
+        item["relation"] = problem.relation  # @property, not a dataclass field -- see _dataclass_to_dict's docstring
+        result.append(item)
+    return result
+
+
 # command_type -> generator dispatch table (issue #167's contract): each
 # sub-issue of #166 adds one generator function and one entry here, without
 # touching the shared if/elif chain generate_problems() used to have.
@@ -471,4 +515,5 @@ _COMMAND_GENERATORS = {
     "pi": _generate_pi_problems,
     "frac": _generate_frac_problems,
     "mixed": _generate_mixed_problems,
+    "compare": _generate_compare_problems,
 }

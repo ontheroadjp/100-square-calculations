@@ -44,12 +44,15 @@
 - `build_fraction_csv_rows` は `a_whole`/`b_whole` を末尾に追加した11列(`[page_number, index, a_num, a_den, operator, b_num, b_den, c_num, c_den, a_whole, b_whole]`)になった。`whole=0` が既定のため、帯分数を使わない問題では末尾2列が常に0になるだけで既存の9列分は無変更(issue #91 の `remainder` 列追加と同じ、末尾追加による後方互換パターン)。
 - `build_fraction_pages` は `ini.a_fraction_form`/`ini.b_fraction_form` を `generate_fraction_problems` へそのまま渡す。
 
-### `compare` コマンド(issue #83)
+### `compare` コマンド(issue #83、整数・小数を含む kind 混在対応は issue #171)
 
-- 分数2つの間にある枠へ不等号を書く比較ドリルを生成するLaTeX専用コマンド。`--comparison-pattern` は `same-denominator`（同分母・異分子）、`same-numerator`（同分子・異分母）、`different-denominators`（異分母）を選ぶ。分子・分母の桁数は既存の `--numerator-digits`/`--denominator-digits`（各1〜3）を共用する（`nuts_calc_tex.py:130-233,439-473`）。
-- 左右の表示形式は `--a-fraction-form`/`--b-fraction-form` で独立に `proper`/`improper`/`mixed`/`mix` から選ぶ。`mixed` は整数部1〜9と真分数部を持つ帯分数、`mix` は問題ごとに3形式から抽選する。標準ライブラリ `Fraction` により帯分数を含む値を厳密に比較し、等値は出題しない（`nuts_calc_tex.py:2674-2758`）。
-- blank PDF は既存の `BOXED_BLANK_TEX` を比較記号位置に置き、解答PDFは `<` または `>` を出力する。CSVは整数部・分子・分母・関係記号を左右それぞれ保存する。`main()` は専用ページ生成・CSV出力へ分岐する（`nuts_calc_tex.py:2761-2816,3001-3065`）。
-- 分数四則専用フラグと比較専用フラグは `_init()` で相互に拒否し、既存の `frac`/`mixed` の挙動を変えない（`nuts_calc_tex.py:452-473`）。
+- 2つの値の間にある枠へ不等号を書く比較ドリルを生成するLaTeX専用コマンド。`--comparison-pattern` は `same-denominator`（同分母・異分子）、`same-numerator`（同分子・異分母）、`different-denominators`（異分母）を選ぶ。分子・分母の桁数は既存の `--numerator-digits`/`--denominator-digits`（各1〜3）を共用する（`nuts_calc_tex.py:130-233,439-473`）。
+- 左右の表示形式は `--a-fraction-form`/`--b-fraction-form` で独立に `proper`/`improper`/`mixed`/`mix` から選ぶ(kind が `fraction` のときのみ意味を持つ)。`mixed` は整数部1〜9と真分数部を持つ帯分数、`mix` は問題ごとに3形式から抽選する。標準ライブラリ `Fraction` により帯分数を含む値を厳密に比較し、等値は出題しない(`nuts_calc_tex.py:2674-2758`)。
+- **kind 混在(issue #171)**: `--a-kind`/`--b-kind`(`mixed` コマンドと同じ `nargs='*'`、選択肢 `int`/`decimal`/`fraction`)で左右それぞれの許容 kind を指定でき、問題ごとに `random.choice` で1種を抽選する(`generate_fraction_comparison_problems`)。既定値は両方とも `['fraction']` で、issue #171 以前と完全に同じ分数vs分数の挙動を保つ(後方互換)。`int`/`decimal` kind の生成は `random_mixed_operand` を複製せず、`FractionComparisonOperand` に `kind`/`decimal_places` フィールドを追加して同じ発想(`numerator`/`denominator`/`whole` は kind に関わらず `value: Fraction` を一意に決める)を再現している。`comparison_operand_to_tex` は `kind` に応じて整数(`str(numerator)`)・小数(`format_decimal_value`)・分数(`\frac`)を出し分ける。
+- **`--comparison-pattern` は分数vs分数の場合のみ有効**: `same-denominator`/`same-numerator`/`different-denominators` は int(分母は常に1)・decimal(分母は常に `10**decimal_places`)の構造的な分母/分子を前提にした判定のため、kind 混在時は無意味(vacuously true か unsatisfiable)になる。`_init()` は非既定パターン(`!= 'different-denominators'`)と非既定 kind(`a_kind`/`b_kind` が `['fraction']` 以外)の組み合わせを明示的に拒否し、`generate_fraction_comparison_problems` 自身も `a_kind == b_kind == ['fraction']` でない限りパターンフィルタを内部でスキップする(既定パターンのまま kind 混在した場合に無限リトライで失敗しないため、`nuts_calc_tex.py:3560-3572` 付近)。
+- `--decimal-places`(`mixed` と共有、既定1)は `decimal` kind operand の表示桁数を制御する。`mixed` 以外のコマンドでは引き続き `--decimal-places`/`--a-kind`/`--b-kind` は `compare` を除いて拒否される(`_init()` の該当ブロック)。
+- blank PDF は既存の `BOXED_BLANK_TEX` を比較記号位置に置き、解答PDFは `<` または `>` を出力する。CSVは整数部(kind に関わらず `whole`/`numerator`/`denominator` の raw 値、kind 自体はCSV列に含まない)・関係記号を左右それぞれ保存する。`main()` は専用ページ生成・CSV出力へ分岐する(`nuts_calc_tex.py:2761-2816,3001-3065`)。
+- 分数四則専用フラグと比較専用フラグは `_init()` で相互に拒否し、既存の `frac`/`mixed` の挙動を変えない(`nuts_calc_tex.py:452-473`)。
 
 ### `ope --a-decimal-places`/`--b-decimal-places`(issue #76、`--vertical` との併用は issue #134)
 
@@ -341,6 +344,7 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - **`ope` の小数拡張(`--a-decimal-places`/`--b-decimal-places`)は横書き限定**: `--vertical`(筆算)と組み合わせるとエラーになる。`xlop`/`longdivision` は小数点そのものはマクロレベルでサポートしている(`decimalsepsymbol` オプション等)が、筆算描画の実機検証・調整は本 issue のスコープ外として意図的に見送っている(将来拡張の余地として残す)。
 - **`mixed` コマンドも決定的フォールバックを持たない**: `generate_mixed_problems` は `ope --use-parentheses`/`--terms`系と同じ単純な再抽選(`MAX_OPERAND_RETRY_ATTEMPTS` 回)のみで解を探す。加算・乗算は必ず成功するが、減算(`mixed_stage_sub`)は最初の項が2項目以降より小さいと失敗しうる。Web プリセット(`drillPresets.js` の `g6-mixed-*`)は `operator: ['mix']`(除算・乗算に限らず全演算子が対象)で桁数を小さく保つ(`numerator_digits`/`denominator_digits` = 1、`decimal_places` = 1)ことでこのリスクを抑えている。
 - **`mixed` コマンドの答えは常に厳密な分数、無限小数は一切出力しない**: `mixed` の除算は `fractions.Fraction` の厳密除算をそのまま使い、答えは常に `fraction_to_tex` で分数表示する(小数表記への変換は一切行わない)。`ope` の小数拡張も、`calc_div` の厳密割り切れ判定(`a % b == 0`)を再利用しているため、生成される小数の答えは常に有限小数になる。この2点はユーザー要件による明示的な設計上の不変条件。
+- **`compare` の `--a-kind`/`--b-kind` は決定的フォールバックを持たない**(issue #171): `generate_fraction_comparison_problems` は `ope --use-parentheses`/`mixed` と同じ単純な再抽選(`MAX_OPERAND_RETRY_ATTEMPTS` 回)のみで非等値のペアを探す。kind 混在時に `--comparison-pattern` の非既定値を指定できない(`_init()` が拒否)のもこのリスクを避けるための制約の一つ。
 
 ## 変更履歴(git log より自動生成)
 

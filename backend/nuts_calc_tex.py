@@ -341,20 +341,28 @@ def _init() -> argparse.Namespace:
         , default = 1
         , help = (
             f'Number of digits after the decimal point used for '
-            f'decimal-kind operands (0-{MAX_DECIMAL_PLACES}, mixed only)'
+            f'decimal-kind operands (0-{MAX_DECIMAL_PLACES}, mixed/compare only)'
         )
     )
     parser.add_argument('--a-kind'
-        , default = list(MIXED_OPERAND_KINDS)
+        , default = None
         , choices = list(MIXED_OPERAND_KINDS)
         , nargs = '*'
-        , help = 'Allowed operand kinds for the first "mixed" term, chosen per problem (mixed only)'
+        , help = (
+            'Allowed operand kinds for the first term, chosen per problem '
+            "(mixed/compare only; default: all three for 'mixed', "
+            "['fraction'] for 'compare')"
+        )
     )
     parser.add_argument('--b-kind'
-        , default = list(MIXED_OPERAND_KINDS)
+        , default = None
         , choices = list(MIXED_OPERAND_KINDS)
         , nargs = '*'
-        , help = 'Allowed operand kinds for the second and later "mixed" terms, chosen per problem (mixed only)'
+        , help = (
+            'Allowed operand kinds for the second (and later, for "mixed") term, '
+            "chosen per problem (mixed/compare only; default: all three for "
+            "'mixed', ['fraction'] for 'compare')"
+        )
     )
     parser.add_argument('--multiples-count'
         , type = int
@@ -481,6 +489,20 @@ def _init() -> argparse.Namespace:
     )
     args = parser.parse_args()
 
+    # --a-kind/--b-kind (issue #171) default to all three kinds for 'mixed'
+    # (unchanged from before) but to ['fraction'] for 'compare', preserving
+    # compare's original fraction-vs-fraction-only default behavior. The
+    # None sentinel (rather than a command-independent argparse default)
+    # lets this block tell "left at default" apart from "explicitly given",
+    # which the mixed/compare-only rejection below (and --comparison-pattern's
+    # fraction-kind requirement) still needs.
+    a_kind_given = args.a_kind is not None
+    b_kind_given = args.b_kind is not None
+    if args.a_kind is None:
+        args.a_kind = ['fraction'] if args.command == 'compare' else list(MIXED_OPERAND_KINDS)
+    if args.b_kind is None:
+        args.b_kind = ['fraction'] if args.command == 'compare' else list(MIXED_OPERAND_KINDS)
+
     if args.rows is None:
         if args.command == 'ope' and args.vertical:
             args.rows = VERTICAL_DEFAULT_ROWS_BY_PAPER_SIZE[args.paper_size.lower()]
@@ -576,8 +598,19 @@ def _init() -> argparse.Namespace:
     if args.command != 'frac' and fraction_arithmetic_options_given:
         failure("--same-denominator/--different-denominators/--proper-operands/--proper-result are only supported for the 'frac' command.")
 
-    if args.comparison_pattern != 'different-denominators' and args.command != 'compare':
-        failure("--comparison-pattern is only supported for the 'compare' command.")
+    if args.comparison_pattern != 'different-denominators':
+        if args.command != 'compare':
+            failure("--comparison-pattern is only supported for the 'compare' command.")
+        if args.a_kind != ['fraction'] or args.b_kind != ['fraction']:
+            # same-denominator/same-numerator only have meaning when both
+            # sides are actually fractions with a denominator/numerator to
+            # compare -- int operands always have denominator 1 and decimal
+            # operands always have denominator 10**decimal_places, so the
+            # pattern would either be vacuously true or impossible to satisfy.
+            failure(
+                "--comparison-pattern requires --a-kind fraction --b-kind fraction "
+                "for the 'compare' command."
+            )
 
     fraction_form_options_given = args.a_fraction_form != 'proper' or args.b_fraction_form != 'proper'
     if fraction_form_options_given:
@@ -757,16 +790,14 @@ def _init() -> argparse.Namespace:
                 "nuts_calc_tex.py.md)."
             )
 
-    mixed_only_options_given = (
-        args.decimal_places != 1
-        or args.a_kind != list(MIXED_OPERAND_KINDS)
-        or args.b_kind != list(MIXED_OPERAND_KINDS)
-    )
-    if args.command == 'mixed':
+    if args.command in ('mixed', 'compare'):
         if not MIN_DECIMAL_PLACES <= args.decimal_places <= MAX_DECIMAL_PLACES:
-            failure(f"--decimal-places must be between {MIN_DECIMAL_PLACES} and {MAX_DECIMAL_PLACES} for the 'mixed' command.")
-    elif mixed_only_options_given:
-        failure("--decimal-places/--a-kind/--b-kind are only supported for the 'mixed' command.")
+            failure(
+                f"--decimal-places must be between {MIN_DECIMAL_PLACES} and "
+                f"{MAX_DECIMAL_PLACES} for the '{args.command}' command."
+            )
+    elif args.decimal_places != 1 or a_kind_given or b_kind_given:
+        failure("--decimal-places/--a-kind/--b-kind are only supported for the 'mixed' and 'compare' commands.")
 
     return args
 
@@ -3465,10 +3496,21 @@ COMPARISON_FORMS = ('proper', 'improper', 'mixed')
 
 @dataclass(frozen=True)
 class FractionComparisonOperand:
-    """One displayed comparison operand, optionally written as a mixed number."""
+    """
+    One displayed comparison operand: an int, a decimal, or a fraction
+    (optionally written as a mixed number).
+
+    kind (#171) is 'int'/'decimal'/'fraction'; numerator/denominator/whole
+    still fully determine `value` for all three (int as n/1, decimal as its
+    scaled integer/10**decimal_places), but rendering (comparison_operand_to_tex)
+    needs `kind` to know whether to print a plain integer, a decimal string, or
+    a \\frac. decimal_places is only meaningful (non-None) for kind='decimal'.
+    """
     numerator: int
     denominator: int
     whole: int = 0
+    kind: str = 'fraction'
+    decimal_places: int | None = None
 
     @property
     def value(self) -> Fraction:
@@ -3488,9 +3530,22 @@ class FractionComparisonProblem:
 
 
 def random_comparison_operand(
-        form: str, numerator_digits: int, denominator_digits: int,
+        kind: str, form: str, numerator_digits: int, denominator_digits: int,
+        decimal_places: int = 1,
     ) -> FractionComparisonOperand:
-    """Create one proper, improper, or mixed-number comparison operand."""
+    """
+    Create one comparison operand. kind='int'/'decimal' (#171) ignore `form`
+    and draw a plain integer/decimal sized by numerator_digits (mirroring
+    random_mixed_operand's 'int'/'decimal' branches); kind='fraction' keeps
+    the original proper/improper/mixed-number behavior.
+    """
+    if kind == 'int':
+        value = random.randint(*digit_range(numerator_digits))
+        return FractionComparisonOperand(value, 1, 0, 'int')
+    if kind == 'decimal':
+        scaled = random.randint(*digit_range(numerator_digits))
+        return FractionComparisonOperand(scaled, 10 ** decimal_places, 0, 'decimal', decimal_places)
+
     if form == 'mix':
         form = random.choice(COMPARISON_FORMS)
     numerator_min, numerator_max = digit_range(numerator_digits)
@@ -3503,52 +3558,84 @@ def random_comparison_operand(
         if numerator_min > numerator_max:
             raise ValueError(f"No {form} fraction satisfies the requested digit constraints.")
         numerator = random.randint(numerator_min, numerator_max)
-        return FractionComparisonOperand(numerator, denominator, random.randint(1, 9) if form == 'mixed' else 0)
+        return FractionComparisonOperand(
+            numerator, denominator, random.randint(1, 9) if form == 'mixed' else 0, 'fraction',
+        )
 
     numerator_min = max(numerator_min, denominator + 1)
     if numerator_min > numerator_max:
         raise ValueError("No improper fraction satisfies the requested digit constraints.")
-    return FractionComparisonOperand(random.randint(numerator_min, numerator_max), denominator)
+    return FractionComparisonOperand(random.randint(numerator_min, numerator_max), denominator, 0, 'fraction')
 
 
 def generate_fraction_comparison_problems(
         pattern: str, a_form: str, b_form: str, numerator_digits: int,
         denominator_digits: int, order: int, start_index: int,
+        a_kind: list[str] | None = None, b_kind: list[str] | None = None,
+        decimal_places: int = 1,
     ) -> list[FractionComparisonProblem]:
-    """Generate non-equal comparison problems matching a display pattern."""
+    """
+    Generate non-equal comparison problems matching a display pattern.
+
+    a_kind/b_kind (#171) each list which operand kinds ('int'/'decimal'/
+    'fraction') may be drawn per problem -- one random choice per side, per
+    problem, mirroring generate_mixed_problems's a_kinds/b_kinds convention.
+    They default to ['fraction'] each, preserving the original
+    fraction-vs-fraction-only behavior. a_form/b_form only affect a drawn
+    operand when its kind is 'fraction'.
+    """
+    a_kinds = a_kind or ['fraction']
+    b_kinds = b_kind or ['fraction']
+    # same-denominator/same-numerator/different-denominators only have
+    # meaning when both sides are actually fractions -- int operands always
+    # have denominator 1 and decimal operands always have denominator
+    # 10**decimal_places, so applying the pattern to a kind-mixed draw would
+    # either be vacuously true or unsatisfiable (see the mirrored --a-kind
+    # fraction --b-kind fraction requirement in _init()). Kind-mixed calls
+    # skip the pattern filter entirely rather than retrying forever.
+    pattern_applies = a_kinds == ['fraction'] and b_kinds == ['fraction']
     problems = []
     for offset in range(order):
         for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
             try:
-                a = random_comparison_operand(a_form, numerator_digits, denominator_digits)
-                b = random_comparison_operand(b_form, numerator_digits, denominator_digits)
+                a = random_comparison_operand(
+                    random.choice(a_kinds), a_form, numerator_digits, denominator_digits, decimal_places,
+                )
+                b = random_comparison_operand(
+                    random.choice(b_kinds), b_form, numerator_digits, denominator_digits, decimal_places,
+                )
             except ValueError:
                 continue
             if a.value == b.value:
                 continue
-            if pattern == 'same-denominator':
-                if a.denominator != b.denominator or a.numerator == b.numerator:
-                    continue
-            elif pattern == 'same-numerator':
-                if a.numerator != b.numerator or a.denominator == b.denominator:
-                    continue
-            elif pattern == 'different-denominators':
-                if a.denominator == b.denominator:
-                    continue
-            else:
-                raise ValueError(f"Unknown comparison pattern: {pattern}")
+            if pattern_applies:
+                if pattern == 'same-denominator':
+                    if a.denominator != b.denominator or a.numerator == b.numerator:
+                        continue
+                elif pattern == 'same-numerator':
+                    if a.numerator != b.numerator or a.denominator == b.denominator:
+                        continue
+                elif pattern == 'different-denominators':
+                    if a.denominator == b.denominator:
+                        continue
+                else:
+                    raise ValueError(f"Unknown comparison pattern: {pattern}")
             problems.append(FractionComparisonProblem(start_index + offset, a, b))
             break
         else:
             raise ValueError(
                 "Unable to generate fraction comparison problems with the requested "
-                "pattern, forms, and digit constraints."
+                "pattern, forms, kinds, and digit constraints."
             )
     return problems
 
 
 def comparison_operand_to_tex(operand: FractionComparisonOperand) -> str:
-    """Render a comparison operand, retaining its requested fraction form."""
+    """Render a comparison operand, retaining its requested kind/fraction form."""
+    if operand.kind == 'int':
+        return str(operand.numerator)
+    if operand.kind == 'decimal':
+        return format_decimal_value(operand.numerator, operand.decimal_places)
     fraction_tex = f"\\frac{{{operand.numerator}}}{{{operand.denominator}}}"
     return f"{operand.whole}{fraction_tex}" if operand.whole else fraction_tex
 
@@ -3597,6 +3684,7 @@ def build_fraction_comparison_pages(
             ini.comparison_pattern, ini.a_fraction_form, ini.b_fraction_form,
             ini.numerator_digits, ini.denominator_digits, order,
             (page_number - 1) * order + 1,
+            ini.a_kind, ini.b_kind, ini.decimal_places,
         )
         blank_page, filled_page = build_fraction_comparison_page_pair(problems, ini.columns)
         pages_problems.append(problems)
