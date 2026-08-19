@@ -127,6 +127,14 @@
 - 5コマンドとも CJK制約(素の `pdflatex`)に該当する日本語テキスト・ラベルを一切使わないため(数字・分数・小数のみ)、`evenodd`/`--with-name-field` のような英語ラベルへの置き換えは不要だった。
 - CSV列: `simplify` は `[page_number, index, numerator, denominator, reduced_numerator, reduced_denominator]`、`commondenom` は `[page_number, index, a_num, a_den, b_num, b_den, a_conv_num, a_conv_den, b_conv_num, b_conv_den]`、`frac2dec` は `[page_number, index, numerator, denominator, decimal_display]`、`dec2frac` は `[page_number, index, decimal_display, reduced_numerator, reduced_denominator]`、`divfrac` は `[page_number, index, a, b]`(答えは `a`/`b` から自明なため列を持たない、`squ` が `b` 列を持たない設計判断と同じ理由)。
 
+### presentation-layer Layer 1: `PageShell`(page shell extraction、issue #182)
+
+- issue #166(presentation-layer 3層モデルのトラッキング issue)の B-2。既存のページレイアウト(header/margins/content-area boundary/footer)を、Layer 2(content-area base layout、#184)・Layer 3(content format、#122)から独立した明示的な名前付き単位として抽出し、#183(internal presentation API、B-4)が参照できるようにした。1つのページシェルしか必要ないため、新規デザインではなく既存レイアウトの1:1抽出。
+- `PageShell`(`nuts_calc_tex.py:961-980`、frozen dataclass): `header_str`/`title_str`/`sub_title_str`/`copyright_str`(ヘッダー・フッターの文言)と `side_margin_mm`/`top_margin_mm`/`bottom_margin_mm`/`footer_text_lowering_mm`(ページ余白)を束ねる。既定値は `HEADER_STR`/`TITLE_STR`/`SUB_TITLE_STR`/`COPYRIGHT_STR`/`PAGE_SIDE_MARGIN_MM`/`PAGE_TOP_MARGIN_MM`/`PAGE_BOTTOM_MARGIN_MM`/`FOOTER_TEXT_LOWERING_MM` から取り、`DEFAULT_PAGE_SHELL`(`nuts_calc_tex.py:983`)がその唯一のインスタンス。
+- `build_page_shell_preamble_tex(page_shell, paper_size, engine_adapter=None)`(`nuts_calc_tex.py:986-1013`): documentclass/geometry(余白)/パッケージ/`fancyhdr` フッター設定を組み立てる。`build_page_shell_header_tex(page_shell, with_name_field=False)`(`nuts_calc_tex.py:1015-1027`): タイトル・サブタイトル・日付欄・任意の名前欄を組み立てる。`build_page_shell_body_tex(page_shell, content_area_tex, with_name_field=False, bottom_answer_tex=None)`(`nuts_calc_tex.py:1030-1044`): ヘッダーの下に Layer 2/3 が描画済みの `content_area_tex` を積み、任意で下部の答え欄を続ける(フッター自体は preamble 側の `fancyhdr` 設定が全ページ共通で描く)。
+- **既存の `build_preamble_tex`/`build_page_header_tex`/`build_page_tex` はシグネチャそのまま、`DEFAULT_PAGE_SHELL` を経由する薄いラッパーに変更した**(`nuts_calc_tex.py:1048-1053,1130-1141`)。#166 の 2026-08-19 /mtg ガードレール(「本番 `/generate-pdf` が依存する既存コードの出力を変えてはならない」)を、新規追加コードではなく検証済み behavior-preserving refactor として満たす選択。出力が完全に一致することは `backend/tests/test_nuts_calc_tex_page_shell.py` の equivalence テスト群と、既存の `backend/tests/test_nuts_calc_tex.py`(pdflatex 経由のエンドツーエンド回帰、無変更のまま全件成功)で担保している。
+- Layer 2(#184)・Layer 3(#122)はこの時点では未実装。`build_page_tex` 内のグリッド選択ロジック(`page.layout` による `build_inline_grid_tex`/`build_tabular_grid_tex`/`build_block_grid_tex` の分岐)は Layer 2 の関心事のため、本 issue のスコープ外としてそのまま残した(`content_area_tex` として `build_page_shell_body_tex` に渡すだけ)。
+
 ## 動作の概要
 
 ### 共通基盤(Phase 1)
@@ -348,7 +356,8 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴(git log より自動生成)
 
-- a86312a feat(#171): support int/decimal/fraction kind mixing in compare
+- 7d9c291 feat(#182): extract Layer-1 page shell (header/margins/footer) in nuts_calc_tex.py
+- 490f44b #171 compare: support int/decimal/fraction kind mixing, expose via POST /generate-problems (#192)
 - 9393898 #186 renderers/engine: make latex+lualatex the default (and only reachable) configuration (#187)
 - 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
 - 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)
@@ -357,4 +366,3 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - d2e8744 #152 #155 Fix kuku multiplier range and descend order in both renderers (#156)
 - e8db9d7 #112 nuts_calc_tex.py: add mixed-number (帯分数) display support to the frac command (#125)
 - 380c2b1 #121 nuts_calc_tex.py: add Japanese-capable LuaLaTeX engine adapter (#124)
-- 0240d1d #120 nuts_calc_tex.py: introduce pluggable LatexEngineAdapter interface (#123)

@@ -957,13 +957,44 @@ def get_latex_engine_adapter() -> LatexEngineAdapter:
     return LATEX_ENGINE_ADAPTERS[get_latex_engine_name()]()
 
 
-def build_preamble_tex(paper_size: str, engine_adapter: LatexEngineAdapter | None = None) -> str:
+@dataclass(frozen=True)
+class PageShell:
+    """
+    Layer 1 of #166's presentation-layer model (#182): the page-level shell
+    (header / left-right margins / content-area boundary / footer) that
+    Layer 2 (content-area base layout, #184) and Layer 3 (content format,
+    #122) are placed inside. Bundles the header/footer text and page
+    geometry that DEFAULT_PAGE_SHELL's builder functions below apply, as a
+    single named, swappable unit #183 (the internal presentation API) can
+    reference. Only DEFAULT_PAGE_SHELL is needed today (#182 is a 1:1
+    extraction of the existing layout, not a new design).
+    """
+
+    header_str: str = HEADER_STR
+    title_str: str = TITLE_STR
+    sub_title_str: str = SUB_TITLE_STR
+    copyright_str: str = COPYRIGHT_STR
+    side_margin_mm: int = PAGE_SIDE_MARGIN_MM
+    top_margin_mm: int = PAGE_TOP_MARGIN_MM
+    bottom_margin_mm: int = PAGE_BOTTOM_MARGIN_MM
+    footer_text_lowering_mm: int = FOOTER_TEXT_LOWERING_MM
+
+
+DEFAULT_PAGE_SHELL = PageShell()
+
+
+def build_page_shell_preamble_tex(
+    page_shell: PageShell,
+    paper_size: str,
+    engine_adapter: LatexEngineAdapter | None = None,
+) -> str:
+    """Layer-1 preamble: documentclass/geometry/margins/packages/footer."""
     engine_adapter = engine_adapter if engine_adapter is not None else PdflatexEngineAdapter()
     geometry_option = PAPER_SIZE_TO_GEOMETRY_OPTION[paper_size.lower()]
     return (
         "\\documentclass[12pt]{article}\n"
-        f"\\usepackage[{geometry_option},margin={PAGE_SIDE_MARGIN_MM}mm,top={PAGE_TOP_MARGIN_MM}mm,"
-        f"bottom={PAGE_BOTTOM_MARGIN_MM}mm]{{geometry}}\n"
+        f"\\usepackage[{geometry_option},margin={page_shell.side_margin_mm}mm,"
+        f"top={page_shell.top_margin_mm}mm,bottom={page_shell.bottom_margin_mm}mm]{{geometry}}\n"
         "\\usepackage{longdivision}\n"
         "\\usepackage{xlop}\n"
         "\\usepackage{array}\n"
@@ -972,27 +1003,54 @@ def build_preamble_tex(paper_size: str, engine_adapter: LatexEngineAdapter | Non
         + engine_adapter.build_preamble_additions()
         + "\\pagestyle{fancy}\n"
         "\\fancyhf{}\n"
-        f"\\fancyfoot[L]{{{COPYRIGHT_STR}}}\n"
+        f"\\fancyfoot[L]{{{page_shell.copyright_str}}}\n"
         "\\fancyfoot[R]{Page \\#\\thepage}\n"
         "\\renewcommand{\\headrulewidth}{0pt}\n"
         "\\renewcommand{\\footrulewidth}{0pt}\n"
-        f"\\addtolength{{\\footskip}}{{{FOOTER_TEXT_LOWERING_MM}mm}}\n"
+        f"\\addtolength{{\\footskip}}{{{page_shell.footer_text_lowering_mm}mm}}\n"
         "\\setlength{\\parindent}{0pt}\n"
     )
 
 
-def build_page_header_tex(with_name_field: bool = False) -> str:
+def build_page_shell_header_tex(page_shell: PageShell, with_name_field: bool = False) -> str:
+    """Layer-1 header block: title/subtitle/date/time/(optional) name field."""
     date_time_line = "Date: \\underline{\\hspace{4cm}} \\hfill Time: \\underline{\\hspace{4cm}}"
     name_field_tex = (
         "\\\\\nName: \\underline{\\hspace{8cm}}" if with_name_field else ""
     )
     return (
-        f"{{\\bfseries {HEADER_STR}}}\\\\\n"
-        f"{{\\Large\\bfseries {TITLE_STR}}}\\\\\n"
-        f"{{\\small {SUB_TITLE_STR}}}\\\\[1em]\n"
+        f"{{\\bfseries {page_shell.header_str}}}\\\\\n"
+        f"{{\\Large\\bfseries {page_shell.title_str}}}\\\\\n"
+        f"{{\\small {page_shell.sub_title_str}}}\\\\[1em]\n"
         f"{date_time_line}{name_field_tex}\n"
         "\\vspace{1.5em}\n\n"
     )
+
+
+def build_page_shell_body_tex(
+    page_shell: PageShell,
+    content_area_tex: str,
+    with_name_field: bool = False,
+    bottom_answer_tex: str | None = None,
+) -> str:
+    """
+    Layer-1 content-area boundary: stack the header block above Layer 2/3's
+    already-rendered content_area_tex, with an optional trailing snippet
+    (e.g. a compact answer-key line) before the page footer that
+    build_page_shell_preamble_tex's fancyhdr setup prints on every page.
+    """
+    parts = [build_page_shell_header_tex(page_shell, with_name_field), content_area_tex]
+    if bottom_answer_tex:
+        parts.append(f"\\vfill\n{{\\small {bottom_answer_tex}}}\n")
+    return "\n".join(parts)
+
+
+def build_preamble_tex(paper_size: str, engine_adapter: LatexEngineAdapter | None = None) -> str:
+    return build_page_shell_preamble_tex(DEFAULT_PAGE_SHELL, paper_size, engine_adapter)
+
+
+def build_page_header_tex(with_name_field: bool = False) -> str:
+    return build_page_shell_header_tex(DEFAULT_PAGE_SHELL, with_name_field)
 
 
 def build_inline_grid_tex(blocks: list[str], columns: int) -> str:
@@ -1078,10 +1136,9 @@ def build_page_tex(page: Page, with_name_field: bool = False) -> str:
     else:
         grid_tex = build_inline_grid_tex(page.blocks, page.columns)
 
-    parts = [build_page_header_tex(with_name_field), grid_tex]
-    if page.bottom_answer_tex:
-        parts.append(f"\\vfill\n{{\\small {page.bottom_answer_tex}}}\n")
-    return "\n".join(parts)
+    return build_page_shell_body_tex(
+        DEFAULT_PAGE_SHELL, grid_tex, with_name_field, page.bottom_answer_tex
+    )
 
 
 def build_document_tex(
