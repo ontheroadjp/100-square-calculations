@@ -348,9 +348,8 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴(git log より自動生成)
 
-- b2c1d27 docs: sync documentation
-- 550f35f docs(#186): note lualatex default and binary-missing test coverage in nuts_calc_tex.py.md
-- 506d7b4 feat(#186): make latex+lualatex the default reachable configuration
+- a86312a feat(#171): support int/decimal/fraction kind mixing in compare
+- 9393898 #186 renderers/engine: make latex+lualatex the default (and only reachable) configuration (#187)
 - 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
 - 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)
 - bc0eef5 #113 nuts_calc_tex.py: allow --carry-borrow with decimal operands (#164)
@@ -358,3 +357,4 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - d2e8744 #152 #155 Fix kuku multiplier range and descend order in both renderers (#156)
 - e8db9d7 #112 nuts_calc_tex.py: add mixed-number (帯分数) display support to the frac command (#125)
 - 380c2b1 #121 nuts_calc_tex.py: add Japanese-capable LuaLaTeX engine adapter (#124)
+- 0240d1d #120 nuts_calc_tex.py: introduce pluggable LatexEngineAdapter interface (#123)

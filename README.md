@@ -109,10 +109,13 @@ curriculum source used for their placement is preserved under `docs/reference/`.
 The same renderer exposes the grades 4-6 entrance-exam-prep section, which uses
 multi-term, mixed-operator, and parenthesized `ope` expressions.
 
-It also provides a `compare` command for fraction comparison worksheets. Use
+It also provides a `compare` command for comparison worksheets. Use
 `--comparison-pattern` to select `same-denominator`, `same-numerator`, or
-`different-denominators`; use `--a-fraction-form` and `--b-fraction-form` to
-independently select `proper`, `improper`, `mixed`, or randomized `mix` forms.
+`different-denominators` (fraction-vs-fraction only); use `--a-fraction-form`
+and `--b-fraction-form` to independently select `proper`, `improper`,
+`mixed`, or randomized `mix` forms. Use `--a-kind`/`--b-kind` to mix in
+`int`/`decimal` operands alongside `fraction` (default: `fraction` only,
+matching the original behavior).
 
 ```sh
 python3 nuts_calc_tex.py A4 compare --comparison-pattern same-denominator \

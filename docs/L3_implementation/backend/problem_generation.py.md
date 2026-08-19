@@ -98,7 +98,8 @@ issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマ�
 
 ## 変更履歴(git log より自動生成)
 
-- cc2e91b feat(#170): support frac/mixed in problem_generation.py
+- a86312a feat(#171): support int/decimal/fraction kind mixing in compare
+- 20b9462 #170 backend: support frac/mixed in POST /generate-problems (#191)
 - 2ebbe96 #169 problem_generation.py: support com/99/aBc/squ/pi (and 100's disposition) (#190)
 - caedeac #168 problem_generation.py: support ope --use-parentheses/--missing-value/--terms variants (#189)
 - 13bef63 #138 backend: add POST /generate-problems for PDF-free ope problem generation (#175)
