@@ -65,6 +65,25 @@ function reducibleModeParam(state) {
   return state?.reduction ?? 'mixed';
 }
 
+const OPT_DISPLAY_HORIZONTAL = { value: 'horizontal', labelKey: 'setting_option_display_horizontal' };
+const OPT_DISPLAY_WRITTEN = { value: 'written', labelKey: 'setting_option_display_written' };
+
+// 出題形式(式/筆算, issue #134): only meaningful for a plain two-term `ope`
+// item, since nuts_calc_tex.py's --vertical is only implemented for that
+// command. Every item this is attached to already hardcodes
+// command_type: 'ope' unconditionally, so no disabledWhen/resolveValue
+// (unlike carrySetting/remainderSetting's dependents) is needed here.
+function displayFormatSetting() {
+  return {
+    id: 'displayFormat', labelKey: 'setting_display_format_label', type: 'choice',
+    options: [OPT_DISPLAY_HORIZONTAL, OPT_DISPLAY_WRITTEN], default: 'horizontal',
+  };
+}
+
+function displayFormatParam(state) {
+  return (state?.displayFormat ?? 'horizontal') === 'written' ? { vertical: true } : {};
+}
+
 // Builds an examplesFor(settingsState) for a menu item's example chips: looks
 // up the example set for the current combination of the given setting ids
 // (joined with "_", e.g. ['denominator', 'numberKind'] -> "same_fraction").
@@ -201,12 +220,13 @@ const grade2 = {
         required: ['7+26', '48+37', '19+45'],
         mixed: ['34+5', '7+26', '42+35'],
       }),
-      settings: [carrySetting('setting_carry_label')],
+      settings: [carrySetting('setting_carry_label'), displayFormatSetting()],
       supportLevel: 'full',
       latexOnly: true,
       buildParams: (state) => ({
         command_type: 'ope', operator: ['add'], ...carryModeField(['add'], state),
         a_min: 1, a_max: 99, b_min: 1, b_max: 99, result_max: 100,
+        ...displayFormatParam(state),
       }),
     },
     {
@@ -221,12 +241,13 @@ const grade2 = {
         required: ['625+75', '999+1', '267+458'],
         mixed: ['625+75', '999+1', '321+456'],
       }),
-      settings: [carrySetting('setting_carry_label')],
+      settings: [carrySetting('setting_carry_label'), displayFormatSetting()],
       supportLevel: 'full',
       latexOnly: true,
       buildParams: (state) => ({
         command_type: 'ope', operator: ['add'], ...carryModeField(['add'], state),
         a_min: 1, a_max: 999, b_min: 1, b_max: 999, result_max: 1000,
+        ...displayFormatParam(state),
       }),
     },
   ],
@@ -243,12 +264,13 @@ const grade2 = {
         required: ['32-7', '72-48', '61-38'],
         mixed: ['38-5', '32-7', '72-48'],
       }),
-      settings: [carrySetting('setting_borrow_label')],
+      settings: [carrySetting('setting_borrow_label'), displayFormatSetting()],
       supportLevel: 'full',
       latexOnly: true,
       buildParams: (state) => ({
         command_type: 'ope', operator: ['sub'], ...carryModeField(['sub'], state),
         a_min: 10, a_max: 99, b_min: 1, b_max: 99, result_max: 100,
+        ...displayFormatParam(state),
       }),
     },
     {
@@ -263,12 +285,13 @@ const grade2 = {
         required: ['500-125', '302-158', '423-186'],
         mixed: ['500-125', '302-158', '456-321'],
       }),
-      settings: [carrySetting('setting_borrow_label')],
+      settings: [carrySetting('setting_borrow_label'), displayFormatSetting()],
       supportLevel: 'full',
       latexOnly: true,
       buildParams: (state) => ({
         command_type: 'ope', operator: ['sub'], ...carryModeField(['sub'], state),
         a_min: 1, a_max: 999, b_min: 1, b_max: 999, result_max: 1000,
+        ...displayFormatParam(state),
       }),
     },
   ],
@@ -386,12 +409,13 @@ const grade3 = {
         required: ['6250+750', '9999+1', '3456+2789'],
         mixed: ['6250+750', '9999+1', '3210+4560'],
       }),
-      settings: [carrySetting('setting_carry_label')],
+      settings: [carrySetting('setting_carry_label'), displayFormatSetting()],
       supportLevel: 'full',
       latexOnly: true,
       buildParams: (state) => ({
         command_type: 'ope', operator: ['add'], ...carryModeField(['add'], state),
         a_min: 1, a_max: 9999, b_min: 1, b_max: 9999, result_max: 10000,
+        ...displayFormatParam(state),
       }),
     },
     {
@@ -406,12 +430,13 @@ const grade3 = {
         required: ['4.7+1.6', '3.8+2.5', '6.9+1.4'],
         mixed: ['2.4+3.1', '4.7+1.6', '5.2+3.6'],
       }),
-      settings: [carrySetting('setting_carry_label')],
+      settings: [carrySetting('setting_carry_label'), displayFormatSetting()],
       supportLevel: 'full',
       latexOnly: true,
       buildParams: (state) => ({
         command_type: 'ope', operator: ['add'], a_value: 1, b_value: 1,
         a_decimal_places: 1, b_decimal_places: 1, ...carryModeField(['add'], state),
+        ...displayFormatParam(state),
       }),
     },
     {
@@ -443,12 +468,13 @@ const grade3 = {
         required: ['5000-1250', '3020-1580', '4021-1876'],
         mixed: ['5000-1250', '3020-1580', '4560-3210'],
       }),
-      settings: [carrySetting('setting_borrow_label')],
+      settings: [carrySetting('setting_borrow_label'), displayFormatSetting()],
       supportLevel: 'full',
       latexOnly: true,
       buildParams: (state) => ({
         command_type: 'ope', operator: ['sub'], ...carryModeField(['sub'], state),
         a_min: 1, a_max: 9999, b_min: 1, b_max: 9999, result_max: 10000,
+        ...displayFormatParam(state),
       }),
     },
     {
@@ -463,12 +489,13 @@ const grade3 = {
         required: ['8.4-3.9', '5.2-1.7', '7.3-2.8'],
         mixed: ['5.7-2.3', '8.4-3.9', '6.8-2.5'],
       }),
-      settings: [carrySetting('setting_borrow_label')],
+      settings: [carrySetting('setting_borrow_label'), displayFormatSetting()],
       supportLevel: 'full',
       latexOnly: true,
       buildParams: (state) => ({
         command_type: 'ope', operator: ['sub'], a_value: 1, b_value: 1,
         a_decimal_places: 1, b_decimal_places: 1, ...carryModeField(['sub'], state),
+        ...displayFormatParam(state),
       }),
     },
     {
@@ -495,10 +522,13 @@ const grade3 = {
       pointKey: 'menu_g3_mul_2x1_point',
       difficultyKey: 'difficulty_basic',
       examples: ['38×7', '24×5', '56×3'],
-      settings: [],
+      settings: [displayFormatSetting()],
       supportLevel: 'full',
       latexOnly: false,
-      buildParams: () => ({ command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 1 }),
+      buildParams: (state) => ({
+        command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 1,
+        ...displayFormatParam(state),
+      }),
     },
     {
       id: 'g3-mul-3x1',
@@ -507,10 +537,13 @@ const grade3 = {
       pointKey: 'menu_g3_mul_3x1_point',
       difficultyKey: 'difficulty_standard',
       examples: ['326×4', '425×7', '218×6'],
-      settings: [],
+      settings: [displayFormatSetting()],
       supportLevel: 'full',
       latexOnly: false,
-      buildParams: () => ({ command_type: 'ope', operator: ['mul'], a_value: 3, b_value: 1 }),
+      buildParams: (state) => ({
+        command_type: 'ope', operator: ['mul'], a_value: 3, b_value: 1,
+        ...displayFormatParam(state),
+      }),
     },
     {
       id: 'g3-mul-2x2',
@@ -519,10 +552,13 @@ const grade3 = {
       pointKey: 'menu_g3_mul_2x2_point',
       difficultyKey: 'difficulty_standard',
       examples: ['47×23', '34×28', '52×19'],
-      settings: [],
+      settings: [displayFormatSetting()],
       supportLevel: 'full',
       latexOnly: false,
-      buildParams: () => ({ command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 2 }),
+      buildParams: (state) => ({
+        command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 2,
+        ...displayFormatParam(state),
+      }),
     },
   ],
   division: [
@@ -629,12 +665,13 @@ const grade4 = {
         required: ['85÷4', '865÷6', '393÷7'],
         mixed: ['84÷4', '864÷6', '392÷7'],
       }),
-      settings: [remainderSetting('setting_remainder_label')],
+      settings: [remainderSetting('setting_remainder_label'), displayFormatSetting()],
       supportLevel: 'full',
       latexOnly: true,
       buildParams: (state) => ({
         command_type: 'ope', operator: ['div'], remainder_mode: remainderModeParam(state),
         a_min: 10, a_max: 999, b_min: 2, b_max: 9,
+        ...displayFormatParam(state),
       }),
     },
     {
@@ -649,12 +686,13 @@ const grade4 = {
         required: ['97÷12', '937÷24', '451÷15'],
         mixed: ['96÷12', '936÷24', '450÷15'],
       }),
-      settings: [remainderSetting('setting_remainder_label')],
+      settings: [remainderSetting('setting_remainder_label'), displayFormatSetting()],
       supportLevel: 'full',
       latexOnly: true,
       buildParams: (state) => ({
         command_type: 'ope', operator: ['div'], remainder_mode: remainderModeParam(state),
         a_min: 100, a_max: 999, b_min: 10, b_max: 99,
+        ...displayFormatParam(state),
       }),
     },
     {
@@ -664,11 +702,12 @@ const grade4 = {
       pointKey: 'menu_g4_decimal_div_int_point',
       difficultyKey: 'difficulty_standard',
       examples: ['8.4÷4', '7.35÷5', '9.6÷8'],
-      settings: [fixedSetting('divisor', 'setting_divisor_label', 'setting_option_integer')],
+      settings: [fixedSetting('divisor', 'setting_divisor_label', 'setting_option_integer'), displayFormatSetting()],
       supportLevel: 'full',
       latexOnly: true,
-      buildParams: () => ({
+      buildParams: (state) => ({
         command_type: 'ope', operator: ['div'], a_value: 2, b_value: 1, a_decimal_places: 1,
+        ...displayFormatParam(state),
       }),
     },
   ],
@@ -685,12 +724,13 @@ const grade4 = {
         required: ['3.74+2.8', '4.36+1.57', '5.67+2.89'],
         mixed: ['3.74+2.8', '4.36+1.57', '5.67+2.89'],
       }),
-      settings: [carrySetting('setting_carry_label')],
+      settings: [carrySetting('setting_carry_label'), displayFormatSetting()],
       supportLevel: 'full',
       latexOnly: true,
       buildParams: (state) => ({
         command_type: 'ope', operator: ['add'], a_value: 3, b_value: 3,
         a_decimal_places: 2, b_decimal_places: 2, ...carryModeField(['add'], state),
+        ...displayFormatParam(state),
       }),
     },
   ],
@@ -707,12 +747,13 @@ const grade4 = {
         required: ['8.2-3.47', '6.35-2.8', '7.15-2.68'],
         mixed: ['8.2-3.47', '6.35-2.8', '7.15-2.68'],
       }),
-      settings: [carrySetting('setting_borrow_label')],
+      settings: [carrySetting('setting_borrow_label'), displayFormatSetting()],
       supportLevel: 'full',
       latexOnly: true,
       buildParams: (state) => ({
         command_type: 'ope', operator: ['sub'], a_value: 3, b_value: 3,
         a_decimal_places: 2, b_decimal_places: 2, ...carryModeField(['sub'], state),
+        ...displayFormatParam(state),
       }),
     },
   ],
@@ -724,11 +765,12 @@ const grade4 = {
       pointKey: 'menu_g4_decimal_mul_int_point',
       difficultyKey: 'difficulty_standard',
       examples: ['3.6×7', '2.35×4', '5.8×3'],
-      settings: [fixedSetting('multiplier', 'setting_multiplier_label', 'setting_option_integer')],
+      settings: [fixedSetting('multiplier', 'setting_multiplier_label', 'setting_option_integer'), displayFormatSetting()],
       supportLevel: 'full',
       latexOnly: true,
-      buildParams: () => ({
+      buildParams: (state) => ({
         command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 1, a_decimal_places: 1,
+        ...displayFormatParam(state),
       }),
     },
   ],
@@ -846,12 +888,13 @@ const grade5 = {
       pointKey: 'menu_g5_decimal_mul_point',
       difficultyKey: 'difficulty_basic',
       examples: ['3.6×2.4', '0.25×1.6', '4.2×1.5'],
-      settings: [fixedSetting('multiplier', 'setting_multiplier_label', 'setting_option_decimal')],
+      settings: [fixedSetting('multiplier', 'setting_multiplier_label', 'setting_option_decimal'), displayFormatSetting()],
       supportLevel: 'full',
       latexOnly: true,
-      buildParams: () => ({
+      buildParams: (state) => ({
         command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 2,
         a_decimal_places: 1, b_decimal_places: 1,
+        ...displayFormatParam(state),
       }),
     },
   ],

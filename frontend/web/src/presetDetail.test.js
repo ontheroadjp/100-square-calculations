@@ -11,6 +11,9 @@ import {
   selectExamples,
   isLivePreviewSupported,
   buildLiveExampleStrings,
+  buildWrittenAddSubMulTex,
+  buildWrittenDivTex,
+  buildWrittenExampleTex,
 } from './presetDetail.js';
 
 test('layoutForProblemCount returns rows/columns for every supported problem count', () => {
@@ -197,4 +200,67 @@ test('buildLiveExampleStrings formats each problem as an unsolved "a<op>b" examp
     { a: 9, operator: 'div', b: 3 },
   ];
   assert.deepEqual(buildLiveExampleStrings(problems), ['3+5', '10-6', '2×4', '9÷3']);
+});
+
+test('buildLiveExampleStrings inserts the decimal point from a_decimal_places/b_decimal_places instead of showing the raw scaled integer', () => {
+  const problems = [
+    { a: 2, operator: 'add', b: 4, a_decimal_places: 1, b_decimal_places: 1 },
+    { a: 374, operator: 'sub', b: 28, a_decimal_places: 2, b_decimal_places: 1 },
+    { a: 36, operator: 'mul', b: 7, a_decimal_places: 1, b_decimal_places: 0 },
+  ];
+  assert.deepEqual(buildLiveExampleStrings(problems), ['0.2+0.4', '3.74-2.8', '3.6×7']);
+});
+
+test('buildLiveExampleStrings treats a missing a_decimal_places/b_decimal_places as 0 (plain integer)', () => {
+  assert.deepEqual(buildLiveExampleStrings([{ a: 3, operator: 'add', b: 5 }]), ['3+5']);
+});
+
+test('buildWrittenAddSubMulTex builds a single right-aligned column for plain-integer operands', () => {
+  assert.equal(
+    buildWrittenAddSubMulTex('34+5'),
+    '\\begin{array}{r} 34 \\\\ +5 \\\\ \\hline \\end{array}',
+  );
+  assert.equal(
+    buildWrittenAddSubMulTex('38×7'),
+    '\\begin{array}{r} 38 \\\\ \\times7 \\\\ \\hline \\end{array}',
+  );
+});
+
+test('buildWrittenAddSubMulTex right-aligns decimal operands as plain strings (no separate "." column)', () => {
+  // Right-aligning the plain "2.4"/"+3.1" strings lines up the decimal
+  // points as a side effect, since add/sub always has equal
+  // a_decimal_places/b_decimal_places (drillPresets.js) -- a dedicated "."
+  // column was tried and rejected for looking like a disconnected symbol
+  // (KaTeX's array has no `@{...}` custom column separator to close the gap).
+  assert.equal(
+    buildWrittenAddSubMulTex('2.4+3.1'),
+    '\\begin{array}{r} 2.4 \\\\ +3.1 \\\\ \\hline \\end{array}',
+  );
+});
+
+test('buildWrittenAddSubMulTex right-aligns a decimal x integer example on its trailing digit', () => {
+  // mul's written convention aligns operands on the trailing (ones) digit,
+  // not the decimal point -- exactly what right-alignment already does.
+  assert.equal(
+    buildWrittenAddSubMulTex('3.6×7'),
+    '\\begin{array}{r} 3.6 \\\\ \\times7 \\\\ \\hline \\end{array}',
+  );
+});
+
+test('buildWrittenAddSubMulTex returns null for a shape it does not recognize', () => {
+  assert.equal(buildWrittenAddSubMulTex('18/24 → 3/4'), null);
+});
+
+test('buildWrittenDivTex builds a divisor-bracket-overlined-dividend mockup', () => {
+  assert.equal(buildWrittenDivTex('84÷4'), '4 \\overline{\\big)\\,84}');
+  assert.equal(buildWrittenDivTex('8.4÷4'), '4 \\overline{\\big)\\,8.4}');
+});
+
+test('buildWrittenDivTex returns null for a non-division example', () => {
+  assert.equal(buildWrittenDivTex('34+5'), null);
+});
+
+test('buildWrittenExampleTex dispatches to the long-division mockup for ÷ and the array mockup otherwise', () => {
+  assert.equal(buildWrittenExampleTex('84÷4'), buildWrittenDivTex('84÷4'));
+  assert.equal(buildWrittenExampleTex('34+5'), buildWrittenAddSubMulTex('34+5'));
 });
