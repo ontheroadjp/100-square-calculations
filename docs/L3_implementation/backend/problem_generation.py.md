@@ -58,7 +58,7 @@ issue #167 の JSON contract 規約が事前に決定していた設計(下記�
 
 ### `100` を対象外のままにしている理由(issue #169)
 
-`nuts_calc_tex.generate_hundred_square()` は「`num` 個の問題」ではなく単一の `HundredSquareTable`(`left_values`/`top_values`、`answers` プロパティで加算表を計算)を返す。既存の `{"problems": [...]}` envelope は「`num` 個の同型 item のリスト」を前提としており、単一テーブルはこの意味論に合わない。`HundredSquareTable` 用に別 envelope 形状を新設する案もあるが、それは issue #167 相当のスコープを持つ契約決定であり、本 issue 単体で決めるには重すぎると判断した。両フロントエンド(`frontend/spa`/`frontend/web`)とも現状 `command_type: 'ope'` のプリセットにしか `/generate-problems` を呼んでおらず、実利用の圧力もない。既存の「未対応の組み合わせは黙って無視せず明示的に `ValueError` で失敗させる」慣習を踏襲し、`_COMMAND_GENERATORS` に `100` のエントリを追加せず、`generate_problems()` の「not yet supported」`ValueError` にフォールスルーさせている(`problem_generation.py:65-71`)。別 envelope 形状での対応が必要になった場合は、別 issue として起票する。
+`nuts_calc_tex.generate_hundred_square()` は「`num` 個の問題」ではなく単一の `HundredSquareTable`(`left_values`/`top_values`、`answers` プロパティで加算表を計算)を返す。既存の `{"problems": [...]}` envelope は「`num` 個の同型 item のリスト」を前提としており、単一テーブルはこの意味論に合わない。`HundredSquareTable` 用に別 envelope 形状を新設する案もあるが、それは issue #167 相当のスコープを持つ契約決定であり、本 issue 単体で決めるには重すぎると判断した。`frontend/web` は現状 `command_type: 'ope'` のプリセットにしか `/generate-problems` を呼んでおらず、実利用の圧力もない(かつて併存していた `frontend/spa` はこのエンドポイント自体を呼んでいなかったが、`frontend/spa` 自体が issue #233 で削除された)。既存の「未対応の組み合わせは黙って無視せず明示的に `ValueError` で失敗させる」慣習を踏襲し、`_COMMAND_GENERATORS` に `100` のエントリを追加せず、`generate_problems()` の「not yet supported」`ValueError` にフォールスルーさせている(`problem_generation.py:65-71`)。別 envelope 形状での対応が必要になった場合は、別 issue として起票する。
 
 ### `ope` の reportlab 分岐を削除した理由(issue #232)
 

@@ -2,11 +2,11 @@
 
 ## 目的・役割
 
-`frontend/web`(HTML/CSS(Sass)/JS のみで実装した軽量フロントエンド、issue #88)のビルド設定。`frontend/spa`(React/Vite)と同じ Vite だが、React・i18next 系パッケージは一切含まない。
+`frontend/web`(HTML/CSS(Sass)/JS のみで実装した軽量フロントエンド、issue #88)のビルド設定。かつて併存していた `frontend/spa`(React/Vite、issue #233 で削除)と同じ Vite だが、React・i18next 系パッケージは一切含まない。
 
 ## 動作の概要
 
-- `scripts`: `dev`(`vite`)/`build`(`vite build`)/`preview`(`vite preview`)。`frontend/spa` と同じコマンド体系。
+- `scripts`: `dev`(`vite`)/`build`(`vite build`)/`preview`(`vite preview`)。かつて併存していた `frontend/spa`(issue #233 で削除)と同じコマンド体系だった。
 - `devDependencies`: `vite` と `sass`(Dart Sass CLI 相当。Vite が `.scss` import を検出すると自動的に呼び出す)のみ。`react`/`react-dom`/`i18next` 系の依存は持たない。
 - `dependencies`: `katex`(issue #132、`presetDetail.js` の問題サンプルを分数・帯分数表記でレンダリングするために追加。ブラウザバンドルに含まれるランタイム依存のため `devDependencies` ではなくこちらに置く)。
 
@@ -14,7 +14,7 @@
 
 ### Vite vanilla テンプレートを採用した理由
 
-ユーザーからの明示的な要望により、gulp のような軽量ビルド構成(保存時の自動 Sass コンパイル・dev サーバー)を求めつつ webpack 級の重量設定は避けたいという方針で、`frontend/spa` と同じ Vite を React なしの vanilla テンプレートで採用した。ツールを一つに統一でき、設定はほぼゼロで Sass・HMR・本番ビルドが揃う。
+ユーザーからの明示的な要望により、gulp のような軽量ビルド構成(保存時の自動 Sass コンパイル・dev サーバー)を求めつつ webpack 級の重量設定は避けたいという方針で、当時併存していた `frontend/spa` と同じ Vite を React なしの vanilla テンプレートで採用した(`frontend/spa` 自体は issue #233 で削除)。ツールを一つに統一でき、設定はほぼゼロで Sass・HMR・本番ビルドが揃う。
 
 ### 複数ページ構成(SPAではない)にした理由
 
@@ -27,7 +27,7 @@
 
 ## 注意事項・既知の制限
 
-- バックエンド API は `frontend/spa` と同じ `backend/`([[../../backend/app.py]] 参照)を共有する。`frontend/web` 独自のバックエンドは持たない。
+- バックエンド API は `backend/`([[../../backend/app.py]] 参照)を利用する。`frontend/web` 独自のバックエンドは持たない。(かつて併存していた `frontend/spa` も同じ `backend/` を共有していたが、`frontend/spa` 自体が issue #233 で削除された。)
 
 ## 変更履歴（git log より自動生成）
 

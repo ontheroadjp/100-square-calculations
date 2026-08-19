@@ -2,7 +2,7 @@
 
 ## 目的・役割
 
-`frontend/web` のグローバルスタイルのエントリポイント。`frontend/spa/src/App.css`([[../../../frontend/spa/src/App.css]] 参照、734行の単一 CSS ファイル)を、Sass の `@use` でパーシャル分割して移植したもの。クラス名・見た目は `App.css` と同一になるよう移植している(`frontend/spa` とほぼ同じ HTML 構造・クラス命名で組んでいるため、CSS 側もセレクタをそのまま踏襲できる)。
+`frontend/web` のグローバルスタイルのエントリポイント。かつて併存していた `frontend/spa/src/App.css`(734行の単一 CSS ファイル。`frontend/spa` 自体は issue #233 で削除)を、Sass の `@use` でパーシャル分割して移植したもの。クラス名・見た目は `App.css` と同一になるよう移植している(当時の `frontend/spa` とほぼ同じ HTML 構造・クラス命名で組んでいたため、CSS 側もセレクタをそのまま踏襲できた)。
 
 ## 動作の概要
 
@@ -31,7 +31,7 @@ issue #97 で4つ目のパーシャル `_navShell.scss`([[./navShell.scss]] 参�
 
 ## 注意事項・既知の制限
 
-- `frontend/spa/src/App.css` の追従が必要な場合は、対応する責務のパーシャルへ反映する。`_navShell.scss`/`_pcMakeFlow.scss` は `frontend/web` 固有のため対象外。
+- かつて併存していた `frontend/spa/src/App.css` の追従が必要な場合は、対応する責務のパーシャルへ反映する運用だった(`_navShell.scss`/`_pcMakeFlow.scss` は `frontend/web` 固有のため対象外)。`frontend/spa` 自体は issue #233 で削除され、以後追従コピー元は存在しない。
 
 ## 変更履歴(git log より自動生成)
 

@@ -108,7 +108,7 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 - 中学受験対策(examPrep、27プリセット)。
 - 虫食い算(`--missing-value`)。
 
-いずれも `frontend/spa` および CLI では引き続き利用可能。復活させるかどうかは issue #111 で後日判断する。筆算(縦書き)形式については、issue #133(親)配下の #134 が「出題形式(式/筆算)」設定として `frontend/web` へ個別設定の形で再導入した(#111 の筆算部分をこちらで解決する位置づけ、対象18項目は前述の「出題形式(式/筆算)設定(issue #134)」セクション参照。`g5-decimal-div` は #180 で保留)。
+いずれも当時併存していた `frontend/spa` および CLI では引き続き利用可能だった(`frontend/spa` 自体は issue #233 で削除され、以後 CLI のみで利用可能)。復活させるかどうかは issue #111 で後日判断する。筆算(縦書き)形式については、issue #133(親)配下の #134 が「出題形式(式/筆算)」設定として `frontend/web` へ個別設定の形で再導入した(#111 の筆算部分をこちらで解決する位置づけ、対象18項目は前述の「出題形式(式/筆算)設定(issue #134)」セクション参照。`g5-decimal-div` は #180 で保留)。
 
 ## 統合ポイント
 
@@ -117,7 +117,7 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 
 ## 注意事項・既知の制限
 
-- `frontend/spa/src/drillPresets.js` とはもはや無関係(#98 で分岐)。今後 `frontend/spa` 側のプリセットを変更しても本ファイルには影響しない。
+- `frontend/spa/src/drillPresets.js` とはもはや無関係だった(#98 で分岐)。`frontend/spa` 自体が issue #233 で削除されたため、この分岐関係自体が過去のものになった。
 - `settings`/`buildParams`/`examplesFor` を実際にユーザーが切り替える UI は `presetDetail.js`(`preset.html`)が実装している([[./presetDetail.js]] 参照)。
 
 ## 変更履歴（git log より自動生成）
