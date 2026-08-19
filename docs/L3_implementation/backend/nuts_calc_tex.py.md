@@ -135,6 +135,16 @@
 - **既存の `build_preamble_tex`/`build_page_header_tex`/`build_page_tex` はシグネチャそのまま、`DEFAULT_PAGE_SHELL` を経由する薄いラッパーに変更した**(`nuts_calc_tex.py:1048-1053,1130-1141`)。#166 の 2026-08-19 /mtg ガードレール(「本番 `/generate-pdf` が依存する既存コードの出力を変えてはならない」)を、新規追加コードではなく検証済み behavior-preserving refactor として満たす選択。出力が完全に一致することは `backend/tests/test_nuts_calc_tex_page_shell.py` の equivalence テスト群と、既存の `backend/tests/test_nuts_calc_tex.py`(pdflatex 経由のエンドツーエンド回帰、無変更のまま全件成功)で担保している。
 - Layer 2(#184)・Layer 3(#122)はこの時点では未実装。`build_page_tex` 内のグリッド選択ロジック(`page.layout` による `build_inline_grid_tex`/`build_tabular_grid_tex`/`build_block_grid_tex` の分岐)は Layer 2 の関心事のため、本 issue のスコープ外としてそのまま残した(`content_area_tex` として `build_page_shell_body_tex` に渡すだけ)。
 
+### presentation-layer Layer 2: `ContentAreaLayout`(content-area base layout、issue #184)
+
+- issue #166 の B-3。Layer 1(`PageShell`、#182)の content-area boundary の内側、Layer 3(content format、#122)の外側に位置する、問題スロットのグリッドテンプレート(rows×columns)と各スロットの番号ボックス位置を明示的に所有する追加専用の新規レイヤー。`docs/latex/tex_calculation_drill_layout_guidelines.md` 項目2・10(「問題番号を問題本体と分離し、内容によらずページレイアウトで位置を決める」)に基づき、番号の描画責務を各コマンドの `build_*_block_tex()` から切り出す第一歩として導入した。既存の `build_*_block_tex()`(例: `build_com_block_tex`)・`build_*_page_pair()` は無変更のまま残存し、本番 `/generate-pdf`(subprocess経由)はこの Layer 2 をまだ参照しない。#183(internal presentation API、B-4)が Layer 1/2/3 を合成する際の Layer 2 側の受け皿となる。
+- `ContentAreaLayout`(`nuts_calc_tex.py:1050-1064`、frozen dataclass): `rows`(`int | None`)/`columns`(`int`)/`number_box_width_mm`(既定 `CONTENT_AREA_NUMBER_BOX_WIDTH_MM` = 8)を保持する。任意の rows/columns を受け付け、プリセット値に制限しない(issue #184 の2026-08-19 /mtg 決定: 「10/20/30 は名前付きショートカットであり、固定語彙ではない」)。
+- `CONTENT_AREA_LAYOUT_PRESETS`(`nuts_calc_tex.py:1068-1072`、`dict[int, ContentAreaLayout]`): 問題数10/20/30 を rows/columns へマッピングする named preset。`frontend/web/src/presetDetail.js:51-55` の `LAYOUT_BY_PROBLEM_COUNT`(`10: {rows:5,columns:2}`/`20: {rows:10,columns:2}`/`30: {rows:10,columns:3}`)と同じ値を踏襲し、frontend専用だった概念に backend 側の対応物を与えた。
+- `build_content_area_slot_tex(index, content_tex, layout)`(`nuts_calc_tex.py:1075-1082`): `\makebox[{layout.number_box_width_mm}mm][l]{{index)}}` で固定幅の番号ボックスを組み立て、番号を含まない `content_tex`(Layer 3 の出力)の直前に連結する。番号を描画する唯一の箇所であり、呼び出し側は番号なしコンテンツを渡す契約とした。
+- `build_content_area_tex(indices, slot_bodies, layout)`(`nuts_calc_tex.py:1086-1096`): `build_content_area_slot_tex` をスロットごとに適用し、既存のページグリッド関数(`build_inline_grid_tex`/`build_tabular_grid_tex`/`build_block_grid_tex`)へそのまま渡せる `blocks: list[str]` を生成する。
+- `build_com_slot_content_tex(problem, show_answer)`(`nuts_calc_tex.py:2487-2495`): `com` コマンド向けの番号なし Layer-3 コンテンツ variant。`build_com_block_tex` の本文部分(`f"${a} + {result} = {target}$"`)と同一だが `f"{index}) "` prefix を持たない。#184 が「少なくとも1コマンドグループで番号分離を実証する」done criteria を満たすための最小実装で、他の19コマンドへの展開は未実施(将来の作業、#183 の適用範囲による)。
+- `build_content_area_slot_tex(problem.index, build_com_slot_content_tex(problem, show_answer), layout)` は `build_com_block_tex(problem, show_answer)` と(`number_box_width_mm=0` の場合)バイト単位で等価になることを `backend/tests/test_nuts_calc_tex_content_area_layout.py` の equivalence テストで担保しており、Layer 2 の導入が既存出力を壊さないことを検証している。
+
 ## 動作の概要
 
 ### 共通基盤(Phase 1)
