@@ -376,7 +376,8 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴(git log より自動生成)
 
-- 8cf8898 feat(#184): introduce Layer-2 content-area base layout for presentation API
+- e6e5b19 feat(#183): compose internal (data x page_shell x content_area_layout x content_format) -> PDF presentation API
+- 144d465 #184 nuts_calc_tex.py: introduce Layer-2 content-area base layout for the presentation-layer API (#197)
 - 4eb1500 #182 nuts_calc_tex.py: extract Layer-1 page shell (header/margins/footer) for the presentation-layer API (#196)
 - 490f44b #171 compare: support int/decimal/fraction kind mixing, expose via POST /generate-problems (#192)
 - 9393898 #186 renderers/engine: make latex+lualatex the default (and only reachable) configuration (#187)
