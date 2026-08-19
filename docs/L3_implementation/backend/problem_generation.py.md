@@ -116,7 +116,8 @@ issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマ�
 
 ## 変更履歴(git log より自動生成)
 
-- eb4faa5 feat(#172): support evenodd/multiples/divisors/lcm/gcd in POST /generate-problems
+- ccb1225 feat(#173): problem_generation.py: support simplify/commondenom/frac2dec/dec2frac/divfrac, expose via POST /generate-problems
+- 00d9891 #172 problem_generation.py: support evenodd/multiples/divisors/lcm/gcd, expose via POST /generate-problems (#193)
 - 490f44b #171 compare: support int/decimal/fraction kind mixing, expose via POST /generate-problems (#192)
 - 20b9462 #170 backend: support frac/mixed in POST /generate-problems (#191)
 - 2ebbe96 #169 problem_generation.py: support com/99/aBc/squ/pi (and 100's disposition) (#190)
