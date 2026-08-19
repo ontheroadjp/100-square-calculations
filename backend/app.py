@@ -114,8 +114,8 @@ def generate_pdf():
         app.logger.error(f"Invalid renderer configuration or request: {e}")
         return jsonify({'error': str(e)}), 500
     except subprocess.CalledProcessError as e:
-        # nuts_calc.py/nuts_calc_tex.py print validation failure reasons to
-        # stdout (not stderr), so stdout must take priority here.
+        # nuts_calc_tex.py prints validation failure reasons to stdout (not
+        # stderr), so stdout must take priority here.
         error_reason = e.stdout or e.stderr
         app.logger.error(f"Error running renderer: stdout={e.stdout!r} stderr={e.stderr!r}")
         return jsonify({'error': f'PDF generation failed: {error_reason}'}), 500

@@ -2,7 +2,7 @@
 
 ## 目的・役割
 
-`nuts_calc.py`/`nuts_calc_tex.py` を Web 経由で呼び出すための薄い Flask API。エンドポイントは `POST /generate-pdf`(PDF 生成)、`POST /generate-problems`(問題データのみ生成、PDF非生成、issue #138)、`GET /renderer-info`(現在有効なレンダラー名の取得、issue #46)の3つ。コマンド構築・レンダラー選択・subprocess 実行のロジックは `backend/renderers.py`([[renderers.py]] 参照、issue #36)に、問題データのみのプロセス内直接生成ロジックは `backend/problem_generation.py`([[problem_generation.py]] 参照、issue #138)に切り出されており、本ファイルは JSON パース・`renderers`/`problem_generation` 呼び出し・HTTP レスポンス変換のみを担う。
+`nuts_calc_tex.py`(issue #232 以前は `nuts_calc.py` も)を Web 経由で呼び出すための薄い Flask API。エンドポイントは `POST /generate-pdf`(PDF 生成)、`POST /generate-problems`(問題データのみ生成、PDF非生成、issue #138)、`GET /renderer-info`(現在有効なレンダラー名の取得、issue #46)の3つ。コマンド構築・レンダラー選択・subprocess 実行のロジックは `backend/renderers.py`([[renderers.py]] 参照、issue #36)に、問題データのみのプロセス内直接生成ロジックは `backend/problem_generation.py`([[problem_generation.py]] 参照、issue #138)に切り出されており、本ファイルは JSON パース・`renderers`/`problem_generation` 呼び出し・HTTP レスポンス変換のみを担う。
 
 ## 動作の概要
 
@@ -19,7 +19,7 @@
 
 ## 注意事項・既知の制限
 
-- `nuts_calc.py`/`nuts_calc_tex.py` 側のバリデーション失敗メッセージは `print()`(stdout)に出力されるため、`subprocess.CalledProcessError` ハンドラは `e.stdout` を優先し(空なら `e.stderr` にフォールバック)、それを `error` フィールドに含める(issue #37 で修正)。`nuts_calc.py` 側でも `com`/`99`/`squ`/`pi`/`100` のバリデーション失敗が引数なし `exit()`(終了コード0、`subprocess.run(check=True)` が例外を送出しない)になっていた不具合を同 issue で `exit(1)` に修正済み([[../../../nuts_calc.py]] 参照)。修正前はこの経路で `CalledProcessError` すら発生せず、後続の `send_file` が `FileNotFoundError` になり実際の理由と無関係な「Renderer script not found」を返していた。
+- `nuts_calc_tex.py` 側のバリデーション失敗メッセージは `print()`(stdout)に出力されるため、`subprocess.CalledProcessError` ハンドラは `e.stdout` を優先し(空なら `e.stderr` にフォールバック)、それを `error` フィールドに含める(issue #37 で修正)。`nuts_calc.py`(issue #232 で削除)側でも `com`/`99`/`squ`/`pi`/`100` のバリデーション失敗が引数なし `exit()`(終了コード0、`subprocess.run(check=True)` が例外を送出しない)になっていた不具合を同 issue #37 で `exit(1)` に修正済みだった。修正前はこの経路で `CalledProcessError` すら発生せず、後続の `send_file` が `FileNotFoundError` になり実際の理由と無関係な「Renderer script not found」を返していた。
 - backend の URL がフロントエンド側にハードコードされている(`frontend/spa/src/CustomGenerator.jsx`/`GradeDrills.jsx` 側の既知の制約、[[../../frontend/src/CustomGenerator.jsx]] 参照)。
 - レンダラー選択は env 変数のみで、リクエストごとの指定はできない(issue #36 のスコープ)。`GET /renderer-info` はこの env 変数由来のレンダラー名をフロントエンドに公開する読み取り専用エンドポイントであり、フロントエンドからレンダラーを切り替える手段ではない。
 - `command_type == 'com'` は `nuts_calc_tex.get_latex_engine_adapter()` を `_generate_com_pdf` から直接呼ぶため、`NUTS_CALC_TEX_ENGINE` 環境変数が不正な場合の失敗経路が他コマンドと異なる: 他コマンド(subprocess 経路)ではこの `ValueError` は CLI 側の `main()` 内で `failure()`(`exit(1)`)に変換され `CalledProcessError` として 500 になるが、`com` では素の `ValueError` がそのまま 500 になる(いずれも HTTP 500 自体は同じだが `error` フィールドの文言が異なる)。環境設定ミス由来でリクエストごとに変動しないため許容している既知の差異(issue #199)。

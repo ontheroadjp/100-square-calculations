@@ -123,6 +123,22 @@ def failure(message: str) -> None:
     exit(1)
 
 
+DIGIT_COUNT_TO_MIN_MAX = ((1, 9), (10, 99), (100, 999), (1000, 9999), (10000, 99999))
+
+
+def set_min_max_value(value: int) -> tuple[int, int]:
+    """
+    Map a "number of digits" value (1-5, as used by -a/-b's digit-count
+    shorthand for the ope/100/lcm/gcd/divfrac command family) to the
+    (min, max) integer range with that many digits. Module-level (issue
+    #232) so backend/problem_generation.py can reuse it for the same
+    shorthand on the /generate-problems JSON path, without depending on
+    the now-removed nuts_calc.py, which had an independent duplicate of
+    this same mapping.
+    """
+    return DIGIT_COUNT_TO_MIN_MAX[value - 1]
+
+
 def _init() -> argparse.Namespace:
     """
     Parse command-line arguments.
@@ -510,14 +526,9 @@ def _init() -> argparse.Namespace:
         else:
             args.rows = DEFAULT_ROWS
 
-    def set_min_max_value(value: int) -> list[int]:
-        digits_list = ((1, 9), (10, 99), (100, 999), (1000, 9999), (10000, 99999))
-        min_val, max_val = digits_list[value - 1]
-        return [min_val, max_val]
-
     if args.command == '100':
         # Validated before set_min_max_value() is called below: that function
-        # indexes digits_list with value - 1 and raises an unhandled
+        # indexes DIGIT_COUNT_TO_MIN_MAX with value - 1 and raises an unhandled
         # IndexError for value > 5, and silently wraps around to the wrong
         # (5-digit) range for value <= 0 (negative indexing) -- both must be
         # rejected with a clean CLI error first.

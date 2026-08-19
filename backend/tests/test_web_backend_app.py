@@ -37,11 +37,13 @@ def test_renderer_info_defaults_to_latex_when_env_unset(client, monkeypatch) -> 
     assert response.get_json() == {"renderer": "latex"}
 
 
-def test_renderer_info_rejects_explicit_reportlab(client, monkeypatch) -> None:
+def test_renderer_info_rejects_removed_reportlab(client, monkeypatch) -> None:
+    # nuts_calc.py/reportlab was removed (issue #232); explicit reportlab
+    # is no longer a special case, just another unknown value.
     monkeypatch.setenv(renderers.RENDERER_ENV_VAR, "reportlab")
     response = client.get("/renderer-info")
     assert response.status_code == 500
-    assert "not currently available" in response.get_json()["error"]
+    assert "Unknown NUTS_CALC_RENDERER value" in response.get_json()["error"]
 
 
 def test_renderer_info_reads_env_var(client, monkeypatch) -> None:

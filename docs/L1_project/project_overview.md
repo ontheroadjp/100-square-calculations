@@ -2,7 +2,7 @@
 
 ## 目的
 
-計算ドリル(四則演算・補数・100マス計算・九九・aBc変換・平方数・円周率倍)の練習用 PDF を、CLI(`backend/nuts_calc.py`)または Web UI(`frontend/spa` の React SPA、または `frontend/web` の軽量静的サイト。いずれも `backend/app.py` の Flask API を共通利用する、issue #88)から生成するツール群。設計意図は [[concept]] を参照。
+計算ドリル(四則演算・補数・100マス計算・九九・aBc変換・平方数・円周率倍・分数・数論等)の練習用 PDF を、CLI(`backend/nuts_calc_tex.py`)または Web UI(`frontend/spa` の React SPA、または `frontend/web` の軽量静的サイト。いずれも `backend/app.py` の Flask API を共通利用する、issue #88)から生成するツール群。設計意図は [[concept]] を参照。旧 CLI `backend/nuts_calc.py`(ReportLab)は issue #232 で削除され、`nuts_calc_tex.py`(LaTeX)が唯一の実装になった。
 
 ## 技術スタック
 
@@ -10,14 +10,13 @@ CI 定義・パッケージ定義(lock file 等)は Python 側に存在しない
 
 | 項目 | 内容 | 根拠 |
 |---|---|---|
-| CLI 言語 | Python 3 | `backend/nuts_calc.py:1` shebang、`README.md:106` |
-| 主要ライブラリ(CLI) | ReportLab | `backend/nuts_calc.py` の import 群 |
+| CLI 言語 | Python 3 | `backend/nuts_calc_tex.py:1` shebang、`README.md:106` |
+| 主要レンダリング方式(CLI) | LaTeX(既定エンジン `lualatex`、`pdflatex` も選択可、issue #121/#186) | `backend/nuts_calc_tex.py` の `LatexEngineAdapter` 群 |
 | Web バックエンド | Flask + Flask-Cors | `backend/app.py:1-2,7-8`、`README.md:107-108` |
 | Web フロントエンド(spa) | React/ReactDOM 19.1.1 + Vite 7.1.5 + Tailwind CSS 4.1.13 | `frontend/spa/package-lock.json:packages["node_modules/react"|"react-dom"|"vite"|"tailwindcss"].version` |
 | 国際化(spa のみ) | i18next 26.3.6 + react-i18next 17.0.10(英語/日本語) | `frontend/spa/package-lock.json:packages["node_modules/i18next"|"react-i18next"].version`、`frontend/spa/src/i18n.js:1-29` |
 | Web フロントエンド(web) | vanilla JS + Vite(React/i18nライブラリ非依存)+ Sass(日本語のみ、issue #88) | `frontend/web/package.json`、[[../L3_implementation/specification_summary]] |
 | バッチ生成 | Bash(`set -Ceu`) | `backend/factory.sh:1,38` |
-| CLI(実験的プロトタイプ) | `nuts_calc_tex.py`(LaTeX/`pdflatex` レンダリング、`nuts_calc.py` とコード共有なし) | `backend/nuts_calc_tex.py:1`、[[../L3_implementation/nuts_calc_tex.py]] |
 | テスト | pytest(`backend/tests/`、26個の `test_*.py`) + Node.js 組み込み `node:test`(`frontend/spa` 3ファイル、`frontend/web` 2ファイル) | `backend/pytest.ini:1-3`、`backend/tests/`、`frontend/{spa,web}/src/*.test.js` |
 | パッケージマネージャ(Python) | pip(lock file なし。旧 `setup.py` は削除済み、`git log` のコミット `d9fc0a3` で確認) | `README.md:13-14` は pip インストールを謳うが検証すると裏付けとなるパッケージ定義ファイルは存在しない |
 | パッケージマネージャ(Web) | npm(`frontend/spa`・`frontend/web` それぞれ独立した `package-lock.json` を持つ) | `frontend/spa/package-lock.json`、`frontend/web/package-lock.json` |
@@ -25,25 +24,25 @@ CI 定義・パッケージ定義(lock file 等)は Python 側に存在しない
 
 ## 主要機能(実装から確認)
 
-`nuts_calc.py` の `command` 引数で切り替わる7種類の生成モード(旧 `100masu.py` から機能・行番号ともに概ね踏襲、リネームはコミット `d9fc0a3`):
+`nuts_calc_tex.py` の `command` 引数で切り替わる、以下を含む20種類の生成モード。うち7種類(`ope`/`com`/`100`/`99`/`aBc`/`squ`/`pi`)は旧 `nuts_calc.py`(ReportLab、issue #232 で削除)から意味論を踏襲しつつ独立に再実装されたもの、残り13種類(分数・混合・比較・数論・変換系)はLaTeX専用の後発コマンドである:
 
-1. `ope` — 四則演算(加減乗除、`--operator`、`--intermediate` で4桁変換法の中間式表示)
+1. `ope` — 四則演算(加減乗除、`--operator`、`--intermediate` で4桁変換法の中間式表示。小数・繰り上がり/繰り下がり・余り・かっこ付き/N項/虫食い式・最終結果上限 `--result-max` にも対応)
 2. `com` — 補数
 3. `100` — 100マス計算
 4. `99` — 九九
 5. `aBc` — 4桁→3桁変換の暗算トレーニング
 6. `squ` — 平方数
 7. `pi` — 円周率(3.14)倍
+8. `frac`/`mixed` — 分数・整数/小数/分数混在の四則演算
+9. `compare` — 分数・整数・小数の大小比較
+10. `evenodd`/`multiples`/`divisors`/`lcm`/`gcd` — 数の性質(偶数奇数判定・倍数・約数・最小公倍数・最大公約数)
+11. `simplify`/`commondenom`/`frac2dec`/`dec2frac`/`divfrac` — 分数・小数の表現変換
 
-**実機確認**: 上記7コマンドすべてが `python3 nuts_calc.py A4 <command> ...` で正常に完了し、PDF/CSV を生成することを確認済み。旧 `100masu.py:158` にあった `ini.intermediate` 未定義参照バグ([[../L0_concept/policy]] 参照)は解消されている。
-
-### `nuts_calc_tex.py`(実験的プロトタイプ)
-
-`nuts_calc.py` と同じ7コマンドにLaTeX専用の分数・混合・比較・数論・変換系を加えた計20コマンドをレンダリングする独立プロトタイプ。`ope` は小数、繰り上がり・繰り下がり、余り、かっこ付き/N項/虫食い式、最終結果上限(`--result-max`)に対応する。Webでは `latex` がデフォルトかつ唯一到達可能なレンダラーのため(issue #186)、LaTeX専用カードは常に表示される。`factory.sh` からは呼ばれない(`backend/nuts_calc_tex.py:124-449`)。
+**実機確認**: 全20コマンドが `python3 nuts_calc_tex.py A4 <command> ...` で正常に完了し、PDF/CSV を生成することを確認済み(`backend/nuts_calc_tex.py:124-449`)。Webでは `latex` がデフォルトかつ唯一到達可能なレンダラーのため(issue #186)、LaTeX専用カードは常に表示される。`factory.sh`(issue #232 で `nuts_calc.py` から切替済み)は上記のうち `ope`/`aBc`/`squ`/`99` のみを呼び出す。
 
 ### Web バックエンド(`backend/`、`frontend/spa`・`frontend/web` 共通)
 
-- `backend/app.py`: Flask アプリ。エンドポイントは `POST /generate-pdf`(PDF生成)、`POST /generate-problems`(PDFを生成せず問題データのみJSONで返す、issue #138)、`GET /renderer-info`(現在有効なレンダラー名の取得、issue #46)の3つ。コマンド構築・レンダラー選択・subprocess 実行のロジックは `backend/renderers.py`(issue #36)に切り出されており、env 変数 `NUTS_CALC_RENDERER`(デフォルト `latex`、issue #186 で `reportlab` から変更)で切り替える。`reportlab`(`nuts_calc.py`)は明示指定しても「利用不可」の明確なエラーになり到達不能(コード自体は削除していない)。`POST /generate-problems`(現時点では `command_type='ope'` のみ)は `backend/problem_generation.py` が CLI の生成関数をプロセス内で直接呼び出す例外で、subprocess は起動しない。詳細は [[../L3_implementation/api]]・[[../L3_implementation/specification_summary]] を参照。
+- `backend/app.py`: Flask アプリ。エンドポイントは `POST /generate-pdf`(PDF生成)、`POST /generate-problems`(PDFを生成せず問題データのみJSONで返す、issue #138)、`GET /renderer-info`(現在有効なレンダラー名の取得、issue #46)の3つ。コマンド構築・レンダラー選択・subprocess 実行のロジックは `backend/renderers.py`(issue #36)に切り出されており、env 変数 `NUTS_CALC_RENDERER`(デフォルト `latex`、issue #186 で `reportlab` から変更)で切り替える。切り替えの仕組み自体は将来の別レンダラー追加に備えて温存しているが、`reportlab`(`nuts_calc.py`)は issue #232 でコード自体が削除され、明示指定は他の未知の値と同じ汎用エラーで拒否される。`POST /generate-problems` は `command_type='ope'` に加え `com`/`99`/`aBc`/`squ`/`pi`/`frac`/`mixed`/`compare`/`evenodd`/`multiples`/`divisors`/`lcm`/`gcd`/`simplify`/`commondenom`/`frac2dec`/`dec2frac`/`divfrac` の計19種類に対応する(`100` のみ対象外、[[../L3_implementation/api]] 参照)。`backend/problem_generation.py` が CLI の生成関数をプロセス内で直接呼び出す例外で、subprocess は起動しない。詳細は [[../L3_implementation/api]]・[[../L3_implementation/specification_summary]] を参照。
 
 ### Web フロントエンド(spa): `frontend/spa`(React SPA)
 
@@ -57,16 +56,15 @@ React・i18n ライブラリを使わず(日本語のみ対応)、HTML/CSS(Sass)
 
 ## 補助機能
 
-- 用紙サイズ4種(A3/A4/A4横/B5)とページ分割: `nuts_calc.py`(旧 `100masu.py` から踏襲)。
+- 用紙サイズ4種(A3/A4/A4横/B5)とページ分割: `nuts_calc_tex.py`(旧 `nuts_calc.py`/`100masu.py` から意味論を踏襲)。
 - 解答を別紙/同一紙に赤字/末尾にまとめての切り替え(`--merge`, `--with-bottom-answer`)。
 - CSV 出力オプション(`--csv`, `--debug`)。
-- `factory.sh` によるバッチ生成。`python nuts_calc.py` という呼び出しに変更され(旧: 裸の `100masu.py`)、`PATH` 解決の曖昧さが軽減されている(`backend/factory.sh:127` 等)。
+- `factory.sh` によるバッチ生成。呼び出し先を `python nuts_calc.py` から `python nuts_calc_tex.py` に変更した(issue #232)。CLI引数体系が両スクリプトで一致していたため再設計は不要だった(`backend/factory.sh:127` 等)。
 
 ## エントリポイント
 
-- `backend/nuts_calc.py` — CLI 単体実行: `python3 nuts_calc.py <paper_size> <command> [options]`(`backend/` ディレクトリ内で実行)
-- `backend/nuts_calc_tex.py` — 実験的 LaTeX プロトタイプの単体実行: `python3 nuts_calc_tex.py <paper_size> <command> [options]`(要 `pdflatex`、`backend/` ディレクトリ内で実行)
-- `backend/factory.sh` — バッチ実行(`python nuts_calc.py` を内部で呼び出す。`backend/` ディレクトリ内での実行を前提)
+- `backend/nuts_calc_tex.py` — CLI 単体実行: `python3 nuts_calc_tex.py <paper_size> <command> [options]`(要 `pdflatex`/`lualatex`、`backend/` ディレクトリ内で実行)。旧 CLI `backend/nuts_calc.py`(ReportLab)は issue #232 で削除された。
+- `backend/factory.sh` — バッチ実行(`python nuts_calc_tex.py` を内部で呼び出す。`backend/` ディレクトリ内での実行を前提)
 - `backend/app.py` — Flask サーバー起動: `python app.py`(`backend/` ディレクトリ内で実行、`http://127.0.0.1:5000`。`frontend/spa`・`frontend/web` 共通)
 - `frontend/spa/src/main.jsx` — React アプリのエントリ。`npm run dev`(`http://localhost:5173`)または `npm run build` で起動/ビルド
 - `frontend/web/{index,catalog,preset}.html` — 静的サイトの3エントリ。`npm run dev`(Vite dev server)または `npm run build` で起動/ビルド(`frontend/web/vite.config.js:8-12`)

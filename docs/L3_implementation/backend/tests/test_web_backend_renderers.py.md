@@ -6,7 +6,7 @@ FlaskバックエンドがPDF生成リクエストを正しいCLI引数へ変換
 
 ## 動作概要
 
-`build_command()` の位置引数、値付きオプション、真偽フラグ、LaTeX専用パラメーター変換を検証する。`result_max` は `--result-max 1000` へ変換されることを任意スカラー群のテストで固定する(`backend/tests/test_web_backend_renderers.py:68-83`)。分数・小数・繰り上がり・余り・N項式などの既存変換もそれぞれ独立して検証する。
+`build_command()` の位置引数、値付きオプション、真偽フラグ、LaTeX専用パラメーター変換を検証する。`result_max` は `--result-max 1000` へ変換されることを任意スカラー群のテストで固定する。分数・小数・繰り上がり・余り・N項式などの既存変換もそれぞれ独立して検証する。`get_renderer_name()` が `reportlab`(削除済み)を含む未知の値を一律 `Unknown NUTS_CALC_RENDERER value` で拒否することも検証する(issue #232、`test_get_renderer_name_rejects_removed_reportlab`)。issue #232 以前は多くのテストが `renderer_name` を `"reportlab"`/`"latex"` で分けて実行していたが、`build_command()` 自体はレンダラー名に依存しないロジックのため、`"latex"` 固定に統一した。
 
 ## 統合ポイント
 
