@@ -4,13 +4,13 @@ Python data, without a subprocess call and without generating a PDF/LaTeX
 document. This is the data-layer counterpart to renderers.py's
 subprocess-based, PDF-generation (presentation) layer.
 
-Only `command_type == 'ope'` (plain two-term arithmetic, the same shape
-`nuts_calc.py`/`nuts_calc_tex.py` produce with no --use-parentheses/
---missing-value/--terms*/--mixed-operators flags) is supported today.
-Every other command type -- and these `ope` variants -- raise ValueError;
-see issue #166 and its sub-issues for the remaining command types.
+`command_type == 'ope'` is supported, including its --use-parentheses/
+--missing-value/--terms*/--mixed-operators variants (issue #168). Every
+other command type raises ValueError; see issue #166 and its sub-issues
+for the remaining command types.
 """
 
+import dataclasses
 from typing import TypedDict
 
 import nuts_calc
@@ -25,15 +25,6 @@ DEFAULT_OPERATOR = ["add"]
 
 SYMBOL_TO_OPERATOR_NAME = {"+": "add", "-": "sub", "×": "mul", "÷": "div"}
 
-UNSUPPORTED_OPE_VARIANT_FLAGS = (
-    "use_parentheses",
-    "missing_value",
-    "terms",
-    "terms_min",
-    "terms_max",
-    "mixed_operators",
-)
-
 
 class OpeProblemData(TypedDict, total=False):
     index: int
@@ -47,7 +38,7 @@ class OpeProblemData(TypedDict, total=False):
     intermediate_memo: str
 
 
-def generate_problems(params: renderers.RendererRequest, renderer_name: str | None = None) -> list[OpeProblemData]:
+def generate_problems(params: renderers.RendererRequest, renderer_name: str | None = None) -> list[dict[str, object]]:
     """
     Generate `params['num']` problems for `params['command_type']` using
     the active renderer's own data-generation functions, called directly
@@ -60,20 +51,133 @@ def generate_problems(params: renderers.RendererRequest, renderer_name: str | No
             f"command_type {command_type!r} is not yet supported by problem-only "
             "generation; only 'ope' is supported today (see issue #166 and its sub-issues)."
         )
-    for flag in UNSUPPORTED_OPE_VARIANT_FLAGS:
-        if params.get(flag):
-            raise ValueError(
-                f"{flag!r} is not yet supported by problem-only generation for 'ope' "
-                "(see issue #168)."
-            )
 
     num = params.get("num")
     if not isinstance(num, int) or isinstance(num, bool) or num < 1:
         raise ValueError("num must be a positive integer")
 
+    variant, terms_min, terms_max = _determine_ope_variant(params)
+    if variant is not None:
+        if renderer_name == "reportlab":
+            raise ValueError(
+                f"ope's {variant!r} variant is not supported by the reportlab renderer "
+                "(nuts_calc.py has no --use-parentheses/--missing-value/--terms equivalent)."
+            )
+        if variant == "tree":
+            return _generate_tree_ope_problems(params, num, terms_min, terms_max)
+        if variant == "missing_value":
+            return _generate_missing_value_problems(params, num)
+        return _generate_multi_term_ope_problems(params, num, terms_min, terms_max)
+
     if renderer_name == "reportlab":
         return _generate_ope_problems_reportlab(params, num)
     return _generate_ope_problems_latex(params, num)
+
+
+def _determine_ope_variant(params: renderers.RendererRequest) -> tuple[str | None, int, int]:
+    """
+    Decide which `ope` problem shape `params` requests -- 'tree'
+    (--use-parentheses), 'missing_value' (--missing-value), 'multi_term'
+    (--terms/--terms-min/--terms-max/--mixed-operators), or None (plain
+    2-term) -- and resolve/validate the term-count range the same way
+    nuts_calc_tex.py's _init() does (nuts_calc_tex.py:606-645,712-715),
+    since this endpoint bypasses argparse and its defaults/validation.
+    """
+    use_parentheses = bool(params.get("use_parentheses", False))
+    missing_value = bool(params.get("missing_value", False))
+    mixed_operators = bool(params.get("mixed_operators", False))
+    terms = params.get("terms")
+    terms_min = params.get("terms_min", nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT)
+    terms_max = params.get("terms_max", nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT)
+    if terms is not None:
+        terms_min = terms_max = terms
+
+    terms_options_given = (
+        terms is not None
+        or terms_min != nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT
+        or terms_max != nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT
+        or mixed_operators
+    )
+
+    if missing_value and use_parentheses:
+        raise ValueError("missing_value cannot be combined with use_parentheses.")
+    if missing_value and terms_options_given:
+        raise ValueError(
+            "missing_value cannot be combined with the terms family "
+            "(terms/terms_min/terms_max/mixed_operators)."
+        )
+    if terms_options_given and terms_min > terms_max:
+        raise ValueError("terms_min must be less than or equal to terms_max.")
+
+    if use_parentheses or terms_options_given:
+        terms_min, terms_max = nuts_calc_tex.resolve_term_range(terms_min, terms_max, use_parentheses)
+
+    if use_parentheses:
+        return "tree", terms_min, terms_max
+    if missing_value:
+        return "missing_value", terms_min, terms_max
+    if terms_options_given:
+        return "multi_term", terms_min, terms_max
+    return None, terms_min, terms_max
+
+
+def _dataclass_to_dict(value: object) -> object:
+    """
+    Recursively convert a dataclass instance (and any nested dataclasses/
+    lists) into plain JSON-serializable dicts/lists, using field names
+    as-is -- the JSON contract decided in issue #167 for non-2-term `ope`
+    problem shapes (docs/L3_implementation/backend/problem_generation.py.md).
+    """
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        return {field.name: _dataclass_to_dict(getattr(value, field.name)) for field in dataclasses.fields(value)}
+    if isinstance(value, list):
+        return [_dataclass_to_dict(item) for item in value]
+    return value
+
+
+def _generate_tree_ope_problems(
+    params: renderers.RendererRequest, num: int, terms_min: int, terms_max: int,
+) -> list[dict[str, object]]:
+    a_min, a_max = _resolve_ope_range(params, "a_value", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
+    b_min, b_max = _resolve_ope_range(params, "b_value", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
+    operator = list(params.get("operator") or DEFAULT_OPERATOR)
+    mixed_operators = bool(params.get("mixed_operators", False))
+
+    nums_a = list(range(a_min, a_max + 1))
+    nums_b = list(range(b_min, b_max + 1))
+    problems = nuts_calc_tex.generate_tree_ope_problems(
+        nums_a, nums_b, operator, mixed_operators, terms_min, terms_max, num, 1, params.get("result_max"),
+    )
+    return [_dataclass_to_dict(problem) for problem in problems]
+
+
+def _generate_multi_term_ope_problems(
+    params: renderers.RendererRequest, num: int, terms_min: int, terms_max: int,
+) -> list[dict[str, object]]:
+    a_min, a_max = _resolve_ope_range(params, "a_value", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
+    b_min, b_max = _resolve_ope_range(params, "b_value", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
+    operator = list(params.get("operator") or DEFAULT_OPERATOR)
+    mixed_operators = bool(params.get("mixed_operators", False))
+
+    nums_a = list(range(a_min, a_max + 1))
+    nums_b = list(range(b_min, b_max + 1))
+    problems = nuts_calc_tex.generate_multi_term_ope_problems(
+        nums_a, nums_b, operator, mixed_operators, terms_min, terms_max, num, 1, params.get("result_max"),
+    )
+    return [_dataclass_to_dict(problem) for problem in problems]
+
+
+def _generate_missing_value_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+    a_min, a_max = _resolve_ope_range(params, "a_value", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
+    b_min, b_max = _resolve_ope_range(params, "b_value", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
+    operator = list(params.get("operator") or DEFAULT_OPERATOR)
+
+    nums_a = list(range(a_min, a_max + 1))
+    nums_b = list(range(b_min, b_max + 1))
+    problems = nuts_calc_tex.generate_missing_value_problems(
+        nums_a, nums_b, operator, num, 1, params.get("result_max"),
+    )
+    return [_dataclass_to_dict(problem) for problem in problems]
 
 
 def _resolve_ope_range(

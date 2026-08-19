@@ -13,6 +13,7 @@ sys.path.insert(0, str(BACKEND_DIR))
 
 import pytest
 
+import nuts_calc_tex  # noqa: E402
 import problem_generation  # noqa: E402
 
 
@@ -91,12 +92,102 @@ def test_generate_problems_rejects_unsupported_command_type() -> None:
         problem_generation.generate_problems({"paper_size": "A4", "command_type": "frac", "num": 1}, "latex")
 
 
-@pytest.mark.parametrize(
-    "flag", ["use_parentheses", "missing_value", "terms", "terms_min", "terms_max", "mixed_operators"]
-)
-def test_generate_problems_rejects_unsupported_ope_variant_flags(flag: str) -> None:
-    params = {"paper_size": "A4", "command_type": "ope", "num": 1, flag: True}
-    with pytest.raises(ValueError, match="not yet supported"):
+@pytest.mark.parametrize("flag", ["use_parentheses", "missing_value", "terms"])
+def test_generate_problems_rejects_ope_variant_flags_for_reportlab(flag: str) -> None:
+    params = {"paper_size": "A4", "command_type": "ope", "num": 1, flag: True if flag != "terms" else 4}
+    with pytest.raises(ValueError, match="not supported by the reportlab renderer"):
+        problem_generation.generate_problems(params, "reportlab")
+
+
+def test_generate_problems_use_parentheses_returns_tree_shaped_problems() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "ope", "num": 10,
+        "a_min": 1, "a_max": 9, "b_min": 1, "b_max": 9, "operator": ["add"], "use_parentheses": True,
+    }
+    problems = problem_generation.generate_problems(params, "latex")
+    assert len(problems) == 10
+    for problem in problems:
+        assert set(problem) == {"index", "operands", "operators", "tree", "result"}
+        assert len(problem["operands"]) == 3  # default term count floor for --use-parentheses is 3
+        assert len(problem["operators"]) == 2
+        assert isinstance(problem["tree"], dict)
+        assert set(problem["tree"]) == {"value", "operator", "left", "right"}
+
+
+def test_generate_problems_use_parentheses_with_terms_range() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "ope", "num": 5,
+        "a_min": 1, "a_max": 9, "b_min": 1, "b_max": 9, "operator": ["add"],
+        "use_parentheses": True, "terms_min": 4, "terms_max": 4,
+    }
+    problems = problem_generation.generate_problems(params, "latex")
+    assert all(len(problem["operands"]) == 4 for problem in problems)
+
+
+def test_generate_problems_missing_value_returns_solvable_equations() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "ope", "num": 20,
+        "a_min": 10, "a_max": 99, "b_min": 1, "b_max": 9, "operator": ["add"], "missing_value": True,
+    }
+    problems = problem_generation.generate_problems(params, "latex")
+    assert len(problems) == 20
+    for problem in problems:
+        assert set(problem) == {"index", "a", "b", "operator", "c", "blank"}
+        assert problem["blank"] in ("a", "b")
+        assert problem["a"] + problem["b"] == problem["c"]
+
+
+def test_generate_problems_terms_family_returns_multi_term_problems() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "ope", "num": 10,
+        "a_min": 1, "a_max": 9, "b_min": 1, "b_max": 9, "operator": ["add"], "terms": 4,
+    }
+    problems = problem_generation.generate_problems(params, "latex")
+    assert len(problems) == 10
+    for problem in problems:
+        assert set(problem) == {"index", "operands", "operators", "mixed", "result"}
+        assert len(problem["operands"]) == 4
+        assert len(problem["operators"]) == 3
+        assert problem["mixed"] is False
+        total = problem["operands"][0]
+        for operand in problem["operands"][1:]:
+            total += operand
+        assert total == problem["result"]
+
+
+def test_generate_problems_terms_family_with_mixed_operators() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "ope", "num": 10,
+        "a_min": 1, "a_max": 9, "b_min": 1, "b_max": 9,
+        "operator": ["add", "sub", "mul"], "terms_min": 3, "terms_max": 5, "mixed_operators": True,
+    }
+    problems = problem_generation.generate_problems(params, "latex")
+    assert len(problems) == 10
+    for problem in problems:
+        assert problem["mixed"] is True
+        assert 3 <= len(problem["operands"]) <= 5
+        expected = nuts_calc_tex.evaluate_mixed_expression(problem["operands"], problem["operators"])
+        assert expected == problem["result"]
+
+
+def test_generate_problems_missing_value_rejects_use_parentheses_combo() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "ope", "num": 1,
+        "missing_value": True, "use_parentheses": True,
+    }
+    with pytest.raises(ValueError, match="missing_value cannot be combined with use_parentheses"):
+        problem_generation.generate_problems(params, "latex")
+
+
+def test_generate_problems_missing_value_rejects_terms_combo() -> None:
+    params = {"paper_size": "A4", "command_type": "ope", "num": 1, "missing_value": True, "terms": 4}
+    with pytest.raises(ValueError, match="missing_value cannot be combined with the terms family"):
+        problem_generation.generate_problems(params, "latex")
+
+
+def test_generate_problems_rejects_terms_min_greater_than_terms_max() -> None:
+    params = {"paper_size": "A4", "command_type": "ope", "num": 1, "terms_min": 5, "terms_max": 3}
+    with pytest.raises(ValueError, match="terms_min must be less than or equal to terms_max"):
         problem_generation.generate_problems(params, "latex")
 
 
