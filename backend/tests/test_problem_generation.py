@@ -1,8 +1,11 @@
 """Unit tests for backend/problem_generation.py's in-process, PDF-free
 problem generation (issue #138).
 
-These call `nuts_calc.py`/`nuts_calc_tex.py`'s data-generation functions
-directly (no subprocess, no PDF/LaTeX byte output, no pdflatex required).
+These call `nuts_calc_tex.py`'s data-generation functions directly (no
+subprocess, no PDF/LaTeX byte output, no pdflatex required). Prior to issue
+#232, `renderer_name` was parametrized over `["reportlab", "latex"]` in most
+of these tests; nuts_calc.py/reportlab has since been removed, so there is
+only one implementation to exercise and the parametrization was dropped.
 """
 
 import math
@@ -19,21 +22,19 @@ import nuts_calc_tex  # noqa: E402
 import problem_generation  # noqa: E402
 
 
-@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
-def test_generate_problems_returns_exactly_num_problems(renderer_name: str) -> None:
+def test_generate_problems_returns_exactly_num_problems() -> None:
     params = {"paper_size": "A4", "command_type": "ope", "num": 7, "operator": ["add"]}
-    problems = problem_generation.generate_problems(params, renderer_name)
+    problems = problem_generation.generate_problems(params)
     assert len(problems) == 7
 
 
-@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
 @pytest.mark.parametrize("operator", ["add", "sub", "mul", "div"])
-def test_generate_problems_problem_values_are_consistent(renderer_name: str, operator: str) -> None:
+def test_generate_problems_problem_values_are_consistent(operator: str) -> None:
     params = {
         "paper_size": "A4", "command_type": "ope", "num": 20,
         "a_min": 10, "a_max": 99, "b_min": 1, "b_max": 9, "operator": [operator],
     }
-    problems = problem_generation.generate_problems(params, renderer_name)
+    problems = problem_generation.generate_problems(params)
     assert len(problems) == 20
     for problem in problems:
         assert problem["operator"] == operator
@@ -48,23 +49,21 @@ def test_generate_problems_problem_values_are_consistent(renderer_name: str, ope
             assert a == b * result + remainder
 
 
-@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
-def test_generate_problems_a_value_shorthand_derives_range(renderer_name: str) -> None:
+def test_generate_problems_a_value_shorthand_derives_range() -> None:
     params = {"paper_size": "A4", "command_type": "ope", "num": 10, "a_value": 1, "b_value": 1, "operator": ["add"]}
-    problems = problem_generation.generate_problems(params, renderer_name)
+    problems = problem_generation.generate_problems(params)
     for problem in problems:
         assert 1 <= problem["a"] <= 9
         assert 1 <= problem["b"] <= 9
 
 
-@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
-def test_generate_problems_intermediate_includes_memo(renderer_name: str) -> None:
+def test_generate_problems_intermediate_includes_memo() -> None:
     params = {
         "paper_size": "A4", "command_type": "ope", "num": 5,
         "a_min": 10, "a_max": 99, "b_min": 1, "b_max": 9,
         "operator": ["mul"], "intermediate": True,
     }
-    problems = problem_generation.generate_problems(params, renderer_name)
+    problems = problem_generation.generate_problems(params)
     assert len(problems) == 5
     for problem in problems:
         assert "intermediate_memo" in problem
@@ -72,33 +71,24 @@ def test_generate_problems_intermediate_includes_memo(renderer_name: str) -> Non
         assert problem["intermediate_memo"] == f"{tens_digit * problem['b']:02d}{ones_digit * problem['b']:02d}"
 
 
-@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
-def test_generate_problems_intermediate_rejects_non_mul_operator(renderer_name: str) -> None:
+def test_generate_problems_intermediate_rejects_non_mul_operator() -> None:
     params = {"paper_size": "A4", "command_type": "ope", "num": 1, "operator": ["add"], "intermediate": True}
     with pytest.raises(ValueError, match="intermediate only supports a single 'mul' operator"):
-        problem_generation.generate_problems(params, renderer_name)
+        problem_generation.generate_problems(params)
 
 
-@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
-def test_generate_problems_intermediate_rejects_multi_digit_b_max(renderer_name: str) -> None:
+def test_generate_problems_intermediate_rejects_multi_digit_b_max() -> None:
     params = {
         "paper_size": "A4", "command_type": "ope", "num": 1,
         "operator": ["mul"], "b_max": 10, "intermediate": True,
     }
     with pytest.raises(ValueError, match="single-digit second operand"):
-        problem_generation.generate_problems(params, renderer_name)
+        problem_generation.generate_problems(params)
 
 
 def test_generate_problems_rejects_unsupported_command_type() -> None:
     with pytest.raises(ValueError, match="not yet supported"):
         problem_generation.generate_problems({"paper_size": "A4", "command_type": "unknown_command", "num": 1}, "latex")
-
-
-@pytest.mark.parametrize("flag", ["use_parentheses", "missing_value", "terms"])
-def test_generate_problems_rejects_ope_variant_flags_for_reportlab(flag: str) -> None:
-    params = {"paper_size": "A4", "command_type": "ope", "num": 1, flag: True if flag != "terms" else 4}
-    with pytest.raises(ValueError, match="not supported by the reportlab renderer"):
-        problem_generation.generate_problems(params, "reportlab")
 
 
 def test_generate_problems_use_parentheses_returns_tree_shaped_problems() -> None:
@@ -197,7 +187,7 @@ def test_generate_problems_rejects_terms_min_greater_than_terms_max() -> None:
 def test_generate_problems_rejects_invalid_num(num: object) -> None:
     params = {"paper_size": "A4", "command_type": "ope", "num": num}
     with pytest.raises(ValueError, match="num must be a positive integer"):
-        problem_generation.generate_problems(params, "reportlab")
+        problem_generation.generate_problems(params, "latex")
 
 
 def test_generate_problems_latex_remainder_mode_required_yields_nonzero_remainder() -> None:
@@ -226,10 +216,9 @@ def test_generate_problems_hundred_square_is_explicitly_unsupported() -> None:
         problem_generation.generate_problems(params, "latex")
 
 
-@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
-def test_generate_problems_com_returns_valid_complement_problems(renderer_name: str) -> None:
+def test_generate_problems_com_returns_valid_complement_problems() -> None:
     params = {"paper_size": "A4", "command_type": "com", "num": 10, "a_value": 10}
-    problems = problem_generation.generate_problems(params, renderer_name)
+    problems = problem_generation.generate_problems(params)
     assert len(problems) == 10
     for problem in problems:
         assert set(problem) == {"index", "a", "target", "c"}
@@ -250,10 +239,9 @@ def test_generate_problems_com_rejects_target_below_minimum() -> None:
         problem_generation.generate_problems(params, "latex")
 
 
-@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
-def test_generate_problems_kuku_returns_valid_times_table_problems(renderer_name: str) -> None:
+def test_generate_problems_kuku_returns_valid_times_table_problems() -> None:
     params = {"paper_size": "A4", "command_type": "99", "num": 9, "a_value": 7}
-    problems = problem_generation.generate_problems(params, renderer_name)
+    problems = problem_generation.generate_problems(params)
     assert len(problems) == 9
     for problem in problems:
         assert set(problem) == {"index", "a", "b", "c"}
@@ -267,10 +255,9 @@ def test_generate_problems_kuku_requires_a_value() -> None:
         problem_generation.generate_problems(params, "latex")
 
 
-@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
-def test_generate_problems_abc_returns_valid_conversion_problems(renderer_name: str) -> None:
+def test_generate_problems_abc_returns_valid_conversion_problems() -> None:
     params = {"paper_size": "A4", "command_type": "aBc", "num": 10}
-    problems = problem_generation.generate_problems(params, renderer_name)
+    problems = problem_generation.generate_problems(params)
     assert len(problems) == 10
     for problem in problems:
         assert set(problem) == {"index", "a", "b", "c", "d"}
@@ -278,10 +265,9 @@ def test_generate_problems_abc_returns_valid_conversion_problems(renderer_name: 
             assert 0 <= problem[digit_key] <= 9
 
 
-@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
-def test_generate_problems_squ_returns_valid_square_problems(renderer_name: str) -> None:
+def test_generate_problems_squ_returns_valid_square_problems() -> None:
     params = {"paper_size": "A4", "command_type": "squ", "num": 5, "a_value": 3}
-    problems = problem_generation.generate_problems(params, renderer_name)
+    problems = problem_generation.generate_problems(params)
     assert len(problems) == 5
     for problem in problems:
         assert set(problem) == {"index", "a", "c"}
@@ -294,10 +280,9 @@ def test_generate_problems_squ_requires_a_value() -> None:
         problem_generation.generate_problems(params, "latex")
 
 
-@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
-def test_generate_problems_pi_returns_valid_pi_multiplication_problems(renderer_name: str) -> None:
+def test_generate_problems_pi_returns_valid_pi_multiplication_problems() -> None:
     params = {"paper_size": "A4", "command_type": "pi", "num": 5, "a_value": 3}
-    problems = problem_generation.generate_problems(params, renderer_name)
+    problems = problem_generation.generate_problems(params)
     assert len(problems) == 5
     for problem in problems:
         assert set(problem) == {"index", "a", "c"}
@@ -310,13 +295,12 @@ def test_generate_problems_pi_requires_a_value() -> None:
         problem_generation.generate_problems(params, "latex")
 
 
-@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
-def test_generate_problems_frac_returns_valid_fraction_problems(renderer_name: str) -> None:
+def test_generate_problems_frac_returns_valid_fraction_problems() -> None:
     params = {
         "paper_size": "A4", "command_type": "frac", "num": 8,
         "numerator_digits": 1, "denominator_digits": 1, "operator": ["add"],
     }
-    problems = problem_generation.generate_problems(params, renderer_name)
+    problems = problem_generation.generate_problems(params)
     assert len(problems) == 8
     for problem in problems:
         assert set(problem) == {"index", "a", "b", "operator", "c", "mixed_number_display"}
@@ -398,13 +382,12 @@ def test_generate_problems_frac_reducible_mode_required_yields_reducible_product
         assert math.gcd(raw_numerator, raw_denominator) > 1
 
 
-@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
-def test_generate_problems_mixed_returns_valid_mixed_problems(renderer_name: str) -> None:
+def test_generate_problems_mixed_returns_valid_mixed_problems() -> None:
     params = {
         "paper_size": "A4", "command_type": "mixed", "num": 6,
         "a_kind": ["int"], "b_kind": ["int"], "operator": ["add"],
     }
-    problems = problem_generation.generate_problems(params, renderer_name)
+    problems = problem_generation.generate_problems(params)
     assert len(problems) == 6
     for problem in problems:
         assert set(problem) == {"index", "operands", "operators", "mixed", "result"}
@@ -507,15 +490,14 @@ def _operand_value(operand: dict) -> Fraction:
     )
 
 
-@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
-def test_generate_problems_compare_defaults_to_fraction_vs_fraction(renderer_name: str) -> None:
+def test_generate_problems_compare_defaults_to_fraction_vs_fraction() -> None:
     """issue #171: with no a_kind/b_kind given, compare keeps its original
     fraction-vs-fraction-only behavior."""
     params = {
         "paper_size": "A4", "command_type": "compare", "num": 8,
         "numerator_digits": 1, "denominator_digits": 1,
     }
-    problems = problem_generation.generate_problems(params, renderer_name)
+    problems = problem_generation.generate_problems(params)
     assert len(problems) == 8
     for problem in problems:
         assert set(problem) == {"index", "a", "b", "relation"}
@@ -560,10 +542,9 @@ def test_generate_problems_compare_pattern_requires_fraction_kinds() -> None:
         problem_generation.generate_problems(params, "latex")
 
 
-@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
-def test_generate_problems_evenodd_returns_valid_judgment_problems(renderer_name: str) -> None:
+def test_generate_problems_evenodd_returns_valid_judgment_problems() -> None:
     params = {"paper_size": "A4", "command_type": "evenodd", "num": 10, "a_min": 1, "a_max": 20}
-    problems = problem_generation.generate_problems(params, renderer_name)
+    problems = problem_generation.generate_problems(params)
     assert len(problems) == 10
     for problem in problems:
         assert set(problem) == {"index", "a", "is_even"}
@@ -571,13 +552,12 @@ def test_generate_problems_evenodd_returns_valid_judgment_problems(renderer_name
         assert problem["is_even"] == (problem["a"] % 2 == 0)
 
 
-@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
-def test_generate_problems_multiples_returns_valid_multiples_lists(renderer_name: str) -> None:
+def test_generate_problems_multiples_returns_valid_multiples_lists() -> None:
     params = {
         "paper_size": "A4", "command_type": "multiples", "num": 6,
         "a_min": 2, "a_max": 9, "multiples_count": 3,
     }
-    problems = problem_generation.generate_problems(params, renderer_name)
+    problems = problem_generation.generate_problems(params)
     assert len(problems) == 6
     for problem in problems:
         assert set(problem) == {"index", "a", "multiples"}
@@ -602,10 +582,9 @@ def test_generate_problems_multiples_rejects_multiples_count_below_minimum() -> 
         problem_generation.generate_problems(params, "latex")
 
 
-@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
-def test_generate_problems_divisors_returns_valid_divisor_lists(renderer_name: str) -> None:
+def test_generate_problems_divisors_returns_valid_divisor_lists() -> None:
     params = {"paper_size": "A4", "command_type": "divisors", "num": 6, "a_min": 2, "a_max": 20}
-    problems = problem_generation.generate_problems(params, renderer_name)
+    problems = problem_generation.generate_problems(params)
     assert len(problems) == 6
     for problem in problems:
         assert set(problem) == {"index", "a", "divisors"}
@@ -619,16 +598,13 @@ def test_generate_problems_divisors_rejects_a_min_below_one() -> None:
         problem_generation.generate_problems(params, "latex")
 
 
-@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
 @pytest.mark.parametrize("command_type,compute", [("lcm", math.lcm), ("gcd", math.gcd)])
-def test_generate_problems_number_pair_returns_valid_results(
-    renderer_name: str, command_type: str, compute,
-) -> None:
+def test_generate_problems_number_pair_returns_valid_results(command_type: str, compute) -> None:
     params = {
         "paper_size": "A4", "command_type": command_type, "num": 8,
         "a_min": 2, "a_max": 12, "b_min": 2, "b_max": 12,
     }
-    problems = problem_generation.generate_problems(params, renderer_name)
+    problems = problem_generation.generate_problems(params)
     assert len(problems) == 8
     for problem in problems:
         assert set(problem) == {"index", "a", "b", "c"}
@@ -644,13 +620,12 @@ def test_generate_problems_number_pair_a_value_shorthand_derives_range(command_t
         assert 1 <= problem["b"] <= 9
 
 
-@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
-def test_generate_problems_simplify_returns_reducible_fraction_problems(renderer_name: str) -> None:
+def test_generate_problems_simplify_returns_reducible_fraction_problems() -> None:
     params = {
         "paper_size": "A4", "command_type": "simplify", "num": 8,
         "numerator_digits": 2, "denominator_digits": 2,
     }
-    problems = problem_generation.generate_problems(params, renderer_name)
+    problems = problem_generation.generate_problems(params)
     assert len(problems) == 8
     for problem in problems:
         assert set(problem) == {"index", "operand", "reduced"}
@@ -666,13 +641,12 @@ def test_generate_problems_simplify_rejects_digits_out_of_range() -> None:
         problem_generation.generate_problems(params, "latex")
 
 
-@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
-def test_generate_problems_commondenom_returns_shared_denominator_problems(renderer_name: str) -> None:
+def test_generate_problems_commondenom_returns_shared_denominator_problems() -> None:
     params = {
         "paper_size": "A4", "command_type": "commondenom", "num": 6,
         "numerator_digits": 1, "denominator_digits": 1,
     }
-    problems = problem_generation.generate_problems(params, renderer_name)
+    problems = problem_generation.generate_problems(params)
     assert len(problems) == 6
     for problem in problems:
         assert set(problem) == {"index", "a", "b", "a_converted", "b_converted"}
@@ -694,13 +668,12 @@ def test_generate_problems_commondenom_rejects_digits_out_of_range() -> None:
         problem_generation.generate_problems(params, "latex")
 
 
-@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
-def test_generate_problems_frac2dec_returns_terminating_decimal_problems(renderer_name: str) -> None:
+def test_generate_problems_frac2dec_returns_terminating_decimal_problems() -> None:
     params = {
         "paper_size": "A4", "command_type": "frac2dec", "num": 6,
         "numerator_digits": 1, "denominator_digits": 2,
     }
-    problems = problem_generation.generate_problems(params, renderer_name)
+    problems = problem_generation.generate_problems(params)
     assert len(problems) == 6
     for problem in problems:
         assert set(problem) == {"index", "operand", "decimal_places", "scaled_numerator", "decimal_display"}
@@ -716,10 +689,9 @@ def test_generate_problems_frac2dec_rejects_digits_out_of_range() -> None:
         problem_generation.generate_problems(params, "latex")
 
 
-@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
-def test_generate_problems_dec2frac_returns_reduced_fraction_problems(renderer_name: str) -> None:
+def test_generate_problems_dec2frac_returns_reduced_fraction_problems() -> None:
     params = {"paper_size": "A4", "command_type": "dec2frac", "num": 6}
-    problems = problem_generation.generate_problems(params, renderer_name)
+    problems = problem_generation.generate_problems(params)
     assert len(problems) == 6
     for problem in problems:
         assert set(problem) == {"index", "decimal_places", "scaled_numerator", "reduced", "decimal_display"}
@@ -728,13 +700,12 @@ def test_generate_problems_dec2frac_returns_reduced_fraction_problems(renderer_n
         assert problem["reduced"]["denominator"] > 1
 
 
-@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
-def test_generate_problems_divfrac_returns_unreduced_fraction_problems(renderer_name: str) -> None:
+def test_generate_problems_divfrac_returns_unreduced_fraction_problems() -> None:
     params = {
         "paper_size": "A4", "command_type": "divfrac", "num": 8,
         "a_min": 1, "a_max": 9, "b_min": 2, "b_max": 9,
     }
-    problems = problem_generation.generate_problems(params, renderer_name)
+    problems = problem_generation.generate_problems(params)
     assert len(problems) == 8
     for problem in problems:
         assert set(problem) == {"index", "a", "b"}

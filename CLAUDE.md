@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+**チャットはすべて日本語で行うこと**
+
 AI 運用の single source of truth。`AGENTS.md` はこのファイルへの symlink。
 
 ## プロジェクト概要

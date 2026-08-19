@@ -270,7 +270,11 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 
 ### `-a`/`-b` の桁数レンジ変換を `ope` 限定にゲートしている理由
 
-`_init()` は元々、`command` に関わらず `-a/--a-value` が指定されると `set_min_max_value()`(`value` を「桁数」とみなし `digits_list[value - 1]` で範囲を引く、`digits_list` は5要素)で `a_min`/`a_max` に変換していた。`com` は `nuts_calc.py` の意味論を踏襲して `-a` を「桁数」ではなく「補数のターゲット値そのもの」として使うため、`-a 100` のような(5を超える)値を渡すと `digits_list[99]` で無条件 `IndexError` になる潜在バグがあった(issue #22 の実装着手時に発見)。`com` を実装するにあたり、この変換を `command == 'ope'` の場合のみ行うようゲートし、`com` の `a_value` は生の整数のまま `generate_com_problems` に渡るようにした。
+`_init()` は元々、`command` に関わらず `-a/--a-value` が指定されると `set_min_max_value()`(`value` を「桁数」とみなし `DIGIT_COUNT_TO_MIN_MAX[value - 1]` で範囲を引く、5要素のタプル)で `a_min`/`a_max` に変換していた。`com` は `nuts_calc.py`(削除済み、issue #232)の意味論を踏襲して `-a` を「桁数」ではなく「補数のターゲット値そのもの」として使うため、`-a 100` のような(5を超える)値を渡すと `DIGIT_COUNT_TO_MIN_MAX[99]` で無条件 `IndexError` になる潜在バグがあった(issue #22 の実装着手時に発見)。`com` を実装するにあたり、この変換を `command == 'ope'` の場合のみ行うようゲートし、`com` の `a_value` は生の整数のまま `generate_com_problems` に渡るようにした(その後 issue #172 で `lcm`/`gcd`/`divfrac` にも同じ変換対象コマンドとして拡張、issue #43 で `100` も追加)。
+
+### `set_min_max_value()` をモジュールレベル関数にしている理由(issue #232)
+
+元々は `_init()` 内にネストしたローカル関数だった(`nuts_calc.py:90-95` にあった同名関数と独立に、桁数→範囲変換ロジックが2箇所に重複していた)。`nuts_calc.py`/`reportlab` 削除(issue #232)にあたり、`backend/problem_generation.py`(`POST /generate-problems`、`_resolve_ope_range()`)がこの変換を必要とすることが確定したため、`nuts_calc.py:90-95` がかつて同じ理由(issue #138)で辿った経緯と同じパターンで、`nuts_calc_tex.py` 側のこの関数もモジュールレベルへ昇格した(`nuts_calc_tex.py:126-136`)。挙動は変更していない(戻り値の型のみ `list[int]` から `tuple[int, int]` に変更、`problem_generation.py` 側の既存の型注釈に合わせるため)。
 
 ### `--vertical` のグリッドレイアウトを行ごとに独立した `tabular` に分割している理由
 
@@ -351,7 +355,7 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 統合ポイント
 
-- 呼び出し元: CLI 直接実行(`python3 nuts_calc_tex.py <paper_size> <command> ...`)と、`NUTS_CALC_RENDERER=latex` を設定した `backend`。backend は `renderers.py:48-54,170-189` で script を選択し subprocess 起動する。`nuts_calc.py` と `factory.sh` からは呼ばれない。
+- 呼び出し元: CLI 直接実行(`python3 nuts_calc_tex.py <paper_size> <command> ...`)、`backend`(`NUTS_CALC_RENDERER=latex`。issue #232 で `nuts_calc.py`/`reportlab` を削除して以降、事実上 `latex` が唯一到達可能なレンダラー)、`backend/factory.sh`(issue #232 でバッチ生成の呼び出し先を `nuts_calc.py` から切り替え)。backend は `renderers.py:48-54,170-189` で script を選択し subprocess 起動する。加えて `backend/problem_generation.py`(`POST /generate-problems`)がプロセス内で本ファイルの生成関数を直接 import して呼ぶ([[problem_generation.py]] 参照)。
 - 呼び出し先: `NUTS_CALC_TEX_ENGINE` 未設定時は既定エンジンの `lualatex`(要 `texlive-luatex`、`fonts-noto-cjk`。issue #121/#186、詳細は `CLAUDE.md` の Local Tooling Environment を参照)を呼び出す。`NUTS_CALC_TEX_ENGINE=pdflatex` 明示指定時は代わりに `pdflatex`(要 LaTeX ディストリビューション、`texlive-latex-base` + `texlive-latex-extra`)を呼び出す。
 
 ## 注意事項・既知の制限

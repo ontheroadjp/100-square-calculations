@@ -62,11 +62,8 @@ RENDERER_ENV_VAR = "NUTS_CALC_RENDERER"
 DEFAULT_RENDERER = "latex"
 
 RENDERER_SCRIPTS: dict[str, Path] = {
-    "reportlab": BACKEND_DIR / "nuts_calc.py",
     "latex": BACKEND_DIR / "nuts_calc_tex.py",
 }
-
-UNAVAILABLE_RENDERERS = {"reportlab"}
 
 CARRY_MODE_FLAGS = {
     "required": "--carry-borrow",
@@ -91,15 +88,14 @@ def get_renderer_name() -> str:
     """
     Resolve which renderer to use from the `NUTS_CALC_RENDERER` environment
     variable, defaulting to `latex` (nuts_calc_tex.py) when the variable is
-    unset. `reportlab` (nuts_calc.py) is being deprecated (issue #186) and is
-    no longer reachable, even when explicitly requested via the env var.
+    unset. `latex` is currently the only renderer this mechanism can select
+    (nuts_calc.py/`reportlab` was removed, issue #232); any other value,
+    including an explicit `reportlab`, is rejected below by the same
+    generic "unknown value" check that would reject any future typo or
+    unsupported name, so a future second renderer can be added by adding
+    an entry to `RENDERER_SCRIPTS` alone.
     """
     name = os.environ.get(RENDERER_ENV_VAR, DEFAULT_RENDERER)
-    if name in UNAVAILABLE_RENDERERS:
-        raise ValueError(
-            f"{RENDERER_ENV_VAR}={name!r} is not currently available. "
-            f"Only 'latex' is a reachable renderer."
-        )
     if name not in RENDERER_SCRIPTS:
         allowed = ", ".join(sorted(RENDERER_SCRIPTS))
         raise ValueError(
@@ -112,28 +108,12 @@ def build_command(renderer_name: str, params: RendererRequest, out_file: str) ->
     """
     Translate a request's params into CLI arguments for the given renderer.
 
-    nuts_calc.py and nuts_calc_tex.py share the same CLI argument surface
-    (paper_size/command/-a/-b/--rows/--descend/etc.) with several
-    exceptions that are latex-only -- nuts_calc.py does not accept any of
-    them: `--vertical` (written-calculation / hissan format, issue #46),
-    `--use-parentheses` (parenthesized "(a op1 b) op2 c" expressions, issue
-    #67), `--missing-value` (missing-number "a op b = c" expressions with
-    one operand boxed out, issue #69), `--terms`/`--terms-min`/
-    `--terms-max`/`--mixed-operators` (N-term expressions with optional
-    per-gap operator mixing, issue #71), and `--a-decimal-places`/
-    `--b-decimal-places`/`--decimal-places`/`--a-kind`/`--b-kind` (decimal
-    `ope` arithmetic and the `mixed` int/decimal/fraction command, issue
-    #76), and `with_name_field` (a name-entry line printed in the page
-    header, issue #93). This command-building logic still translates all of
-    these params unconditionally for both renderers; callers must only set
-    them when the active renderer is `latex` (see `GET /renderer-info`),
-    otherwise nuts_calc.py will reject the resulting CLI invocation as an
-    unrecognized argument. `carry_mode` is likewise translated to the
-    LaTeX-only `--carry-borrow`/`--no-carry-borrow`/`--mixed-carry-borrow`
-    flags, and `remainder_mode` to the LaTeX-only `--remainder`/
-    `--no-remainder`/`--mixed-remainder` flags (issue #91). `reducible_mode`
-    is translated the same way to `--require-reducible`/`--no-reducible`/
-    `--mixed-reducible` (issue #114).
+    `nuts_calc_tex.py` (`latex`) is currently the only renderer this can
+    target (nuts_calc.py/`reportlab` was removed, issue #232); this
+    function stays renderer-agnostic (keyed off `RENDERER_SCRIPTS[renderer_name]`
+    for the script path, translating every param unconditionally) so a
+    future second renderer only needs an entry in `RENDERER_SCRIPTS` plus
+    its own CLI compatibility, without changes here.
     """
     script_path = RENDERER_SCRIPTS[renderer_name]
     command = [sys.executable, str(script_path)]

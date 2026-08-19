@@ -2,7 +2,7 @@
 
 ## 目的・役割
 
-`nuts_calc.py`/`nuts_calc_tex.py` を Web 経由で呼び出すための薄い Flask API。エンドポイントは `POST /generate-pdf`(PDF 生成)、`POST /generate-problems`(問題データのみ生成、PDF非生成、issue #138)、`GET /renderer-info`(現在有効なレンダラー名の取得、issue #46)の3つ。コマンド構築・レンダラー選択・subprocess 実行のロジックは `backend/renderers.py`([[renderers.py]] 参照、issue #36)に、問題データのみのプロセス内直接生成ロジックは `backend/problem_generation.py`([[problem_generation.py]] 参照、issue #138)に切り出されており、本ファイルは JSON パース・`renderers`/`problem_generation` 呼び出し・HTTP レスポンス変換のみを担う。
+`nuts_calc_tex.py`(issue #232 以前は `nuts_calc.py` も)を Web 経由で呼び出すための薄い Flask API。エンドポイントは `POST /generate-pdf`(PDF 生成)、`POST /generate-problems`(問題データのみ生成、PDF非生成、issue #138)、`GET /renderer-info`(現在有効なレンダラー名の取得、issue #46)の3つ。コマンド構築・レンダラー選択・subprocess 実行のロジックは `backend/renderers.py`([[renderers.py]] 参照、issue #36)に、問題データのみのプロセス内直接生成ロジックは `backend/problem_generation.py`([[problem_generation.py]] 参照、issue #138)に切り出されており、本ファイルは JSON パース・`renderers`/`problem_generation` 呼び出し・HTTP レスポンス変換のみを担う。
 
 ## 動作の概要
 

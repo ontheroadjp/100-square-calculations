@@ -23,7 +23,6 @@ import math
 from fractions import Fraction
 from typing import Callable, TypedDict
 
-import nuts_calc
 import nuts_calc_tex
 import renderers
 
@@ -32,8 +31,6 @@ DEFAULT_A_MAX = 9
 DEFAULT_B_MIN = 1
 DEFAULT_B_MAX = 9
 DEFAULT_OPERATOR = ["add"]
-
-SYMBOL_TO_OPERATOR_NAME = {"+": "add", "-": "sub", "×": "mul", "÷": "div"}
 
 
 class OpeProblemData(TypedDict, total=False):
@@ -51,8 +48,16 @@ class OpeProblemData(TypedDict, total=False):
 def generate_problems(params: renderers.RendererRequest, renderer_name: str | None = None) -> list[dict[str, object]]:
     """
     Generate `params['num']` problems for `params['command_type']` using
-    the active renderer's own data-generation functions, called directly
-    in-process (no subprocess, no PDF/LaTeX byte output).
+    nuts_calc_tex.py's data-generation functions, called directly in-process
+    (no subprocess, no PDF/LaTeX byte output).
+
+    `renderer_name` is resolved via `renderers.get_renderer_name()` when not
+    given, purely to fail fast with a clear error for any renderer other
+    than `latex` (issue #232 removed nuts_calc.py/reportlab, the only other
+    renderer this endpoint ever supported) -- the resolved value itself is
+    not otherwise used, since every supported command_type now has exactly
+    one implementation. The parameter is kept as the extension point for a
+    future second renderer, should one be added.
     """
     renderer_name = renderer_name or renderers.get_renderer_name()
     command_type = params.get("command_type")
@@ -62,7 +67,7 @@ def generate_problems(params: renderers.RendererRequest, renderer_name: str | No
         raise ValueError("num must be a positive integer")
 
     if command_type == "ope":
-        return _generate_ope_problems(params, renderer_name, num)
+        return _generate_ope_problems(params, num)
 
     generator = _COMMAND_GENERATORS.get(command_type)
     if generator is None:
@@ -73,22 +78,15 @@ def generate_problems(params: renderers.RendererRequest, renderer_name: str | No
     return generator(params, num)
 
 
-def _generate_ope_problems(params: renderers.RendererRequest, renderer_name: str, num: int) -> list[dict[str, object]]:
+def _generate_ope_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
     variant, terms_min, terms_max = _determine_ope_variant(params)
     if variant is not None:
-        if renderer_name == "reportlab":
-            raise ValueError(
-                f"ope's {variant!r} variant is not supported by the reportlab renderer "
-                "(nuts_calc.py has no --use-parentheses/--missing-value/--terms equivalent)."
-            )
         if variant == "tree":
             return _generate_tree_ope_problems(params, num, terms_min, terms_max)
         if variant == "missing_value":
             return _generate_missing_value_problems(params, num)
         return _generate_multi_term_ope_problems(params, num, terms_min, terms_max)
 
-    if renderer_name == "reportlab":
-        return _generate_ope_problems_reportlab(params, num)
     return _generate_ope_problems_latex(params, num)
 
 
@@ -206,7 +204,7 @@ def _resolve_ope_range(
 ) -> tuple[int, int]:
     digit_count = params.get(value_key)
     if digit_count is not None:
-        return nuts_calc.set_min_max_value(digit_count)
+        return nuts_calc_tex.set_min_max_value(digit_count)
     return params.get(min_key, default_min), params.get(max_key, default_max)
 
 
@@ -215,40 +213,6 @@ def _validate_intermediate(operator: list[str], b_max: int, single_digit_max: in
         raise ValueError("intermediate only supports a single 'mul' operator (operator=['mul']).")
     if b_max > single_digit_max:
         raise ValueError(f"intermediate only supports a single-digit second operand (b_max <= {single_digit_max}).")
-
-
-def _generate_ope_problems_reportlab(params: renderers.RendererRequest, num: int) -> list[OpeProblemData]:
-    a_min, a_max = _resolve_ope_range(params, "a_value", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
-    b_min, b_max = _resolve_ope_range(params, "b_value", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
-    operator = list(params.get("operator") or DEFAULT_OPERATOR)
-    intermediate = bool(params.get("intermediate", False))
-    if intermediate:
-        _validate_intermediate(operator, b_max, nuts_calc.SINGLE_DIGIT_MAX)
-
-    nums_a = list(range(a_min, a_max + 1))
-    nums_b = list(range(b_min, b_max + 1))
-    data = nuts_calc.get_operation_data(nums_a, nums_b, operator, order=num, print_index=1, intermediate=intermediate)
-    if intermediate:
-        data_index, vals_a, operator_mark, vals_b, _equal_marks, vals_aabb, _equal_marks2, vals_c = data
-    else:
-        data_index, vals_a, operator_mark, vals_b, _equal_marks, vals_c = data
-
-    problems: list[OpeProblemData] = []
-    for i in range(num):
-        problem: OpeProblemData = {
-            "index": int(data_index[i][0].rstrip(")")),
-            "a": int(vals_a[i][0]),
-            "operator": SYMBOL_TO_OPERATOR_NAME[operator_mark[i][0]],
-            "b": int(vals_b[i][0]),
-            "result": int(vals_c[i][0]),
-            "remainder": 0,
-            "a_decimal_places": 0,
-            "b_decimal_places": 0,
-        }
-        if intermediate:
-            problem["intermediate_memo"] = vals_aabb[i][0]
-        problems.append(problem)
-    return problems
 
 
 def _generate_ope_problems_latex(params: renderers.RendererRequest, num: int) -> list[OpeProblemData]:
