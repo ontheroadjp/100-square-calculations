@@ -91,7 +91,7 @@ def test_generate_problems_intermediate_rejects_multi_digit_b_max(renderer_name:
 
 def test_generate_problems_rejects_unsupported_command_type() -> None:
     with pytest.raises(ValueError, match="not yet supported"):
-        problem_generation.generate_problems({"paper_size": "A4", "command_type": "simplify", "num": 1}, "latex")
+        problem_generation.generate_problems({"paper_size": "A4", "command_type": "unknown_command", "num": 1}, "latex")
 
 
 @pytest.mark.parametrize("flag", ["use_parentheses", "missing_value", "terms"])
@@ -638,6 +638,118 @@ def test_generate_problems_number_pair_returns_valid_results(
 @pytest.mark.parametrize("command_type", ["lcm", "gcd"])
 def test_generate_problems_number_pair_a_value_shorthand_derives_range(command_type: str) -> None:
     params = {"paper_size": "A4", "command_type": command_type, "num": 5, "a_value": 1, "b_value": 1}
+    problems = problem_generation.generate_problems(params, "latex")
+    for problem in problems:
+        assert 1 <= problem["a"] <= 9
+        assert 1 <= problem["b"] <= 9
+
+
+@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
+def test_generate_problems_simplify_returns_reducible_fraction_problems(renderer_name: str) -> None:
+    params = {
+        "paper_size": "A4", "command_type": "simplify", "num": 8,
+        "numerator_digits": 2, "denominator_digits": 2,
+    }
+    problems = problem_generation.generate_problems(params, renderer_name)
+    assert len(problems) == 8
+    for problem in problems:
+        assert set(problem) == {"index", "operand", "reduced"}
+        operand = Fraction(problem["operand"]["numerator"], problem["operand"]["denominator"])
+        reduced = Fraction(problem["reduced"]["numerator"], problem["reduced"]["denominator"])
+        assert operand == reduced
+        assert math.gcd(problem["operand"]["numerator"], problem["operand"]["denominator"]) > 1
+
+
+def test_generate_problems_simplify_rejects_digits_out_of_range() -> None:
+    params = {"paper_size": "A4", "command_type": "simplify", "num": 1, "numerator_digits": 4}
+    with pytest.raises(ValueError, match="numerator_digits must be between"):
+        problem_generation.generate_problems(params, "latex")
+
+
+@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
+def test_generate_problems_commondenom_returns_shared_denominator_problems(renderer_name: str) -> None:
+    params = {
+        "paper_size": "A4", "command_type": "commondenom", "num": 6,
+        "numerator_digits": 1, "denominator_digits": 1,
+    }
+    problems = problem_generation.generate_problems(params, renderer_name)
+    assert len(problems) == 6
+    for problem in problems:
+        assert set(problem) == {"index", "a", "b", "a_converted", "b_converted"}
+        assert problem["a"]["denominator"] != problem["b"]["denominator"]
+        common_denominator = math.lcm(problem["a"]["denominator"], problem["b"]["denominator"])
+        assert problem["a_converted"]["denominator"] == common_denominator
+        assert problem["b_converted"]["denominator"] == common_denominator
+        a = Fraction(problem["a"]["numerator"], problem["a"]["denominator"])
+        a_converted = Fraction(problem["a_converted"]["numerator"], problem["a_converted"]["denominator"])
+        assert a == a_converted
+        b = Fraction(problem["b"]["numerator"], problem["b"]["denominator"])
+        b_converted = Fraction(problem["b_converted"]["numerator"], problem["b_converted"]["denominator"])
+        assert b == b_converted
+
+
+def test_generate_problems_commondenom_rejects_digits_out_of_range() -> None:
+    params = {"paper_size": "A4", "command_type": "commondenom", "num": 1, "denominator_digits": 4}
+    with pytest.raises(ValueError, match="denominator_digits must be between"):
+        problem_generation.generate_problems(params, "latex")
+
+
+@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
+def test_generate_problems_frac2dec_returns_terminating_decimal_problems(renderer_name: str) -> None:
+    params = {
+        "paper_size": "A4", "command_type": "frac2dec", "num": 6,
+        "numerator_digits": 1, "denominator_digits": 2,
+    }
+    problems = problem_generation.generate_problems(params, renderer_name)
+    assert len(problems) == 6
+    for problem in problems:
+        assert set(problem) == {"index", "operand", "decimal_places", "scaled_numerator", "decimal_display"}
+        expected_scaled = (
+            problem["operand"]["numerator"] * (10 ** problem["decimal_places"]) // problem["operand"]["denominator"]
+        )
+        assert problem["scaled_numerator"] == expected_scaled
+
+
+def test_generate_problems_frac2dec_rejects_digits_out_of_range() -> None:
+    params = {"paper_size": "A4", "command_type": "frac2dec", "num": 1, "numerator_digits": 4}
+    with pytest.raises(ValueError, match="numerator_digits must be between"):
+        problem_generation.generate_problems(params, "latex")
+
+
+@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
+def test_generate_problems_dec2frac_returns_reduced_fraction_problems(renderer_name: str) -> None:
+    params = {"paper_size": "A4", "command_type": "dec2frac", "num": 6}
+    problems = problem_generation.generate_problems(params, renderer_name)
+    assert len(problems) == 6
+    for problem in problems:
+        assert set(problem) == {"index", "decimal_places", "scaled_numerator", "reduced", "decimal_display"}
+        expected = Fraction(problem["scaled_numerator"], 10 ** problem["decimal_places"])
+        assert Fraction(problem["reduced"]["numerator"], problem["reduced"]["denominator"]) == expected
+        assert problem["reduced"]["denominator"] > 1
+
+
+@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
+def test_generate_problems_divfrac_returns_unreduced_fraction_problems(renderer_name: str) -> None:
+    params = {
+        "paper_size": "A4", "command_type": "divfrac", "num": 8,
+        "a_min": 1, "a_max": 9, "b_min": 2, "b_max": 9,
+    }
+    problems = problem_generation.generate_problems(params, renderer_name)
+    assert len(problems) == 8
+    for problem in problems:
+        assert set(problem) == {"index", "a", "b"}
+        assert 1 <= problem["a"] <= 9
+        assert 2 <= problem["b"] <= 9
+
+
+def test_generate_problems_divfrac_rejects_b_min_below_one() -> None:
+    params = {"paper_size": "A4", "command_type": "divfrac", "num": 1, "b_min": 0, "b_max": 9}
+    with pytest.raises(ValueError, match="b_min must be at least 1"):
+        problem_generation.generate_problems(params, "latex")
+
+
+def test_generate_problems_divfrac_a_value_shorthand_derives_range() -> None:
+    params = {"paper_size": "A4", "command_type": "divfrac", "num": 5, "a_value": 1, "b_value": 1}
     problems = problem_generation.generate_problems(params, "latex")
     for problem in problems:
         assert 1 <= problem["a"] <= 9
