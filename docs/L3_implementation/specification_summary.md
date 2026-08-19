@@ -25,9 +25,9 @@ DB は存在しないため `database.md` は生成していない(永続化層�
 
 ### `POST /generate-problems`(issue #138)
 
-- 入力: `POST /generate-pdf` と同じ JSON ボディに加え、生成する問題数を指定する `num`(正の整数、必須)。現時点では `command_type='ope'` の素の2項四則演算のみ対応。
-- 処理: subprocess は起動せず、`backend/problem_generation.py` が `nuts_calc.py`/`nuts_calc_tex.py` の既存データ生成関数(`get_operation_data`/`generate_ope_problems`)をプロセス内で直接呼び出す。PDF/LaTeXファイルは一切生成しない(`backend/problem_generation.py:53-91`)。
-- 出力: 成功時は `{'problems': [...]}` を HTTP 200 で返す。必須値欠落は HTTP 400、`command_type='ope'` 以外や未対応の `ope` 亜種フラグ(`use_parentheses`/`missing_value`/`terms`系/`mixed_operators`)を含む場合は `ValueError` を HTTP 500 で返す(`backend/app.py`)。
+- 入力: `POST /generate-pdf` と同じ JSON ボディに加え、生成する問題数を指定する `num`(正の整数、必須)。`command_type='ope'` のみ対応し、素の2項四則演算に加え issue #168 で `--use-parentheses`/`--missing-value`/`--terms`系(`terms`/`terms_min`/`terms_max`/`mixed_operators`)の3亜種にも対応した。
+- 処理: subprocess は起動せず、`backend/problem_generation.py` が `nuts_calc.py`/`nuts_calc_tex.py` の既存データ生成関数(`get_operation_data`/`generate_ope_problems`/`generate_tree_ope_problems`/`generate_multi_term_ope_problems`/`generate_missing_value_problems`)をプロセス内で直接呼び出す。PDF/LaTeXファイルは一切生成しない(`backend/problem_generation.py:41-181`)。
+- 出力: 成功時は `{'problems': [...]}` を HTTP 200 で返す(亜種ごとに item の形状が異なる)。必須値欠落は HTTP 400、`command_type='ope'` 以外、亜種フラグの相互排他違反(例: `missing_value`+`use_parentheses`)、`terms_min > terms_max`、または reportlab レンダラーへの亜種フラグ指定(`nuts_calc.py` に対応実装がない)は `ValueError` を HTTP 500 で返す(`backend/app.py`)。
 - 位置づけ: issue #166「データ層とプレゼンテーション層の分離」の最初の実装。`ope` 以外の残りコマンドは同issue配下の `agenda` ラベル付き sub-issue(#167-#174)で追って対応する。issue #139 で `frontend/web/src/presetDetail.js` が最初の呼び出し元となり、`command_type: 'ope'` かつ未対応フラグなしのプリセットに限り、設定変更のたびにこのエンドポイントから例題チップを取得する(それ以外のプリセットは issue #135 由来の静的 `examples`/`examplesFor` のまま)。
 
 ### `GET /renderer-info`(issue #46)
