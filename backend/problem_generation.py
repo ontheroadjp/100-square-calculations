@@ -5,9 +5,15 @@ document. This is the data-layer counterpart to renderers.py's
 subprocess-based, PDF-generation (presentation) layer.
 
 `command_type == 'ope'` is supported, including its --use-parentheses/
---missing-value/--terms*/--mixed-operators variants (issue #168). Every
-other command type raises ValueError; see issue #166 and its sub-issues
-for the remaining command types.
+--missing-value/--terms*/--mixed-operators variants (issue #168), as are
+`com`/`99`/`aBc`/`squ`/`pi` (issue #169) via `_COMMAND_GENERATORS`. `100`
+is intentionally excluded (raises ValueError): nuts_calc_tex.py's
+generate_hundred_square() returns a single HundredSquareTable object, not
+a `num`-many problem list, so it does not fit the `{"problems": [...]}`
+envelope this endpoint returns; representing it would need its own
+response shape, which is a bigger contract decision left for a future
+issue if real demand shows up (issue #169). Every other command type
+raises ValueError; see issue #166 and its remaining sub-issues.
 """
 
 import dataclasses
@@ -46,16 +52,24 @@ def generate_problems(params: renderers.RendererRequest, renderer_name: str | No
     """
     renderer_name = renderer_name or renderers.get_renderer_name()
     command_type = params.get("command_type")
-    if command_type != "ope":
-        raise ValueError(
-            f"command_type {command_type!r} is not yet supported by problem-only "
-            "generation; only 'ope' is supported today (see issue #166 and its sub-issues)."
-        )
 
     num = params.get("num")
     if not isinstance(num, int) or isinstance(num, bool) or num < 1:
         raise ValueError("num must be a positive integer")
 
+    if command_type == "ope":
+        return _generate_ope_problems(params, renderer_name, num)
+
+    generator = _COMMAND_GENERATORS.get(command_type)
+    if generator is None:
+        raise ValueError(
+            f"command_type {command_type!r} is not yet supported by problem-only "
+            "generation; see issue #166 and its sub-issues for supported command types."
+        )
+    return generator(params, num)
+
+
+def _generate_ope_problems(params: renderers.RendererRequest, renderer_name: str, num: int) -> list[dict[str, object]]:
     variant, terms_min, terms_max = _determine_ope_variant(params)
     if variant is not None:
         if renderer_name == "reportlab":
@@ -265,3 +279,65 @@ def _generate_ope_problems_latex(params: renderers.RendererRequest, num: int) ->
             problem["intermediate_memo"] = nuts_calc_tex.build_intermediate_memo(ope_problem.a, ope_problem.b)
         problems.append(problem)
     return problems
+
+
+def _generate_com_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+    target = params.get("a_value")
+    if target is None:
+        raise ValueError("a_value (complement target) is required for the 'com' command.")
+    if target < nuts_calc_tex.MIN_COMPLEMENT_TARGET:
+        raise ValueError(
+            f"a_value (complement target) must be at least {nuts_calc_tex.MIN_COMPLEMENT_TARGET} "
+            "for the 'com' command."
+        )
+    problems = nuts_calc_tex.generate_com_problems(target, num, 1)
+    return [_dataclass_to_dict(problem) for problem in problems]
+
+
+def _generate_kuku_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+    a_value = params.get("a_value")
+    if a_value is None:
+        raise ValueError("a_value (times-table row) is required for the '99' command.")
+    descend = bool(params.get("descend", False))
+    shuffle = bool(params.get("shuffle", False))
+    problems = nuts_calc_tex.generate_kuku_problems(a_value, num, 1, descend, shuffle)
+    return [_dataclass_to_dict(problem) for problem in problems]
+
+
+def _generate_abc_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+    problems = nuts_calc_tex.generate_abc_problems(num, 1)
+    return [_dataclass_to_dict(problem) for problem in problems]
+
+
+def _generate_squ_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+    start_num = params.get("a_value")
+    if start_num is None:
+        raise ValueError("a_value (starting square number) is required for the 'squ' command.")
+    descend = bool(params.get("descend", False))
+    shuffle = bool(params.get("shuffle", False))
+    problems = nuts_calc_tex.generate_squ_problems(start_num, num, 1, descend, shuffle)
+    return [_dataclass_to_dict(problem) for problem in problems]
+
+
+def _generate_pi_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+    start_num = params.get("a_value")
+    if start_num is None:
+        raise ValueError("a_value (starting multiplicand) is required for the 'pi' command.")
+    descend = bool(params.get("descend", False))
+    shuffle = bool(params.get("shuffle", False))
+    problems = nuts_calc_tex.generate_pi_problems(start_num, num, 1, descend, shuffle)
+    return [_dataclass_to_dict(problem) for problem in problems]
+
+
+# command_type -> generator dispatch table (issue #167's contract): each
+# sub-issue of #166 adds one generator function and one entry here, without
+# touching the shared if/elif chain generate_problems() used to have.
+# `100` has no entry (see the module docstring for why) and falls through
+# to generate_problems()'s "not yet supported" ValueError.
+_COMMAND_GENERATORS = {
+    "com": _generate_com_problems,
+    "99": _generate_kuku_problems,
+    "aBc": _generate_abc_problems,
+    "squ": _generate_squ_problems,
+    "pi": _generate_pi_problems,
+}

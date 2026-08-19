@@ -4,17 +4,18 @@
 
 `backend/app.py` の `POST /generate-problems` エンドポイント(issue #138)が呼び出す、PDF/LaTeX を一切生成しない「問題データのみ生成」ロジック。`renderers.py`(サブプロセス経由で `nuts_calc.py`/`nuts_calc_tex.py` を実行し PDF を作る、プレゼンテーション層)とは責務を分離した、データ層のモジュール。issue #166「データ層とプレゼンテーション層の分離」の最初の実装であり、以降の他コマンド対応は同issue配下の native sub-issue(#167-#174)で扱う。
 
-`command_type == 'ope'` に対応する。素の2項四則演算に加え、issue #168 で `--use-parentheses`/`--missing-value`/`--terms`系(`terms`/`terms_min`/`terms_max`/`mixed_operators`)の3亜種も実装した。それ以外の `command_type` は `ValueError` を送出する(issue #166 の残り sub-issue #169-#173 で対応予定)。
+`command_type == 'ope'`(素の2項四則演算 + issue #168 の `--use-parentheses`/`--missing-value`/`--terms`系(`terms`/`terms_min`/`terms_max`/`mixed_operators`)3亜種)に加え、issue #169 で `com`/`99`/`aBc`/`squ`/`pi` を実装した。`100` は意図的に対象外のまま(下記「`100` を対象外のままにしている理由」参照)。それ以外の `command_type`(`frac`/`mixed`/`compare` 等の残り約14コマンド)は `ValueError` を送出する(issue #166 の残り sub-issue #170-#173 で対応予定)。
 
 ## 動作の概要
 
-- `generate_problems(params, renderer_name=None)`(公開関数): `renderer_name` 省略時は `renderers.get_renderer_name()` で解決。`command_type` が `'ope'` 以外、または `num`(生成する問題数)が正の整数でない場合は `ValueError` を送出する(`problem_generation.py:48-57`)。
-- `_determine_ope_variant(params)` で `use_parentheses`/`missing_value`/`terms`系フラグから対象亜種(`'tree'`/`'missing_value'`/`'multi_term'`/`None`)を判定する。この関数はエンドポイントが argparse を経由しないため、`nuts_calc_tex.py` の `_init()` が CLI 引数に対して行う相互排他バリデーション(`--missing-value` は `--use-parentheses`/`--terms`系と併用不可)と `resolve_term_range()` による term数レンジのフロー・クランプ(`--use-parentheses` はフロア3、それ以外はフロア2、上限は `MAX_OPE_TERMS`)を、リクエストパラメータに対して再現する(`problem_generation.py:77-121`)。
-- 亜種が判定された場合(`variant is not None`)、`renderer_name == 'reportlab'` なら即座に `ValueError`(`nuts_calc.py` に対応実装がないため)。それ以外は以下へディスパッチする(`problem_generation.py:59-74`):
+- `generate_problems(params, renderer_name=None)`(公開関数): `renderer_name` 省略時は `renderers.get_renderer_name()` で解決。`num`(生成する問題数)が正の整数でない場合は `command_type` に関わらず `ValueError` を送出する(`problem_generation.py:56-58`)。`command_type == 'ope'` は `_generate_ope_problems()` へ委譲する。それ以外は `_COMMAND_GENERATORS`(`command_type` 文字列 → 生成関数の dict、`problem_generation.py:337-343`)を引き、未登録の `command_type`(`100` を含む)は `ValueError` を送出する(`problem_generation.py:60-69`)。
+- `com`/`99`(kuku)/`aBc`/`squ`/`pi` はそれぞれ `_generate_com_problems`/`_generate_kuku_problems`/`_generate_abc_problems`/`_generate_squ_problems`/`_generate_pi_problems` が対応する。`nuts_calc_tex.py` の同名 `generate_*_problems()` を直接呼び出すだけの薄いラッパーで、reportlab/latex の分岐を持たない(下記「新規 family が reportlab 分岐を持たない理由」参照)。`a_value` が必須なコマンド(`com`/`99`/`squ`/`pi`)は未指定を明示的な `ValueError` で拒否し、`com` はさらに `nuts_calc_tex.MIN_COMPLEMENT_TARGET` 未満の `a_value` を拒否する(いずれも `nuts_calc_tex.py` の `_init()` が CLI 引数に対して行うバリデーションと同じ制約をリクエストパラメータに対して再現したもの)。`99`/`squ`/`pi` の `descend`/`shuffle` はどちらも既定 `False`。いずれも `_dataclass_to_dict()` で dict 化してから返す(`problem_generation.py:284-329`)。
+- `_determine_ope_variant(params)` で `use_parentheses`/`missing_value`/`terms`系フラグから対象亜種(`'tree'`/`'missing_value'`/`'multi_term'`/`None`)を判定する。この関数はエンドポイントが argparse を経由しないため、`nuts_calc_tex.py` の `_init()` が CLI 引数に対して行う相互排他バリデーション(`--missing-value` は `--use-parentheses`/`--terms`系と併用不可)と `resolve_term_range()` による term数レンジのフロー・クランプ(`--use-parentheses` はフロア3、それ以外はフロア2、上限は `MAX_OPE_TERMS`)を、リクエストパラメータに対して再現する(`problem_generation.py:91-135`)。
+- 亜種が判定された場合(`variant is not None`)、`renderer_name == 'reportlab'` なら即座に `ValueError`(`nuts_calc.py` に対応実装がないため)。それ以外は以下へディスパッチする(`_generate_ope_problems()`、`problem_generation.py:72-88`):
     - `'tree'` → `_generate_tree_ope_problems`: `nuts_calc_tex.generate_tree_ope_problems(...)` を直接呼び出し、`TreeOpeProblem` dataclass のリストを返す。
     - `'missing_value'` → `_generate_missing_value_problems`: `nuts_calc_tex.generate_missing_value_problems(...)` を直接呼び出し、`MissingValueProblem` dataclass のリストを返す。
     - `'multi_term'` → `_generate_multi_term_ope_problems`: `nuts_calc_tex.generate_multi_term_ope_problems(...)` を直接呼び出し、`MultiTermOpeProblem` dataclass のリストを返す。
-    - いずれも `_dataclass_to_dict()`(後述の JSON contract 節を実装する汎用コンバータ、`problem_generation.py:124-135`)で dict 化してから返す。
+    - いずれも `_dataclass_to_dict()`(後述の JSON contract 節を実装する汎用コンバータ、`problem_generation.py:138-149`)で dict 化してから返す。
 - 亜種が判定されなかった場合(素の2項 `ope`)は既存どおりレンダラーごとに `_generate_ope_problems_reportlab`/`_generate_ope_problems_latex` に分岐する。
     - reportlab: `nuts_calc.get_operation_data(nums_a, nums_b, operator, order=num, print_index=1, intermediate=intermediate)` をそのまま呼び出し、戻り値のタプル(`data_index, vals_a, operator_mark, vals_b, equal_marks, vals_c`、`intermediate=True` 時はさらに `vals_aabb` を含む8要素)を1問題1dictへ変換する。演算子記号(`+`/`-`/`×`/`÷`)は `SYMBOL_TO_OPERATOR_NAME` で `add`/`sub`/`mul`/`div` へ正規化する(latex側の表現と統一するための表示用マッピングであり、生成ロジックの複製ではない)。
     - latex: `nuts_calc_tex.generate_ope_problems(...)` を呼び出し、返る `OpeProblem` dataclass のリストをそのままdictへ変換する。`intermediate=True` の場合は `nuts_calc_tex.build_intermediate_memo(a, b)`(既存の純粋関数、LaTeXマークアップを含まないプレーンテキストを返す)を再利用してメモ文字列を追加する。
@@ -39,13 +40,21 @@
 
 `POST /generate-problems` は argparse を経由しないため、`nuts_calc_tex.py` の `_init()` が担う「`--missing-value` は `--use-parentheses`/`--terms`系と併用不可」「`terms_min` <= `terms_max`」「`--use-parentheses` は term数フロアが3」等のバリデーション・デフォルト解決を、`_determine_ope_variant()` がリクエストパラメータに対して独自に再現する必要がある。ロジックを複製せず、フロア・上限のクランプ計算自体は `nuts_calc_tex.resolve_term_range()`(モジュールレベル関数、`TERM_COUNT_FLOOR_DEFAULT`/`TERM_COUNT_FLOOR_PARENTHESES`/`MAX_OPE_TERMS` を使用)をそのまま再利用している(`problem_generation.py:113`)。
 
+### `command_type` ディスパッチを if/elif から dict テーブルへ置き換えた理由(issue #169)
+
+issue #167 の JSON contract 規約が事前に決定していた設計(下記「非-`ope` コマンド群向け JSON contract 規約」節の「`command_type` の許可判定」箇所)を issue #169 で初めて適用した。`_COMMAND_GENERATORS: dict[str, Callable]` に `command_type` 文字列と生成関数を1行ずつ追加するだけで新規コマンドを登録でき、共有の分岐チェーンを編集しないため、残り sub-issue(#170-#173)が並行作業してもコンフリクトしにくい。`ope` だけは `_determine_ope_variant`/`renderer_name` 分岐を持つため、`_generate_ope_problems()` として `generate_problems()` 内に個別の早期分岐を残し、テーブルには含めていない。
+
+### `100` を対象外のままにしている理由(issue #169)
+
+`nuts_calc_tex.generate_hundred_square()` は「`num` 個の問題」ではなく単一の `HundredSquareTable`(`left_values`/`top_values`、`answers` プロパティで加算表を計算)を返す。既存の `{"problems": [...]}` envelope は「`num` 個の同型 item のリスト」を前提としており、単一テーブルはこの意味論に合わない。`HundredSquareTable` 用に別 envelope 形状を新設する案もあるが、それは issue #167 相当のスコープを持つ契約決定であり、本 issue 単体で決めるには重すぎると判断した。両フロントエンド(`frontend/spa`/`frontend/web`)とも現状 `command_type: 'ope'` のプリセットにしか `/generate-problems` を呼んでおらず、実利用の圧力もない。既存の「未対応の組み合わせは黙って無視せず明示的に `ValueError` で失敗させる」慣習を踏襲し、`_COMMAND_GENERATORS` に `100` のエントリを追加せず、`generate_problems()` の「not yet supported」`ValueError` にフォールスルーさせている(`problem_generation.py:63-69`)。別 envelope 形状での対応が必要になった場合は、別 issue として起票する。
+
 ### `ope` 亜種の reportlab 対応を持たない理由
 
-`nuts_calc.py` は `--use-parentheses`/`--missing-value`/`--terms`系のいずれにも対応実装がないため、亜種フラグが判定された状態で `renderer_name == 'reportlab'` の場合は生成関数を呼ばずに `ValueError` を送出する(`problem_generation.py:59-65`)。素の2項 `ope` のみ reportlab/latex 両対応を維持する。
+`nuts_calc.py` は `--use-parentheses`/`--missing-value`/`--terms`系のいずれにも対応実装がないため、亜種フラグが判定された状態で `renderer_name == 'reportlab'` の場合は生成関数を呼ばずに `ValueError` を送出する(`problem_generation.py:74-79`)。素の2項 `ope` のみ reportlab/latex 両対応を維持する。
 
-### 非-`ope` コマンド群向け JSON contract 規約(issue #167 決定、issue #168 で `ope` 亜種として初実装)
+### 非-`ope` コマンド群向け JSON contract 規約(issue #167 決定、issue #168 で `ope` 亜種として初実装、issue #169 で `com`/`99`/`aBc`/`squ`/`pi` に適用)
 
-issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマンド生成関数(`generate_com_problems`/`generate_kuku_problems`/`generate_abc_problems`/`generate_squ_problems`/`generate_pi_problems`/`generate_evenodd_problems`/`generate_multiples_problems`/`generate_divisors_problems`/`generate_fraction_problems`/`generate_fraction_comparison_problems`/`generate_mixed_problems`/`generate_number_pair_problems`/`generate_simplify_problems`/`generate_commondenom_problems`/`generate_frac2dec_problems`/`generate_dec2frac_problems`/`generate_divfrac_problems`)を `backend/problem_generation.py` へ本実装する #169-#173 が従う契約を以下のとおり決定した。issue #168(`ope` 亜種の `generate_tree_ope_problems`/`generate_multi_term_ope_problems`/`generate_missing_value_problems`)がこの契約の最初の実装であり、`_dataclass_to_dict()`(`problem_generation.py:124-135`)として汎用コンバータ化した。
+issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマンド生成関数(`generate_com_problems`/`generate_kuku_problems`/`generate_abc_problems`/`generate_squ_problems`/`generate_pi_problems`/`generate_evenodd_problems`/`generate_multiples_problems`/`generate_divisors_problems`/`generate_fraction_problems`/`generate_fraction_comparison_problems`/`generate_mixed_problems`/`generate_number_pair_problems`/`generate_simplify_problems`/`generate_commondenom_problems`/`generate_frac2dec_problems`/`generate_dec2frac_problems`/`generate_divfrac_problems`)を `backend/problem_generation.py` へ本実装する #169-#173 が従う契約を以下のとおり決定した。issue #168(`ope` 亜種の `generate_tree_ope_problems`/`generate_multi_term_ope_problems`/`generate_missing_value_problems`)がこの契約の最初の実装であり、`_dataclass_to_dict()`(`problem_generation.py:138-149`)として汎用コンバータ化した。issue #169 で `com`/`99`/`aBc`/`squ`/`pi` の5コマンドがこの契約の2件目の実装として加わった(`ComProblem`/`KukuProblem`/`AbcProblem`/`SquProblem`/`PiProblem`はいずれも `Fraction`/ネスト dataclass フィールドを持たないため、下記の Fraction 変換分岐は今回も未実装のまま)。残り約14コマンド(`frac`/`mixed`/`compare` 等)は #170-#173 で対応予定。
 
 - **envelope**: `{"problems": [...]}` を変更しない(#138 踏襲)。item の形状はコマンド群ごとに異なってよい(単一の汎用スキーマには寄せない)。`TreeOpeProblem`/`MultiTermOpeProblem`/`MissingValueProblem` はそれぞれ独自の形状(`{index, operands, operators, tree, result}`/`{index, operands, operators, mixed, result}`/`{index, a, b, operator, c, blank}`)で返る。
 - **item マッピング**: dataclass のフィールド名をそのまま JSON key として使う(`dataclasses.fields()` 相当の1:1変換、`_dataclass_to_dict()` が実装)。非JSONネイティブな値型は以下のとおり変換する:
@@ -55,14 +64,14 @@ issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマ�
     - `list[int]`/`list[str]` フィールド(`MultiTermOpeProblem.operands`/`TreeOpeProblem.operands` 等)はそのまま JSON 配列にする。
 - **計算プロパティ(`@property`)の扱い**: 上記の汎用変換は dataclass の実フィールドのみを対象とし、派生プロパティは**自動では含めない**(`_dataclass_to_dict()` は `dataclasses.fields()` のみを走査するため、`@property` は自然に除外される)。#168 の3型(`TreeOpeProblem`/`MultiTermOpeProblem`/`MissingValueProblem`)は計算プロパティを持たないため、この規則は影響しない。既存の `OpeProblemData.intermediate_memo`(`problem_generation.py:38`、`_generate_ope_problems_latex` が `nuts_calc_tex.build_intermediate_memo` を再利用して追加)が、必要に応じて明示キーを追加するパターンの先例。
 - **未対応の組み合わせのエラー**: 「issue番号付き `ValueError`」パターンを継続する。新規 family もサポート外のフラグ組み合わせを黙って無視・変換せず、明示的に失敗させる。
-- **`command_type` の許可判定**: 現在の `if command_type != 'ope': raise`(`problem_generation.py:58-62`)を、`command_type` → 生成関数のディスパッチテーブルに置き換える。各 sub-issue は「関数を1つ追加し、テーブルに1エントリ追加する」だけで済み、共有の if/elif チェーンを編集しない(#168-#173 が並行作業してもコンフリクトしにくい)。`nuts_calc_tex.py` 側で既にジェネレータを共有しているコマンド群(例: `lcm`/`gcd` は `generate_number_pair_problems(compute, nums_a, nums_b, order, start_index)` を `compute=math.lcm`/`math.gcd` で呼び分けるだけ、`nuts_calc_tex.py:3821-3892`)は、`problem_generation.py` 側でも1関数を共有してよい。
+- **`command_type` の許可判定**: `command_type` → 生成関数のディスパッチテーブル(`_COMMAND_GENERATORS`)を issue #169 で実装した(`problem_generation.py:337-343`)。各 sub-issue は「関数を1つ追加し、テーブルに1エントリ追加する」だけで済み、共有の分岐チェーンを編集しない(#170-#173 が並行作業してもコンフリクトしにくい)。`nuts_calc_tex.py` 側で既にジェネレータを共有しているコマンド群(例: `lcm`/`gcd` は `generate_number_pair_problems(compute, nums_a, nums_b, order, start_index)` を `compute=math.lcm`/`math.gcd` で呼び分けるだけ、`nuts_calc_tex.py:3821-3892`)は、`problem_generation.py` 側でも1関数を共有してよい。`100` はこのテーブルに意図的にエントリを持たない(上記「`100` を対象外のままにしている理由」参照)。
 - **reportlab 分岐は持たない**: `nuts_calc.py` は `['ope', 'com', '100', '99', 'aBc', 'squ', 'pi']` の7コマンドのみを実装しており(`nuts_calc.py:131`)、#167-#173 が対象とする残りコマンドは元から reportlab 側に存在しない。加えて `renderers.get_renderer_name()`(`renderers.py:90-108`)は `NUTS_CALC_RENDERER=reportlab` が明示指定された場合、`problem_generation.generate_problems()` に到達する前(`app.py`の`generate_problems`ハンドラ内)に `ValueError` を送出する(issue #186 以降)。したがって本番の HTTP 経路で `problem_generation.generate_problems()` に渡る `renderer_name` は常に `'latex'` であり、新規 family の生成関数は `_generate_ope_problems_reportlab`/`_generate_ope_problems_latex` のような二重実装を持たず、`nuts_calc_tex.py` を直接呼び出すだけでよい。
 - **ファイル構成**: 当面は `problem_generation.py` を単一ファイルのまま維持する(パッケージ分割は本ファイルが概ね800行を超えた時点で再検討する)。
 
 ## 統合ポイント
 
 - 呼び出し元: `backend/app.py` の `POST /generate-problems` ルートハンドラ。
-- 呼び出し先: `backend/nuts_calc.py`(`get_operation_data`/`set_min_max_value`/`SINGLE_DIGIT_MAX`)、`backend/nuts_calc_tex.py`(`generate_ope_problems`/`generate_tree_ope_problems`/`generate_multi_term_ope_problems`/`generate_missing_value_problems`/`resolve_term_range`/`build_intermediate_memo`/`MIN_DECIMAL_PLACES`/`INTERMEDIATE_SINGLE_DIGIT_MAX`/`TERM_COUNT_FLOOR_DEFAULT`)、`backend/renderers.py`(`get_renderer_name`、`RendererRequest` 型)。
+- 呼び出し先: `backend/nuts_calc.py`(`get_operation_data`/`set_min_max_value`/`SINGLE_DIGIT_MAX`)、`backend/nuts_calc_tex.py`(`generate_ope_problems`/`generate_tree_ope_problems`/`generate_multi_term_ope_problems`/`generate_missing_value_problems`/`resolve_term_range`/`build_intermediate_memo`/`MIN_DECIMAL_PLACES`/`INTERMEDIATE_SINGLE_DIGIT_MAX`/`TERM_COUNT_FLOOR_DEFAULT`/`generate_com_problems`/`generate_kuku_problems`/`generate_abc_problems`/`generate_squ_problems`/`generate_pi_problems`/`MIN_COMPLEMENT_TARGET`)、`backend/renderers.py`(`get_renderer_name`、`RendererRequest` 型)。
 
 ## 注意事項・既知の制限
 
@@ -70,6 +79,8 @@ issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマ�
 - reportlab側の `remainder` は常に `0`(`nuts_calc.py`の`calc_div`は正確に割り切れる組み合わせしか生成しないため、余り制御の概念がない)。latex側は `remainder_mode` 指定に応じて非ゼロになりうる。
 - `nuts_calc.py`/`nuts_calc_tex.py` は完全に独立したスクリプトのままで、本ファイルはその両方を `import` する(サブプロセスではなく通常のPythonインポート)。両スクリプトとも `if __name__ == '__main__':` ガード済みのため、importしただけではCLI実行や副作用は発生しない。
 - `ope` 亜種(`tree`/`missing_value`/`multi_term`)は `intermediate`/`a_decimal_places`/`b_decimal_places` を一切参照しない(`nuts_calc_tex.generate_tree_ope_problems`/`generate_multi_term_ope_problems`/`generate_missing_value_problems` がいずれもこれらのパラメータを受け付けないため)。これらのフラグが亜種フラグと同時に送られても明示的な `ValueError` にはならず、単に無視される(上記の reportlab 専用パラメータと同じ「未対応パラメータは黙って無視」の既存慣習を踏襲)。
+- `com`/`99`/`aBc`/`squ`/`pi` は `renderer_name` を一切参照しない(`_COMMAND_GENERATORS` の生成関数は `params`/`num` のみを受け取る)。`reportlab` を明示指定して呼び出しても常に `nuts_calc_tex.py` の実装が動く(`nuts_calc.py` 側に同名コマンドは存在するが、この5コマンドの reportlab 版データ生成関数は呼ばれない)。本番の HTTP 経路では `renderer_name` は常に `'latex'` に解決されるため実害はない(上記「非-`ope` コマンド群向け JSON contract 規約」節の「reportlab 分岐は持たない」箇所参照)。
+- `100` は `POST /generate-problems` からは呼び出せない(`ValueError`)。CLI(`nuts_calc_tex.py 100 ...`)や `POST /generate-pdf` からは引き続き利用できる — 本モジュールのみの制限。
 
 ## 変更履歴(git log より自動生成)
 
