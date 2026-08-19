@@ -7,15 +7,15 @@ subprocess-based, PDF-generation (presentation) layer.
 `command_type == 'ope'` is supported, including its --use-parentheses/
 --missing-value/--terms*/--mixed-operators variants (issue #168), as are
 `com`/`99`/`aBc`/`squ`/`pi` (issue #169), `frac`/`mixed` (issue #170),
-`compare` (issue #171), and `evenodd`/`multiples`/`divisors`/`lcm`/`gcd`
-(issue #172) via `_COMMAND_GENERATORS`. `100` is intentionally
+`compare` (issue #171), `evenodd`/`multiples`/`divisors`/`lcm`/`gcd`
+(issue #172), and `simplify`/`commondenom`/`frac2dec`/`dec2frac`/`divfrac`
+(issue #173) via `_COMMAND_GENERATORS`. `100` is intentionally
 excluded (raises ValueError): nuts_calc_tex.py's generate_hundred_square()
 returns a single HundredSquareTable object, not a `num`-many problem list,
 so it does not fit the `{"problems": [...]}` envelope this endpoint
 returns; representing it would need its own response shape, which is a
 bigger contract decision left for a future issue if real demand shows up
-(issue #169). Every other command type raises ValueError; see issue
-#166 and its remaining sub-issues.
+(issue #169). Every other command type raises ValueError; see issue #166.
 """
 
 import dataclasses
@@ -565,6 +565,56 @@ def _generate_gcd_problems(params: renderers.RendererRequest, num: int) -> list[
     return _generate_number_pair_problems(params, num, math.gcd)
 
 
+def _generate_simplify_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+    numerator_digits = params.get("numerator_digits", 1)
+    denominator_digits = params.get("denominator_digits", 1)
+    _validate_fraction_digits(numerator_digits, denominator_digits, "simplify")
+    problems = nuts_calc_tex.generate_simplify_problems(numerator_digits, denominator_digits, num, 1)
+    return [_dataclass_to_dict(problem) for problem in problems]
+
+
+def _generate_commondenom_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+    numerator_digits = params.get("numerator_digits", 1)
+    denominator_digits = params.get("denominator_digits", 1)
+    _validate_fraction_digits(numerator_digits, denominator_digits, "commondenom")
+    problems = nuts_calc_tex.generate_commondenom_problems(numerator_digits, denominator_digits, num, 1)
+    return [_dataclass_to_dict(problem) for problem in problems]
+
+
+def _generate_frac2dec_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+    numerator_digits = params.get("numerator_digits", 1)
+    denominator_digits = params.get("denominator_digits", 1)
+    _validate_fraction_digits(numerator_digits, denominator_digits, "frac2dec")
+    problems = nuts_calc_tex.generate_frac2dec_problems(numerator_digits, denominator_digits, num, 1)
+    result = []
+    for problem in problems:
+        item = _dataclass_to_dict(problem)
+        item["decimal_display"] = problem.decimal_display  # @property, not a dataclass field -- see _dataclass_to_dict's docstring
+        result.append(item)
+    return result
+
+
+def _generate_dec2frac_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+    problems = nuts_calc_tex.generate_dec2frac_problems(num, 1)
+    result = []
+    for problem in problems:
+        item = _dataclass_to_dict(problem)
+        item["decimal_display"] = problem.decimal_display
+        result.append(item)
+    return result
+
+
+def _generate_divfrac_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+    a_min, a_max = _resolve_ope_range(params, "a_value", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
+    b_min, b_max = _resolve_ope_range(params, "b_value", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
+    if b_min < 1:
+        raise ValueError("b_min must be at least 1 for the 'divfrac' command.")
+    nums_a = list(range(a_min, a_max + 1))
+    nums_b = list(range(b_min, b_max + 1))
+    problems = nuts_calc_tex.generate_divfrac_problems(nums_a, nums_b, num, 1)
+    return [_dataclass_to_dict(problem) for problem in problems]
+
+
 # command_type -> generator dispatch table (issue #167's contract): each
 # sub-issue of #166 adds one generator function and one entry here, without
 # touching the shared if/elif chain generate_problems() used to have.
@@ -584,4 +634,9 @@ _COMMAND_GENERATORS = {
     "divisors": _generate_divisors_problems,
     "lcm": _generate_lcm_problems,
     "gcd": _generate_gcd_problems,
+    "simplify": _generate_simplify_problems,
+    "commondenom": _generate_commondenom_problems,
+    "frac2dec": _generate_frac2dec_problems,
+    "dec2frac": _generate_dec2frac_problems,
+    "divfrac": _generate_divfrac_problems,
 }
