@@ -62,13 +62,14 @@ issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマ�
 ## 統合ポイント
 
 - 呼び出し元: `backend/app.py` の `POST /generate-problems` ルートハンドラ。
-- 呼び出し先: `backend/nuts_calc.py`(`get_operation_data`/`set_min_max_value`/`SINGLE_DIGIT_MAX`)、`backend/nuts_calc_tex.py`(`generate_ope_problems`/`build_intermediate_memo`/`MIN_DECIMAL_PLACES`/`INTERMEDIATE_SINGLE_DIGIT_MAX`)、`backend/renderers.py`(`get_renderer_name`、`RendererRequest` 型)。
+- 呼び出し先: `backend/nuts_calc.py`(`get_operation_data`/`set_min_max_value`/`SINGLE_DIGIT_MAX`)、`backend/nuts_calc_tex.py`(`generate_ope_problems`/`generate_tree_ope_problems`/`generate_multi_term_ope_problems`/`generate_missing_value_problems`/`resolve_term_range`/`build_intermediate_memo`/`MIN_DECIMAL_PLACES`/`INTERMEDIATE_SINGLE_DIGIT_MAX`/`TERM_COUNT_FLOOR_DEFAULT`)、`backend/renderers.py`(`get_renderer_name`、`RendererRequest` 型)。
 
 ## 注意事項・既知の制限
 
 - `carry_mode`/`remainder_mode`/`result_max`/`a_decimal_places`/`b_decimal_places` は latex レンダラー専用パラメータ(`nuts_calc.py` に対応実装がない)。reportlab選択時にこれらが送られても本モジュールは無視する(`renderers.py`の`build_command`と同じ「呼び出し元がレンダラー情報に基づいて送信可否を制御する」契約を踏襲、明示的なエラーにはしていない)。
 - reportlab側の `remainder` は常に `0`(`nuts_calc.py`の`calc_div`は正確に割り切れる組み合わせしか生成しないため、余り制御の概念がない)。latex側は `remainder_mode` 指定に応じて非ゼロになりうる。
 - `nuts_calc.py`/`nuts_calc_tex.py` は完全に独立したスクリプトのままで、本ファイルはその両方を `import` する(サブプロセスではなく通常のPythonインポート)。両スクリプトとも `if __name__ == '__main__':` ガード済みのため、importしただけではCLI実行や副作用は発生しない。
+- `ope` 亜種(`tree`/`missing_value`/`multi_term`)は `intermediate`/`a_decimal_places`/`b_decimal_places` を一切参照しない(`nuts_calc_tex.generate_tree_ope_problems`/`generate_multi_term_ope_problems`/`generate_missing_value_problems` がいずれもこれらのパラメータを受け付けないため)。これらのフラグが亜種フラグと同時に送られても明示的な `ValueError` にはならず、単に無視される(上記の reportlab 専用パラメータと同じ「未対応パラメータは黙って無視」の既存慣習を踏襲)。
 
 ## 変更履歴(git log より自動生成)
 
