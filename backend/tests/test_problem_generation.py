@@ -49,8 +49,21 @@ def test_generate_problems_problem_values_are_consistent(operator: str) -> None:
             assert a == b * result + remainder
 
 
-def test_generate_problems_a_value_shorthand_derives_range() -> None:
-    params = {"paper_size": "A4", "command_type": "ope", "num": 10, "a_value": 1, "b_value": 1, "operator": ["add"]}
+def test_generate_problems_a_digits_shorthand_derives_range() -> None:
+    params = {"paper_size": "A4", "command_type": "ope", "num": 10, "a_digits": 1, "b_digits": 1, "operator": ["add"]}
+    problems = problem_generation.generate_problems(params)
+    for problem in problems:
+        assert 1 <= problem["a"] <= 9
+        assert 1 <= problem["b"] <= 9
+
+
+def test_generate_problems_ope_ignores_a_value() -> None:
+    # Regression test (issue #230): 'ope' no longer reads a_value as a digit
+    # count -- only a_digits/a_min/a_max affect the range. A digit count out
+    # of set_min_max_value()'s 1-5 range (e.g. 99) would have raised an
+    # unhandled IndexError under the old dual-meaning behavior; it must now
+    # be silently ignored and fall back to the default 1-9 range.
+    params = {"paper_size": "A4", "command_type": "ope", "num": 5, "a_value": 99, "b_value": 99, "operator": ["add"]}
     problems = problem_generation.generate_problems(params)
     for problem in problems:
         assert 1 <= problem["a"] <= 9
@@ -612,7 +625,18 @@ def test_generate_problems_number_pair_returns_valid_results(command_type: str, 
 
 
 @pytest.mark.parametrize("command_type", ["lcm", "gcd"])
-def test_generate_problems_number_pair_a_value_shorthand_derives_range(command_type: str) -> None:
+def test_generate_problems_number_pair_a_digits_shorthand_derives_range(command_type: str) -> None:
+    params = {"paper_size": "A4", "command_type": command_type, "num": 5, "a_digits": 1, "b_digits": 1}
+    problems = problem_generation.generate_problems(params, "latex")
+    for problem in problems:
+        assert 1 <= problem["a"] <= 9
+        assert 1 <= problem["b"] <= 9
+
+
+@pytest.mark.parametrize("command_type", ["lcm", "gcd"])
+def test_generate_problems_number_pair_ignores_a_value(command_type: str) -> None:
+    # Regression test (issue #230): a_value is no longer read as a digit
+    # count for lcm/gcd; only a_digits/a_min/a_max affect the range.
     params = {"paper_size": "A4", "command_type": command_type, "num": 5, "a_value": 1, "b_value": 1}
     problems = problem_generation.generate_problems(params, "latex")
     for problem in problems:
@@ -719,7 +743,17 @@ def test_generate_problems_divfrac_rejects_b_min_below_one() -> None:
         problem_generation.generate_problems(params, "latex")
 
 
-def test_generate_problems_divfrac_a_value_shorthand_derives_range() -> None:
+def test_generate_problems_divfrac_a_digits_shorthand_derives_range() -> None:
+    params = {"paper_size": "A4", "command_type": "divfrac", "num": 5, "a_digits": 1, "b_digits": 1}
+    problems = problem_generation.generate_problems(params, "latex")
+    for problem in problems:
+        assert 1 <= problem["a"] <= 9
+        assert 1 <= problem["b"] <= 9
+
+
+def test_generate_problems_divfrac_ignores_a_value() -> None:
+    # Regression test (issue #230): a_value is no longer read as a digit
+    # count for divfrac; only a_digits/a_min/a_max affect the range.
     params = {"paper_size": "A4", "command_type": "divfrac", "num": 5, "a_value": 1, "b_value": 1}
     problems = problem_generation.generate_problems(params, "latex")
     for problem in problems:

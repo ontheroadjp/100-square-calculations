@@ -125,12 +125,19 @@ def failure(message: str) -> None:
 
 DIGIT_COUNT_TO_MIN_MAX = ((1, 9), (10, 99), (100, 999), (1000, 9999), (10000, 99999))
 
+# Commands whose -a/--a-min/--a-max-family range accepts the --a-digits/
+# --b-digits digit-count shorthand (issue #230). Every other command either
+# takes -a/--a-value as a direct value (com/99/squ/pi) or doesn't use a/b at
+# all; --a-digits/--b-digits are simply never read there (same as --a-min/
+# --a-max already being unread by those commands today), not rejected.
+DIGIT_COUNT_SHORTHAND_COMMANDS = ('ope', '100', 'lcm', 'gcd', 'divfrac')
+
 
 def set_min_max_value(value: int) -> tuple[int, int]:
     """
-    Map a "number of digits" value (1-5, as used by -a/-b's digit-count
-    shorthand for the ope/100/lcm/gcd/divfrac command family) to the
-    (min, max) integer range with that many digits. Module-level (issue
+    Map a "number of digits" value (1-5, as used by --a-digits/--b-digits'
+    digit-count shorthand for the DIGIT_COUNT_SHORTHAND_COMMANDS family) to
+    the (min, max) integer range with that many digits. Module-level (issue
     #232) so backend/problem_generation.py can reuse it for the same
     shorthand on the /generate-problems JSON path, without depending on
     the now-removed nuts_calc.py, which had an independent duplicate of
@@ -182,11 +189,29 @@ def _init() -> argparse.Namespace:
     )
     parser.add_argument('-a', '--a-value'
         , type = int
-        , help = 'Number of digits in the first term of the formula'
+        , help = (
+            'The first term itself, for commands that take a single direct '
+            'value (com: complement target; 99: times-table row; squ: '
+            'starting square number; pi: starting pi-multiple index). Not a '
+            'digit count -- see --a-digits for the ope/100/lcm/gcd/divfrac '
+            'digit-count shorthand.'
+        )
     )
     parser.add_argument('-b', '--b-value'
         , type = int
-        , help = 'The number of digits in the second term of the formula'
+        , help = 'The second term itself, for commands that take a single direct value.'
+    )
+    parser.add_argument('--a-digits'
+        , type = int
+        , help = (
+            'Number of digits in the first term of the formula '
+            '(ope/100/lcm/gcd/divfrac only); resolved into --a-min/--a-max '
+            'via set_min_max_value().'
+        )
+    )
+    parser.add_argument('--b-digits'
+        , type = int
+        , help = 'Number of digits in the second term of the formula (ope/100/lcm/gcd/divfrac only).'
     )
     parser.add_argument('--a-min'
         , type = int
@@ -532,18 +557,18 @@ def _init() -> argparse.Namespace:
         # IndexError for value > 5, and silently wraps around to the wrong
         # (5-digit) range for value <= 0 (negative indexing) -- both must be
         # rejected with a clean CLI error first.
-        if (args.a_value is not None and not 1 <= args.a_value <= MAX_HUNDRED_SQUARE_DIGITS) \
-                or (args.b_value is not None and not 1 <= args.b_value <= MAX_HUNDRED_SQUARE_DIGITS):
+        if (args.a_digits is not None and not 1 <= args.a_digits <= MAX_HUNDRED_SQUARE_DIGITS) \
+                or (args.b_digits is not None and not 1 <= args.b_digits <= MAX_HUNDRED_SQUARE_DIGITS):
             failure(
-                f"-a/--a-value and -b/--b-value must be between 1 and "
+                f"--a-digits and --b-digits must be between 1 and "
                 f"{MAX_HUNDRED_SQUARE_DIGITS} digits for the '100' command."
             )
 
-    if args.command in ('ope', '100', 'lcm', 'gcd', 'divfrac'):
-        if args.a_value is not None:
-            args.a_min, args.a_max = set_min_max_value(args.a_value)
-        if args.b_value is not None:
-            args.b_min, args.b_max = set_min_max_value(args.b_value)
+    if args.command in DIGIT_COUNT_SHORTHAND_COMMANDS:
+        if args.a_digits is not None:
+            args.a_min, args.a_max = set_min_max_value(args.a_digits)
+        if args.b_digits is not None:
+            args.b_min, args.b_max = set_min_max_value(args.b_digits)
 
     if args.rows < MIN_ROWS_OR_COLUMNS or args.columns < MIN_ROWS_OR_COLUMNS:
         failure(f"-r/--rows and -c/--columns must be at least {MIN_ROWS_OR_COLUMNS}.")
@@ -668,7 +693,7 @@ def _init() -> argparse.Namespace:
 
     if args.terms is not None:
         # Overrides --terms-min/--terms-max unconditionally, mirroring how
-        # -a/--a-value overrides --a-min/--a-max above (not a rejected
+        # --a-digits overrides --a-min/--a-max above (not a rejected
         # combination -- the exact-value form simply wins).
         args.terms_min = args.terms_max = args.terms
 
@@ -2014,7 +2039,7 @@ def assign_tree_operands(root: ExprTreeNode, nums_a: list[int], nums_b: list[int
 
     The leftmost leaf draws from `nums_a`; every other leaf draws from
     `nums_b` -- generalizing --use-parentheses's former `nums_c = nums_b`
-    convention (the 3rd operand reusing the -b/--b-value range) to
+    convention (the 3rd operand reusing the b range) to
     arbitrary N (see docs/L3_implementation/nuts_calc_tex.py.md).
     """
     leaves = collect_leaves(root)

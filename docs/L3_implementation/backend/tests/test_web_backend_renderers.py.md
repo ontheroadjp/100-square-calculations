@@ -6,7 +6,7 @@ FlaskバックエンドがPDF生成リクエストを正しいCLI引数へ変換
 
 ## 動作概要
 
-`build_command()` の位置引数、値付きオプション、真偽フラグ、LaTeX専用パラメーター変換を検証する。`result_max` は `--result-max 1000` へ変換されることを任意スカラー群のテストで固定する。分数・小数・繰り上がり・余り・N項式などの既存変換もそれぞれ独立して検証する。`get_renderer_name()` が `reportlab`(削除済み)を含む未知の値を一律 `Unknown NUTS_CALC_RENDERER value` で拒否することも検証する(issue #232、`test_get_renderer_name_rejects_removed_reportlab`)。issue #232 以前は多くのテストが `renderer_name` を `"reportlab"`/`"latex"` で分けて実行していたが、`build_command()` 自体はレンダラー名に依存しないロジックのため、`"latex"` 固定に統一した。
+`build_command()` の位置引数、値付きオプション、真偽フラグ、LaTeX専用パラメーター変換を検証する。`test_build_command_translates_a_digits_and_b_digits`(issue #230)は新設の `a_digits`/`b_digits` が `--a-digits`/`--b-digits` へ変換されることを検証する(既存の `a_value` パススルーとは独立、`build_command()` はいずれの意味も解釈せず機械的に転送するだけ)。`result_max` は `--result-max 1000` へ変換されることを任意スカラー群のテストで固定する。分数・小数・繰り上がり・余り・N項式などの既存変換もそれぞれ独立して検証する。`get_renderer_name()` が `reportlab`(削除済み)を含む未知の値を一律 `Unknown NUTS_CALC_RENDERER value` で拒否することも検証する(issue #232、`test_get_renderer_name_rejects_removed_reportlab`)。issue #232 以前は多くのテストが `renderer_name` を `"reportlab"`/`"latex"` で分けて実行していたが、`build_command()` 自体はレンダラー名に依存しないロジックのため、`"latex"` 固定に統一した。
 
 ## 統合ポイント
 

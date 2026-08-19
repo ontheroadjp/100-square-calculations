@@ -125,11 +125,11 @@ function _basic {
         for size in a3 a4; do
             # Basic training
             [ "${size}" == "a3" ] && page=5 || page=10
-            python nuts_calc_tex.py ${size} ope -a 1 -b 1 -o add -c ${c} -r ${r} -p ${page} \
+            python nuts_calc_tex.py ${size} ope --a-digits 1 --b-digits 1 -o add -c ${c} -r ${r} -p ${page} \
                 --out-file "${DIST_DIR}/mental_arithmetic/${long}/${size}/step-01.pdf"
-            python nuts_calc_tex.py ${size} ope -a 2 -b 1 -o add -c ${c} -r ${r} -p ${page} \
+            python nuts_calc_tex.py ${size} ope --a-digits 2 --b-digits 1 -o add -c ${c} -r ${r} -p ${page} \
                 --out-file "${DIST_DIR}/mental_arithmetic/${long}/${size}/step-02.pdf"
-            python nuts_calc_tex.py ${size} ope -a 1 -b 1 -o mul -c ${c} -r ${r} -p ${page} --shuffle \
+            python nuts_calc_tex.py ${size} ope --a-digits 1 --b-digits 1 -o mul -c ${c} -r ${r} -p ${page} --shuffle \
                 --out-file "${DIST_DIR}/mental_arithmetic/${long}/${size}/step-03.pdf"
 
             # Mental althmatic training
@@ -137,14 +137,14 @@ function _basic {
                 --out-file "${DIST_DIR}/mental_arithmetic/${long}/${size}/step-04.pdf"
 
             # Practical training
-            python nuts_calc_tex.py ${size} ope -a 2 -b 1 -o mul -c ${c} -r ${r} -p ${page} \
+            python nuts_calc_tex.py ${size} ope --a-digits 2 --b-digits 1 -o mul -c ${c} -r ${r} -p ${page} \
                 --out-file "${DIST_DIR}/mental_arithmetic/${long}/${size}/step-05.pdf"
             python nuts_calc_tex.py ${size} ope --a-min 10 --a-max 19 --b-min 10 --b-max 19 \
                 -o mul -c ${c} -r ${r} --shuffle -p ${page} \
                 --out-file "${DIST_DIR}/mental_arithmetic/${long}/${size}/step-06.pdf"
             python nuts_calc_tex.py ${size} squ -a 5 -o mul -c ${c} -r ${r} --shuffle -p ${page} \
                 --out-file "${DIST_DIR}/mental_arithmetic/${long}/${size}/step-07.pdf"
-            python nuts_calc_tex.py ${size} ope -a 2 --b-min 11 --b-max 11 \
+            python nuts_calc_tex.py ${size} ope --a-digits 2 --b-min 11 --b-max 11 \
                 -o mul -c ${c} -r ${r} -p ${page} \
                 --out-file "${DIST_DIR}/mental_arithmetic/${long}/${size}/step-08.pdf"
             echo "done ${size}"

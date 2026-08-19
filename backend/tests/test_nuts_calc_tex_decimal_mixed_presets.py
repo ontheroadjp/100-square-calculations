@@ -50,12 +50,12 @@ DECIMAL_OPE_PRESETS = [
 ]
 
 
-@pytest.mark.parametrize("preset_id,operators,a_value,b_value,a_dp,b_dp", DECIMAL_OPE_PRESETS)
+@pytest.mark.parametrize("preset_id,operators,a_digits,b_digits,a_dp,b_dp", DECIMAL_OPE_PRESETS)
 def test_decimal_ope_preset_config_generates_exact_results(
-    preset_id: str, operators: list[str], a_value: int, b_value: int, a_dp: int, b_dp: int,
+    preset_id: str, operators: list[str], a_digits: int, b_digits: int, a_dp: int, b_dp: int,
 ) -> None:
-    a_min, a_max = _digit_range(a_value)
-    b_min, b_max = _digit_range(b_value)
+    a_min, a_max = _digit_range(a_digits)
+    b_min, b_max = _digit_range(b_digits)
     nums_a = list(range(a_min, a_max + 1))
     nums_b = list(range(b_min, b_max + 1))
 

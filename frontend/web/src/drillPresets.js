@@ -434,7 +434,7 @@ const grade3 = {
       supportLevel: 'full',
       latexOnly: true,
       buildParams: (state) => ({
-        command_type: 'ope', operator: ['add'], a_value: 1, b_value: 1,
+        command_type: 'ope', operator: ['add'], a_digits: 1, b_digits: 1,
         a_decimal_places: 1, b_decimal_places: 1, ...carryModeField(['add'], state),
         ...displayFormatParam(state),
       }),
@@ -493,7 +493,7 @@ const grade3 = {
       supportLevel: 'full',
       latexOnly: true,
       buildParams: (state) => ({
-        command_type: 'ope', operator: ['sub'], a_value: 1, b_value: 1,
+        command_type: 'ope', operator: ['sub'], a_digits: 1, b_digits: 1,
         a_decimal_places: 1, b_decimal_places: 1, ...carryModeField(['sub'], state),
         ...displayFormatParam(state),
       }),
@@ -526,7 +526,7 @@ const grade3 = {
       supportLevel: 'full',
       latexOnly: false,
       buildParams: (state) => ({
-        command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 1,
+        command_type: 'ope', operator: ['mul'], a_digits: 2, b_digits: 1,
         ...displayFormatParam(state),
       }),
     },
@@ -541,7 +541,7 @@ const grade3 = {
       supportLevel: 'full',
       latexOnly: false,
       buildParams: (state) => ({
-        command_type: 'ope', operator: ['mul'], a_value: 3, b_value: 1,
+        command_type: 'ope', operator: ['mul'], a_digits: 3, b_digits: 1,
         ...displayFormatParam(state),
       }),
     },
@@ -556,7 +556,7 @@ const grade3 = {
       supportLevel: 'full',
       latexOnly: false,
       buildParams: (state) => ({
-        command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 2,
+        command_type: 'ope', operator: ['mul'], a_digits: 2, b_digits: 2,
         ...displayFormatParam(state),
       }),
     },
@@ -706,7 +706,7 @@ const grade4 = {
       supportLevel: 'full',
       latexOnly: true,
       buildParams: (state) => ({
-        command_type: 'ope', operator: ['div'], a_value: 2, b_value: 1, a_decimal_places: 1,
+        command_type: 'ope', operator: ['div'], a_digits: 2, b_digits: 1, a_decimal_places: 1,
         ...displayFormatParam(state),
       }),
     },
@@ -728,7 +728,7 @@ const grade4 = {
       supportLevel: 'full',
       latexOnly: true,
       buildParams: (state) => ({
-        command_type: 'ope', operator: ['add'], a_value: 3, b_value: 3,
+        command_type: 'ope', operator: ['add'], a_digits: 3, b_digits: 3,
         a_decimal_places: 2, b_decimal_places: 2, ...carryModeField(['add'], state),
         ...displayFormatParam(state),
       }),
@@ -751,7 +751,7 @@ const grade4 = {
       supportLevel: 'full',
       latexOnly: true,
       buildParams: (state) => ({
-        command_type: 'ope', operator: ['sub'], a_value: 3, b_value: 3,
+        command_type: 'ope', operator: ['sub'], a_digits: 3, b_digits: 3,
         a_decimal_places: 2, b_decimal_places: 2, ...carryModeField(['sub'], state),
         ...displayFormatParam(state),
       }),
@@ -769,7 +769,7 @@ const grade4 = {
       supportLevel: 'full',
       latexOnly: true,
       buildParams: (state) => ({
-        command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 1, a_decimal_places: 1,
+        command_type: 'ope', operator: ['mul'], a_digits: 2, b_digits: 1, a_decimal_places: 1,
         ...displayFormatParam(state),
       }),
     },
@@ -839,7 +839,7 @@ const grade4 = {
       latexOnly: true,
       buildParams: () => ({
         command_type: 'ope', operator: ['add', 'sub', 'mul', 'div'], mixed_operators: true, terms: 3,
-        a_value: 1, b_value: 1,
+        a_digits: 1, b_digits: 1,
       }),
     },
     {
@@ -854,7 +854,7 @@ const grade4 = {
       latexOnly: true,
       buildParams: () => ({
         command_type: 'ope', operator: ['add', 'sub', 'mul', 'div'], mixed_operators: true,
-        use_parentheses: true, a_value: 1, b_value: 1,
+        use_parentheses: true, a_digits: 1, b_digits: 1,
       }),
     },
   ],
@@ -892,7 +892,7 @@ const grade5 = {
       supportLevel: 'full',
       latexOnly: true,
       buildParams: (state) => ({
-        command_type: 'ope', operator: ['mul'], a_value: 2, b_value: 2,
+        command_type: 'ope', operator: ['mul'], a_digits: 2, b_digits: 2,
         a_decimal_places: 1, b_decimal_places: 1,
         ...displayFormatParam(state),
       }),
@@ -910,7 +910,7 @@ const grade5 = {
       supportLevel: 'full',
       latexOnly: true,
       buildParams: () => ({
-        command_type: 'ope', operator: ['div'], a_value: 2, b_value: 2,
+        command_type: 'ope', operator: ['div'], a_digits: 2, b_digits: 2,
         a_decimal_places: 1, b_decimal_places: 1,
       }),
     },

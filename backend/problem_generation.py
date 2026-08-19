@@ -156,8 +156,8 @@ def _dataclass_to_dict(value: object) -> object:
 def _generate_tree_ope_problems(
     params: renderers.RendererRequest, num: int, terms_min: int, terms_max: int,
 ) -> list[dict[str, object]]:
-    a_min, a_max = _resolve_ope_range(params, "a_value", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
-    b_min, b_max = _resolve_ope_range(params, "b_value", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
+    a_min, a_max = resolve_digit_count_range(params, "a_digits", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
+    b_min, b_max = resolve_digit_count_range(params, "b_digits", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
     operator = list(params.get("operator") or DEFAULT_OPERATOR)
     mixed_operators = bool(params.get("mixed_operators", False))
 
@@ -172,8 +172,8 @@ def _generate_tree_ope_problems(
 def _generate_multi_term_ope_problems(
     params: renderers.RendererRequest, num: int, terms_min: int, terms_max: int,
 ) -> list[dict[str, object]]:
-    a_min, a_max = _resolve_ope_range(params, "a_value", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
-    b_min, b_max = _resolve_ope_range(params, "b_value", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
+    a_min, a_max = resolve_digit_count_range(params, "a_digits", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
+    b_min, b_max = resolve_digit_count_range(params, "b_digits", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
     operator = list(params.get("operator") or DEFAULT_OPERATOR)
     mixed_operators = bool(params.get("mixed_operators", False))
 
@@ -186,8 +186,8 @@ def _generate_multi_term_ope_problems(
 
 
 def _generate_missing_value_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
-    a_min, a_max = _resolve_ope_range(params, "a_value", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
-    b_min, b_max = _resolve_ope_range(params, "b_value", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
+    a_min, a_max = resolve_digit_count_range(params, "a_digits", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
+    b_min, b_max = resolve_digit_count_range(params, "b_digits", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
     operator = list(params.get("operator") or DEFAULT_OPERATOR)
 
     nums_a = list(range(a_min, a_max + 1))
@@ -198,11 +198,20 @@ def _generate_missing_value_problems(params: renderers.RendererRequest, num: int
     return [_dataclass_to_dict(problem) for problem in problems]
 
 
-def _resolve_ope_range(
-    params: renderers.RendererRequest, value_key: str, min_key: str, max_key: str,
+def resolve_digit_count_range(
+    params: renderers.RendererRequest, digits_key: str, min_key: str, max_key: str,
     default_min: int, default_max: int,
 ) -> tuple[int, int]:
-    digit_count = params.get(value_key)
+    """
+    Single shared resolver (issue #230) for the a/b range of any command in
+    nuts_calc_tex.DIGIT_COUNT_SHORTHAND_COMMANDS (ope/100/lcm/gcd/divfrac):
+    `digits_key` ("a_digits"/"b_digits") is the digit-count shorthand,
+    converted via nuts_calc_tex.set_min_max_value(); if absent, falls back to
+    the explicit `min_key`/`max_key` range. Every future _generate_*_pdf-style
+    builder for this command family must call this instead of reimplementing
+    the conversion, to keep it centralized at one call site per command.
+    """
+    digit_count = params.get(digits_key)
     if digit_count is not None:
         return nuts_calc_tex.set_min_max_value(digit_count)
     return params.get(min_key, default_min), params.get(max_key, default_max)
@@ -216,8 +225,8 @@ def _validate_intermediate(operator: list[str], b_max: int, single_digit_max: in
 
 
 def _generate_ope_problems_latex(params: renderers.RendererRequest, num: int) -> list[OpeProblemData]:
-    a_min, a_max = _resolve_ope_range(params, "a_value", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
-    b_min, b_max = _resolve_ope_range(params, "b_value", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
+    a_min, a_max = resolve_digit_count_range(params, "a_digits", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
+    b_min, b_max = resolve_digit_count_range(params, "b_digits", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
     operator = list(params.get("operator") or DEFAULT_OPERATOR)
     intermediate = bool(params.get("intermediate", False))
     if intermediate:
@@ -513,8 +522,8 @@ def _generate_number_pair_problems(
     nuts_calc_tex.py's own build_number_pair_pages() shares one function
     between the two CLI commands (nuts_calc_tex.py:3959-3969).
     """
-    a_min, a_max = _resolve_ope_range(params, "a_value", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
-    b_min, b_max = _resolve_ope_range(params, "b_value", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
+    a_min, a_max = resolve_digit_count_range(params, "a_digits", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
+    b_min, b_max = resolve_digit_count_range(params, "b_digits", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
     nums_a = list(range(a_min, a_max + 1))
     nums_b = list(range(b_min, b_max + 1))
     problems = nuts_calc_tex.generate_number_pair_problems(compute, nums_a, nums_b, num, 1)
@@ -569,8 +578,8 @@ def _generate_dec2frac_problems(params: renderers.RendererRequest, num: int) -> 
 
 
 def _generate_divfrac_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
-    a_min, a_max = _resolve_ope_range(params, "a_value", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
-    b_min, b_max = _resolve_ope_range(params, "b_value", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
+    a_min, a_max = resolve_digit_count_range(params, "a_digits", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
+    b_min, b_max = resolve_digit_count_range(params, "b_digits", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
     if b_min < 1:
         raise ValueError("b_min must be at least 1 for the 'divfrac' command.")
     nums_a = list(range(a_min, a_max + 1))

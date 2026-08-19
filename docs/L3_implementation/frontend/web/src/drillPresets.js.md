@@ -97,9 +97,13 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 
 3年生に新設した `four-operations` カテゴリ(`frontend/web/src/drillPresets.js:558-592`)は2項目を持つ:
 - `g3-addsub-mixed-result-1000`: 加減算のみの3項混合(`terms:3, mixed_operators:true`)で `a_min:1, a_max:999, b_min:1, b_max:999, result_max: 1000`。2年生の同名項目(`g2-addsub-mixed`)と異なり `result_max` を持つ点が唯一の差(掛け算は含まない)。
-- `g3-parentheses-mul-result-1000`: 加減乗の3項混合に `use_parentheses: true` を加え、掛け算オペランドを2桁までに揃えるため `a_min:1, a_max:99, b_min:1, b_max:99`(2年生の `g2-parentheses` と同様に `a_min`/`a_max` 形式を使う。4年生の `g4-parentheses` が使う `a_value`/`b_value` 形式とは異なる)、`result_max: 1000` で答えの上限も揃える。
+- `g3-parentheses-mul-result-1000`: 加減乗の3項混合に `use_parentheses: true` を加え、掛け算オペランドを2桁までに揃えるため `a_min:1, a_max:99, b_min:1, b_max:99`(2年生の `g2-parentheses` と同様に `a_min`/`a_max` 形式を使う。4年生の `g4-parentheses` が使う `a_digits`/`b_digits` 形式とは異なる)、`result_max: 1000` で答えの上限も揃える。
 
 `catalog.js` の `CATEGORY_ORDER` は既に `four-operations` を `fraction` の直後(実質最後尾側)に固定しているため、3年生に `four-operations` カテゴリキーを追加するだけで学年ページ最下部にセクションが自動的に現れる(`catalog.js` 自体は無変更)。
+
+### `ope` プリセットの桁数指定が `a_value`/`b_value` から `a_digits`/`b_digits` へ移行した理由(issue #230)
+
+`backend/nuts_calc_tex.py` の `-a/--a-value` は、`ope`(と `100`/`lcm`/`gcd`/`divfrac`)では「桁数」、`99`/`squ`/`pi` では「値そのもの」という2つの異なる意味をコマンドによって切り替えて解釈していた。この単一パラメータへの意味の二重化を根本的に解消するため、issue #230 で `ope`/`100`/`lcm`/`gcd`/`divfrac` 専用の新フィールド `a_digits`/`b_digits` を新設し、`a_value`/`b_value` はこれらのコマンドで一切読まれなくなった(`docs/L3_implementation/backend/nuts_calc_tex.py.md` の該当セクション参照)。これに伴い、`ope` の桁数ショートハンドを使っていた13箇所のプリセット(`g3-decimal-addsub`/`g3-decimal-sub`/`g3-mul-2x1`/`g3-mul-3x1`/`g3-mul-2x2`/`g4-decimal-div-int`/`g4-decimal-add`/`g4-decimal-sub`/`g4-decimal-mul-int`/`g4-four-operations`/`g4-parentheses`/`g5-decimal-mul`/`g5-decimal-div`)を `a_value`/`b_value` から `a_digits`/`b_digits` へ機械的に置き換えた(値そのものは無変更)。`99`(`g2-kuku`)/`squ` プリセットの `a_value` は値そのものの意味のままなので無変更。`lcm`/`gcd`/`divfrac` プリセットはこの移行以前から `a_min`/`a_max`(明示レンジ)を直接指定しており対象外だった。
 
 ### ドキュメントにない既存機能の扱い(written/examPrep/missing-value)
 
