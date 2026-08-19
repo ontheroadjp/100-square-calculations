@@ -23,7 +23,7 @@ AI 運用の single source of truth。`AGENTS.md` はこのファイルへの sy
 
 ## Local Tooling Environment
 
-Observed by /init-docs (2026-08-19, standalone mode; versions unchanged since the 2026-08-18 observation):
+Observed by /init-docs (2026-08-20, documentation-only mode via /docs-sync HARD STOP recovery for issue #232; versions unchanged since the 2026-08-19 observation):
 - gh: 2.97.0
 - gh auth: logged in to github.com as ontheroadjp (ssh protocol, scopes: admin:public_key, gist, read:org, repo)
 - node: v24.16.0 (via mise: `~/.local/share/mise/installs/node/24/bin/node`)
