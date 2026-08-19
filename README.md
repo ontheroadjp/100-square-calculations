@@ -16,7 +16,7 @@ For the pedagogical background behind the drills (the mental-arithmetic techniqu
 *   **Two independent Web UI frontends**: `frontend/spa` is a React SPA with English/Japanese language switching. `frontend/web` is a lightweight, Japanese-only, static multi-page implementation (plain HTML/CSS(Sass)/JS, no React or i18n library) whose drill menu is a grade -> category -> menu-item hierarchy matching `docs/uiux/calculation_drill_menu_parameters_v1.md` (issue #98; no exam-prep or written/vertical-format presets). Both talk to the same Flask backend.
 
 ## Installation
-To use the ReportLab generator, you need Python 3. The Web UI additionally needs Flask, Flask-Cors, Node.js, and npm. A LaTeX environment with `pdflatex` is required when using `nuts_calc_tex.py` or `NUTS_CALC_RENDERER=latex`.
+To use the ReportLab generator directly via the CLI, you need Python 3. The Web UI additionally needs Flask, Flask-Cors, Node.js, and npm. A LaTeX environment (`lualatex` by default, or `pdflatex` via `NUTS_CALC_TEX_ENGINE=pdflatex`) is required when using `nuts_calc_tex.py`, which is also the Web UI's default and only reachable renderer as of issue #186.
 
 > **Note:** there is no `requirements.txt`/`pyproject.toml`/`setup.py` in this repo, so dependencies must be installed manually — see step 3 and the Dependencies section below.
 
@@ -44,7 +44,7 @@ To use the ReportLab generator, you need Python 3. The Web UI additionally needs
     cd frontend/web && npm install && cd ../..   # lightweight static UI (optional, only one is needed)
     ```
 
-5.  **(Optional) Install a LaTeX environment**: `nuts_calc_tex.py`, including fraction, written-calculation, and entrance-exam-prep worksheets, requires `pdflatex`. On Debian/Ubuntu, install the TeX Live base and extra packages; the repository already vendors `longdivision`. A Japanese-capable engine is also available: set `NUTS_CALC_TEX_ENGINE=lualatex` to compile with `lualatex` + `fontspec` instead (requires the `lualatex` binary, the `texlive-luatex` package for `luaotfload`, and the `fonts-noto-cjk` package on Debian/Ubuntu).
+5.  **Install a LaTeX environment** (required for the Web UI, since `nuts_calc_tex.py` is now its default and only reachable renderer, issue #186; optional only if you use `nuts_calc.py` directly via the CLI): `nuts_calc_tex.py`, including fraction, written-calculation, and entrance-exam-prep worksheets, uses the Japanese-capable `lualatex` engine by default (requires the `lualatex` binary, the `texlive-luatex` package for `luaotfload`, and the `fonts-noto-cjk` package on Debian/Ubuntu). Set `NUTS_CALC_TEX_ENGINE=pdflatex` to compile with `pdflatex` instead (on Debian/Ubuntu, install the TeX Live base and extra packages; the repository already vendors `longdivision`).
 
     To deactivate the virtual environment when you are done:
     ```bash
@@ -104,7 +104,7 @@ python3 nuts_calc_tex.py A4 frac -o add --same-denominator \
   --a-fraction-form mixed --b-fraction-form mixed --out-file mixed-fractions.pdf
 ```
 
-Grade 3-6 fraction cards appear only with `NUTS_CALC_RENDERER=latex`. The
+Grade 3-6 fraction cards appear by default, since the Web UI's default and only reachable renderer is `latex` (issue #186; `NUTS_CALC_RENDERER=reportlab` is no longer available). The
 curriculum source used for their placement is preserved under `docs/reference/`.
 The same renderer exposes the grades 4-6 entrance-exam-prep section, which uses
 multi-term, mixed-operator, and parenthesized `ope` expressions.
@@ -227,10 +227,10 @@ To use either web interface, you need to start the Flask backend and one of the 
         python app.py
         ```
     *   The backend will typically run on `http://127.0.0.1:5000`.
-    *   (Optional) Set `NUTS_CALC_RENDERER=latex` before starting the app to generate PDFs via `nuts_calc_tex.py` instead of the default `nuts_calc.py` (`reportlab`); this requires `pdflatex` to be installed (see Dependencies below).
-    *   (Optional) When `NUTS_CALC_RENDERER=latex` is set, you can additionally set `NUTS_CALC_TEX_ENGINE=lualatex` to switch `nuts_calc_tex.py`'s LaTeX compilation step to the Japanese-capable `lualatex` engine instead of the default `pdflatex`; this requires the `lualatex` binary, the `texlive-luatex` package, and the `fonts-noto-cjk` package (see Dependencies below). Example:
+    *   By default (no env vars needed) the app generates PDFs via `nuts_calc_tex.py` with the Japanese-capable `lualatex` engine (issue #186); this requires the `lualatex` binary, the `texlive-luatex` package, and the `fonts-noto-cjk` package (see Dependencies below). `NUTS_CALC_RENDERER=reportlab` (`nuts_calc.py`) is no longer available.
+    *   (Optional) Set `NUTS_CALC_TEX_ENGINE=pdflatex` to use the `pdflatex` engine instead of the default `lualatex`; this requires `pdflatex` to be installed (see Dependencies below). Example:
         ```bash
-        NUTS_CALC_RENDERER=latex NUTS_CALC_TEX_ENGINE=lualatex python app.py
+        NUTS_CALC_TEX_ENGINE=pdflatex python app.py
         ```
 
 2.  **Start a frontend** — pick one:
@@ -268,24 +268,24 @@ cd frontend/web && npm run build
 *   Flask (`pip install Flask`)
 *   Flask-Cors (`pip install Flask-Cors`)
 *   Node.js and npm (for either `frontend/spa` or `frontend/web`)
-*   (Optional) `pdflatex` -- required for `nuts_calc_tex.py` and `NUTS_CALC_RENDERER=latex` (see Architecture below)
-*   (Optional) `lualatex`, `texlive-luatex`, and `fonts-noto-cjk` -- required for `nuts_calc_tex.py`'s Japanese-capable engine (`NUTS_CALC_TEX_ENGINE=lualatex`); not needed for the default `pdflatex` engine
+*   `lualatex`, `texlive-luatex`, and `fonts-noto-cjk` -- required for the Web UI's default renderer (`nuts_calc_tex.py` with the Japanese-capable `lualatex` engine, issue #186; see Architecture below)
+*   (Optional) `pdflatex` -- an alternative LaTeX engine for `nuts_calc_tex.py`, selectable via `NUTS_CALC_TEX_ENGINE=pdflatex`; not needed with the default `lualatex` engine
 
 ## Architecture
 
 The repository is organized as `backend/` + `frontend/{spa,web}`, so the Flask backend can be shared by two independent frontends (and so `backend`/`frontend` could be split into separate repositories in the future if needed). There are three user-facing ways to generate a worksheet:
 
 *   **CLI**: `backend/nuts_calc.py` → ReportLab → PDF/CSV. No server, no database, no persisted state.
-*   **Web UI**: a frontend (`frontend/spa`, a React SPA, or `frontend/web`, a lightweight static multi-page site) → Flask backend (`backend/app.py`) → `backend/renderers.py` → `subprocess` call to `nuts_calc.py` (default) or `nuts_calc_tex.py` (via `NUTS_CALC_RENDERER=latex`) → generated PDF is streamed back to the browser. The backend holds no drill-generation logic of its own; it only translates form input into CLI arguments shared by both renderers. Both frontends call `POST /generate-pdf` and `GET /renderer-info` and are independent npm projects rather than sharing a package, since a future repo split was anticipated; `frontend/web`'s `verticalLayout.js` still mirrors `frontend/spa`'s copy, but its `drillPresets.js` has its own grade -> category -> menu-item data model (issue #98) and no longer duplicates `frontend/spa`'s version. `frontend/web` additionally calls a third endpoint, `POST /generate-problems` (issue #138), to fetch live-generated example problems (JSON, no PDF) for its preset detail screen; `backend/problem_generation.py` serves it by calling the CLI's data-generation functions in-process instead of shelling out. `frontend/spa` does not use this endpoint. See `docs/L3_implementation/api.md`.
+*   **Web UI**: a frontend (`frontend/spa`, a React SPA, or `frontend/web`, a lightweight static multi-page site) → Flask backend (`backend/app.py`) → `backend/renderers.py` → `subprocess` call to `nuts_calc_tex.py` (the default and only reachable renderer as of issue #186; `nuts_calc.py`/`reportlab` is no longer reachable via the `NUTS_CALC_RENDERER` env var, though its code is not removed) → generated PDF is streamed back to the browser. The backend holds no drill-generation logic of its own; it only translates form input into CLI arguments shared by both renderers. Both frontends call `POST /generate-pdf` and `GET /renderer-info` and are independent npm projects rather than sharing a package, since a future repo split was anticipated; `frontend/web`'s `verticalLayout.js` still mirrors `frontend/spa`'s copy, but its `drillPresets.js` has its own grade -> category -> menu-item data model (issue #98) and no longer duplicates `frontend/spa`'s version. `frontend/web` additionally calls a third endpoint, `POST /generate-problems` (issue #138), to fetch live-generated example problems (JSON, no PDF) for its preset detail screen; `backend/problem_generation.py` serves it by calling the CLI's data-generation functions in-process instead of shelling out. `frontend/spa` does not use this endpoint. See `docs/L3_implementation/api.md`.
 *   **Batch**: `backend/factory.sh` is a third, batch-oriented entry point that calls `nuts_calc.py` repeatedly to populate a `dist/` directory with a fixed set of worksheets.
 
-**Experimental**: `nuts_calc_tex.py` is independent from ReportLab and implements twenty commands: the seven ReportLab-compatible commands, the LaTeX-only `frac`, `mixed`, and `compare` commands, the LaTeX-only `evenodd`, `multiples`, and `divisors` number-property commands, the LaTeX-only `lcm` and `gcd` pair-number commands, and the LaTeX-only `simplify`, `commondenom`, `frac2dec`, `dec2frac`, and `divfrac` fraction/decimal conversion commands. It also owns decimal, written-calculation, and carry-aware drill behavior. Web cards using these features are renderer-gated because `nuts_calc.py` does not implement them. Its LaTeX compilation step is pluggable via a `LatexEngineAdapter` (`NUTS_CALC_TEX_ENGINE`, default `pdflatex`); a Japanese-capable `lualatex` adapter is also available (see Installation above), though existing English-label workarounds for `pdflatex`'s lack of CJK font support are unchanged by it. See `docs/L3_implementation/backend/nuts_calc_tex.py.md`.
+**Experimental**: `nuts_calc_tex.py` is independent from ReportLab and implements twenty commands: the seven ReportLab-compatible commands, the LaTeX-only `frac`, `mixed`, and `compare` commands, the LaTeX-only `evenodd`, `multiples`, and `divisors` number-property commands, the LaTeX-only `lcm` and `gcd` pair-number commands, and the LaTeX-only `simplify`, `commondenom`, `frac2dec`, `dec2frac`, and `divfrac` fraction/decimal conversion commands. It also owns decimal, written-calculation, and carry-aware drill behavior. Web cards using these features are renderer-gated because `nuts_calc.py` does not implement them. Its LaTeX compilation step is pluggable via a `LatexEngineAdapter` (`NUTS_CALC_TEX_ENGINE`, default `lualatex` as of issue #186); the Japanese-capable `lualatex` adapter is the default (see Installation above), and `pdflatex` remains available via `NUTS_CALC_TEX_ENGINE=pdflatex`, though existing English-label workarounds for `pdflatex`'s lack of CJK font support are unchanged by either engine. See `docs/L3_implementation/backend/nuts_calc_tex.py.md`.
 
 See `docs/L1_project/project_overview.md` and `docs/L0_concept/concept.md` for the full breakdown and file/line references.
 
 ## Design Principles
 
-*   **Renderer-owned drill logic.** The web backend does not implement worksheet generation; it translates requests and shells out to the selected renderer. Most CLI parameters are shared, while LaTeX-only features such as `frac` are hidden when ReportLab is active.
+*   **Renderer-owned drill logic.** The web backend does not implement worksheet generation; it translates requests and shells out to the selected renderer. Most CLI parameters are shared; LaTeX-only features such as `frac` are always available now that `latex` is the Web UI's default and only reachable renderer (issue #186).
 *   **No dependency pinning on the Python side.** There is no lock file, `requirements.txt`, or `pyproject.toml`; dependencies are installed ad hoc. This reflects the project's scope as a small personal/batch-generation tool rather than a deployed service.
 *   **Local tests are the current quality gate (no CI yet).** pytest covers both generators and backend translation; Node's built-in test runner covers `frontend/spa`'s preset/catalog/layout pure functions and `frontend/web`'s own `drillPresets.test.js` (issue #98). Renderer-dependent tests compile PDF/CSV output when dependencies are available.
 *   **Two frontends, one contract, no shared package.** `frontend/web` was added as a lightweight (no React, no i18n library, Japanese-only) alternative to `frontend/spa`, built as a genuine static multi-page site rather than a single-page JS router. Both frontends are independent npm projects; `frontend/web`'s `verticalLayout.js` still duplicates `frontend/spa`'s copy, but its drill-menu data model (`drillPresets.js`) diverged from `frontend/spa`'s in issue #98 to match `docs/uiux/calculation_drill_menu_parameters_v1.md` exactly. Neither module set depends on a shared internal package, anticipating a possible future split of `backend`/`frontend` into separate repositories.

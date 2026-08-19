@@ -31,7 +31,9 @@
 
 ## 変更履歴（git log より自動生成）
 
-- 8fdd41d fix(#113): allow nuts_calc_tex.py --carry-borrow with decimal operands
+- 506d7b4 feat(#186): make latex+lualatex the default reachable configuration
+- 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)
+- bc0eef5 #113 nuts_calc_tex.py: allow --carry-borrow with decimal operands (#164)
 - e8db9d7 #112 nuts_calc_tex.py: add mixed-number (帯分数) display support to the frac command (#125)
 - 241b2e1 #96 nuts_calc_tex.py: add fraction/decimal conversion drill commands (#108)
 - a6c52f9 #95 nuts_calc_tex.py: add LCM and GCD pair-number drill commands (#107)
@@ -39,4 +41,3 @@
 - 26ec449 #93 nuts_calc_tex.py: add optional name field to generated worksheets (#105)
 - bd8f170 #92 nuts_calc_tex.py: fix borrow-required subtraction to respect configured digit range (#103)
 - eae5107 #91 nuts_calc_tex.py: add remainder control to division (none/required/mixed) (#102)
-- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

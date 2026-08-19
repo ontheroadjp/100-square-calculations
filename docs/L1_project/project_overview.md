@@ -39,11 +39,11 @@ CI 定義・パッケージ定義(lock file 等)は Python 側に存在しない
 
 ### `nuts_calc_tex.py`(実験的プロトタイプ)
 
-`nuts_calc.py` と同じ7コマンドにLaTeX専用の分数・混合・比較・数論・変換系を加えた計20コマンドをレンダリングする独立プロトタイプ。`ope` は小数、繰り上がり・繰り下がり、余り、かっこ付き/N項/虫食い式、最終結果上限(`--result-max`)に対応する。Webでは `NUTS_CALC_RENDERER=latex` の場合だけLaTeX専用カードを表示する。`factory.sh` からは呼ばれない(`backend/nuts_calc_tex.py:124-449`)。
+`nuts_calc.py` と同じ7コマンドにLaTeX専用の分数・混合・比較・数論・変換系を加えた計20コマンドをレンダリングする独立プロトタイプ。`ope` は小数、繰り上がり・繰り下がり、余り、かっこ付き/N項/虫食い式、最終結果上限(`--result-max`)に対応する。Webでは `latex` がデフォルトかつ唯一到達可能なレンダラーのため(issue #186)、LaTeX専用カードは常に表示される。`factory.sh` からは呼ばれない(`backend/nuts_calc_tex.py:124-449`)。
 
 ### Web バックエンド(`backend/`、`frontend/spa`・`frontend/web` 共通)
 
-- `backend/app.py`: Flask アプリ。エンドポイントは `POST /generate-pdf`(PDF生成)、`POST /generate-problems`(PDFを生成せず問題データのみJSONで返す、issue #138)、`GET /renderer-info`(現在有効なレンダラー名の取得、issue #46)の3つ。コマンド構築・レンダラー選択・subprocess 実行のロジックは `backend/renderers.py`(issue #36)に切り出されており、env 変数 `NUTS_CALC_RENDERER`(`reportlab`|`latex`、デフォルト `reportlab`)で `nuts_calc.py`/`nuts_calc_tex.py` を切り替えられる。`POST /generate-problems`(現時点では `command_type='ope'` のみ)は `backend/problem_generation.py` が CLI の生成関数をプロセス内で直接呼び出す例外で、subprocess は起動しない。詳細は [[../L3_implementation/api]]・[[../L3_implementation/specification_summary]] を参照。
+- `backend/app.py`: Flask アプリ。エンドポイントは `POST /generate-pdf`(PDF生成)、`POST /generate-problems`(PDFを生成せず問題データのみJSONで返す、issue #138)、`GET /renderer-info`(現在有効なレンダラー名の取得、issue #46)の3つ。コマンド構築・レンダラー選択・subprocess 実行のロジックは `backend/renderers.py`(issue #36)に切り出されており、env 変数 `NUTS_CALC_RENDERER`(デフォルト `latex`、issue #186 で `reportlab` から変更)で切り替える。`reportlab`(`nuts_calc.py`)は明示指定しても「利用不可」の明確なエラーになり到達不能(コード自体は削除していない)。`POST /generate-problems`(現時点では `command_type='ope'` のみ)は `backend/problem_generation.py` が CLI の生成関数をプロセス内で直接呼び出す例外で、subprocess は起動しない。詳細は [[../L3_implementation/api]]・[[../L3_implementation/specification_summary]] を参照。
 
 ### Web フロントエンド(spa): `frontend/spa`(React SPA)
 
