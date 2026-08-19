@@ -6,17 +6,19 @@ subprocess-based, PDF-generation (presentation) layer.
 
 `command_type == 'ope'` is supported, including its --use-parentheses/
 --missing-value/--terms*/--mixed-operators variants (issue #168), as are
-`com`/`99`/`aBc`/`squ`/`pi` (issue #169) via `_COMMAND_GENERATORS`. `100`
-is intentionally excluded (raises ValueError): nuts_calc_tex.py's
-generate_hundred_square() returns a single HundredSquareTable object, not
-a `num`-many problem list, so it does not fit the `{"problems": [...]}`
-envelope this endpoint returns; representing it would need its own
-response shape, which is a bigger contract decision left for a future
-issue if real demand shows up (issue #169). Every other command type
-raises ValueError; see issue #166 and its remaining sub-issues.
+`com`/`99`/`aBc`/`squ`/`pi` (issue #169) and `frac`/`mixed` (issue #170)
+via `_COMMAND_GENERATORS`. `100` is intentionally excluded (raises
+ValueError): nuts_calc_tex.py's generate_hundred_square() returns a
+single HundredSquareTable object, not a `num`-many problem list, so it
+does not fit the `{"problems": [...]}` envelope this endpoint returns;
+representing it would need its own response shape, which is a bigger
+contract decision left for a future issue if real demand shows up
+(issue #169). Every other command type raises ValueError; see issue
+#166 and its remaining sub-issues.
 """
 
 import dataclasses
+from fractions import Fraction
 from typing import TypedDict
 
 import nuts_calc
@@ -146,6 +148,8 @@ def _dataclass_to_dict(value: object) -> object:
         return {field.name: _dataclass_to_dict(getattr(value, field.name)) for field in dataclasses.fields(value)}
     if isinstance(value, list):
         return [_dataclass_to_dict(item) for item in value]
+    if isinstance(value, Fraction):
+        return {"numerator": value.numerator, "denominator": value.denominator}
     return value
 
 
@@ -329,6 +333,131 @@ def _generate_pi_problems(params: renderers.RendererRequest, num: int) -> list[d
     return [_dataclass_to_dict(problem) for problem in problems]
 
 
+def _validate_fraction_digits(numerator_digits: int, denominator_digits: int, command_type: str) -> None:
+    for option_name, value in (
+        ("numerator_digits", numerator_digits), ("denominator_digits", denominator_digits),
+    ):
+        if not nuts_calc_tex.MIN_FRACTION_DIGITS <= value <= nuts_calc_tex.MAX_FRACTION_DIGITS:
+            raise ValueError(
+                f"{option_name} must be between {nuts_calc_tex.MIN_FRACTION_DIGITS} and "
+                f"{nuts_calc_tex.MAX_FRACTION_DIGITS} for the {command_type!r} command."
+            )
+
+
+def _validate_reducible_operators(operator: list[str], command_type: str) -> None:
+    allowed_reducible_operators = {"mul", "div"}
+    if not operator or not set(operator) <= allowed_reducible_operators:
+        raise ValueError(
+            f"reducible_mode only supports 'mul'/'div' operators for the {command_type!r} command."
+        )
+
+
+def _generate_frac_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+    numerator_digits = params.get("numerator_digits", 1)
+    denominator_digits = params.get("denominator_digits", 1)
+    _validate_fraction_digits(numerator_digits, denominator_digits, "frac")
+
+    same_denominator = bool(params.get("same_denominator", False))
+    different_denominators = bool(params.get("different_denominators", False))
+    if same_denominator and different_denominators:
+        raise ValueError("same_denominator and different_denominators cannot be combined.")
+
+    proper_operands = bool(params.get("proper_operands", False))
+    if proper_operands and numerator_digits > denominator_digits:
+        raise ValueError(
+            "proper_operands requires numerator_digits to be no greater than denominator_digits."
+        )
+    proper_result = bool(params.get("proper_result", False))
+
+    operator = list(params.get("operator") or DEFAULT_OPERATOR)
+    a_fraction_form = params.get("a_fraction_form", "proper")
+    b_fraction_form = params.get("b_fraction_form", "proper")
+    if a_fraction_form != "proper" or b_fraction_form != "proper":
+        if operator not in (["add"], ["sub"]):
+            raise ValueError(
+                "a_fraction_form/b_fraction_form require operator=['add'] or "
+                "operator=['sub'] for the 'frac' command."
+            )
+        if "improper" in (a_fraction_form, b_fraction_form):
+            raise ValueError("a_fraction_form/b_fraction_form do not support 'improper' for the 'frac' command.")
+
+    reducible_mode = params.get("reducible_mode")
+    if reducible_mode is not None:
+        _validate_reducible_operators(operator, "frac")
+
+    problems = nuts_calc_tex.generate_fraction_problems(
+        numerator_digits, denominator_digits, operator, num, 1, same_denominator,
+        proper_operands, proper_result, different_denominators,
+        a_fraction_form, b_fraction_form, reducible_mode,
+    )
+    return [_dataclass_to_dict(problem) for problem in problems]
+
+
+def _determine_mixed_terms(params: renderers.RendererRequest, mixed_operators: bool) -> tuple[int, int, bool]:
+    """Resolve/validate the 'mixed' command's terms_min/terms_max the same
+    way nuts_calc_tex.py's _init() does (nuts_calc_tex.py:624-635,709-715),
+    since this endpoint bypasses argparse and its defaults/validation.
+    """
+    terms = params.get("terms")
+    terms_min = params.get("terms_min", nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT)
+    terms_max = params.get("terms_max", nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT)
+    if terms is not None:
+        terms_min = terms_max = terms
+
+    terms_options_given = (
+        terms is not None
+        or terms_min != nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT
+        or terms_max != nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT
+        or mixed_operators
+    )
+    if terms_options_given and terms_min > terms_max:
+        raise ValueError("terms_min must be less than or equal to terms_max.")
+
+    terms_min, terms_max = nuts_calc_tex.resolve_term_range(terms_min, terms_max, False)
+    return terms_min, terms_max, terms_options_given
+
+
+def _generate_mixed_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+    numerator_digits = params.get("numerator_digits", 1)
+    denominator_digits = params.get("denominator_digits", 1)
+    _validate_fraction_digits(numerator_digits, denominator_digits, "mixed")
+
+    decimal_places = params.get("decimal_places", 1)
+    if not nuts_calc_tex.MIN_DECIMAL_PLACES <= decimal_places <= nuts_calc_tex.MAX_DECIMAL_PLACES:
+        raise ValueError(
+            f"decimal_places must be between {nuts_calc_tex.MIN_DECIMAL_PLACES} and "
+            f"{nuts_calc_tex.MAX_DECIMAL_PLACES} for the 'mixed' command."
+        )
+
+    a_kind = list(params.get("a_kind") or nuts_calc_tex.MIXED_OPERAND_KINDS)
+    b_kind = list(params.get("b_kind") or nuts_calc_tex.MIXED_OPERAND_KINDS)
+    operator = list(params.get("operator") or DEFAULT_OPERATOR)
+    mixed_operators = bool(params.get("mixed_operators", False))
+
+    terms_min, terms_max, terms_options_given = _determine_mixed_terms(params, mixed_operators)
+
+    reducible_mode = params.get("reducible_mode")
+    if reducible_mode is not None:
+        _validate_reducible_operators(operator, "mixed")
+        if terms_options_given:
+            raise ValueError(
+                "reducible_mode cannot be combined with terms/terms_min/terms_max/mixed_operators "
+                "for the 'mixed' command."
+            )
+        if {tuple(a_kind), tuple(b_kind)} != {("fraction",), ("int",)}:
+            raise ValueError(
+                "reducible_mode requires exactly one a_kind=['fraction']/b_kind=['int'] pairing "
+                "(in either order) for the 'mixed' command."
+            )
+
+    problems = nuts_calc_tex.generate_mixed_problems(
+        a_kind, b_kind, operator, mixed_operators,
+        numerator_digits, denominator_digits, decimal_places,
+        terms_min, terms_max, num, 1, reducible_mode,
+    )
+    return [_dataclass_to_dict(problem) for problem in problems]
+
+
 # command_type -> generator dispatch table (issue #167's contract): each
 # sub-issue of #166 adds one generator function and one entry here, without
 # touching the shared if/elif chain generate_problems() used to have.
@@ -340,4 +469,6 @@ _COMMAND_GENERATORS = {
     "aBc": _generate_abc_problems,
     "squ": _generate_squ_problems,
     "pi": _generate_pi_problems,
+    "frac": _generate_frac_problems,
+    "mixed": _generate_mixed_problems,
 }
