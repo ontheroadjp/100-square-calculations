@@ -19,9 +19,9 @@ DB は存在しないため `database.md` は生成していない(永続化層�
 ### `POST /generate-pdf`
 
 - 入力: JSON ボディ。必須キーは `paper_size`, `command_type`。任意キーには通常 CLI option、分数・小数・mixed・compare option、LaTeX 専用の `vertical`/`use_parentheses`/`missing_value`/`terms` 系、`carry_mode`、`remainder_mode`、`reducible_mode`、`result_max` を含む(`backend/renderers.py:9-54`)。
-- 処理: 選択 renderer の CLI 引数へ変換し、UUID 出力名を指定して `subprocess.run(..., check=True)` を実行する(`backend/renderers.py:170-189`)。
-- 出力: 成功時は PDF attachment。JSON/必須値欠落は HTTP 400、renderer/CLI 等の実行時失敗は HTTP 500(`backend/app.py:17-50`)。
-- 入力検証: 必須キーの存在だけを backend で検証し、値の allowlist は CLI の argparse に委ねる。
+- 処理: `command_type == 'com'` の場合のみ(issue #199、#174(B-5) の最初のコマンドグループ移行)、選択 renderer の CLI 引数へ変換して `subprocess.run` する経路を使わず、`nuts_calc_tex.py` の内部プレゼンテーション API(`build_presentation_document_tex`、issue #183)を Flask プロセス内で直接呼んで PDF を生成する(`backend/app.py:22-86`、`a_value`/`rows`/`columns` のみ対応するベーシックケース限定)。それ以外の全 `command_type` は従来どおり選択 renderer の CLI 引数へ変換し、UUID 出力名を指定して `subprocess.run(..., check=True)` を実行する(`backend/renderers.py:170-189`)。
+- 出力: 成功時は PDF attachment。JSON/必須値欠落は HTTP 400、renderer/CLI 等の実行時失敗は HTTP 500(`backend/app.py:90-132`)。
+- 入力検証: 必須キーの存在だけを backend で検証し、値の allowlist は CLI の argparse に委ねる。`command_type == 'com'` は上記の内部 API 経路内で `a_value`(`nuts_calc_tex.MIN_COMPLEMENT_TARGET` 以上)を追加検証する。
 
 ### `POST /generate-problems`(issue #138)
 
