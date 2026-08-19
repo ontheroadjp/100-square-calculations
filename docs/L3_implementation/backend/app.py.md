@@ -27,11 +27,6 @@
 
 ## 変更履歴(git log より自動生成)
 
-- a29ed4a feat(#138): add POST /generate-problems for PDF-free ope problem generation
-- 9ead364 refactor(#46): remove --vertical from nuts_calc.py; gate written-calculation UI on active renderer
-- 53eb72d fix(#37): surface renderer stdout in error responses; use exit(1) for -a/-b validation failures
-- 155caf8 feat(#36): switch web/backend renderer between nuts_calc.py and nuts_calc_tex.py via env var
-- cfea9ed fix(#4): fix 9 logic bugs found in CLI, web backend, and frontend
-- 0a11eaf feat(#9): add vertical (written-calculation) output format for ope command
-- d9fc0a3 refactor: Rename 100masu.py to nuts_calc.py and remove setup.py
-- 68daa78 feat: Implement web interface (React + Tailwind + Flask)
+- bf8fb57 feat(#199): migrate generate-pdf's com command group to the internal presentation API
+- 13bef63 #138 backend: add POST /generate-problems for PDF-free ope problem generation (#175)
+- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)
