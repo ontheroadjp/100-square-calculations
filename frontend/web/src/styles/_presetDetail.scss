@@ -49,6 +49,15 @@
     }
   }
 
+  // 出題形式:筆算(issue #134) example chips render a multi-row KaTeX
+  // `array` (operand / operand+operator / rule, or a long-division
+  // bracket) instead of a single inline expression, so they need more
+  // vertical room than the row's min-height (above) provides for the
+  // horizontal ("式") chips.
+  .example-chip-written {
+    padding: $space-md 12px;
+  }
+
   // Last resort for screens too narrow for 3 legible chips: drop the 3rd
   // sample so the remaining two get its space instead of shrinking further.
   @media (max-width: 360px) {

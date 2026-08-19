@@ -27,8 +27,23 @@ export function isLivePreviewSupported(params) {
   return params?.command_type === 'ope' && !UNSUPPORTED_OPE_VARIANT_FLAGS.some((flag) => params[flag]);
 }
 
+// Mirrors backend/nuts_calc_tex.py's format_decimal_value(raw, places): a/b
+// from POST /generate-problems are always the raw (unscaled) integers
+// calc_add/calc_sub/calc_mul/calc_div produce, with a_decimal_places/
+// b_decimal_places (0 by default) recording where the decimal point
+// belongs -- the API response never formats this itself.
+function formatDecimalValue(raw, places) {
+  if (places <= 0) return String(raw);
+  const digits = String(raw).padStart(places + 1, '0');
+  return `${digits.slice(0, -places)}.${digits.slice(-places)}`;
+}
+
 export function buildLiveExampleStrings(problems) {
-  return problems.map((problem) => `${problem.a}${OPERATOR_SYMBOLS[problem.operator]}${problem.b}`);
+  return problems.map((problem) => {
+    const aStr = formatDecimalValue(problem.a, problem.a_decimal_places ?? 0);
+    const bStr = formatDecimalValue(problem.b, problem.b_decimal_places ?? 0);
+    return `${aStr}${OPERATOR_SYMBOLS[problem.operator]}${bStr}`;
+  });
 }
 
 // Maps the problem-count choice to nuts_calc.py's rows/columns. 20 matches
@@ -128,6 +143,61 @@ function renderExampleHtml(example) {
       ? katex.renderToString(segment.latex, { throwOnError: false })
       : escapeHtml(segment.value)
   )).join('');
+}
+
+// Matches the plain two-operand "a<op>b" shape every displayFormat-eligible
+// item's examples/examplesFor and live-preview strings (buildLiveExampleStrings)
+// use -- the only shape 出題形式:筆算 (issue #134) is offered on.
+const WRITTEN_EXAMPLE_RE = /^(\d+(?:\.\d+)?)([+\-×÷])(\d+(?:\.\d+)?)$/;
+const WRITTEN_OPERATOR_TEX = { '+': '+', '-': '-', '×': '\\times', '÷': '\\div' };
+
+// Builds a KaTeX `array`-based written-calculation (筆算) mockup for an
+// add/sub/mul example: two right-aligned rows (operand a; operator +
+// operand b) and a rule below, left unsolved (no answer row) to match the
+// horizontal ("式") chips' "a+b=" convention (exampleWithEquals).
+//
+// A single right-aligned column (not a 3-column int/"."/frac split) is
+// correct for every displayFormat-eligible item without extra logic: add/sub
+// items always send equal a_decimal_places/b_decimal_places (drillPresets.js
+// enforces this, mirroring nuts_calc_tex.py's own validation), so both
+// operands' trailing digit is their last fractional digit and right-aligning
+// the plain strings lines up the decimal points as a side effect; mul's
+// written convention aligns operands on their trailing (ones) digit, not the
+// decimal point, which is exactly what right-alignment already does. A
+// separate "." column (KaTeX's `array` has no `@{...}` custom separator, so
+// that would need its own column) was tried and rejected -- the default
+// column gap around an isolated "." makes it read as a disconnected symbol
+// rather than part of the number.
+export function buildWrittenAddSubMulTex(example) {
+  const match = example.match(WRITTEN_EXAMPLE_RE);
+  if (!match) return null;
+  const [, a, operatorSymbol, b] = match;
+  const opTex = WRITTEN_OPERATOR_TEX[operatorSymbol];
+  return `\\begin{array}{r} ${a} \\\\ ${opTex}${b} \\\\ \\hline \\end{array}`;
+}
+
+// Builds a long-division bracket mockup for a div example. KaTeX has no
+// `\enclose{longdiv}` (a MathJax-only extension, unsupported as of KaTeX
+// v0.16), so this approximates nuts_calc_tex.py's `longdivision`-package
+// vertical rendering with `\overline{\big)...}`: a divisor, a bracket, and
+// an overlined dividend.
+export function buildWrittenDivTex(example) {
+  const match = example.match(WRITTEN_EXAMPLE_RE);
+  if (!match || match[2] !== '÷') return null;
+  const [, a, , b] = match;
+  return `${b} \\overline{\\big)\\,${a}}`;
+}
+
+export function buildWrittenExampleTex(example) {
+  return example.includes('÷') ? buildWrittenDivTex(example) : buildWrittenAddSubMulTex(example);
+}
+
+// Falls back to the horizontal ("式") rendering if an example doesn't match
+// the plain "a<op>b" shape (defensive -- every displayFormat-eligible item's
+// examples are verified to match, see drillPresets.js).
+function renderWrittenExampleHtml(example) {
+  const tex = buildWrittenExampleTex(example);
+  return tex ? katex.renderToString(tex, { throwOnError: false }) : renderExampleHtml(example);
 }
 
 // Builds the "20問・標準・繰り上がり：まぜる" style summary shown on the
@@ -250,6 +320,7 @@ export function mountPresetDetail(container, { grade, item, onBack }) {
 
   function renderSettingsScreen() {
     const examples = currentExamples();
+    const isWrittenFormat = isVerticalOperation(item.buildParams(state.settingsState));
     return `
       <div class="preset-detail preset-detail-settings">
         ${pageHeaderHtml(`${t(item.titleKey)}(${t(`grade_full_${grade}`)})`, t(item.pointKey))}
@@ -260,7 +331,7 @@ export function mountPresetDetail(container, { grade, item, onBack }) {
 
         ${examples.length > 0 ? `
           <div class="example-chip-row">
-            ${examples.map((example) => `<span class="example-chip">${renderExampleHtml(example)}</span>`).join('')}
+            ${examples.map((example) => `<span class="example-chip${isWrittenFormat ? ' example-chip-written' : ''}">${isWrittenFormat ? renderWrittenExampleHtml(example) : renderExampleHtml(example)}</span>`).join('')}
           </div>
         ` : ''}
 

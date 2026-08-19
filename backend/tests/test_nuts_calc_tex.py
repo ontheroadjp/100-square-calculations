@@ -1310,9 +1310,56 @@ def test_cli_ope_decimal_divide_by_decimal_produces_whole_number_answers(run_tex
         assert "." not in answer  # a/b decimal places are equal -> exact integer quotient
 
 
-def test_cli_ope_decimal_rejects_vertical_combo(run_tex_cli, tmp_path):
+def test_cli_ope_decimal_add_sub_mul_vertical_produces_pdfs(run_tex_cli, tmp_path):
     result = run_tex_cli(
-        "A4", "ope", "--a-decimal-places", "1", "--b-decimal-places", "1",
+        "A4", "ope", "-o", "add", "sub", "mul", "--a-value", "2", "--b-value", "2",
+        "--a-decimal-places", "2", "--b-decimal-places", "2",
+        "--vertical", "-r", "2", "-c", "2", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+def test_cli_ope_decimal_multiply_by_integer_vertical_produces_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "mul", "--a-value", "2", "--b-value", "1",
+        "--a-decimal-places", "1", "--vertical", "-r", "2", "-c", "2", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+def test_cli_ope_decimal_divide_by_integer_vertical_produces_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "div", "--a-value", "2", "--b-value", "1",
+        "--a-decimal-places", "1", "--vertical", "-r", "2", "-c", "2", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+def test_cli_ope_decimal_multiply_by_decimal_vertical_produces_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "mul", "--a-value", "2", "--b-value", "2",
+        "--a-decimal-places", "1", "--b-decimal-places", "1",
+        "--vertical", "-r", "2", "-c", "2", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+def test_cli_ope_decimal_rejects_vertical_with_decimal_divisor(run_tex_cli, tmp_path):
+    # g5-decimal-div (decimal-by-decimal division): `longdivision`'s
+    # `\intlongdivision` requires an integer divisor. Split out to a
+    # separate agenda issue rather than silently shifting the divisor's
+    # decimal point (which would show a different expression than the
+    # horizontal form) -- see nuts_calc_tex.py.md.
+    result = run_tex_cli(
+        "A4", "ope", "-o", "div", "--a-decimal-places", "1", "--b-decimal-places", "1",
         "--vertical", "--out-file", "result.pdf",
     )
     assert result.returncode == 1

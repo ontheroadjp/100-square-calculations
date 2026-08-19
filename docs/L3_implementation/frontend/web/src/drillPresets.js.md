@@ -63,6 +63,14 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 
 `carryMode`/`remainderMode`/`denominator`/`numberKind`/`reduction`/`dan` を **choice型**で持つ23項目にのみ `examplesFor` を付与した(`fixed`型でしか持たない項目や、対象外の choice 設定(`operators` 等)しか持たない項目は対象外で、静的 `examples` のまま)。`supportLevel: 'partial'` な項目(小数の carry/borrow 系)は `buildParams` が実際には該当設定を無視するため、`examplesFor` が返す内容は「その設定を選ぶとどんな問題を意味するか」を示す説明用であり、実際に生成される PDF の内容と一致する保証はない(該当箇所にコメントで明記)。6年生の reduction 系(6項目)は issue #114 で `full` に引き上げ済みのため、この注記は現在対象外(`reducible_mode` が実際に backend へ渡り、選択どおりの問題が生成される)。
 
+### 出題形式(式/筆算)設定(issue #134)
+
+`displayFormatSetting()`/`displayFormatParam(state)`(`drillPresets.js:68-82` 付近)は、`carrySetting`/`carryModeField` と同じヘルパーパターンで「出題形式」(選択肢: 式/筆算、既定 `'horizontal'`)設定を追加する。`displayFormatParam(state)` は `'written'` 選択時のみ `{ vertical: true }` を返し(`nuts_calc_tex.py` の `--vertical`)、それ以外は `{}`(何も配線しない)。
+
+対象は次の18項目に限定し、機械的な「`--vertical` と併用可能かどうか」の判定だけで対象範囲を決めていない(ユーザー指示による明示的な列挙): `g2-add-2digit`/`g2-add-result-1000`/`g2-sub-2digit`/`g2-sub-result-1000`/`g3-add-result-10000`/`g3-decimal-addsub`/`g3-sub-result-10000`/`g3-decimal-sub`/`g3-mul-2x1`/`g3-mul-3x1`/`g3-mul-2x2`/`g4-decimal-add`/`g4-decimal-sub`/`g4-decimal-mul-int`/`g4-div-1digit`/`g4-div-2digit`/`g4-decimal-div-int`/`g5-decimal-mul`(`drillPresets.test.js` の `DISPLAY_FORMAT_ITEM_IDS` で厳密に一致検証)。全項目が無条件で `command_type: 'ope'` を返すため(`--vertical` は `ope` コマンドのみ実装、[[../../../../backend/nuts_calc_tex.py]] 参照)、`disabledWhen`/`resolveValue` は不要。
+
+同じく「小数÷小数」(`g5-decimal-div`)は対象から除外した。vendor済み `longdivision` パッケージの `\intlongdivision` が整数の除数しか受け付けないため、除数の小数点をシフトして整数化する回避策(教科書的な標準手法)を検討したが、「出題形式:筆算のときも式と同じ数値表現である必要がある」というユーザー方針により不採用、issue #180(agenda)で対応方針を検討中(実装は保留)。
+
 ### 九九(`g2-kuku`)の段選択
 
 「1〜9の段」選択時は `command_type: '99'`(`a_value` に段を指定)、「まぜる」選択時は `command_type: 'ope', operator: ['mul']`(`a_min`/`a_max`/`b_min`/`b_max` を1〜9のランダム)に切り替える。固定段には「出題順序」(`ascending`/`descending`/`random`)があり、それぞれフラグなし/`descend: true`/`shuffle: true` に変換する。「まぜる」では全ての順序選択肢を表示したまま非活性化し、`resolveValue` で `random` を選択表示する。実際の生成は従来通り `ope` の両オペランドランダムであり、保持中の `questionOrder` 値には依存しない(`frontend/web/src/drillPresets.js:220-277`)。例題も固定段では選択順序に応じて先頭2問相当へ切り替える(`frontend/web/src/drillPresets.js:225-235`)。
@@ -100,7 +108,7 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 - 中学受験対策(examPrep、27プリセット)。
 - 虫食い算(`--missing-value`)。
 
-いずれも `frontend/spa` および CLI では引き続き利用可能。復活させるかどうかは issue #111 で後日判断する。筆算(縦書き)形式については、issue #133(親)配下の #134 が「表示形式(式/筆算)」設定として `frontend/web` へ個別設定の形で再導入することを起案済み(#111 の筆算部分をこちらで解決する位置づけ)。
+いずれも `frontend/spa` および CLI では引き続き利用可能。復活させるかどうかは issue #111 で後日判断する。筆算(縦書き)形式については、issue #133(親)配下の #134 が「出題形式(式/筆算)」設定として `frontend/web` へ個別設定の形で再導入した(#111 の筆算部分をこちらで解決する位置づけ、対象18項目は前述の「出題形式(式/筆算)設定(issue #134)」セクション参照。`g5-decimal-div` は #180 で保留)。
 
 ## 統合ポイント
 

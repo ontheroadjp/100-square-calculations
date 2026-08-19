@@ -723,8 +723,6 @@ def _init() -> argparse.Namespace:
         ):
             if not MIN_DECIMAL_PLACES <= value <= MAX_DECIMAL_PLACES:
                 failure(f"{option_name} must be between {MIN_DECIMAL_PLACES} and {MAX_DECIMAL_PLACES}.")
-        if args.vertical:
-            failure("--a-decimal-places/--b-decimal-places cannot be combined with --vertical.")
         if args.intermediate:
             failure("--a-decimal-places/--b-decimal-places cannot be combined with --intermediate.")
         if args.use_parentheses or args.missing_value or terms_options_given:
@@ -744,6 +742,19 @@ def _init() -> argparse.Namespace:
                 "--b-decimal-places when dividing (the quotient's decimal "
                 "places are a_decimal_places - b_decimal_places, which must "
                 "not be negative)."
+            )
+        if args.vertical and 'div' in args.operator and args.b_decimal_places > 0:
+            # `\intlongdivision` (the `longdivision` package underlying
+            # --vertical div) requires an *integer* divisor. Showing the
+            # divisor shifted to an integer (the usual textbook technique)
+            # was considered and rejected: --vertical must display the same
+            # expression as the horizontal form. No solution preserving the
+            # literal decimal divisor is implemented yet -- tracked as an
+            # open question rather than silently working around it.
+            failure(
+                "--vertical does not yet support a decimal --b-decimal-places "
+                "divisor for the 'div' operator (see the open question in "
+                "nuts_calc_tex.py.md)."
             )
 
     mixed_only_options_given = (
@@ -1509,20 +1520,30 @@ def build_vertical_block_tex(problem: OpeProblem, show_answer: bool) -> str:
     index label, then the LaTeX-rendered written-calculation layout.
 
     add/sub/mul use the `xlop` package (auto-rendering carries and, for a
-    multi-digit multiplier, one partial-product row per digit). div uses
-    `longdivision`. For the blank (practice) variant, xlop's per-digit
-    style hooks (resultstyle/carrystyle/intermediarystyle) are overridden
-    to `\\phantom`, which reserves the digits' layout space without
-    printing them; longdivision has an equivalent built-in via its
-    `stage=0` option (only the bracket/divisor/dividend are shown).
+    multi-digit multiplier, one partial-product row per digit); it accepts
+    decimal-formatted operands directly, so a_decimal_places/b_decimal_places
+    (0 by default) are applied via format_decimal_value the same way
+    build_horizontal_block_tex does. div uses `longdivision` the same way --
+    NOTE: `\\intlongdivision` requires an *integer* divisor, so this raises a
+    LaTeX error for b_decimal_places > 0 (decimal-by-decimal division) until
+    that case is resolved (see nuts_calc_tex.py.md for the open question).
+    For the blank (practice) variant, xlop's per-digit style hooks
+    (resultstyle/carrystyle/intermediarystyle) are overridden to
+    `\\phantom`, which reserves the digits' layout space without printing
+    them; longdivision has an equivalent built-in via its `stage=0` option
+    (only the bracket/divisor/dividend are shown).
     """
     index_line = f"{problem.index})\\newline "
     if problem.operator == 'div':
+        dividend_tex = format_decimal_value(problem.a, problem.a_decimal_places)
+        divisor_tex = format_decimal_value(problem.b, problem.b_decimal_places)
         stage_option = '' if show_answer else '[stage=0]'
-        return f"{index_line}\\[\\intlongdivision{stage_option}{{{problem.a}}}{{{problem.b}}}\\]"
+        return f"{index_line}\\[\\intlongdivision{stage_option}{{{dividend_tex}}}{{{divisor_tex}}}\\]"
 
+    a_tex = format_decimal_value(problem.a, problem.a_decimal_places)
+    b_tex = format_decimal_value(problem.b, problem.b_decimal_places)
     command = XLOP_VERTICAL_COMMANDS[problem.operator]
-    op_call_tex = f"\\[\\{command}{{{problem.a}}}{{{problem.b}}}\\]"
+    op_call_tex = f"\\[\\{command}{{{a_tex}}}{{{b_tex}}}\\]"
     if show_answer:
         return (
             index_line
