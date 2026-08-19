@@ -57,7 +57,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- adec941 feat(#139): switch preset detail example previews to live backend generation for ope presets
+- aca0f4f feat(#134): add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages
+- 81e0b2d #139 frontend/web: switch preset detail example previews to live backend generation (#177)
 - 9b366c1 #157 Add per-grade/per-drill header descriptions via a shared page header component (#160)
 - 06870bb #148 Add multiplication-table question-order options (#150)
 - 1d8ee60 #135 frontend/web: switch preset detail page example problems based on selected settings (#141)

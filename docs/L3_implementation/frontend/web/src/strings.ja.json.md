@@ -24,7 +24,9 @@ issue #110 で `drillCatalog.js`(旧絞り込み/検索UIのアダプター)を�
 
 ## 変更履歴（git log より自動生成）
 
-- 196a50b chore(#110): remove unused frontend/web drillCatalog.js and dead filter-UI i18n keys
+- aca0f4f feat(#134): add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages
+- 56aa1d3 #110 Remove frontend/web's unused drillCatalog.js and dead filter-UI i18n keys (#163)
+- 17070be #161 frontend/web: rebuild grade-3 addition/subtraction menu, retire fraction category, add four-operations drills (#162)
 - 9b366c1 #157 Add per-grade/per-drill header descriptions via a shared page header component (#160)
 - c9011f1 #154 Add grade-2 advanced subtraction capped at 1,000 (#159)
 - 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)
@@ -32,5 +34,3 @@ issue #110 で `drillCatalog.js`(旧絞り込み/検索UIのアダプター)を�
 - 85e58b1 #146 Add an advanced difficulty badge to the web UI (#147)
 - 1edfbb5 fix(frontend/web): clarify grade-2/3 arithmetic menu label wording
 - d43d1bc #130 frontend/web: make catalog page accent color switch dynamically per grade (#131)
-- 77f95b7 #101 frontend/web: add PC 4-column layout to the make flow (#119)
-- 9d1371e #100 frontend/web: rebuild preset detail settings/completion/preview screens (#118)
