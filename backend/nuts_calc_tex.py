@@ -47,7 +47,7 @@ import subprocess
 import tempfile
 from dataclasses import dataclass, field
 from fractions import Fraction
-from typing import Callable, Literal, Protocol, TypeVar
+from typing import Callable, Generic, Literal, Protocol, TypeVar
 
 
 MIN_ROWS_OR_COLUMNS = 1
@@ -1231,6 +1231,88 @@ def build_document_tex(
         build_preamble_tex(paper_size, engine_adapter)
         + "\\begin{document}\n"
         + document_body
+        + "\n\\end{document}\n"
+    )
+
+
+# Presentation API (#183, B-4): the internal (data x page_shell x
+# content_area_layout x content_format) -> PDF surface that composes Layer 1
+# (PageShell, #182), Layer 2 (ContentAreaLayout, #184), and a caller-supplied
+# Layer 3 content_format (#122's taxonomy) directly, instead of going through
+# build_document_tex/build_page_tex/build_preamble_tex above (which are
+# fixed to DEFAULT_PAGE_SHELL and the legacy pattern of build_*_block_tex()
+# embedding the problem number in its own output). New, additive code: does
+# not modify build_*_block_tex()/build_*_page_pair()/build_*_pages() or the
+# CLI path (main()) above, which the current production /generate-pdf
+# (subprocess-based, see renderers.py) still depends on unmodified (#166's
+# 2026-08-19 /mtg guardrail).
+ProblemT = TypeVar('ProblemT')
+
+# Layer 3 content-format contract: render one problem's number-free TeX body
+# (e.g. build_com_slot_content_tex), matching the "number position
+# independent of content" split ContentAreaLayout (Layer 2) already relies on.
+ContentFormat = Callable[[ProblemT, bool], str]
+
+GridLayout = Literal['inline', 'tabular', 'block']
+
+
+@dataclass(frozen=True)
+class PresentationPage(Generic[ProblemT]):
+    """One page's worth of problem data for the presentation API.
+
+    indices are passed explicitly (rather than read off each problem) since
+    not every problem dataclass carries its own `.index` field, and slot
+    numbering is a Layer-2 concern independent of the problem data shape.
+    """
+
+    problems: list[ProblemT]
+    indices: list[int]
+    bottom_answer_tex: str | None = None
+
+
+def _build_presentation_grid_tex(blocks: list[str], columns: int, grid_layout: GridLayout) -> str:
+    """Dispatch to the existing, unmodified grid builders by GridLayout.
+
+    Mirrors build_page_tex's page.layout dispatch above without calling or
+    editing it, since build_page_tex is part of the frozen legacy path.
+    """
+    if grid_layout == 'tabular':
+        return build_tabular_grid_tex(blocks, columns)
+    if grid_layout == 'block':
+        return build_block_grid_tex(blocks)
+    return build_inline_grid_tex(blocks, columns)
+
+
+def build_presentation_document_tex(
+    paper_size: str,
+    pages: list[PresentationPage[ProblemT]],
+    content_format: ContentFormat[ProblemT],
+    page_shell: PageShell,
+    content_area_layout: ContentAreaLayout,
+    engine_adapter: LatexEngineAdapter,
+    show_answer: bool,
+    grid_layout: GridLayout = 'inline',
+    with_name_field: bool = False,
+) -> str:
+    """
+    Compose (data, page_shell, content_area_layout, content_format) into one
+    LaTeX document's source. The caller compiles it to a PDF with the same
+    engine_adapter.compile(tex, out_pdf_path) call build_document_tex's
+    callers already use -- no new PDF-writing wrapper is introduced.
+    """
+    pages_tex = []
+    for page in pages:
+        slot_bodies = [content_format(problem, show_answer) for problem in page.problems]
+        blocks = build_content_area_tex(page.indices, slot_bodies, content_area_layout)
+        grid_tex = _build_presentation_grid_tex(blocks, content_area_layout.columns, grid_layout)
+        pages_tex.append(
+            build_page_shell_body_tex(page_shell, grid_tex, with_name_field, page.bottom_answer_tex)
+        )
+
+    return (
+        build_page_shell_preamble_tex(page_shell, paper_size, engine_adapter)
+        + "\\begin{document}\n"
+        + "\n\\newpage\n".join(pages_tex)
         + "\n\\end{document}\n"
     )
 

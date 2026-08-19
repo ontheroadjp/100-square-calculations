@@ -145,6 +145,16 @@
 - `build_com_slot_content_tex(problem, show_answer)`(`nuts_calc_tex.py:2487-2495`): `com` コマンド向けの番号なし Layer-3 コンテンツ variant。`build_com_block_tex` の本文部分(`f"${a} + {result} = {target}$"`)と同一だが `f"{index}) "` prefix を持たない。#184 が「少なくとも1コマンドグループで番号分離を実証する」done criteria を満たすための最小実装で、他の19コマンドへの展開は未実施(将来の作業、#183 の適用範囲による)。
 - `build_content_area_slot_tex(problem.index, build_com_slot_content_tex(problem, show_answer), layout)` は `build_com_block_tex(problem, show_answer)` と(`number_box_width_mm=0` の場合)バイト単位で等価になることを `backend/tests/test_nuts_calc_tex_content_area_layout.py` の equivalence テストで担保しており、Layer 2 の導入が既存出力を壊さないことを検証している。
 
+### presentation-layer 内部 API: `build_presentation_document_tex`(issue #183)
+
+- issue #166 の B-4。Layer 1(`PageShell`、#182)・Layer 2(`ContentAreaLayout`、#184)・Layer 3(content format、#122 のタキソノミー)を実際に合成し、`(data, page_shell, content_area_layout, content_format) -> PDF` を実現する内部(in-process)API。`build_document_tex`/`build_page_tex`/`build_preamble_tex`(いずれも `DEFAULT_PAGE_SHELL` 固定・番号埋め込み型の `build_*_block_tex()` を前提とする既存経路)は呼ばず、Layer 1/2 のプリミティブ(`build_page_shell_preamble_tex`/`build_page_shell_body_tex`/`build_content_area_tex`)を直接呼ぶ新規・追加コード。既存の `build_*_block_tex()`/`build_*_page_pair()`/`build_*_pages()`、および CLI(`main()`)は無変更のまま(#166 の 2026-08-19 /mtg ガードレール)。
+- `ProblemT = TypeVar('ProblemT')`/`ContentFormat = Callable[[ProblemT, bool], str]`(`nuts_calc_tex.py:1249-1256`): Layer 3 のコールバック契約。`(problem, show_answer) -> 番号なしTeX本文` を返す関数(例: `build_com_slot_content_tex`)を任意に差し替えられる。
+- `PresentationPage`(`nuts_calc_tex.py:1259-1270`、frozen dataclass, `Generic[ProblemT]`): `problems`/`indices`/`bottom_answer_tex` を1ページ分保持する。`indices` を問題データから独立した明示引数にしているのは、全ての問題 dataclass が `.index` フィールドを持つとは限らないため(スロット番号付けは Layer 2 の関心事であり、問題データの形に依存させない)。
+- `_build_presentation_grid_tex(blocks, columns, grid_layout)`(`nuts_calc_tex.py:1273-1283`): `GridLayout = Literal['inline', 'tabular', 'block']` に応じて既存の `build_inline_grid_tex`/`build_tabular_grid_tex`/`build_block_grid_tex`(いずれも無変更で再利用)へ dispatch する。`build_page_tex` 内の同種の分岐を模倣しているが、`build_page_tex` はレガシー経路の一部のため直接呼ばず、小さな dispatch を新規コードとして複製している。
+- `build_presentation_document_tex(paper_size, pages, content_format, page_shell, content_area_layout, engine_adapter, show_answer, grid_layout='inline', with_name_field=False)`(`nuts_calc_tex.py:1286-1317`): 各 `PresentationPage` について `content_format` でスロット本文を生成し、`build_content_area_tex` で番号ボックスと合成し、`_build_presentation_grid_tex` でグリッド化し、`build_page_shell_body_tex` でヘッダー・フッター枠に収める。全ページを `\newpage` で連結し、`build_page_shell_preamble_tex(page_shell, paper_size, engine_adapter)` のプリアンブルと結合してドキュメント全体の TeX 文字列を返す。PDF化は呼び出し側が既存の `engine_adapter.compile(tex, out_pdf_path)` をそのまま呼ぶ(新規の PDF 書き込みラッパーは導入しない、`main()` と同じ「TeX文字列を生成 → `engine_adapter.compile` で変換」の2段呼び出し規約を踏襲)。
+- 実証: `backend/tests/test_nuts_calc_tex_presentation_api.py` が `com` コマンドグループ(既存の `generate_com_problems` によるデータ生成 + #184 の `build_com_slot_content_tex` を `content_format` として使用)で、カスタム `PageShell`・`ContentAreaLayout`・`show_answer` 切り替え・複数ページ・grid_layout の tabular/block dispatch を pure-Python で検証したうえで、`pdflatex` がある場合に実際に1枚の PDF を生成できることまで確認している(`test_build_presentation_document_tex_produces_a_pdf_for_com_command_group`、`pdflatex` 不在時は `pytest.mark.skipif` で自動スキップ)。
+- 未実施(将来の作業、#183 のスコープ外): `com` 以外の19コマンドへの `content_format` 展開(それぞれ番号なし Layer-3 variant が未実装)、`mode='merge'` の統合(現状は `show_answer` で blank/filled を個別に生成する呼び出し規約のみ)、CLI・`backend/app.py`(`/generate-pdf`)からのこの内部APIの利用(#174、B-5 のスコープ)。
+
 ## 動作の概要
 
 ### 共通基盤(Phase 1)
@@ -366,7 +376,8 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴(git log より自動生成)
 
-- 8cf8898 feat(#184): introduce Layer-2 content-area base layout for presentation API
+- e6e5b19 feat(#183): compose internal (data x page_shell x content_area_layout x content_format) -> PDF presentation API
+- 144d465 #184 nuts_calc_tex.py: introduce Layer-2 content-area base layout for the presentation-layer API (#197)
 - 4eb1500 #182 nuts_calc_tex.py: extract Layer-1 page shell (header/margins/footer) for the presentation-layer API (#196)
 - 490f44b #171 compare: support int/decimal/fraction kind mixing, expose via POST /generate-problems (#192)
 - 9393898 #186 renderers/engine: make latex+lualatex the default (and only reachable) configuration (#187)
