@@ -38,7 +38,7 @@
 
 ### `ope` 亜種の相互排他バリデーション・term数レンジ解決を `nuts_calc_tex.py` から再現している理由(issue #168)
 
-`POST /generate-problems` は argparse を経由しないため、`nuts_calc_tex.py` の `_init()` が担う「`--missing-value` は `--use-parentheses`/`--terms`系と併用不可」「`terms_min` <= `terms_max`」「`--use-parentheses` は term数フロアが3」等のバリデーション・デフォルト解決を、`_determine_ope_variant()` がリクエストパラメータに対して独自に再現する必要がある。ロジックを複製せず、フロア・上限のクランプ計算自体は `nuts_calc_tex.resolve_term_range()`(モジュールレベル関数、`TERM_COUNT_FLOOR_DEFAULT`/`TERM_COUNT_FLOOR_PARENTHESES`/`MAX_OPE_TERMS` を使用)をそのまま再利用している(`problem_generation.py:113`)。
+`POST /generate-problems` は argparse を経由しないため、`nuts_calc_tex.py` の `_init()` が担う「`--missing-value` は `--use-parentheses`/`--terms`系と併用不可」「`terms_min` <= `terms_max`」「`--use-parentheses` は term数フロアが3」等のバリデーション・デフォルト解決を、`_determine_ope_variant()` がリクエストパラメータに対して独自に再現する必要がある。ロジックを複製せず、フロア・上限のクランプ計算自体は `nuts_calc_tex.resolve_term_range()`(モジュールレベル関数、`TERM_COUNT_FLOOR_DEFAULT`/`TERM_COUNT_FLOOR_PARENTHESES`/`MAX_OPE_TERMS` を使用)をそのまま再利用している(`problem_generation.py:127`)。
 
 ### `command_type` ディスパッチを if/elif から dict テーブルへ置き換えた理由(issue #169)
 
