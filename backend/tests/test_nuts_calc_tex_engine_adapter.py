@@ -19,9 +19,9 @@ sys.path.insert(0, str(BACKEND_DIR))
 import nuts_calc_tex as tex_module  # noqa: E402
 
 
-def test_default_engine_name_is_pdflatex_when_env_var_unset(monkeypatch) -> None:
+def test_default_engine_name_is_lualatex_when_env_var_unset(monkeypatch) -> None:
     monkeypatch.delenv(tex_module.LATEX_ENGINE_ENV_VAR, raising=False)
-    assert tex_module.get_latex_engine_name() == tex_module.DEFAULT_LATEX_ENGINE == "pdflatex"
+    assert tex_module.get_latex_engine_name() == tex_module.DEFAULT_LATEX_ENGINE == "lualatex"
 
 
 def test_engine_name_resolves_from_env_var(monkeypatch) -> None:
@@ -35,11 +35,11 @@ def test_unknown_engine_name_raises_value_error(monkeypatch) -> None:
         tex_module.get_latex_engine_name()
 
 
-def test_get_latex_engine_adapter_returns_pdflatex_adapter_by_default(monkeypatch) -> None:
+def test_get_latex_engine_adapter_returns_lualatex_adapter_by_default(monkeypatch) -> None:
     monkeypatch.delenv(tex_module.LATEX_ENGINE_ENV_VAR, raising=False)
     adapter = tex_module.get_latex_engine_adapter()
-    assert isinstance(adapter, tex_module.PdflatexEngineAdapter)
-    assert adapter.binary_name == "pdflatex"
+    assert isinstance(adapter, tex_module.LuaLatexEngineAdapter)
+    assert adapter.binary_name == "lualatex"
 
 
 def test_pdflatex_adapter_contributes_no_preamble_additions() -> None:

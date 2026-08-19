@@ -59,12 +59,14 @@ class RendererRequest(TypedDict, total=False):
 BACKEND_DIR = Path(__file__).resolve().parent
 
 RENDERER_ENV_VAR = "NUTS_CALC_RENDERER"
-DEFAULT_RENDERER = "reportlab"
+DEFAULT_RENDERER = "latex"
 
 RENDERER_SCRIPTS: dict[str, Path] = {
     "reportlab": BACKEND_DIR / "nuts_calc.py",
     "latex": BACKEND_DIR / "nuts_calc_tex.py",
 }
+
+UNAVAILABLE_RENDERERS = {"reportlab"}
 
 CARRY_MODE_FLAGS = {
     "required": "--carry-borrow",
@@ -88,10 +90,16 @@ REDUCIBLE_MODE_FLAGS = {
 def get_renderer_name() -> str:
     """
     Resolve which renderer to use from the `NUTS_CALC_RENDERER` environment
-    variable, defaulting to `reportlab` (nuts_calc.py) to preserve existing
-    behavior when the variable is unset.
+    variable, defaulting to `latex` (nuts_calc_tex.py) when the variable is
+    unset. `reportlab` (nuts_calc.py) is being deprecated (issue #186) and is
+    no longer reachable, even when explicitly requested via the env var.
     """
     name = os.environ.get(RENDERER_ENV_VAR, DEFAULT_RENDERER)
+    if name in UNAVAILABLE_RENDERERS:
+        raise ValueError(
+            f"{RENDERER_ENV_VAR}={name!r} is not currently available. "
+            f"Only 'latex' is a reachable renderer."
+        )
     if name not in RENDERER_SCRIPTS:
         allowed = ", ".join(sorted(RENDERER_SCRIPTS))
         raise ValueError(

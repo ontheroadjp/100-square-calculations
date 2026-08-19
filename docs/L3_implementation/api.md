@@ -18,7 +18,7 @@ backend は renderer 互換性を事前検証せず、値を CLI option へ変�
 
 ### Processing and response
 
-`NUTS_CALC_RENDERER` から `reportlab`(default) または `latex` を選び、実行中の Python interpreter (`sys.executable`) と対応 script を使う(`backend/renderers.py:45-69,92-100`)。出力名は `worksheet_<uuid>.pdf` で、`PDF_OUTPUT_DIR` に生成後 `send_file(..., as_attachment=True)` で返す(`backend/app.py:11-13,24-34`、`backend/renderers.py:182-189`)。
+`NUTS_CALC_RENDERER` から `latex`(default、issue #186 で `reportlab` から変更。明示的な `reportlab` 指定は到達不能で「利用不可」エラーになる)を選び、実行中の Python interpreter (`sys.executable`) と対応 script を使う(`backend/renderers.py:61-67,90-107,254-273`)。出力名は `worksheet_<uuid>.pdf` で、`PDF_OUTPUT_DIR` に生成後 `send_file(..., as_attachment=True)` で返す(`backend/app.py:11-13,24-34`、`backend/renderers.py:182-189`)。
 
 | 条件 | Status | Body |
 |---|---:|---|
@@ -48,7 +48,7 @@ CLI は validation error を stdout に出すため、`CalledProcessError` 時�
 
 ## `GET /renderer-info`
 
-入力なし。有効な renderer を `{ "renderer": "reportlab" }` または `{ "renderer": "latex" }` として返す(`backend/app.py:52-58`)。`NUTS_CALC_RENDERER` が未設定なら `reportlab`、許可外なら HTTP 500 と error JSON になる(`backend/renderers.py:48-69`)。
+入力なし。有効な renderer を `{ "renderer": "latex" }` として返す(`backend/app.py:78-84`)。`NUTS_CALC_RENDERER` が未設定なら `latex`(issue #186 で `reportlab` から変更)、許可外の値、または明示的な `reportlab`(issue #186 で到達不能化、コードは削除していない)なら HTTP 500 と error JSON になる(`backend/renderers.py:90-107`)。
 
 ## 永続化と未確認事項
 

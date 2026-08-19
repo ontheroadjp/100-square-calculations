@@ -28,11 +28,18 @@ def client(monkeypatch):
     return backend_app.app.test_client()
 
 
-def test_renderer_info_defaults_to_reportlab_when_env_unset(client, monkeypatch) -> None:
+def test_renderer_info_defaults_to_latex_when_env_unset(client, monkeypatch) -> None:
     monkeypatch.delenv(renderers.RENDERER_ENV_VAR, raising=False)
     response = client.get("/renderer-info")
     assert response.status_code == 200
-    assert response.get_json() == {"renderer": "reportlab"}
+    assert response.get_json() == {"renderer": "latex"}
+
+
+def test_renderer_info_rejects_explicit_reportlab(client, monkeypatch) -> None:
+    monkeypatch.setenv(renderers.RENDERER_ENV_VAR, "reportlab")
+    response = client.get("/renderer-info")
+    assert response.status_code == 500
+    assert "not currently available" in response.get_json()["error"]
 
 
 def test_renderer_info_reads_env_var(client, monkeypatch) -> None:

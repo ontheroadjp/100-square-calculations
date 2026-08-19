@@ -41,7 +41,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- aca0f4f feat(#134): add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages
+- 506d7b4 feat(#186): make latex+lualatex the default reachable configuration
+- 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
 - 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)
 - bc0eef5 #113 nuts_calc_tex.py: allow --carry-borrow with decimal operands (#164)
 - e8db9d7 #112 nuts_calc_tex.py: add mixed-number (帯分数) display support to the frac command (#125)
