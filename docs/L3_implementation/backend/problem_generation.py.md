@@ -84,5 +84,6 @@ issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマ�
 
 ## 変更履歴(git log より自動生成)
 
-- 5119c6b feat(#168): support ope --use-parentheses/--missing-value/--terms variants in problem_generation.py
+- 5161b9f feat(#169): support com/99/aBc/squ/pi in problem_generation.py
+- caedeac #168 problem_generation.py: support ope --use-parentheses/--missing-value/--terms variants (#189)
 - 13bef63 #138 backend: add POST /generate-problems for PDF-free ope problem generation (#175)
