@@ -20,6 +20,7 @@ CLI レベル(`--a-fraction-form`/`--b-fraction-form` を `frac -o add`/`sub` �
 
 ## 変更履歴(git log より自動生成)
 
-- f3e823d feat(#114): add reducibility control to frac/mixed multiplication and division
+- a86312a feat(#171): support int/decimal/fraction kind mixing in compare
+- 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)
 - e8db9d7 #112 nuts_calc_tex.py: add mixed-number (帯分数) display support to the frac command (#125)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

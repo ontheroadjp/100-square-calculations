@@ -174,3 +174,44 @@ def test_comparison_csv_rows_include_displayed_operands_and_relation() -> None:
     assert tex_module.build_fraction_comparison_csv_rows([[problem]]) == [
         [1, 1, 0, 3, 2, ">", 1, 1, 2],
     ]
+
+
+@pytest.mark.parametrize(
+    ("a_kind", "b_kind"),
+    [
+        (["int"], ["int"]),
+        (["decimal"], ["decimal"]),
+        (["int"], ["fraction"]),
+        (["decimal"], ["fraction"]),
+        (["int"], ["decimal"]),
+        (["int", "decimal", "fraction"], ["int", "decimal", "fraction"]),
+    ],
+)
+def test_generate_fraction_comparison_problems_supports_kind_mixing(a_kind: list, b_kind: list) -> None:
+    """issue #171: int/decimal operands compare correctly against each other
+    and against fractions, including when both sides always draw the same
+    kind (e.g. int vs int), which the default 'different-denominators'
+    pattern would otherwise make unsatisfiable (kind-mixed calls skip the
+    pattern filter, see generate_fraction_comparison_problems's docstring).
+    """
+    problems = tex_module.generate_fraction_comparison_problems(
+        "different-denominators", "proper", "proper", 1, 1, 20, 1,
+        a_kind, b_kind, 1,
+    )
+    assert len(problems) == 20
+    for problem in problems:
+        assert problem.a.kind in a_kind
+        assert problem.b.kind in b_kind
+        assert problem.a.value != problem.b.value
+        assert problem.relation in ("<", ">")
+        assert (problem.relation == "<") == (problem.a.value < problem.b.value)
+
+
+def test_comparison_operand_to_tex_renders_int_and_decimal_kinds() -> None:
+    assert tex_module.comparison_operand_to_tex(tex_module.FractionComparisonOperand(7, 1, 0, "int")) == "7"
+    assert tex_module.comparison_operand_to_tex(
+        tex_module.FractionComparisonOperand(5, 10, 0, "decimal", 1),
+    ) == "0.5"
+    assert tex_module.comparison_operand_to_tex(
+        tex_module.FractionComparisonOperand(1, 2, 0, "fraction"),
+    ) == r"\frac{1}{2}"

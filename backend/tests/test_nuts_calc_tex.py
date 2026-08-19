@@ -1451,6 +1451,43 @@ def test_cli_mixed_kind_options_rejected_on_non_mixed_command(run_tex_cli, tmp_p
     assert not (tmp_path / "result.pdf").exists()
 
 
+def test_cli_compare_accepts_kind_options(run_tex_cli, tmp_path):
+    """issue #171: 'compare' accepts --a-kind/--b-kind/--decimal-places,
+    unlike other non-'mixed' commands (see the rejection test above)."""
+    result = run_tex_cli(
+        "A4", "compare", "--a-kind", "int", "decimal", "fraction",
+        "--b-kind", "int", "decimal", "fraction", "--decimal-places", "1",
+        "-r", "3", "-c", "3", "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    lines = (tmp_path / "result.csv").read_text().strip().splitlines()
+    assert len(lines) == 9
+
+
+def test_cli_compare_defaults_to_fraction_vs_fraction(run_tex_cli, tmp_path):
+    """Backward compatibility: omitting --a-kind/--b-kind still compares
+    fraction vs fraction, matching pre-#171 behavior."""
+    result = run_tex_cli("A4", "compare", "-r", "2", "-c", "2", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stdout + result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
+def test_cli_compare_comparison_pattern_requires_fraction_kinds(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "compare", "--a-kind", "int", "--comparison-pattern", "same-denominator",
+        "--out-file", "result.pdf",
+    )
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_compare_rejects_decimal_places_out_of_range(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "compare", "--decimal-places", "9", "--out-file", "result.pdf")
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
 def _raw_gcd_frac_row(a_num, a_den, operator, b_num, b_den):
     if operator == "mul":
         raw_numerator, raw_denominator = a_num * b_num, a_den * b_den

@@ -91,7 +91,7 @@ def test_generate_problems_intermediate_rejects_multi_digit_b_max(renderer_name:
 
 def test_generate_problems_rejects_unsupported_command_type() -> None:
     with pytest.raises(ValueError, match="not yet supported"):
-        problem_generation.generate_problems({"paper_size": "A4", "command_type": "compare", "num": 1}, "latex")
+        problem_generation.generate_problems({"paper_size": "A4", "command_type": "evenodd", "num": 1}, "latex")
 
 
 @pytest.mark.parametrize("flag", ["use_parentheses", "missing_value", "terms"])
@@ -499,3 +499,62 @@ def test_generate_problems_mixed_reducible_mode_required_yields_reducible_produc
         raw_numerator = a_operand["raw_numerator"] * b_operand["raw_numerator"]
         raw_denominator = a_operand["raw_denominator"] * b_operand["raw_denominator"]
         assert math.gcd(raw_numerator, raw_denominator) > 1
+
+
+def _operand_value(operand: dict) -> Fraction:
+    return Fraction(
+        operand["whole"] * operand["denominator"] + operand["numerator"], operand["denominator"],
+    )
+
+
+@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
+def test_generate_problems_compare_defaults_to_fraction_vs_fraction(renderer_name: str) -> None:
+    """issue #171: with no a_kind/b_kind given, compare keeps its original
+    fraction-vs-fraction-only behavior."""
+    params = {
+        "paper_size": "A4", "command_type": "compare", "num": 8,
+        "numerator_digits": 1, "denominator_digits": 1,
+    }
+    problems = problem_generation.generate_problems(params, renderer_name)
+    assert len(problems) == 8
+    for problem in problems:
+        assert set(problem) == {"index", "a", "b", "relation"}
+        assert problem["a"]["kind"] == "fraction"
+        assert problem["b"]["kind"] == "fraction"
+        assert problem["relation"] in ("<", ">")
+        assert (problem["relation"] == "<") == (_operand_value(problem["a"]) < _operand_value(problem["b"]))
+
+
+def test_generate_problems_compare_supports_int_decimal_fraction_kind_mixing() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "compare", "num": 15,
+        "numerator_digits": 1, "denominator_digits": 1, "decimal_places": 1,
+        "a_kind": ["int", "decimal", "fraction"], "b_kind": ["int", "decimal", "fraction"],
+    }
+    problems = problem_generation.generate_problems(params, "latex")
+    assert len(problems) == 15
+    for problem in problems:
+        assert problem["a"]["kind"] in ("int", "decimal", "fraction")
+        assert problem["b"]["kind"] in ("int", "decimal", "fraction")
+        assert (problem["relation"] == "<") == (_operand_value(problem["a"]) < _operand_value(problem["b"]))
+
+
+def test_generate_problems_compare_rejects_digits_out_of_range() -> None:
+    params = {"paper_size": "A4", "command_type": "compare", "num": 1, "numerator_digits": 4}
+    with pytest.raises(ValueError, match="numerator_digits must be between"):
+        problem_generation.generate_problems(params, "latex")
+
+
+def test_generate_problems_compare_rejects_decimal_places_out_of_range() -> None:
+    params = {"paper_size": "A4", "command_type": "compare", "num": 1, "decimal_places": 3}
+    with pytest.raises(ValueError, match="decimal_places must be between"):
+        problem_generation.generate_problems(params, "latex")
+
+
+def test_generate_problems_compare_pattern_requires_fraction_kinds() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "compare", "num": 1,
+        "a_kind": ["int"], "comparison_pattern": "same-denominator",
+    }
+    with pytest.raises(ValueError, match="comparison_pattern requires"):
+        problem_generation.generate_problems(params, "latex")
