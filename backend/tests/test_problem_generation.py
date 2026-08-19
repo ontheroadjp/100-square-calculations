@@ -5,7 +5,9 @@ These call `nuts_calc.py`/`nuts_calc_tex.py`'s data-generation functions
 directly (no subprocess, no PDF/LaTeX byte output, no pdflatex required).
 """
 
+import math
 import sys
+from fractions import Fraction
 from pathlib import Path
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -89,7 +91,7 @@ def test_generate_problems_intermediate_rejects_multi_digit_b_max(renderer_name:
 
 def test_generate_problems_rejects_unsupported_command_type() -> None:
     with pytest.raises(ValueError, match="not yet supported"):
-        problem_generation.generate_problems({"paper_size": "A4", "command_type": "frac", "num": 1}, "latex")
+        problem_generation.generate_problems({"paper_size": "A4", "command_type": "compare", "num": 1}, "latex")
 
 
 @pytest.mark.parametrize("flag", ["use_parentheses", "missing_value", "terms"])
@@ -306,3 +308,194 @@ def test_generate_problems_pi_requires_a_value() -> None:
     params = {"paper_size": "A4", "command_type": "pi", "num": 1}
     with pytest.raises(ValueError, match="a_value .* is required for the 'pi' command"):
         problem_generation.generate_problems(params, "latex")
+
+
+@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
+def test_generate_problems_frac_returns_valid_fraction_problems(renderer_name: str) -> None:
+    params = {
+        "paper_size": "A4", "command_type": "frac", "num": 8,
+        "numerator_digits": 1, "denominator_digits": 1, "operator": ["add"],
+    }
+    problems = problem_generation.generate_problems(params, renderer_name)
+    assert len(problems) == 8
+    for problem in problems:
+        assert set(problem) == {"index", "a", "b", "operator", "c", "mixed_number_display"}
+        assert problem["operator"] == "add"
+        a = Fraction(
+            problem["a"]["whole"] * problem["a"]["denominator"] + problem["a"]["numerator"],
+            problem["a"]["denominator"],
+        )
+        b = Fraction(
+            problem["b"]["whole"] * problem["b"]["denominator"] + problem["b"]["numerator"],
+            problem["b"]["denominator"],
+        )
+        c = Fraction(problem["c"]["numerator"], problem["c"]["denominator"])
+        assert a + b == c
+
+
+def test_generate_problems_frac_rejects_digits_out_of_range() -> None:
+    params = {"paper_size": "A4", "command_type": "frac", "num": 1, "numerator_digits": 4}
+    with pytest.raises(ValueError, match="numerator_digits must be between"):
+        problem_generation.generate_problems(params, "latex")
+
+
+def test_generate_problems_frac_rejects_same_and_different_denominator_combo() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "frac", "num": 1,
+        "same_denominator": True, "different_denominators": True,
+    }
+    with pytest.raises(ValueError, match="cannot be combined"):
+        problem_generation.generate_problems(params, "latex")
+
+
+def test_generate_problems_frac_rejects_proper_operands_digit_violation() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "frac", "num": 1,
+        "proper_operands": True, "numerator_digits": 2, "denominator_digits": 1,
+    }
+    with pytest.raises(ValueError, match="proper_operands requires"):
+        problem_generation.generate_problems(params, "latex")
+
+
+def test_generate_problems_frac_rejects_fraction_form_with_non_add_sub_operator() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "frac", "num": 1,
+        "operator": ["mul"], "a_fraction_form": "mixed",
+    }
+    with pytest.raises(ValueError, match="require operator="):
+        problem_generation.generate_problems(params, "latex")
+
+
+def test_generate_problems_frac_rejects_improper_fraction_form() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "frac", "num": 1,
+        "operator": ["add"], "a_fraction_form": "improper",
+    }
+    with pytest.raises(ValueError, match="do not support 'improper'"):
+        problem_generation.generate_problems(params, "latex")
+
+
+def test_generate_problems_frac_reducible_mode_requires_mul_div_operator() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "frac", "num": 1,
+        "operator": ["add"], "reducible_mode": "required",
+    }
+    with pytest.raises(ValueError, match="reducible_mode only supports"):
+        problem_generation.generate_problems(params, "latex")
+
+
+def test_generate_problems_frac_reducible_mode_required_yields_reducible_products() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "frac", "num": 5,
+        "operator": ["mul"], "numerator_digits": 2, "denominator_digits": 2,
+        "reducible_mode": "required",
+    }
+    problems = problem_generation.generate_problems(params, "latex")
+    assert len(problems) == 5
+    for problem in problems:
+        raw_numerator = problem["a"]["numerator"] * problem["b"]["numerator"]
+        raw_denominator = problem["a"]["denominator"] * problem["b"]["denominator"]
+        assert math.gcd(raw_numerator, raw_denominator) > 1
+
+
+@pytest.mark.parametrize("renderer_name", ["reportlab", "latex"])
+def test_generate_problems_mixed_returns_valid_mixed_problems(renderer_name: str) -> None:
+    params = {
+        "paper_size": "A4", "command_type": "mixed", "num": 6,
+        "a_kind": ["int"], "b_kind": ["int"], "operator": ["add"],
+    }
+    problems = problem_generation.generate_problems(params, renderer_name)
+    assert len(problems) == 6
+    for problem in problems:
+        assert set(problem) == {"index", "operands", "operators", "mixed", "result"}
+        assert problem["mixed"] is False
+        assert problem["operators"] == ["add"]
+        assert len(problem["operands"]) == 2
+        a = Fraction(
+            problem["operands"][0]["value"]["numerator"], problem["operands"][0]["value"]["denominator"],
+        )
+        b = Fraction(
+            problem["operands"][1]["value"]["numerator"], problem["operands"][1]["value"]["denominator"],
+        )
+        result = Fraction(problem["result"]["numerator"], problem["result"]["denominator"])
+        assert a + b == result
+
+
+def test_generate_problems_mixed_rejects_digits_out_of_range() -> None:
+    params = {"paper_size": "A4", "command_type": "mixed", "num": 1, "denominator_digits": 5}
+    with pytest.raises(ValueError, match="denominator_digits must be between"):
+        problem_generation.generate_problems(params, "latex")
+
+
+def test_generate_problems_mixed_rejects_decimal_places_out_of_range() -> None:
+    params = {"paper_size": "A4", "command_type": "mixed", "num": 1, "decimal_places": 3}
+    with pytest.raises(ValueError, match="decimal_places must be between"):
+        problem_generation.generate_problems(params, "latex")
+
+
+def test_generate_problems_mixed_rejects_terms_min_greater_than_terms_max() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "mixed", "num": 1,
+        "terms_min": 4, "terms_max": 2,
+    }
+    with pytest.raises(ValueError, match="terms_min must be less than or equal to terms_max"):
+        problem_generation.generate_problems(params, "latex")
+
+
+def test_generate_problems_mixed_terms_family_returns_multi_term_problems() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "mixed", "num": 4,
+        "a_kind": ["int"], "b_kind": ["int"], "operator": ["add"],
+        "terms": 4,
+    }
+    problems = problem_generation.generate_problems(params, "latex")
+    assert len(problems) == 4
+    for problem in problems:
+        assert len(problem["operands"]) == 4
+        assert len(problem["operators"]) == 3
+
+
+def test_generate_problems_mixed_reducible_mode_requires_mul_div_operator() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "mixed", "num": 1,
+        "operator": ["add"], "a_kind": ["fraction"], "b_kind": ["int"],
+        "reducible_mode": "required",
+    }
+    with pytest.raises(ValueError, match="reducible_mode only supports"):
+        problem_generation.generate_problems(params, "latex")
+
+
+def test_generate_problems_mixed_reducible_mode_rejects_terms_combo() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "mixed", "num": 1,
+        "operator": ["mul"], "a_kind": ["fraction"], "b_kind": ["int"],
+        "reducible_mode": "required", "terms": 3,
+    }
+    with pytest.raises(ValueError, match="cannot be combined with terms"):
+        problem_generation.generate_problems(params, "latex")
+
+
+def test_generate_problems_mixed_reducible_mode_requires_fraction_int_pairing() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "mixed", "num": 1,
+        "operator": ["mul"], "a_kind": ["fraction"], "b_kind": ["fraction"],
+        "reducible_mode": "required",
+    }
+    with pytest.raises(ValueError, match="requires exactly one"):
+        problem_generation.generate_problems(params, "latex")
+
+
+def test_generate_problems_mixed_reducible_mode_required_yields_reducible_products() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "mixed", "num": 5,
+        "operator": ["mul"], "a_kind": ["fraction"], "b_kind": ["int"],
+        "numerator_digits": 2, "denominator_digits": 2,
+        "reducible_mode": "required",
+    }
+    problems = problem_generation.generate_problems(params, "latex")
+    assert len(problems) == 5
+    for problem in problems:
+        a_operand, b_operand = problem["operands"]
+        raw_numerator = a_operand["raw_numerator"] * b_operand["raw_numerator"]
+        raw_denominator = a_operand["raw_denominator"] * b_operand["raw_denominator"]
+        assert math.gcd(raw_numerator, raw_denominator) > 1
