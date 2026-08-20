@@ -20,3 +20,16 @@ LaTeX binary の有無や実コンパイル時間に依存せず routing を検�
 ## 注意事項・既知の制限
 
 Flask test client の単体・結合テストであり、実 HTTP server や実 LaTeX コンパイルは起動しない。実 engine による生成は renderer/CLI 系の別テストまたは手動 smoke test が担う。
+
+## 変更履歴（git log より自動生成）
+
+- 757d736 feat(#213): migrate abc pdf generation to presentation api
+- 3370b1c #212 Migrate generate-pdf gcd to the internal presentation API (#246)
+- 1c3fdee #211 generate-pdf: migrate lcm to the internal presentation API (#245)
+- 429c088 #210 generate-pdf: migrate pi to the internal presentation API (#244)
+- 40ad870 #209 generate-pdf: migrate squ to the internal presentation API (#243)
+- a6187e9 #208 generate-pdf: migrate 99 (kuku) to the internal presentation API (#242)
+- 7a159b9 #207 generate-pdf: migrate ope (multi-term) to the internal presentation API (#241)
+- 5ec3e56 #206 generate-pdf: migrate ope --use-parentheses (tree variant) to the internal presentation API (#240)
+- 99a8279 #205 generate-pdf: migrate ope (plain 2-term) to the internal presentation API (#239)
+- 700f115 #232 backend: remove nuts_calc.py (ReportLab renderer) and the reportlab dependency (#234)

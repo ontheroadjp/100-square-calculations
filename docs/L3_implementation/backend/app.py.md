@@ -47,7 +47,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- 38fcce1 feat(#212): migrate gcd to the internal presentation API
+- 757d736 feat(#213): migrate abc pdf generation to presentation api
+- 3370b1c #212 Migrate generate-pdf gcd to the internal presentation API (#246)
 - 1c3fdee #211 generate-pdf: migrate lcm to the internal presentation API (#245)
 - 429c088 #210 generate-pdf: migrate pi to the internal presentation API (#244)
 - 40ad870 #209 generate-pdf: migrate squ to the internal presentation API (#243)
@@ -56,4 +57,3 @@
 - 5ec3e56 #206 generate-pdf: migrate ope --use-parentheses (tree variant) to the internal presentation API (#240)
 - 99a8279 #205 generate-pdf: migrate ope (plain 2-term) to the internal presentation API (#239)
 - 36288a2 #237 app.py: dedupe 'com' a_value/target validation with problem_generation.py (#238)
-- 37a5a80 #230 Split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits (#236)

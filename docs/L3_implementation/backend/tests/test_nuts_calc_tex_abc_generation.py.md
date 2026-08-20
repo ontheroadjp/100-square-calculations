@@ -21,3 +21,8 @@ slot formatter のテストは Layer 2 の `\makebox` 出力との文字列一�
 ## 注意事項・既知の制限
 
 純粋関数テストであり PDF コンパイルは行わない。実 PDF と Flask routing は他の end-to-end/API テストが担う。
+
+## 変更履歴（git log より自動生成）
+
+- 757d736 feat(#213): migrate abc pdf generation to presentation api
+- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)
