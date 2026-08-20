@@ -4268,11 +4268,23 @@ def build_lcm_slot_content_tex(problem: NumberPairProblem, show_answer: bool) ->
     body as build_number_pair_block_tex(..., label='LCM') but without the
     embedded `problem.index)` prefix, for use with build_content_area_slot_tex,
     which owns the number box instead. Mirrors build_com_slot_content_tex's
-    relationship to build_com_block_tex (#184). `gcd` has no counterpart yet
-    (tracked separately under #174/B-5).
+    relationship to build_com_block_tex (#184); build_gcd_slot_content_tex is
+    the corresponding GCD variant.
     """
     result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
     return f"$\\mathrm{{LCM}}({problem.a}, {problem.b}) = {result_tex}$"
+
+
+def build_gcd_slot_content_tex(problem: NumberPairProblem, show_answer: bool) -> str:
+    """
+    Number-free Layer-3 content for one `gcd` problem (issue #212): the same
+    body as build_number_pair_block_tex(..., label='GCD') but without the
+    embedded `problem.index)` prefix, for use with build_content_area_slot_tex,
+    which owns the number box instead. Mirrors build_lcm_slot_content_tex's
+    relationship to the shared number-pair block renderer.
+    """
+    result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
+    return f"$\\mathrm{{GCD}}({problem.a}, {problem.b}) = {result_tex}$"
 
 
 def build_number_pair_page_pair(problems: list[NumberPairProblem], columns: int, label: str) -> tuple[Page, Page]:
