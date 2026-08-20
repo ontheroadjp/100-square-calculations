@@ -3249,6 +3249,21 @@ def build_pi_block_tex(problem: PiProblem, show_answer: bool, reverse: bool) -> 
     return f"{problem.index}) ${problem.a} \\times {PI_MULTIPLIER} = {result_tex}$"
 
 
+def build_pi_slot_content_tex(problem: PiProblem, show_answer: bool) -> str:
+    """
+    Number-free Layer-3 content for one `pi` problem (#184, issue #210):
+    the same body as build_pi_block_tex's non-reverse rendering but without
+    the embedded `problem.index)` prefix, for use with
+    build_content_area_slot_tex, which owns the number box instead.
+
+    Basic-case only, matching #199's scope: `reverse` is not wired here
+    (always the non-reverse `a \\times 3.14 = c` form), mirroring
+    backend/app.py's `_generate_pi_pdf`, which does not expose `reverse`.
+    """
+    result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
+    return f"${problem.a} \\times {PI_MULTIPLIER} = {result_tex}$"
+
+
 def build_pi_page_pair(problems: list[PiProblem], columns: int, reverse: bool) -> tuple[Page, Page]:
     """Build the (blank, filled) Page pair for one page's worth of `pi` problems."""
     blank_page = Page(
