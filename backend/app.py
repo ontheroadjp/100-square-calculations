@@ -299,6 +299,57 @@ def _generate_kuku_pdf(data: renderers.RendererRequest, output_dir: str) -> tupl
     return output_filepath, output_filename
 
 
+def _generate_abc_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+    """
+    Build a basic-case 'aBc' PDF via the internal presentation API.
+
+    The migration intentionally covers one blank page with optional
+    rows/columns only, matching #199's scope. Answer pages, bottom answers,
+    name fields, multiple pages, and merged output remain on the legacy CLI
+    path until those presentation features are migrated separately.
+    """
+    rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
+    columns = int(data.get('columns', 2))
+    if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
+        raise ValueError(
+            f"rows and columns must be at least {nuts_calc_tex.MIN_ROWS_OR_COLUMNS}."
+        )
+
+    engine_adapter = nuts_calc_tex.get_latex_engine_adapter()
+    if shutil.which(engine_adapter.binary_name) is None:
+        raise ValueError(
+            f"{engine_adapter.binary_name} not found. Install a LaTeX distribution first "
+            "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
+        )
+
+    problems = nuts_calc_tex.generate_abc_problems(rows * columns, 1)
+    page = nuts_calc_tex.PresentationPage(
+        problems=problems, indices=[problem.index for problem in problems]
+    )
+    tex_source = nuts_calc_tex.build_presentation_document_tex(
+        data['paper_size'],
+        pages=[page],
+        content_format=nuts_calc_tex.build_abc_slot_content_tex,
+        page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        engine_adapter=engine_adapter,
+        show_answer=False,
+    )
+
+    output_filename = f"worksheet_{uuid.uuid4()}.pdf"
+    output_filepath = os.path.join(output_dir, output_filename)
+
+    captured_stdout = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(captured_stdout):
+            engine_adapter.compile(tex_source, output_filepath)
+    except SystemExit as e:
+        error_reason = captured_stdout.getvalue().strip() or "PDF compilation failed"
+        raise RuntimeError(f'PDF generation failed: {error_reason}') from e
+
+    return output_filepath, output_filename
+
+
 def _generate_pi_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
     """
     Build a 'pi' command PDF via nuts_calc_tex.py's internal presentation
@@ -785,6 +836,8 @@ def generate_pdf():
             output_filepath, output_filename = _generate_gcd_pdf(data, PDF_OUTPUT_DIR)
         elif data.get('command_type') == '99':
             output_filepath, output_filename = _generate_kuku_pdf(data, PDF_OUTPUT_DIR)
+        elif data.get('command_type') == 'aBc':
+            output_filepath, output_filename = _generate_abc_pdf(data, PDF_OUTPUT_DIR)
         elif data.get('command_type') == 'pi':
             output_filepath, output_filename = _generate_pi_pdf(data, PDF_OUTPUT_DIR)
         elif _is_plain_ope_pdf_request(data):
