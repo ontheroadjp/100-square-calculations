@@ -935,6 +935,61 @@ def _generate_multiples_pdf(data: renderers.RendererRequest, output_dir: str) ->
     return output_filepath, output_filename
 
 
+def _generate_divisors_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+    """Build one blank `divisors` page via the internal presentation API.
+
+    This basic-case migration preserves the data-layer range defaults.
+    Answer pages, bottom answers, name fields, multiple pages, and merged
+    output are not wired in this builder.
+    """
+    a_min = int(data.get('a_min', problem_generation.DEFAULT_A_MIN))
+    a_max = int(data.get('a_max', problem_generation.DEFAULT_A_MAX))
+    if a_min < 1:
+        raise ValueError("a_min must be at least 1 for the 'divisors' command.")
+
+    rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
+    columns = int(data.get('columns', 2))
+    if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
+        raise ValueError(
+            f"rows and columns must be at least {nuts_calc_tex.MIN_ROWS_OR_COLUMNS}."
+        )
+
+    engine_adapter = nuts_calc_tex.get_latex_engine_adapter()
+    if shutil.which(engine_adapter.binary_name) is None:
+        raise ValueError(
+            f"{engine_adapter.binary_name} not found. Install a LaTeX distribution first "
+            "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
+        )
+
+    nums_a = list(range(a_min, a_max + 1))
+    problems = nuts_calc_tex.generate_divisors_problems(nums_a, rows * columns, 1)
+    page = nuts_calc_tex.PresentationPage(
+        problems=problems, indices=[problem.index for problem in problems]
+    )
+    tex_source = nuts_calc_tex.build_presentation_document_tex(
+        data['paper_size'],
+        pages=[page],
+        content_format=nuts_calc_tex.build_divisors_slot_content_tex,
+        page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        engine_adapter=engine_adapter,
+        show_answer=False,
+    )
+
+    output_filename = f"worksheet_{uuid.uuid4()}.pdf"
+    output_filepath = os.path.join(output_dir, output_filename)
+
+    captured_stdout = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(captured_stdout):
+            engine_adapter.compile(tex_source, output_filepath)
+    except SystemExit as e:
+        error_reason = captured_stdout.getvalue().strip() or "PDF compilation failed"
+        raise RuntimeError(f'PDF generation failed: {error_reason}') from e
+
+    return output_filepath, output_filename
+
+
 @app.route('/generate-pdf', methods=['POST'])
 def generate_pdf():
     data = request.json
@@ -969,6 +1024,8 @@ def generate_pdf():
             output_filepath, output_filename = _generate_squ_pdf(data, PDF_OUTPUT_DIR)
         elif data.get('command_type') == 'multiples':
             output_filepath, output_filename = _generate_multiples_pdf(data, PDF_OUTPUT_DIR)
+        elif data.get('command_type') == 'divisors':
+            output_filepath, output_filename = _generate_divisors_pdf(data, PDF_OUTPUT_DIR)
         else:
             renderer_name = renderers.get_renderer_name()
             output_filepath, output_filename, result = renderers.run(
