@@ -366,6 +366,35 @@ def test_build_mixed_slot_content_tex_renders_blank_answer() -> None:
     assert content_tex.endswith(f"= {tex_module.BLANK_ANSWER_TEX}$")
 
 
+def test_build_divfrac_slot_content_tex_omits_number_and_preserves_unreduced_answer() -> None:
+    problem = tex_module.DivFracProblem(index=5, a=4, b=6)
+
+    content_tex = tex_module.build_divfrac_slot_content_tex(problem, show_answer=True)
+
+    assert content_tex == "$4 \\div 6 = \\frac{4}{6}$"
+    assert "5)" not in content_tex
+
+
+def test_build_divfrac_slot_content_tex_matches_block_tex_body_when_composed() -> None:
+    problem = tex_module.DivFracProblem(index=5, a=4, b=6)
+    layout = tex_module.ContentAreaLayout(rows=1, columns=1, number_box_width_mm=0)
+
+    original_tex = tex_module.build_divfrac_block_tex(problem, show_answer=True)
+    slot_content_tex = tex_module.build_divfrac_slot_content_tex(problem, show_answer=True)
+    composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
+
+    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert original_tex == f"{problem.index}) {slot_content_tex}"
+
+
+def test_build_divfrac_slot_content_tex_renders_blank_answer() -> None:
+    problem = tex_module.DivFracProblem(index=5, a=4, b=6)
+
+    content_tex = tex_module.build_divfrac_slot_content_tex(problem, show_answer=False)
+
+    assert content_tex == f"$4 \\div 6 = {tex_module.BLANK_ANSWER_TEX}$"
+
+
 def test_build_lcm_slot_content_tex_omits_problem_number() -> None:
     problem = tex_module.NumberPairProblem(index=5, a=4, b=6, c=12)
 

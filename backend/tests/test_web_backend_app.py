@@ -521,6 +521,119 @@ def test_generate_pdf_lcm_maps_compile_failure_to_500(client, monkeypatch) -> No
     assert "lualatex failed while building the worksheet" in response.get_json()["error"]
 
 
+def test_generate_pdf_divfrac_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
+    backend_app = sys.modules["app"]
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("renderers.run must not be called for command_type 'divfrac'")
+
+    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+
+    def fake_compile(self, tex_source, out_pdf_path):
+        assert "\\div" in tex_source
+        assert backend_app.nuts_calc_tex.BLANK_ANSWER_TEX in tex_source
+        with open(out_pdf_path, "wb") as f:
+            f.write(b"%PDF-1.4 fake")
+
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf", json={"paper_size": "A4", "command_type": "divfrac"}
+    )
+
+    assert response.status_code == 200
+    assert response.data.startswith(b"%PDF")
+
+
+def test_generate_pdf_divfrac_resolves_digit_and_explicit_ranges(client, monkeypatch) -> None:
+    backend_app = sys.modules["app"]
+    captured = {}
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+
+    def spy_generate_divfrac_problems(nums_a, nums_b, order, start_index):
+        captured.update(
+            nums_a=nums_a, nums_b=nums_b, order=order, start_index=start_index
+        )
+        return [backend_app.nuts_calc_tex.DivFracProblem(index=1, a=10, b=3)]
+
+    def fake_compile(self, tex_source, out_pdf_path):
+        with open(out_pdf_path, "wb") as f:
+            f.write(b"%PDF-1.4 fake")
+
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex, "generate_divfrac_problems", spy_generate_divfrac_problems
+    )
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf",
+        json={
+            "paper_size": "A4", "command_type": "divfrac",
+            "a_digits": 2, "a_min": 7, "a_max": 8,
+            "b_min": 3, "b_max": 4, "rows": 1, "columns": 1,
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured == {
+        "nums_a": list(range(10, 100)), "nums_b": [3, 4],
+        "order": 1, "start_index": 1,
+    }
+
+
+@pytest.mark.parametrize(
+    ("request_fields", "error_text"),
+    [
+        ({"b_min": 0}, "b_min must be at least 1"),
+        ({"rows": 0}, "rows and columns must be at least"),
+        ({"columns": 0}, "rows and columns must be at least"),
+    ],
+)
+def test_generate_pdf_divfrac_rejects_invalid_layout_or_denominator_range(
+    client, request_fields, error_text
+) -> None:
+    response = client.post(
+        "/generate-pdf",
+        json={"paper_size": "A4", "command_type": "divfrac", **request_fields},
+    )
+
+    assert response.status_code == 500
+    assert error_text in response.get_json()["error"]
+
+
+def test_generate_pdf_divfrac_maps_compile_failure_to_500(client, monkeypatch) -> None:
+    backend_app = sys.modules["app"]
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+
+    def failing_compile(self, tex_source, out_pdf_path):
+        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+    )
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf", json={"paper_size": "A4", "command_type": "divfrac"}
+    )
+
+    assert response.status_code == 500
+    assert "lualatex failed while building the worksheet" in response.get_json()["error"]
+
+
 def test_generate_pdf_gcd_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
     """
     The 'gcd' command_type must build its PDF via the internal presentation
