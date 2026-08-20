@@ -4200,6 +4200,20 @@ def build_mixed_block_tex(problem: MixedProblem, show_answer: bool) -> str:
     return f"{problem.index}) $\\displaystyle {' '.join(parts)} = {result_tex}$"
 
 
+def build_mixed_slot_content_tex(problem: MixedProblem, show_answer: bool) -> str:
+    """Render number-free mixed arithmetic for a presentation content slot.
+
+    The presentation API's Layer 2 owns the problem number. This Layer-3
+    formatter otherwise preserves build_mixed_block_tex's pattern-1b body,
+    including exact fraction answers, displaystyle, and the blank answer.
+    """
+    parts = [problem.operands[0].display]
+    for operand, operator in zip(problem.operands[1:], problem.operators):
+        parts += [OPERATOR_TEX_SYMBOLS[operator], operand.display]
+    result_tex = fraction_to_tex(problem.result) if show_answer else BLANK_ANSWER_TEX
+    return f"$\\displaystyle {' '.join(parts)} = {result_tex}$"
+
+
 def build_mixed_page_pair(problems: list[MixedProblem], columns: int) -> tuple[Page, Page]:
     return (
         Page([build_mixed_block_tex(problem, False) for problem in problems], columns),

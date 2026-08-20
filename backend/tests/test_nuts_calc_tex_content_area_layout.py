@@ -12,6 +12,7 @@ required).
 """
 
 import sys
+from fractions import Fraction
 from pathlib import Path
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -252,6 +253,49 @@ def test_build_multi_term_ope_slot_content_tex_matches_block_tex_body_when_compo
 
     assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
     assert original_tex == f"{problem.index}) {slot_content_tex}"
+
+
+def _make_mixed_problem(index: int) -> "tex_module.MixedProblem":
+    return tex_module.MixedProblem(
+        index=index,
+        operands=[
+            tex_module.MixedOperand("int", "3", Fraction(3)),
+            tex_module.MixedOperand("decimal", "0.5", Fraction(1, 2)),
+            tex_module.MixedOperand("fraction", "\\frac{2}{3}", Fraction(2, 3)),
+        ],
+        operators=["mul", "add"],
+        mixed=True,
+        result=Fraction(13, 6),
+    )
+
+
+def test_build_mixed_slot_content_tex_omits_problem_number_and_preserves_body() -> None:
+    problem = _make_mixed_problem(index=5)
+
+    content_tex = tex_module.build_mixed_slot_content_tex(problem, show_answer=True)
+
+    assert content_tex == "$\\displaystyle 3 \\times 0.5 + \\frac{2}{3} = \\frac{13}{6}$"
+    assert "5)" not in content_tex
+
+
+def test_build_mixed_slot_content_tex_matches_block_tex_body_when_composed() -> None:
+    problem = _make_mixed_problem(index=5)
+    layout = tex_module.ContentAreaLayout(rows=1, columns=1, number_box_width_mm=0)
+
+    original_tex = tex_module.build_mixed_block_tex(problem, show_answer=True)
+    slot_content_tex = tex_module.build_mixed_slot_content_tex(problem, show_answer=True)
+    composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
+
+    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert original_tex == f"{problem.index}) {slot_content_tex}"
+
+
+def test_build_mixed_slot_content_tex_renders_blank_answer() -> None:
+    problem = _make_mixed_problem(index=5)
+
+    content_tex = tex_module.build_mixed_slot_content_tex(problem, show_answer=False)
+
+    assert content_tex.endswith(f"= {tex_module.BLANK_ANSWER_TEX}$")
 
 
 def test_build_lcm_slot_content_tex_omits_problem_number() -> None:
