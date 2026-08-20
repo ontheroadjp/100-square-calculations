@@ -38,7 +38,8 @@
 
 ## 変更履歴(git log より自動生成)
 
-- b373507 feat(#207): migrate flat multi-term ope to the internal presentation API
+- 885ad04 feat(#208): migrate 99 (kuku) to the internal presentation API
+- 7a159b9 #207 generate-pdf: migrate ope (multi-term) to the internal presentation API (#241)
 - 5ec3e56 #206 generate-pdf: migrate ope --use-parentheses (tree variant) to the internal presentation API (#240)
 - 99a8279 #205 generate-pdf: migrate ope (plain 2-term) to the internal presentation API (#239)
 - 36288a2 #237 app.py: dedupe 'com' a_value/target validation with problem_generation.py (#238)
