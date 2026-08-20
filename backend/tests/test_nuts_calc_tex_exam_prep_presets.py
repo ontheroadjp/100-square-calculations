@@ -31,8 +31,8 @@ import nuts_calc_tex as tex_module  # noqa: E402
 TRIALS_PER_CONFIG = 20
 PROBLEMS_PER_TRIAL = 15
 
-# Mirrors drillPresets.js's a_value: grade4=1 digit, grade5=2 digits,
-# grade6=3 digits; b_value stays 1 digit (single-digit) for every grade.
+# Mirrors drillPresets.js's a_digits: grade4=1 digit, grade5=2 digits,
+# grade6=3 digits; b_digits stays 1 digit (single-digit) for every grade.
 GRADE_FIRST_OPERAND_RANGES = {
     4: (1, 9),
     5: (10, 99),

@@ -29,6 +29,13 @@
   - いずれも既存の `test_cli_ope_vertical_add_sub_mul_produces_pdfs`/`test_cli_ope_vertical_div_produces_pdfs` と同じ `_assert_is_pdf` パターン(実際に `pdflatex` を通し PDF/CSV が生成されることを検証)。
 - `test_cli_ope_decimal_rejects_vertical_with_decimal_divisor` を新設し、`div` オペレーターかつ `--b-decimal-places > 0`(小数÷小数)の組み合わせだけは引き続き明示的に拒否されることを検証する(除数に整数しか受け付けない vendor済み `longdivision` の制約。issue #180 で対応方針を検討中、`docs/L3_implementation/backend/nuts_calc_tex.py.md` 参照)。
 
+### `--a-digits`/`--b-digits` の新設と `-a/--a-value` の桁数解釈廃止(issue #230)
+
+- `ope`/`100`/`lcm`/`gcd`/`divfrac` の桁数ショートハンドを検証していた既存テストは、CLI引数 `--a-value <N>`/`--b-value <N>`(long form)または `-a <N>`(`100`/`lcm`/`gcd`/`divfrac` の short form)から `--a-digits <N>`/`--b-digits <N>` へ全面的に置き換えた。`com`/`99`/`squ`/`pi` の `-a` は値そのものの意味のままなので無変更。
+- `test_cli_ope_no_longer_reads_a_value_as_digit_count`: 回帰テスト。`ope --a-value 99` は(旧実装では `set_min_max_value(99)` が `IndexError` で未処理クラッシュしていたが)`a_value` を一切読まなくなったため、単に無視されて正常終了することを検証する。
+- `test_cli_ope_a_digits_sets_the_range`: `--a-digits`/`--b-digits` が実際に CSV 出力のオペランド範囲へ反映されることを検証する。
+- `test_cli_com_ignores_unrelated_a_digits_flag`: `com` に `--a-digits` を渡しても(`com` はこのフィールドを一切読まないため)無視され、既存の `-a`(補数ターゲット)の挙動に影響しないことを検証する。「渡されたら拒否」ではなく「渡されても単に無視される」という issue #230 の設計方針の検証。
+
 ## 統合ポイント
 
 - テスト対象: `backend/nuts_calc_tex.py`(CLI エントリポイント全体)。
@@ -41,7 +48,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- a86312a feat(#171): support int/decimal/fraction kind mixing in compare
+- 3b6bc6c refactor(#230): split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits
+- 490f44b #171 compare: support int/decimal/fraction kind mixing, expose via POST /generate-problems (#192)
 - 19fc419 test: default nuts_calc_tex.py E2E fixture to pdflatex, not lualatex
 - 9393898 #186 renderers/engine: make latex+lualatex the default (and only reachable) configuration (#187)
 - 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
@@ -50,4 +58,3 @@
 - e8db9d7 #112 nuts_calc_tex.py: add mixed-number (帯分数) display support to the frac command (#125)
 - 241b2e1 #96 nuts_calc_tex.py: add fraction/decimal conversion drill commands (#108)
 - a6c52f9 #95 nuts_calc_tex.py: add LCM and GCD pair-number drill commands (#107)
-- 3b25e73 #94 nuts_calc_tex.py: add evenodd/multiples/divisors number-property commands (#106)

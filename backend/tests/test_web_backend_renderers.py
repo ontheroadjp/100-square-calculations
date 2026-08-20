@@ -88,6 +88,13 @@ def test_build_command_translates_optional_scalar_params() -> None:
     assert "--result-max" in command and command[command.index("--result-max") + 1] == "1000"
 
 
+def test_build_command_translates_a_digits_and_b_digits() -> None:
+    params = {"paper_size": "A4", "command_type": "ope", "a_digits": 2, "b_digits": 1}
+    command = renderers.build_command("latex", params, "out.pdf")
+    assert "--a-digits" in command and command[command.index("--a-digits") + 1] == "2"
+    assert "--b-digits" in command and command[command.index("--b-digits") + 1] == "1"
+
+
 def test_build_command_translates_boolean_flags() -> None:
     params = {
         "paper_size": "A4",

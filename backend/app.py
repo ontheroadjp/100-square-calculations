@@ -28,6 +28,13 @@ def _generate_com_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple
     optional rows/columns, always a single blank (practice) page --
     with_bottom_answer/with_name_field/multi-page/merge are not wired for
     'com' yet (explicitly out of scope for #199).
+
+    'com' reads a_value directly (it's always a literal value there, never a
+    digit count -- issue #230). A future _generate_*_pdf-style builder for a
+    command in nuts_calc_tex.DIGIT_COUNT_SHORTHAND_COMMANDS (ope/100/lcm/gcd/
+    divfrac) must instead resolve its range via
+    problem_generation.resolve_digit_count_range(data, 'a_digits', 'a_min',
+    'a_max', ...), not read a_value/a_digits directly like this function does.
     """
     target = data.get('a_value')
     if target is None:

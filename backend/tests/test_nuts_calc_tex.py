@@ -230,6 +230,47 @@ def test_cli_ope_horizontal_all_operators_produces_pdfs(run_tex_cli, tmp_path):
     assert (tmp_path / "result.csv").exists()
 
 
+def test_cli_ope_no_longer_reads_a_value_as_digit_count(run_tex_cli, tmp_path):
+    # Regression test (issue #230): -a/--a-value used to be silently
+    # reinterpreted as a digit-count shorthand for 'ope' and would crash with
+    # an unhandled IndexError for a value outside set_min_max_value()'s 1-5
+    # range (e.g. 99). 'ope' no longer reads -a/--a-value at all -- only
+    # --a-digits/--a-min/--a-max affect the range now -- so a value that
+    # would have crashed the old digit-count conversion must simply be
+    # ignored and succeed.
+    result = run_tex_cli("A4", "ope", "-o", "add", "--a-value", "99", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
+def test_cli_ope_a_digits_sets_the_range(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "--a-digits", "3", "--b-digits", "1",
+        "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+    csv_path = tmp_path / "result.csv"
+    lines = csv_path.read_text().strip().splitlines()
+    assert lines, "expected at least one CSV row"
+    for line in lines:
+        _page_number, _index, a, _operator, b, _c, _remainder = line.split(",")
+        assert 100 <= int(a) <= 999
+        assert 1 <= int(b) <= 9
+
+
+def test_cli_com_ignores_unrelated_a_digits_flag(run_tex_cli, tmp_path):
+    # 'com' reads -a/--a-value directly (the complement target); --a-digits
+    # is only meaningful for nuts_calc_tex.DIGIT_COUNT_SHORTHAND_COMMANDS and
+    # is simply never read here, same as --a-min/--a-max already being
+    # unread by 'com' today (issue #230 -- extra params are ignored, not
+    # rejected).
+    result = run_tex_cli(
+        "A4", "com", "-a", "100", "--a-digits", "3", "-r", "3", "-c", "2", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
 @pytest.mark.parametrize(
     ("carry_flag", "range_args", "expected_carry"),
     [
@@ -473,7 +514,7 @@ def test_cli_ope_vertical_add_sub_mul_produces_pdfs(run_tex_cli, tmp_path):
 
 def test_cli_ope_vertical_multi_digit_multiplier_produces_pdfs(run_tex_cli, tmp_path):
     result = run_tex_cli(
-        "A4", "ope", "-o", "mul", "--a-value", "3", "--b-value", "2", "--vertical",
+        "A4", "ope", "-o", "mul", "--a-digits", "3", "--b-digits", "2", "--vertical",
         "-r", "2", "-c", "2", "--out-file", "result.pdf",
     )
     assert result.returncode == 0, result.stderr
@@ -483,7 +524,7 @@ def test_cli_ope_vertical_multi_digit_multiplier_produces_pdfs(run_tex_cli, tmp_
 
 def test_cli_ope_vertical_div_produces_pdfs(run_tex_cli, tmp_path):
     result = run_tex_cli(
-        "A4", "ope", "-o", "div", "--a-value", "3", "--b-value", "2", "--vertical",
+        "A4", "ope", "-o", "div", "--a-digits", "3", "--b-digits", "2", "--vertical",
         "-r", "2", "-c", "2", "--out-file", "result.pdf",
     )
     assert result.returncode == 0, result.stderr
@@ -509,7 +550,7 @@ def test_cli_ope_vertical_default_rows_does_not_drop_content(run_tex_cli, tmp_pa
     # overflowing page 2 instead of flowing row by row (see
     # docs/L3_implementation/nuts_calc_tex.py.md).
     result = run_tex_cli(
-        "A4", "ope", "-o", "div", "--a-value", "3", "--b-value", "2", "--vertical",
+        "A4", "ope", "-o", "div", "--a-digits", "3", "--b-digits", "2", "--vertical",
         "--out-file", "result.pdf",  # default -r 10 -c 2
     )
     assert result.returncode == 0, result.stderr
@@ -526,7 +567,7 @@ def test_cli_ope_vertical_default_rows_match_requested_page_count(
     run_tex_cli, tmp_path, paper_size, expected_rows,
 ):
     result = run_tex_cli(
-        paper_size, "ope", "-o", "mul", "--a-value", "3", "--b-value", "2",
+        paper_size, "ope", "-o", "mul", "--a-digits", "3", "--b-digits", "2",
         "--vertical", "-p", "2", "--csv", "--out-file", "result.pdf",
     )
 
@@ -538,7 +579,7 @@ def test_cli_ope_vertical_default_rows_match_requested_page_count(
 
 def test_cli_ope_intermediate_produces_pdfs(run_tex_cli, tmp_path):
     result = run_tex_cli(
-        "A4", "ope", "-o", "mul", "--a-value", "2", "--b-value", "1", "--intermediate",
+        "A4", "ope", "-o", "mul", "--a-digits", "2", "--b-digits", "1", "--intermediate",
         "-r", "2", "-c", "2", "--out-file", "result.pdf",
     )
     assert result.returncode == 0, result.stderr
@@ -567,7 +608,7 @@ def test_cli_ope_intermediate_rejects_multi_digit_b(run_tex_cli, tmp_path):
 def test_cli_ope_use_parentheses_produces_pdfs(run_tex_cli, tmp_path):
     result = run_tex_cli(
         "A4", "ope", "-o", "add", "mul", "--use-parentheses",
-        "--a-value", "1", "--b-value", "1",
+        "--a-digits", "1", "--b-digits", "1",
         "-r", "2", "-c", "2", "-ww", "--out-file", "result.pdf",
     )
     assert result.returncode == 0, result.stderr
@@ -582,7 +623,7 @@ def test_cli_ope_use_parentheses_mix_produces_pdfs(run_tex_cli, tmp_path):
     # position randomization.
     result = run_tex_cli(
         "A4", "ope", "-o", "mix", "--use-parentheses",
-        "--a-value", "1", "--b-value", "1",
+        "--a-digits", "1", "--b-digits", "1",
         "-r", "3", "-c", "3", "--out-file", "result.pdf",
     )
     assert result.returncode == 0, result.stderr
@@ -624,7 +665,7 @@ def test_cli_ope_use_parentheses_rejects_non_ope_command(run_tex_cli, tmp_path):
 def test_cli_ope_use_parentheses_csv_rows_contain_real_problem_data(run_tex_cli, tmp_path):
     result = run_tex_cli(
         "A4", "ope", "-o", "sub", "mul", "--use-parentheses",
-        "--a-value", "2", "--b-value", "1",
+        "--a-digits", "2", "--b-digits", "1",
         "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
     )
     assert result.returncode == 0, result.stderr
@@ -647,7 +688,7 @@ def test_cli_ope_use_parentheses_csv_rows_contain_real_problem_data(run_tex_cli,
 def test_cli_ope_use_parentheses_terms_five_produces_deeper_trees(run_tex_cli, tmp_path):
     result = run_tex_cli(
         "A4", "ope", "-o", "add", "mul", "--use-parentheses", "--terms", "5",
-        "--a-value", "1", "--b-value", "1",
+        "--a-digits", "1", "--b-digits", "1",
         "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
     )
     assert result.returncode == 0, result.stderr
@@ -694,7 +735,7 @@ def test_cli_ope_mixed_operators_produces_pdfs(run_tex_cli, tmp_path):
 def test_cli_ope_mixed_operators_with_use_parentheses_produces_pdfs(run_tex_cli, tmp_path):
     result = run_tex_cli(
         "A4", "ope", "-o", "add", "mul", "--terms", "5", "--use-parentheses", "--mixed-operators",
-        "--a-value", "1", "--b-value", "1",
+        "--a-digits", "1", "--b-digits", "1",
         "-r", "2", "-c", "2", "--out-file", "result.pdf",
     )
     assert result.returncode == 0, result.stderr
@@ -765,7 +806,7 @@ def test_cli_ope_terms_rejects_non_ope_command(run_tex_cli, tmp_path):
 def test_cli_ope_multi_term_csv_rows_contain_real_problem_data(run_tex_cli, tmp_path):
     result = run_tex_cli(
         "A4", "ope", "-o", "add", "mul", "--terms", "4", "--mixed-operators",
-        "--a-value", "1", "--b-value", "1",
+        "--a-digits", "1", "--b-digits", "1",
         "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
     )
     assert result.returncode == 0, result.stderr
@@ -910,7 +951,7 @@ def test_cli_hundred_square_produces_blank_and_filled_pdfs(run_tex_cli, tmp_path
 
 
 def test_cli_hundred_square_with_digit_options_produces_pdf(run_tex_cli, tmp_path):
-    result = run_tex_cli("A4", "100", "-a", "2", "-b", "2", "--out-file", "result.pdf")
+    result = run_tex_cli("A4", "100", "--a-digits", "2", "--b-digits", "2", "--out-file", "result.pdf")
     assert result.returncode == 0, result.stderr
     _assert_is_pdf(tmp_path / "result.pdf")
 
@@ -922,7 +963,7 @@ def test_cli_hundred_square_multi_page_produces_pdf(run_tex_cli, tmp_path):
 
 
 def test_cli_hundred_square_rejects_digit_above_three(run_tex_cli, tmp_path):
-    result = run_tex_cli("A4", "100", "-a", "4", "--out-file", "result.pdf")
+    result = run_tex_cli("A4", "100", "--a-digits", "4", "--out-file", "result.pdf")
     assert result.returncode == 1
     assert not (tmp_path / "result.pdf").exists()
 
@@ -933,7 +974,7 @@ def test_cli_hundred_square_rejects_out_of_range_digit_cleanly(run_tex_cli, tmp_
     # supported 1-5 range (>5 raises IndexError; <=0 silently wraps to the
     # wrong range via negative indexing) must be rejected with a clean CLI
     # error before that conversion runs, not an unhandled traceback.
-    result = run_tex_cli("A4", "100", "-a", digit_value, "--out-file", "result.pdf")
+    result = run_tex_cli("A4", "100", "--a-digits", digit_value, "--out-file", "result.pdf")
     assert result.returncode == 1
     assert "Traceback" not in result.stderr
     assert not (tmp_path / "result.pdf").exists()
@@ -1287,7 +1328,7 @@ def test_cli_fraction_form_rejects_non_compare_non_frac_command(run_tex_cli, tmp
 
 def test_cli_ope_decimal_add_sub_produces_pdfs(run_tex_cli, tmp_path):
     result = run_tex_cli(
-        "A4", "ope", "-o", "add", "sub", "--a-value", "2", "--b-value", "2",
+        "A4", "ope", "-o", "add", "sub", "--a-digits", "2", "--b-digits", "2",
         "--a-decimal-places", "2", "--b-decimal-places", "2",
         "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
     )
@@ -1301,7 +1342,7 @@ def test_cli_ope_decimal_add_sub_produces_pdfs(run_tex_cli, tmp_path):
 
 def test_cli_ope_decimal_multiply_by_integer_produces_pdfs(run_tex_cli, tmp_path):
     result = run_tex_cli(
-        "A4", "ope", "-o", "mul", "--a-value", "2", "--b-value", "1",
+        "A4", "ope", "-o", "mul", "--a-digits", "2", "--b-digits", "1",
         "--a-decimal-places", "1", "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
     )
     assert result.returncode == 0, result.stdout + result.stderr
@@ -1310,7 +1351,7 @@ def test_cli_ope_decimal_multiply_by_integer_produces_pdfs(run_tex_cli, tmp_path
 
 def test_cli_ope_decimal_divide_by_decimal_produces_whole_number_answers(run_tex_cli, tmp_path):
     result = run_tex_cli(
-        "A4", "ope", "-o", "div", "--a-value", "2", "--b-value", "2",
+        "A4", "ope", "-o", "div", "--a-digits", "2", "--b-digits", "2",
         "--a-decimal-places", "1", "--b-decimal-places", "1",
         "-r", "3", "-c", "3", "--csv", "--out-file", "result.pdf",
     )
@@ -1322,7 +1363,7 @@ def test_cli_ope_decimal_divide_by_decimal_produces_whole_number_answers(run_tex
 
 def test_cli_ope_decimal_add_sub_mul_vertical_produces_pdfs(run_tex_cli, tmp_path):
     result = run_tex_cli(
-        "A4", "ope", "-o", "add", "sub", "mul", "--a-value", "2", "--b-value", "2",
+        "A4", "ope", "-o", "add", "sub", "mul", "--a-digits", "2", "--b-digits", "2",
         "--a-decimal-places", "2", "--b-decimal-places", "2",
         "--vertical", "-r", "2", "-c", "2", "--out-file", "result.pdf",
     )
@@ -1333,7 +1374,7 @@ def test_cli_ope_decimal_add_sub_mul_vertical_produces_pdfs(run_tex_cli, tmp_pat
 
 def test_cli_ope_decimal_multiply_by_integer_vertical_produces_pdfs(run_tex_cli, tmp_path):
     result = run_tex_cli(
-        "A4", "ope", "-o", "mul", "--a-value", "2", "--b-value", "1",
+        "A4", "ope", "-o", "mul", "--a-digits", "2", "--b-digits", "1",
         "--a-decimal-places", "1", "--vertical", "-r", "2", "-c", "2", "--out-file", "result.pdf",
     )
     assert result.returncode == 0, result.stdout + result.stderr
@@ -1343,7 +1384,7 @@ def test_cli_ope_decimal_multiply_by_integer_vertical_produces_pdfs(run_tex_cli,
 
 def test_cli_ope_decimal_divide_by_integer_vertical_produces_pdfs(run_tex_cli, tmp_path):
     result = run_tex_cli(
-        "A4", "ope", "-o", "div", "--a-value", "2", "--b-value", "1",
+        "A4", "ope", "-o", "div", "--a-digits", "2", "--b-digits", "1",
         "--a-decimal-places", "1", "--vertical", "-r", "2", "-c", "2", "--out-file", "result.pdf",
     )
     assert result.returncode == 0, result.stdout + result.stderr
@@ -1353,7 +1394,7 @@ def test_cli_ope_decimal_divide_by_integer_vertical_produces_pdfs(run_tex_cli, t
 
 def test_cli_ope_decimal_multiply_by_decimal_vertical_produces_pdfs(run_tex_cli, tmp_path):
     result = run_tex_cli(
-        "A4", "ope", "-o", "mul", "--a-value", "2", "--b-value", "2",
+        "A4", "ope", "-o", "mul", "--a-digits", "2", "--b-digits", "2",
         "--a-decimal-places", "1", "--b-decimal-places", "1",
         "--vertical", "-r", "2", "-c", "2", "--out-file", "result.pdf",
     )
@@ -1639,7 +1680,7 @@ def test_cli_number_pair_with_bottom_answer_produces_pdf(run_tex_cli, tmp_path, 
 
 @pytest.mark.parametrize("command", ["lcm", "gcd"])
 def test_cli_number_pair_digit_options_produce_pdf(run_tex_cli, tmp_path, command):
-    result = run_tex_cli("A4", command, "-a", "2", "-b", "2", "-r", "2", "-c", "2", "--out-file", "result.pdf")
+    result = run_tex_cli("A4", command, "--a-digits", "2", "--b-digits", "2", "-r", "2", "-c", "2", "--out-file", "result.pdf")
     assert result.returncode == 0, result.stderr
     _assert_is_pdf(tmp_path / "result.pdf")
 
@@ -1694,7 +1735,7 @@ def test_cli_conversion_digit_options_produce_pdf(run_tex_cli, tmp_path, command
 
 def test_cli_divfrac_digit_options_produce_pdf(run_tex_cli, tmp_path):
     result = run_tex_cli(
-        "A4", "divfrac", "-a", "2", "-b", "2", "-r", "2", "-c", "2", "--out-file", "result.pdf",
+        "A4", "divfrac", "--a-digits", "2", "--b-digits", "2", "-r", "2", "-c", "2", "--out-file", "result.pdf",
     )
     assert result.returncode == 0, result.stderr
     _assert_is_pdf(tmp_path / "result.pdf")

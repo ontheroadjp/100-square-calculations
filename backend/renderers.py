@@ -11,6 +11,8 @@ class RendererRequest(TypedDict, total=False):
     command_type: str
     a_value: int
     b_value: int
+    a_digits: int
+    b_digits: int
     a_min: int
     a_max: int
     b_min: int
@@ -130,6 +132,10 @@ def build_command(renderer_name: str, params: RendererRequest, out_file: str) ->
         command.extend(["--a-value", str(params["a_value"])])
     if "b_value" in params:
         command.extend(["--b-value", str(params["b_value"])])
+    if "a_digits" in params:
+        command.extend(["--a-digits", str(params["a_digits"])])
+    if "b_digits" in params:
+        command.extend(["--b-digits", str(params["b_digits"])])
     if "a_min" in params:
         command.extend(["--a-min", str(params["a_min"])])
     if "a_max" in params:
