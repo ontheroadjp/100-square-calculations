@@ -177,6 +177,74 @@ def test_generate_pdf_com_maps_compile_failure_to_500(client, monkeypatch) -> No
     assert "lualatex failed while building the worksheet" in response.get_json()["error"]
 
 
+def test_generate_pdf_pi_requires_a_value(client) -> None:
+    response = client.post("/generate-pdf", json={"paper_size": "A4", "command_type": "pi"})
+    assert response.status_code == 500
+    assert "a_value (starting multiplicand) is required" in response.get_json()["error"]
+
+
+def test_generate_pdf_pi_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
+    """
+    The 'pi' command_type must build its PDF via
+    nuts_calc_tex.build_presentation_document_tex (issue #210), not via
+    renderers.run's subprocess path -- assert this the same way as the
+    'com' equivalent above.
+    """
+    backend_app = sys.modules["app"]
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("renderers.run must not be called for command_type 'pi'")
+
+    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+
+    def fake_compile(self, tex_source, out_pdf_path):
+        with open(out_pdf_path, "wb") as f:
+            f.write(b"%PDF-1.4 fake")
+
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf", json={"paper_size": "A4", "command_type": "pi", "a_value": 5}
+    )
+    assert response.status_code == 200
+    assert response.data.startswith(b"%PDF")
+
+
+def test_generate_pdf_pi_maps_compile_failure_to_500(client, monkeypatch) -> None:
+    """
+    engine_adapter.compile() calls nuts_calc_tex.failure() (print + exit(1),
+    i.e. SystemExit) rather than raising a normal exception on a LaTeX
+    compile error; the route must catch that and return a JSON 500 instead
+    of letting the request thread die (issue #199 integration finding,
+    also applicable to 'pi' since #210 reuses the same in-process compile
+    path).
+    """
+    backend_app = sys.modules["app"]
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+
+    def failing_compile(self, tex_source, out_pdf_path):
+        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+    )
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf", json={"paper_size": "A4", "command_type": "pi", "a_value": 5}
+    )
+    assert response.status_code == 500
+    assert "lualatex failed while building the worksheet" in response.get_json()["error"]
+
+
 def test_generate_pdf_other_command_types_still_use_subprocess_renderer(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
 
