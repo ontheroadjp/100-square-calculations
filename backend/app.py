@@ -935,6 +935,116 @@ def _generate_multiples_pdf(data: renderers.RendererRequest, output_dir: str) ->
     return output_filepath, output_filename
 
 
+def _generate_frac_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+    """Build one blank basic `frac` page via the presentation API."""
+    numerator_digits = int(data.get('numerator_digits', 1))
+    denominator_digits = int(data.get('denominator_digits', 1))
+    for option_name, value in (
+        ('numerator_digits', numerator_digits),
+        ('denominator_digits', denominator_digits),
+    ):
+        if not nuts_calc_tex.MIN_FRACTION_DIGITS <= value <= nuts_calc_tex.MAX_FRACTION_DIGITS:
+            raise ValueError(
+                f"{option_name} must be between {nuts_calc_tex.MIN_FRACTION_DIGITS} and "
+                f"{nuts_calc_tex.MAX_FRACTION_DIGITS} for the 'frac' command."
+            )
+
+    same_denominator = bool(data.get('same_denominator', False))
+    different_denominators = bool(data.get('different_denominators', False))
+    if same_denominator and different_denominators:
+        raise ValueError("same_denominator and different_denominators cannot be combined.")
+
+    proper_operands = bool(data.get('proper_operands', False))
+    if proper_operands and numerator_digits > denominator_digits:
+        raise ValueError(
+            "proper_operands requires numerator_digits to be no greater than denominator_digits."
+        )
+    proper_result = bool(data.get('proper_result', False))
+
+    operators = list(data.get('operator') or ['add'])
+    allowed_operators = {'add', 'sub', 'mul', 'div', 'mix'}
+    if not set(operators) <= allowed_operators:
+        raise ValueError("operator contains an unsupported value for the 'frac' command.")
+
+    a_fraction_form = data.get('a_fraction_form', 'proper')
+    b_fraction_form = data.get('b_fraction_form', 'proper')
+    allowed_fraction_forms = {'proper', 'mixed', 'mix'}
+    if a_fraction_form not in allowed_fraction_forms or b_fraction_form not in allowed_fraction_forms:
+        raise ValueError(
+            "a_fraction_form/b_fraction_form do not support 'improper' or unknown forms "
+            "for the 'frac' command."
+        )
+    if (a_fraction_form, b_fraction_form) != ('proper', 'proper') and operators not in (
+        ['add'], ['sub']
+    ):
+        raise ValueError(
+            "a_fraction_form/b_fraction_form require operator=['add'] or "
+            "operator=['sub'] for the 'frac' command."
+        )
+
+    reducible_mode = data.get('reducible_mode')
+    if reducible_mode is not None:
+        if reducible_mode not in {'required', 'none', 'mixed'}:
+            raise ValueError("Unknown reducible_mode for the 'frac' command.")
+        if not operators or not set(operators) <= {'mul', 'div'}:
+            raise ValueError(
+                "reducible_mode only supports 'mul'/'div' operators for the 'frac' command."
+            )
+
+    rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
+    columns = int(data.get('columns', 2))
+    if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
+        raise ValueError(
+            f"rows and columns must be at least {nuts_calc_tex.MIN_ROWS_OR_COLUMNS}."
+        )
+
+    engine_adapter = nuts_calc_tex.get_latex_engine_adapter()
+    if shutil.which(engine_adapter.binary_name) is None:
+        raise ValueError(
+            f"{engine_adapter.binary_name} not found. Install a LaTeX distribution first "
+            "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
+        )
+
+    problems = nuts_calc_tex.generate_fraction_problems(
+        numerator_digits,
+        denominator_digits,
+        operators,
+        rows * columns,
+        1,
+        same_denominator,
+        proper_operands,
+        proper_result,
+        different_denominators,
+        a_fraction_form,
+        b_fraction_form,
+        reducible_mode,
+    )
+    page = nuts_calc_tex.PresentationPage(
+        problems=problems, indices=[problem.index for problem in problems]
+    )
+    tex_source = nuts_calc_tex.build_presentation_document_tex(
+        data['paper_size'],
+        pages=[page],
+        content_format=nuts_calc_tex.build_fraction_slot_content_tex,
+        page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        engine_adapter=engine_adapter,
+        show_answer=False,
+    )
+
+    output_filename = f"worksheet_{uuid.uuid4()}.pdf"
+    output_filepath = os.path.join(output_dir, output_filename)
+    captured_stdout = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(captured_stdout):
+            engine_adapter.compile(tex_source, output_filepath)
+    except SystemExit as e:
+        error_reason = captured_stdout.getvalue().strip() or "PDF compilation failed"
+        raise RuntimeError(f'PDF generation failed: {error_reason}') from e
+
+    return output_filepath, output_filename
+
+
 @app.route('/generate-pdf', methods=['POST'])
 def generate_pdf():
     data = request.json
@@ -969,6 +1079,8 @@ def generate_pdf():
             output_filepath, output_filename = _generate_squ_pdf(data, PDF_OUTPUT_DIR)
         elif data.get('command_type') == 'multiples':
             output_filepath, output_filename = _generate_multiples_pdf(data, PDF_OUTPUT_DIR)
+        elif data.get('command_type') == 'frac':
+            output_filepath, output_filename = _generate_frac_pdf(data, PDF_OUTPUT_DIR)
         else:
             renderer_name = renderers.get_renderer_name()
             output_filepath, output_filename, result = renderers.run(

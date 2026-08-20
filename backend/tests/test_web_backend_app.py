@@ -720,6 +720,83 @@ def test_generate_pdf_other_command_types_still_use_subprocess_renderer(client, 
     assert response.data.startswith(b"%PDF")
 
 
+def test_generate_pdf_frac_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
+    backend_app = sys.modules["app"]
+    captured_tex = []
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("renderers.run must not be called for command_type 'frac'")
+
+    def fake_compile(self, tex_source, out_pdf_path):
+        captured_tex.append(tex_source)
+        with open(out_pdf_path, "wb") as f:
+            f.write(b"%PDF-1.4 fake")
+
+    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf", json={"paper_size": "A4", "command_type": "frac", "rows": 1, "columns": 1}
+    )
+
+    assert response.status_code == 200
+    assert response.data.startswith(b"%PDF")
+    assert len(captured_tex) == 1
+    assert "\\displaystyle \\frac" in captured_tex[0]
+    assert backend_app.nuts_calc_tex.BLANK_ANSWER_TEX in captured_tex[0]
+
+
+@pytest.mark.parametrize(
+    ("request_fields", "error_text"),
+    [
+        ({"numerator_digits": 0}, "numerator_digits must be between"),
+        ({"same_denominator": True, "different_denominators": True}, "cannot be combined"),
+        ({"rows": 0}, "rows and columns must be at least"),
+    ],
+)
+def test_generate_pdf_frac_rejects_invalid_basic_input(
+    client, monkeypatch, request_fields, error_text
+) -> None:
+    backend_app = sys.modules["app"]
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+
+    response = client.post(
+        "/generate-pdf",
+        json={"paper_size": "A4", "command_type": "frac", **request_fields},
+    )
+
+    assert response.status_code == 500
+    assert error_text in response.get_json()["error"]
+
+
+def test_generate_pdf_frac_maps_compile_failure_to_500(client, monkeypatch) -> None:
+    backend_app = sys.modules["app"]
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+
+    def failing_compile(self, tex_source, out_pdf_path):
+        backend_app.nuts_calc_tex.failure("lualatex failed while building the fraction worksheet")
+
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+    )
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf", json={"paper_size": "A4", "command_type": "frac", "rows": 1, "columns": 1}
+    )
+
+    assert response.status_code == 500
+    assert "lualatex failed while building the fraction worksheet" in response.get_json()["error"]
+
+
 @pytest.mark.parametrize(
     "variant_fields",
     [

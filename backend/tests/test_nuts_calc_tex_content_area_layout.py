@@ -108,6 +108,40 @@ def test_build_ope_slot_content_tex_omits_problem_number() -> None:
     assert "5)" not in content_tex
 
 
+def test_build_fraction_slot_content_tex_omits_problem_number_and_preserves_display() -> None:
+    problem = tex_module.FractionProblem(
+        index=5,
+        a=tex_module.FractionOperand(3, 4),
+        b=tex_module.FractionOperand(1, 2),
+        operator="add",
+        c=tex_module.Fraction(5, 4),
+        mixed_number_display=False,
+    )
+
+    content_tex = tex_module.build_fraction_slot_content_tex(problem, show_answer=True)
+
+    assert content_tex == "$\\displaystyle \\frac{3}{4} + \\frac{1}{2} = \\frac{5}{4}$"
+    assert "5)" not in content_tex
+
+
+def test_build_fraction_slot_content_tex_matches_block_body_and_blank_output() -> None:
+    problem = tex_module.FractionProblem(
+        index=5,
+        a=tex_module.FractionOperand(2, 5, whole=1),
+        b=tex_module.FractionOperand(1, 5),
+        operator="sub",
+        c=tex_module.Fraction(6, 5),
+        mixed_number_display=True,
+    )
+
+    filled_content = tex_module.build_fraction_slot_content_tex(problem, show_answer=True)
+    blank_content = tex_module.build_fraction_slot_content_tex(problem, show_answer=False)
+
+    assert tex_module.build_fraction_block_tex(problem, True) == f"{problem.index}) {filled_content}"
+    assert filled_content == "$\\displaystyle 1\\frac{2}{5} - \\frac{1}{5} = 1\\frac{1}{5}$"
+    assert blank_content.endswith(f"= {tex_module.BLANK_ANSWER_TEX}$")
+
+
 def test_build_ope_slot_content_tex_matches_block_tex_body_when_composed() -> None:
     """Composing the Layer-2 slot with the number-free Layer-3 content must
     reproduce the existing build_horizontal_block_tex() output byte-for-byte

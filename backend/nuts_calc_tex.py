@@ -3784,11 +3784,16 @@ def fraction_to_mixed_number_tex(value: Fraction | FractionOperand) -> str:
 
 
 def build_fraction_block_tex(problem: FractionProblem, show_answer: bool) -> str:
+    return f"{problem.index}) {build_fraction_slot_content_tex(problem, show_answer)}"
+
+
+def build_fraction_slot_content_tex(problem: FractionProblem, show_answer: bool) -> str:
+    """Render the number-free body for one fraction-arithmetic slot."""
     symbol = OPERATOR_TEX_SYMBOLS[problem.operator]
     render = fraction_to_mixed_number_tex if problem.mixed_number_display else fraction_to_tex
     result_tex = render(problem.c) if show_answer else BLANK_ANSWER_TEX
     return (
-        f"{problem.index}) $\\displaystyle {render(problem.a)} {symbol} "
+        f"$\\displaystyle {render(problem.a)} {symbol} "
         f"{render(problem.b)} = {result_tex}$"
     )
 
