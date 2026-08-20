@@ -393,14 +393,10 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴(git log より自動生成)
 
-<<<<<<< HEAD
 - 9f75d13 feat(#210): migrate generate-pdf pi command to internal presentation API
-- 7a159b9 #207 generate-pdf: migrate ope (multi-term) to the internal presentation API (#241)
-=======
 - 885ad04 feat(#208): migrate 99 (kuku) to the internal presentation API
 - 9f68b15 feat(#209): migrate generate-pdf's squ command to the internal presentation API
-- b373507 feat(#207): migrate flat multi-term ope to the internal presentation API
->>>>>>> origin/main
+- 7a159b9 #207 generate-pdf: migrate ope (multi-term) to the internal presentation API (#241)
 - 5ec3e56 #206 generate-pdf: migrate ope --use-parentheses (tree variant) to the internal presentation API (#240)
 - 99a8279 #205 generate-pdf: migrate ope (plain 2-term) to the internal presentation API (#239)
 - 37a5a80 #230 Split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits (#236)
