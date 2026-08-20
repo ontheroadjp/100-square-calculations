@@ -392,18 +392,15 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - **`mixed` コマンドの答えは常に厳密な分数、無限小数は一切出力しない**: `mixed` の除算は `fractions.Fraction` の厳密除算をそのまま使い、答えは常に `fraction_to_tex` で分数表示する(小数表記への変換は一切行わない)。`ope` の小数拡張も、`calc_div` の厳密割り切れ判定(`a % b == 0`)を再利用しているため、生成される小数の答えは常に有限小数になる。この2点はユーザー要件による明示的な設計上の不変条件。
 - **`compare` の `--a-kind`/`--b-kind` は決定的フォールバックを持たない**(issue #171): `generate_fraction_comparison_problems` は `ope --use-parentheses`/`mixed` と同じ単純な再抽選(`MAX_OPERAND_RETRY_ATTEMPTS` 回)のみで非等値のペアを探す。kind 混在時に `--comparison-pattern` の非既定値を指定できない(`_init()` が拒否)のもこのリスクを避けるための制約の一つ。
 
-## 変更履歴(git log より自動生成)
+## 変更履歴（git log より自動生成）
 
-- b615d00 feat(#211): migrate generate-pdf lcm to the internal presentation API
+- 38fcce1 feat(#212): migrate gcd to the internal presentation API
+- 1c3fdee #211 generate-pdf: migrate lcm to the internal presentation API (#245)
+- 429c088 #210 generate-pdf: migrate pi to the internal presentation API (#244)
 - 40ad870 #209 generate-pdf: migrate squ to the internal presentation API (#243)
-- 9f75d13 feat(#210): migrate generate-pdf pi command to internal presentation API
 - a6187e9 #208 generate-pdf: migrate 99 (kuku) to the internal presentation API (#242)
 - 7a159b9 #207 generate-pdf: migrate ope (multi-term) to the internal presentation API (#241)
 - 5ec3e56 #206 generate-pdf: migrate ope --use-parentheses (tree variant) to the internal presentation API (#240)
 - 99a8279 #205 generate-pdf: migrate ope (plain 2-term) to the internal presentation API (#239)
 - 37a5a80 #230 Split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits (#236)
 - 700f115 #232 backend: remove nuts_calc.py (ReportLab renderer) and the reportlab dependency (#234)
-- 2eeb1cd #183 nuts_calc_tex.py: compose the internal (data x page_shell x content_area_layout x content_format) -> PDF presentation API (#198)
-- 144d465 #184 nuts_calc_tex.py: introduce Layer-2 content-area base layout for the presentation-layer API (#197)
-- 4eb1500 #182 nuts_calc_tex.py: extract Layer-1 page shell (header/margins/footer) for the presentation-layer API (#196)
-- 490f44b #171 compare: support int/decimal/fraction kind mixing, expose via POST /generate-problems (#192)
