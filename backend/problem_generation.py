@@ -298,10 +298,20 @@ def _generate_abc_problems(params: renderers.RendererRequest, num: int) -> list[
     return [_dataclass_to_dict(problem) for problem in problems]
 
 
-def _generate_squ_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
-    start_num = params.get("a_value")
-    if start_num is None:
+def validate_squ_start(a_value: int | None) -> int:
+    """Validate the 'squ' command's starting square number (issue #209).
+
+    Shared by `_generate_squ_problems` (below) and `backend/app.py`'s
+    `_generate_squ_pdf`, following the dedupe pattern `validate_com_target`
+    established for 'com' (issue #237).
+    """
+    if a_value is None:
         raise ValueError("a_value (starting square number) is required for the 'squ' command.")
+    return a_value
+
+
+def _generate_squ_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+    start_num = validate_squ_start(params.get("a_value"))
     descend = bool(params.get("descend", False))
     shuffle = bool(params.get("shuffle", False))
     problems = nuts_calc_tex.generate_squ_problems(start_num, num, 1, descend, shuffle)
