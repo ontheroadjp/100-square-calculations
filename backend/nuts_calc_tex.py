@@ -1756,6 +1756,27 @@ def build_horizontal_block_tex(problem: OpeProblem, show_answer: bool) -> str:
     return f"{problem.index}) ${a_tex} {symbol} {b_tex} = {result_tex}{remainder_tex}$"
 
 
+def build_ope_slot_content_tex(problem: OpeProblem, show_answer: bool) -> str:
+    """
+    Number-free Layer-3 content for one plain 2-term `ope` problem (content-
+    format pattern 1a, issue #205): the same body as build_horizontal_block_tex
+    but without the embedded `problem.index)` prefix, for use with
+    build_content_area_slot_tex, which owns the number box instead. Mirrors
+    build_com_slot_content_tex's relationship to build_com_block_tex (#184).
+    """
+    symbol = OPERATOR_TEX_SYMBOLS[problem.operator]
+    a_tex = format_decimal_value(problem.a, problem.a_decimal_places)
+    b_tex = format_decimal_value(problem.b, problem.b_decimal_places)
+    if show_answer:
+        c_places = ope_result_decimal_places(problem.operator, problem.a_decimal_places, problem.b_decimal_places)
+        result_tex = format_decimal_value(problem.c, c_places)
+        remainder_tex = f" \\cdots {problem.remainder}" if problem.remainder else ""
+    else:
+        result_tex = BLANK_ANSWER_TEX
+        remainder_tex = f" \\cdots {BLANK_ANSWER_TEX}" if problem.remainder else ""
+    return f"${a_tex} {symbol} {b_tex} = {result_tex}{remainder_tex}$"
+
+
 def build_intermediate_memo(a: int, b: int) -> str:
     """
     2-digit x 1-digit mental-math memo technique (see memo.md STEP 1):
