@@ -2975,6 +2975,12 @@ def build_abc_block_tex(problem: AbcProblem, show_answer: bool) -> str:
     return f"{problem.index}) ${problem.abcd_display} \\Rightarrow {result_tex}$"
 
 
+def build_abc_slot_content_tex(problem: AbcProblem, show_answer: bool) -> str:
+    """Render number-free Layer-3 content for one basic-case `aBc` problem."""
+    result_tex = str(problem.answer) if show_answer else BLANK_ANSWER_TEX
+    return f"${problem.abcd_display} \\Rightarrow {result_tex}$"
+
+
 def build_abc_page_pair(problems: list[AbcProblem], columns: int) -> tuple[Page, Page]:
     """Build the (blank, filled) Page pair for one page's worth of `aBc` problems."""
     blank_page = Page(

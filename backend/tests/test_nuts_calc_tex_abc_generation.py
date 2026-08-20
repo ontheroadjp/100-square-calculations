@@ -52,6 +52,15 @@ def test_build_abc_block_tex_blank_hides_answer() -> None:
     assert '1234 \\Rightarrow 154$' in filled_tex
 
 
+def test_build_abc_slot_content_tex_matches_block_body_without_number() -> None:
+    problem = tex_module.AbcProblem(index=7, a=1, b=2, c=3, d=4)
+
+    for show_answer in (False, True):
+        slot_tex = tex_module.build_abc_slot_content_tex(problem, show_answer)
+        block_tex = tex_module.build_abc_block_tex(problem, show_answer)
+        assert f"{problem.index}) {slot_tex}" == block_tex
+
+
 def test_build_abc_bottom_answer_tex_lists_answers_by_index() -> None:
     problems = [
         tex_module.AbcProblem(index=1, a=1, b=2, c=3, d=4),

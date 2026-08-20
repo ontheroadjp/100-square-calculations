@@ -219,6 +219,7 @@
 - `AbcProblem` データクラス(`index`/`a`/`b`/`c`/`d`)が1問を表す。`abcd_display` プロパティが `f"{a}{b}{c}{d}"` で4桁の表示文字列を、`answer` プロパティが `(a*10+b)*10 + (c*10+d)`(2桁ペア `ab` を10倍してもう一方の2桁ペア `cd` を加算)を計算する。
 - `generate_abc_problems`: `a`/`b`/`c`/`d` をそれぞれ独立に `0..9`(`ABC_DIGIT_MAX`)から `random.choice` で選ぶ。`nuts_calc.py` の `get_aBc_data`(`nuts_calc.py:548-587`)と同じ範囲・意味論だが独立に再実装している(コード共有なし)。`ope --intermediate` の暗算メモ技法(`build_intermediate_memo`)と同じ「2桁ペアへの分解」の考え方を、単独の変換ドリルとして流用したもの(`memo.md` セクション3)。
 - `build_abc_block_tex`: `n) $abcd \Rightarrow answer$` を生成する。blank 版は `answer` の代わりに、下線を伴わない固定幅の `\hspace{1.5em}` を出力する。
+- `build_abc_slot_content_tex(problem, show_answer)`(`nuts_calc_tex.py:2978-2981`、issue #213): `build_abc_block_tex` と同じ `$abcd \Rightarrow answer$` 本文を番号なしで返す Layer-3 content。問題番号は `ContentAreaLayout` 側が所有し、`backend/app.py` の `_generate_abc_pdf` が `build_presentation_document_tex` の `content_format` として使う。blank/filled の両方で既存 block の番号 prefix を除いた本文と一致する。
 - `build_abc_page_pair`/`build_abc_pages`: `com`/`99` と同じ構造。`order = ini.rows * ini.columns`。`Page.layout` は常に `'inline'`(`--vertical` 未対応)、`-a`/`-b` は不使用。`--with-bottom-answer` 指定時は `build_abc_bottom_answer_tex` で `(index) answer` の一覧を blank ページ末尾に追加する。
 - `build_abc_csv_rows`: 1問1行、`[page_number, index, a, b, c, d, answer]` の列で CSV を書き出す。
 
@@ -394,7 +395,8 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴（git log より自動生成）
 
-- 38fcce1 feat(#212): migrate gcd to the internal presentation API
+- 757d736 feat(#213): migrate abc pdf generation to presentation api
+- 3370b1c #212 Migrate generate-pdf gcd to the internal presentation API (#246)
 - 1c3fdee #211 generate-pdf: migrate lcm to the internal presentation API (#245)
 - 429c088 #210 generate-pdf: migrate pi to the internal presentation API (#244)
 - 40ad870 #209 generate-pdf: migrate squ to the internal presentation API (#243)
@@ -403,4 +405,3 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - 5ec3e56 #206 generate-pdf: migrate ope --use-parentheses (tree variant) to the internal presentation API (#240)
 - 99a8279 #205 generate-pdf: migrate ope (plain 2-term) to the internal presentation API (#239)
 - 37a5a80 #230 Split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits (#236)
-- 700f115 #232 backend: remove nuts_calc.py (ReportLab renderer) and the reportlab dependency (#234)
