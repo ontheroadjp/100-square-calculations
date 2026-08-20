@@ -201,9 +201,6 @@ def test_generate_pdf_other_command_types_still_use_subprocess_renderer(client, 
         {"vertical": True},
         {"intermediate": True},
         {"missing_value": True},
-        {"terms": 3},
-        {"terms_min": 2, "terms_max": 4},
-        {"mixed_operators": True},
         # use_parentheses combined with a mutually-exclusive flag (invalid
         # per nuts_calc_tex.py's _init() validation, nuts_calc_tex.py:
         # 676-692) must NOT be picked up by _is_tree_ope_pdf_request either;
@@ -218,11 +215,12 @@ def test_generate_pdf_ope_variants_still_use_subprocess_renderer(client, monkeyp
     """
     Only the plain 2-term 'ope' shape (build_horizontal_block_tex, content-
     format pattern 1a) is migrated by this issue (#205); every variant flag
-    that selects a different pattern (vertical/intermediate), a
-    not-yet-migrated pattern-1a-adjacent variant (missing_value/terms
-    family), or an invalid use_parentheses combination must keep using the
-    subprocess path. Plain use_parentheses (no other variant flag) is
-    covered separately below (#206): it now uses the presentation API.
+    that selects a different pattern (vertical/intermediate) or an invalid
+    use_parentheses combination must keep using the subprocess path. Plain
+    use_parentheses (no other variant flag) is covered separately below
+    (#206), and the terms family (terms/terms_min/terms_max/mixed_operators
+    without use_parentheses) is covered separately below (#207): both now
+    use the presentation API.
     """
     backend_app = sys.modules["app"]
 
@@ -389,6 +387,77 @@ def test_generate_pdf_ope_tree_maps_compile_failure_to_500(client, monkeypatch) 
         "/generate-pdf",
         json={
             "paper_size": "A4", "command_type": "ope", "use_parentheses": True,
+            "a_min": 1, "a_max": 9, "b_min": 1, "b_max": 9,
+        },
+    )
+    assert response.status_code == 500
+    assert "lualatex failed while building the worksheet" in response.get_json()["error"]
+
+
+@pytest.mark.parametrize(
+    "variant_fields",
+    [
+        {"terms": 3},
+        {"terms_min": 2, "terms_max": 4},
+        {"mixed_operators": True},
+    ],
+)
+def test_generate_pdf_ope_multi_term_uses_presentation_api_not_subprocess(client, monkeypatch, variant_fields) -> None:
+    """
+    A flat multi-term 'ope' request (terms family, no use_parentheses) must
+    build its PDF via nuts_calc_tex.build_presentation_document_tex (issue
+    #207), not via renderers.run's subprocess path -- assert this the same
+    way test_generate_pdf_ope_tree_uses_presentation_api_not_subprocess does.
+    """
+    backend_app = sys.modules["app"]
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("renderers.run must not be called for a multi-term ope request")
+
+    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+
+    def fake_compile(self, tex_source, out_pdf_path):
+        with open(out_pdf_path, "wb") as f:
+            f.write(b"%PDF-1.4 fake")
+
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf",
+        json={
+            "paper_size": "A4", "command_type": "ope",
+            "a_min": 1, "a_max": 9, "b_min": 1, "b_max": 9, "operator": ["add"],
+            **variant_fields,
+        },
+    )
+    assert response.status_code == 200
+    assert response.data.startswith(b"%PDF")
+
+
+def test_generate_pdf_ope_multi_term_maps_compile_failure_to_500(client, monkeypatch) -> None:
+    backend_app = sys.modules["app"]
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+
+    def failing_compile(self, tex_source, out_pdf_path):
+        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+    )
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf",
+        json={
+            "paper_size": "A4", "command_type": "ope", "terms": 3,
             "a_min": 1, "a_max": 9, "b_min": 1, "b_max": 9,
         },
     )
