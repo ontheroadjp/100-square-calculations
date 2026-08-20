@@ -6,7 +6,7 @@ Flask test client を使い、`backend/app.py` の3ルートと PDF generation r
 
 ## 動作の概要と主要な判定ロジック
 
-`POST /generate-pdf` の内部 presentation API 移行済み command ごとに、`renderers.run` を失敗 stub へ置き換えて subprocess fallback が呼ばれないことを固定する。`divisors` は range/layout 伝播・入力検証・compile failure を検証する(`test_web_backend_app.py:705-789`)。`frac` は `\displaystyle` と blank PDF、分数制約、compile failure を検証する(`test_web_backend_app.py:811-884`)。基本2項 `mixed` は内部 API 利用と入力検証を確認し、terms/mixed-operator/reducible variants は subprocess を維持することも固定する(`test_web_backend_app.py:887-985`)。
+`POST /generate-pdf` の内部 presentation API 移行済み command ごとに、`renderers.run` を失敗 stub へ置き換えて subprocess fallback が呼ばれないことを固定する。`divfrac` は内部 routing、`a_digits` と明示 range の解決、`b_min >= 1` と layout の検証、compile failure を確認する(`test_web_backend_app.py:524-634`)。`simplify` は分数・矢印・blank PDF、fraction digit と layout の検証、compile failure を確認する(`test_web_backend_app.py:1000-1075`)。基本2項 `mixed` は内部 API 利用と入力検証を確認し、terms/mixed-operator/reducible variants は subprocess を維持することも固定する(`test_web_backend_app.py:1078-1176`)。
 
 ## 重要な設計判断
 
@@ -23,6 +23,9 @@ Flask test client の単体・結合テストであり、実 HTTP server や実 
 
 ## 変更履歴（git log より自動生成）
 
+- 156c2d2 Merge remote-tracking branch 'origin/main' into feat/220-migrate-simplify-presentation-api
+- ab8daf7 feat(#220): migrate simplify PDF generation
+- 1fe5a14 feat(#219): migrate divfrac to presentation API
 - 5cd034c feat(#218): migrate mixed PDF generation (#253)
 - 5736b74 feat(#217): migrate frac PDF generation (#252)
 - 1c331f9 feat(#216): migrate divisors to presentation API (#251)
