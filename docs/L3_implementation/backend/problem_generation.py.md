@@ -122,7 +122,8 @@ issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマ�
 
 ## 変更履歴(git log より自動生成)
 
-- 98b2c83 fix(#237): dedupe com a_value validation between app.py and problem_generation.py
+- 9f75d13 feat(#210): migrate generate-pdf pi command to internal presentation API
+- 36288a2 #237 app.py: dedupe 'com' a_value/target validation with problem_generation.py (#238)
 - 37a5a80 #230 Split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits (#236)
 - 700f115 #232 backend: remove nuts_calc.py (ReportLab renderer) and the reportlab dependency (#234)
 - 0c1f60c #173 problem_generation.py: support simplify/commondenom/frac2dec/dec2frac/divfrac, expose via POST /generate-problems (#194)
@@ -131,4 +132,3 @@ issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマ�
 - 20b9462 #170 backend: support frac/mixed in POST /generate-problems (#191)
 - 2ebbe96 #169 problem_generation.py: support com/99/aBc/squ/pi (and 100's disposition) (#190)
 - caedeac #168 problem_generation.py: support ope --use-parentheses/--missing-value/--terms variants (#189)
-- 13bef63 #138 backend: add POST /generate-problems for PDF-free ope problem generation (#175)
