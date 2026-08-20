@@ -702,6 +702,94 @@ def test_generate_pdf_multiples_maps_compile_failure_to_500(client, monkeypatch)
     assert "lualatex failed while building the worksheet" in response.get_json()["error"]
 
 
+def test_generate_pdf_divisors_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
+    backend_app = sys.modules["app"]
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("renderers.run must not be called for command_type 'divisors'")
+
+    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+
+    captured = {}
+    original_generate = backend_app.nuts_calc_tex.generate_divisors_problems
+
+    def spy_generate(nums_a, order, start_index):
+        captured["nums_a"] = nums_a
+        captured["order"] = order
+        return original_generate(nums_a, order, start_index)
+
+    monkeypatch.setattr(backend_app.nuts_calc_tex, "generate_divisors_problems", spy_generate)
+
+    def fake_compile(self, tex_source, out_pdf_path):
+        assert "\\Rightarrow" in tex_source
+        assert backend_app.nuts_calc_tex.BLANK_ANSWER_TEX in tex_source
+        with open(out_pdf_path, "wb") as f:
+            f.write(b"%PDF-1.4 fake")
+
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf",
+        json={
+            "paper_size": "A4",
+            "command_type": "divisors",
+            "a_min": 10,
+            "a_max": 12,
+            "rows": 2,
+            "columns": 3,
+        },
+    )
+    assert response.status_code == 200
+    assert response.data.startswith(b"%PDF")
+    assert captured == {"nums_a": [10, 11, 12], "order": 6}
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "error_text"),
+    [
+        ("a_min", 0, "a_min must be at least 1"),
+        ("rows", 0, "rows and columns must be at least"),
+        ("columns", 0, "rows and columns must be at least"),
+    ],
+)
+def test_generate_pdf_divisors_rejects_invalid_basic_input(
+    client, field, value, error_text
+) -> None:
+    response = client.post(
+        "/generate-pdf",
+        json={"paper_size": "A4", "command_type": "divisors", field: value},
+    )
+    assert response.status_code == 500
+    assert error_text in response.get_json()["error"]
+
+
+def test_generate_pdf_divisors_maps_compile_failure_to_500(client, monkeypatch) -> None:
+    backend_app = sys.modules["app"]
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+
+    def failing_compile(self, tex_source, out_pdf_path):
+        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+    )
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf", json={"paper_size": "A4", "command_type": "divisors"}
+    )
+    assert response.status_code == 500
+    assert "lualatex failed while building the worksheet" in response.get_json()["error"]
+
+
 def test_generate_pdf_other_command_types_still_use_subprocess_renderer(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
 
