@@ -189,7 +189,100 @@ def test_generate_pdf_other_command_types_still_use_subprocess_renderer(client, 
 
     monkeypatch.setattr(backend_app.renderers, "run", fake_run)
     response = client.post(
-        "/generate-pdf", json={"paper_size": "A4", "command_type": "ope", "a_min": 1, "a_max": 9}
+        "/generate-pdf", json={"paper_size": "A4", "command_type": "99", "a_value": 3}
     )
     assert response.status_code == 200
     assert response.data.startswith(b"%PDF")
+
+
+@pytest.mark.parametrize(
+    "variant_fields",
+    [
+        {"vertical": True},
+        {"intermediate": True},
+        {"use_parentheses": True},
+        {"missing_value": True},
+        {"terms": 3},
+        {"terms_min": 2, "terms_max": 4},
+        {"mixed_operators": True},
+    ],
+)
+def test_generate_pdf_ope_variants_still_use_subprocess_renderer(client, monkeypatch, variant_fields) -> None:
+    """
+    Only the plain 2-term 'ope' shape (build_horizontal_block_tex, content-
+    format pattern 1a) is migrated by this issue (#205); every variant flag
+    that selects a different pattern (vertical/intermediate) or a
+    not-yet-migrated pattern-1a-adjacent variant (use_parentheses/
+    missing_value/terms family) must keep using the subprocess path.
+    """
+    backend_app = sys.modules["app"]
+
+    def fake_run(data, output_dir, renderer_name):
+        pdf_path = os.path.join(output_dir, "worksheet_fake.pdf")
+        with open(pdf_path, "wb") as f:
+            f.write(b"%PDF-1.4 fake")
+        completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
+        return pdf_path, "worksheet_fake.pdf", completed
+
+    monkeypatch.setattr(backend_app.renderers, "run", fake_run)
+    response = client.post(
+        "/generate-pdf",
+        json={"paper_size": "A4", "command_type": "ope", "a_min": 1, "a_max": 9, **variant_fields},
+    )
+    assert response.status_code == 200
+    assert response.data.startswith(b"%PDF")
+
+
+def test_generate_pdf_ope_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
+    """
+    A plain 2-term 'ope' request must build its PDF via
+    nuts_calc_tex.build_presentation_document_tex (issue #205), not via
+    renderers.run's subprocess path -- assert this the same way
+    test_generate_pdf_com_uses_presentation_api_not_subprocess does.
+    """
+    backend_app = sys.modules["app"]
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("renderers.run must not be called for a plain 2-term 'ope' request")
+
+    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+
+    def fake_compile(self, tex_source, out_pdf_path):
+        with open(out_pdf_path, "wb") as f:
+            f.write(b"%PDF-1.4 fake")
+
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf",
+        json={"paper_size": "A4", "command_type": "ope", "a_min": 1, "a_max": 9, "operator": ["add"]},
+    )
+    assert response.status_code == 200
+    assert response.data.startswith(b"%PDF")
+
+
+def test_generate_pdf_ope_maps_compile_failure_to_500(client, monkeypatch) -> None:
+    backend_app = sys.modules["app"]
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+
+    def failing_compile(self, tex_source, out_pdf_path):
+        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+    )
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf", json={"paper_size": "A4", "command_type": "ope", "a_min": 1, "a_max": 9}
+    )
+    assert response.status_code == 500
+    assert "lualatex failed while building the worksheet" in response.get_json()["error"]
