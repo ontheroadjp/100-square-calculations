@@ -17,9 +17,9 @@ DB は存在しないため `database.md` は生成していない(永続化層�
 ### `POST /generate-pdf`
 
 - 入力: JSON ボディ。必須キーは `paper_size`, `command_type`。任意キーには通常 CLI option、分数・小数・mixed・compare option、LaTeX 専用の `vertical`/`use_parentheses`/`missing_value`/`terms` 系、`carry_mode`、`remainder_mode`、`reducible_mode`、`result_max` を含む(`backend/renderers.py:9-54`)。
-- 処理: `com`(#199)、`lcm`(#211)、`gcd`(#212)、`evenodd`(#214)、`99`(#208)、`aBc`(#213)、`squ`(#209)、`pi`(#210)、`multiples`(#215)、および移行済み `ope` variants(#205〜#207)は、CLI/subprocess 経路を使わず `nuts_calc_tex.py` の内部プレゼンテーション API(`build_presentation_document_tex`)を Flask プロセス内で直接呼んで PDF を生成する(`backend/app.py:232-283,874-1003`)。`evenodd`/`multiples` は番号なし `build_evenodd_slot_content_tex`/`build_multiples_slot_content_tex` を Layer 2 の番号ボックスと合成し、既存の矢印変換表示を維持する。いずれも基本パラメータのみ対応するベーシックケース限定で、それ以外のコマンドと未移行 `ope` variants(`vertical`/`intermediate`/`missing_value`)は従来どおり `renderers.run` の subprocess 経路を使う。
+- 処理: `com`(#199)、移行済み `ope` variants(#205〜#207)、`99`〜`multiples`(#208〜#215)、`divisors`(#216)、`frac`(#217)、基本2項 `mixed`(#218)は、CLI/subprocess 経路を使わず `nuts_calc_tex.py` の内部プレゼンテーション API(`build_presentation_document_tex`)を Flask プロセス内で直接呼んで PDF を生成する(`backend/app.py:90-187,1037-1269`)。新規3経路は `build_divisors_slot_content_tex`/`build_fraction_slot_content_tex`/`build_mixed_slot_content_tex` を Layer 2 の番号ボックスと合成し、既存の矢印・`\displaystyle` 分数等式表示を維持する。いずれも1ページ blank のベーシックケース限定で、`mixed` の terms系・mixed-operator・reducible variants と未移行 command/variant は従来どおり `renderers.run` の subprocess 経路を使う。
 - 出力: 成功時は PDF attachment。JSON/必須値欠落は HTTP 400、renderer/CLI 等の実行時失敗は HTTP 500(`backend/app.py`)。
-- 入力検証: 必須キーの存在を共通検証し、内部 API builder は command 固有値も検証する。`com` は `a_value`、`99`/`squ`/`pi` は必須の `a_value`、`lcm`/`gcd` は `a_digits`/`b_digits` または明示レンジを解決する。`multiples` は `a_min >= 1`、`multiples_count >= MIN_MULTIPLES_COUNT` を要求し、`evenodd`/`multiples` とも rows/columns を1以上に制限する。
+- 入力検証: 必須キーの存在を共通検証し、内部 API builder は command 固有値も検証する。`divisors` は `a_min >= 1`、`frac` は digit・分母・operator・form・reducible 条件、基本 `mixed` は digit・decimal places・operand kind・operator 条件を検証する。新規3経路はいずれも rows/columns を1以上に制限する。
 
 ### `POST /generate-problems`(issue #138)
 

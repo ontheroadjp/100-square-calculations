@@ -40,7 +40,7 @@
 - 新規 `random_fraction_arithmetic_operand(form, ...)`: `form='mix'` は `compare` の `COMPARISON_FORMS`(`proper`/`improper`/`mixed`)とは異なる `FRACTION_ARITHMETIC_MIXED_NUMBER_FORMS = ('proper', 'mixed')` から抽選する(`improper` を含めない)。`form='proper'` は既存の `random_fraction_operand(..., proper_operands, denominator)` へそのまま委譲するため、`a_fraction_form`/`b_fraction_form` を指定しない(既定 `'proper'`)場合の `generate_fraction_problems()` は issue #112 以前と完全に同一のオペランドを生成する(回帰なし)。`form='mixed'` は真分数部(`random_fraction_operand(..., True, ...)`)に `whole=random.randint(1, 9)` を付与する。
 - `generate_fraction_problems()` は `a_form`/`b_form`(既定 `'proper'`)を追加し、`mixed_number_display = a_form != 'proper' or b_form != 'proper'` を `FractionProblem` に記録する。a/b は独立に(`compare` の `--a-fraction-form`/`--b-fraction-form` と同じ設計で)抽選されるため、1問内で片方だけ帯分数になる組み合わせも生成しうる。
 - 新規 `fraction_to_mixed_number_tex()`: `FractionOperand.whole`(存在しない `Fraction` では `getattr` で0扱い)を起点に `divmod(numerator, denominator)` で整数部を確定し、`whole{fraction_tex}`(`compare` の `comparison_operand_to_tex` と同じ、空白なしの連結)を返す。既存の `fraction_to_tex()` 自体は一切変更していない(`divfrac` が `fraction_to_tex(FractionOperand(a, b))` で意図的に未約分の仮分数のまま表示する既存契約を壊さないため)。
-- `build_fraction_block_tex`/`build_fraction_bottom_answer_tex` は `problem.mixed_number_display` が真の問題だけ `fraction_to_mixed_number_tex` を使う(オペランドだけでなく答えも対象)。偽の問題(既定)は従来通り `fraction_to_tex` を使うため、`--a-fraction-form`/`--b-fraction-form` 未指定時の出力は無変更。
+- `build_fraction_block_tex`/`build_fraction_slot_content_tex`/`build_fraction_bottom_answer_tex` は `problem.mixed_number_display` が真の問題だけ `fraction_to_mixed_number_tex` を使う(オペランドだけでなく答えも対象)。偽の問題(既定)は従来通り `fraction_to_tex` を使うため、`--a-fraction-form`/`--b-fraction-form` 未指定時の出力は無変更。issue #217 の番号なし slot formatter は `\displaystyle` を含む本文だけを返し、legacy block は問題番号を前置してこれを再利用する(`nuts_calc_tex.py:3792-3806`)。
 - `build_fraction_csv_rows` は `a_whole`/`b_whole` を末尾に追加した11列(`[page_number, index, a_num, a_den, operator, b_num, b_den, c_num, c_den, a_whole, b_whole]`)になった。`whole=0` が既定のため、帯分数を使わない問題では末尾2列が常に0になるだけで既存の9列分は無変更(issue #91 の `remainder` 列追加と同じ、末尾追加による後方互換パターン)。
 - `build_fraction_pages` は `ini.a_fraction_form`/`ini.b_fraction_form` を `generate_fraction_problems` へそのまま渡す。
 
@@ -68,7 +68,7 @@
 - 整数・小数・分数(`int`/`decimal`/`fraction`)を混在させたオペランドの四則演算(横書きのみ)。`MixedOperand`(`kind`/`display`/`value: Fraction`)が1オペランドを表し、`value` は常に `fractions.Fraction` による厳密値(浮動小数点は一切使わない)。`random_mixed_operand()` は `kind` に応じて `int`(`digit_range` によるプレーン整数)/`decimal`(スケール整数を `format_decimal_value` で表示しつつ `Fraction(scaled, 10**places)` を厳密値として保持)/`fraction`(`frac` コマンドの `random_fraction_operand`/`fraction_to_tex` をそのまま再利用)を生成する。
 - `--a-kind`/`--b-kind`(`nargs='*'`、既定は3種類全て)で最初の項/2項目以降それぞれの許容 kind を指定する(多項 `ope` の `nums_a`/`nums_b` 規約=最初の葉だけ別集合、を踏襲)。
 - 項数は `ope` と共通の `--terms`/`--terms-min`/`--terms-max`(既定2項、`resolve_term_range()` を `command in ('ope', 'mixed')` に拡張して共有)、演算子は `--mixed-operators` の有無に応じて木を使わないフラットな評価(`evaluate_left_to_right`/`evaluate_mixed_expression`)を使う。両関数は元々 `PAREN_STAGE_FUNCTIONS`(int用)にハードコードされていたが、`stage_functions` 引数(既定 `PAREN_STAGE_FUNCTIONS`)を追加して汎用化し、`mixed` コマンドは `MIXED_STAGE_FUNCTIONS`(Fraction用、`mixed_stage_add`/`_sub`/`_mul`/`_div`)を渡す。この汎用化により多項 `ope` 側の呼び出し・既存テストは無変更(デフォルト引数で完全後方互換)。
-- **答えは常に厳密な分数、小数表記には決して変換しない**: `mixed_stage_div` は `Fraction` の除算をそのまま使う(常に厳密、`y` は全 kind が正の値しか生成しないため常に非ゼロ)。`build_mixed_block_tex`/`build_mixed_bottom_answer_tex` はいずれも `fraction_to_tex(problem.result)` で答えを表示するため、例えば `2 ÷ 3` のような循環小数になる除算でも `\frac{2}{3}` という厳密な分数として出題でき、無限小数が出力に現れることはない(ユーザー要件、`ope` の小数拡張と共通の設計原則)。
+- **答えは常に厳密な分数、小数表記には決して変換しない**: `mixed_stage_div` は `Fraction` の除算をそのまま使う(常に厳密、`y` は全 kind が正の値しか生成しないため常に非ゼロ)。`build_mixed_block_tex`/`build_mixed_slot_content_tex`/`build_mixed_bottom_answer_tex` はいずれも `fraction_to_tex(problem.result)` で答えを表示するため、例えば `2 ÷ 3` のような循環小数になる除算でも `\frac{2}{3}` という厳密な分数として出題でき、無限小数が出力に現れることはない。issue #218 の slot formatter は番号を除いた pattern-1b 本文と blank 表示を維持する(`nuts_calc_tex.py:4199-4227`)。
 - CSV は `[page_number, index, terms, mixed, expression, result_numerator, result_denominator]` の7列(`expression` は多項 `ope` の `build_multi_term_ope_expression_text` と同じ自己記述文字列、各オペランドは `display`(例: `"0.5"`/`"3"`/`"\frac{1}{4}"`)をそのまま使う)。
 - 根拠資料: 学習指導要領解説 p.293-294 の「内容の取扱い」注記「整数や小数の乗法や除法を分数の場合の計算にまとめることも取り扱うものとする」、および同ページの例示 `5÷2×0.3` を分数の積にまとめる計算。この記述は乗法・除法のみに言及しているが、ユーザーの明示的な指示により四則すべて(`MIX_OPERATORS` = add/sub/mul/div)を許可している。
 
@@ -145,7 +145,7 @@
 - `CONTENT_AREA_LAYOUT_PRESETS`(`nuts_calc_tex.py:1068-1072`、`dict[int, ContentAreaLayout]`): 問題数10/20/30 を rows/columns へマッピングする named preset。`frontend/web/src/presetDetail.js:51-55` の `LAYOUT_BY_PROBLEM_COUNT`(`10: {rows:5,columns:2}`/`20: {rows:10,columns:2}`/`30: {rows:10,columns:3}`)と同じ値を踏襲し、frontend専用だった概念に backend 側の対応物を与えた。
 - `build_content_area_slot_tex(index, content_tex, layout)`(`nuts_calc_tex.py:1075-1082`): `\makebox[{layout.number_box_width_mm}mm][l]{{index)}}` で固定幅の番号ボックスを組み立て、番号を含まない `content_tex`(Layer 3 の出力)の直前に連結する。番号を描画する唯一の箇所であり、呼び出し側は番号なしコンテンツを渡す契約とした。
 - `build_content_area_tex(indices, slot_bodies, layout)`(`nuts_calc_tex.py:1086-1096`): `build_content_area_slot_tex` をスロットごとに適用し、既存のページグリッド関数(`build_inline_grid_tex`/`build_tabular_grid_tex`/`build_block_grid_tex`)へそのまま渡せる `blocks: list[str]` を生成する。
-- `build_com_slot_content_tex(problem, show_answer)`(`nuts_calc_tex.py:2487-2495`): `com` コマンド向けの番号なし Layer-3 コンテンツ variant。`build_com_block_tex` の本文部分(`f"${a} + {result} = {target}$"`)と同一だが `f"{index}) "` prefix を持たない。#184 が「少なくとも1コマンドグループで番号分離を実証する」done criteria を満たすための最小実装で、他の19コマンドへの展開は未実施(将来の作業、#183 の適用範囲による)。
+- `build_com_slot_content_tex(problem, show_answer)` は `com` コマンド向けの番号なし Layer-3 コンテンツ variant。#184 の最小実証として導入され、その後の command migration が同じ `(problem, show_answer) -> 番号なしTeX本文` 契約を展開している。
 - `build_content_area_slot_tex(problem.index, build_com_slot_content_tex(problem, show_answer), layout)` は `build_com_block_tex(problem, show_answer)` と(`number_box_width_mm=0` の場合)バイト単位で等価になることを `backend/tests/test_nuts_calc_tex_content_area_layout.py` の equivalence テストで担保しており、Layer 2 の導入が既存出力を壊さないことを検証している。
 
 ### presentation-layer 内部 API: `build_presentation_document_tex`(issue #183)
@@ -156,7 +156,7 @@
 - `_build_presentation_grid_tex(blocks, columns, grid_layout)`(`nuts_calc_tex.py:1273-1283`): `GridLayout = Literal['inline', 'tabular', 'block']` に応じて既存の `build_inline_grid_tex`/`build_tabular_grid_tex`/`build_block_grid_tex`(いずれも無変更で再利用)へ dispatch する。`build_page_tex` 内の同種の分岐を模倣しているが、`build_page_tex` はレガシー経路の一部のため直接呼ばず、小さな dispatch を新規コードとして複製している。
 - `build_presentation_document_tex(paper_size, pages, content_format, page_shell, content_area_layout, engine_adapter, show_answer, grid_layout='inline', with_name_field=False)`(`nuts_calc_tex.py:1286-1317`): 各 `PresentationPage` について `content_format` でスロット本文を生成し、`build_content_area_tex` で番号ボックスと合成し、`_build_presentation_grid_tex` でグリッド化し、`build_page_shell_body_tex` でヘッダー・フッター枠に収める。全ページを `\newpage` で連結し、`build_page_shell_preamble_tex(page_shell, paper_size, engine_adapter)` のプリアンブルと結合してドキュメント全体の TeX 文字列を返す。PDF化は呼び出し側が既存の `engine_adapter.compile(tex, out_pdf_path)` をそのまま呼ぶ(新規の PDF 書き込みラッパーは導入しない、`main()` と同じ「TeX文字列を生成 → `engine_adapter.compile` で変換」の2段呼び出し規約を踏襲)。
 - 実証: `backend/tests/test_nuts_calc_tex_presentation_api.py` が `com` コマンドグループ(既存の `generate_com_problems` によるデータ生成 + #184 の `build_com_slot_content_tex` を `content_format` として使用)で、カスタム `PageShell`・`ContentAreaLayout`・`show_answer` 切り替え・複数ページ・grid_layout の tabular/block dispatch を pure-Python で検証したうえで、`pdflatex` がある場合に実際に1枚の PDF を生成できることまで確認している(`test_build_presentation_document_tex_produces_a_pdf_for_com_command_group`、`pdflatex` 不在時は `pytest.mark.skipif` で自動スキップ)。
-- issue #199 で `com` がこの内部 API を最初に本番利用し、#205〜#207 で `ope` の plain/tree/flat multi-term、#208 で `99`、#209 で `squ`、#210 で `pi`、#211/#212 で `lcm`/`gcd` へ順次展開した。`lcm`/`gcd` は共有の `NumberPairProblem` データと `generate_number_pair_problems(math.lcm|math.gcd, ...)` を使い、番号なし Layer-3 content は `build_lcm_slot_content_tex`/`build_gcd_slot_content_tex` でラベルだけを固定する。いずれの移行も基本ケース限定で、未実施のコマンド・variantへの `content_format` 展開、`mode='merge'` の統合、CLI からの内部 API 利用は将来作業として残る。
+- issue #199 で `com` がこの内部 API を最初に本番利用し、#205〜#218 で `ope` の plain/tree/flat multi-term、`99`、`squ`、`pi`、`lcm`/`gcd`、`aBc`、`evenodd`、`multiples`、`divisors`、`frac`、基本2項 `mixed` へ順次展開した。いずれの移行も基本ケース限定で、未実施のコマンド・variantへの `content_format` 展開、`mode='merge'` の統合、CLI からの内部 API 利用は将来作業として残る。
 
 ## 動作の概要
 
@@ -250,7 +250,7 @@
 - `multiples`: `MultiplesProblem`(`index`/`a`/`multiples: list[int]`)。`generate_multiples_problems(nums_a, order, start_index, count)` が抽選した `a` の `a, 2a, ..., count*a` を返す。`count` は新設の `--multiples-count`(既定 `DEFAULT_MULTIPLES_COUNT`=4、最小 `MIN_MULTIPLES_COUNT`=1)で制御し、`_init()` は `command == 'multiples'` のときのみこのオプションを許可する。
 - `divisors`: `DivisorsProblem`(`index`/`a`/`divisors: list[int]`)。`generate_divisors_problems(nums_a, order, start_index)` が抽選した `a` の約数を `range(1, a+1)` の総当たりで昇順に列挙する(1と`a`自身を必ず含む)。追加オプションはない(常に全約数)。
 - `_init()` は `command in ('multiples', 'divisors')` のとき `--a-min >= 1` を要求する(`multiples`/`divisors` はともに0以下の基準値が数学的に無意味なため。`evenodd` は負数でも偶奇判定が可能なためこの制約はない)。
-- レンダリングは3コマンドとも `aBc`/`squ` と同じ `n) $a \Rightarrow 結果$` 形式(`build_evenodd_block_tex`/`build_multiples_block_tex`/`build_divisors_block_tex`)。blank 版は既存の `BLANK_ANSWER_TEX`(`\hspace{1.5em}`)で結果全体を隠す。issue #214/#215 は `evenodd`/`multiples` に番号なし `build_evenodd_slot_content_tex`/`build_multiples_slot_content_tex` を追加し、Layer 2 の番号ボックスと合成しても既存 block 本文を維持する形で `/generate-pdf` の内部 presentation API に接続した(`nuts_calc_tex.py:3348-3373,3447-3457`)。CLI 用 block/page 経路は変更していない。
+- レンダリングは3コマンドとも `aBc`/`squ` と同じ `n) $a \Rightarrow 結果$` 形式(`build_evenodd_block_tex`/`build_multiples_block_tex`/`build_divisors_block_tex`)。blank 版は既存の `BLANK_ANSWER_TEX`(`\hspace{1.5em}`)で結果全体を隠す。issue #214〜#216 は3コマンドすべてに番号なし slot formatter を追加し、Layer 2 の番号ボックスと合成しても既存 block 本文を維持する形で `/generate-pdf` の内部 presentation API に接続した。`divisors` の可変長リストは `build_divisors_slot_content_tex` が既存と同じコンマ区切りで返す(`nuts_calc_tex.py:3534-3544`)。CLI 用 block/page 経路は変更していない。
 - **CJK制約への対応**(issue #93 の `--with-name-field` と同じ理由): 本ファイルは素の `pdflatex`(CJK/日本語フォント未読込)でコンパイルしており、日本語グリフを含む文字列を渡すと `Fatal error occurred, no output PDF file produced` で確実に失敗する。`evenodd` の答えは本来「偶数」「奇数」だが、これを踏襲できないため英語 `even`/`odd` を採用した。`\mathrm{even}`/`\mathrm{odd}`(コアLaTeX2eの `\mathrm`、追加パッケージ不要)で数式モード内に upright 表示する。`multiples`/`divisors` の答えは数字とカンマのみのためこの制約に該当しない。
 - `build_evenodd_pages`/`build_multiples_pages`/`build_divisors_pages` は `squ`/`pi` と同じ構造(`order = ini.rows * ini.columns` 問をページごとに生成、`--with-bottom-answer` で `build_X_bottom_answer_tex` を末尾に追加)。`Page.layout` は常に `'inline'`(`--vertical` 等は他コマンドと同じく `_init()` の汎用チェックで拒否される)。
 - CSV列: `evenodd` は `[page_number, index, a, label]` の固定4列。`multiples`/`divisors` はリスト長が可変のため、`build_multiples_csv_rows`/`build_divisors_csv_rows` はリストをスペース区切りの単一文字列に変換した `[page_number, index, a, "6 12 18 24"]` 形式にする(多項 `ope`/`mixed` の自己記述文字列カラムと同じ方針)。
@@ -370,7 +370,7 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 統合ポイント
 
-- 呼び出し元: CLI 直接実行(`python3 nuts_calc_tex.py <paper_size> <command> ...`)、`backend/factory.sh`、未移行 PDF command の `backend/renderers.py` subprocess 経路。加えて `backend/problem_generation.py`(`POST /generate-problems`)と、`backend/app.py` の移行済み `POST /generate-pdf` helperがプロセス内で生成関数・slot formatter・`build_presentation_document_tex` を直接 import して呼ぶ。issue #214/#215 では `evenodd`/`multiples` がこの経路へ加わった。
+- 呼び出し元: CLI 直接実行(`python3 nuts_calc_tex.py <paper_size> <command> ...`)、`backend/factory.sh`、未移行 PDF command/variant の `backend/renderers.py` subprocess 経路。加えて `backend/problem_generation.py`(`POST /generate-problems`)と、`backend/app.py` の移行済み `POST /generate-pdf` helperがプロセス内で生成関数・slot formatter・`build_presentation_document_tex` を直接 import して呼ぶ。issue #216〜#218 では `divisors`/`frac`/基本2項 `mixed` がこの経路へ加わった。
 - 呼び出し先: `NUTS_CALC_TEX_ENGINE` 未設定時は既定エンジンの `lualatex`(要 `texlive-luatex`、`fonts-noto-cjk`。issue #121/#186、詳細は `CLAUDE.md` の Local Tooling Environment を参照)を呼び出す。`NUTS_CALC_TEX_ENGINE=pdflatex` 明示指定時は代わりに `pdflatex`(要 LaTeX ディストリビューション、`texlive-latex-base` + `texlive-latex-extra`)を呼び出す。
 
 ## 注意事項・既知の制限
@@ -395,6 +395,9 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴（git log より自動生成）
 
+- 5cd034c feat(#218): migrate mixed PDF generation (#253)
+- 5736b74 feat(#217): migrate frac PDF generation (#252)
+- 1c331f9 feat(#216): migrate divisors to presentation API (#251)
 - c85124d Migrate multiples PDF generation to the presentation API (#249)
 - 8117acc Migrate evenodd PDF generation to the presentation API (#248)
 - 757d736 feat(#213): migrate abc pdf generation to presentation api
