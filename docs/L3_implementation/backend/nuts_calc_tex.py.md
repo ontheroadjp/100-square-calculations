@@ -388,7 +388,8 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴(git log より自動生成)
 
-- 3b6bc6c refactor(#230): split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits
+- b5c565d feat(#205): migrate plain 2-term ope to the internal presentation API
+- 37a5a80 #230 Split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits (#236)
 - 700f115 #232 backend: remove nuts_calc.py (ReportLab renderer) and the reportlab dependency (#234)
 - 2eeb1cd #183 nuts_calc_tex.py: compose the internal (data x page_shell x content_area_layout x content_format) -> PDF presentation API (#198)
 - 144d465 #184 nuts_calc_tex.py: introduce Layer-2 content-area base layout for the presentation-layer API (#197)
@@ -397,4 +398,3 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - 9393898 #186 renderers/engine: make latex+lualatex the default (and only reachable) configuration (#187)
 - 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
 - 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)
-- bc0eef5 #113 nuts_calc_tex.py: allow --carry-borrow with decimal operands (#164)
