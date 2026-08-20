@@ -389,7 +389,8 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴(git log より自動生成)
 
-- b5c565d feat(#205): migrate plain 2-term ope to the internal presentation API
+- e25ee8b feat(#206): migrate ope --use-parentheses to the internal presentation API
+- 99a8279 #205 generate-pdf: migrate ope (plain 2-term) to the internal presentation API (#239)
 - 37a5a80 #230 Split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits (#236)
 - 700f115 #232 backend: remove nuts_calc.py (ReportLab renderer) and the reportlab dependency (#234)
 - 2eeb1cd #183 nuts_calc_tex.py: compose the internal (data x page_shell x content_area_layout x content_format) -> PDF presentation API (#198)
@@ -398,4 +399,3 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - 490f44b #171 compare: support int/decimal/fraction kind mixing, expose via POST /generate-problems (#192)
 - 9393898 #186 renderers/engine: make latex+lualatex the default (and only reachable) configuration (#187)
 - 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
-- 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)
