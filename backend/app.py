@@ -823,7 +823,7 @@ def _generate_multiples_pdf(data: renderers.RendererRequest, output_dir: str) ->
 
     This basic-case migration preserves the data-layer defaults and the
     existing multiples-count semantics. Answer pages, bottom answers, name
-    fields, multiple pages, and merged output remain on the legacy CLI path.
+    fields, multiple pages, and merged output are not wired in this builder.
     """
     a_min = int(data.get('a_min', problem_generation.DEFAULT_A_MIN))
     a_max = int(data.get('a_max', problem_generation.DEFAULT_A_MAX))
