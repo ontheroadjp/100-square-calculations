@@ -89,6 +89,7 @@
 - `evaluate_expr_tree()`: post-order で評価し、`PAREN_STAGE_FUNCTIONS`(`paren_stage_add`/`_sub`/`_mul`/`_div`、`calc_sub`/`calc_div` と同じ検証: 減算は正の結果のみ、除算は割り切れる場合のみ)で各ノードを検証する。どこかのノードが無効なら `None` を返し、`generate_tree_ope_problems()` が木構造・演算子・全オペランド値をまとめて再抽選する(`MAX_OPERAND_RETRY_ATTEMPTS` 回まで)。**`calc_sub`/`calc_div` と異なり決定的フォールバックを持たない**ため、有効な木が極端に少ない演算子/構造の組み合わせでは `ValueError` になりうる(既知の制限、後述)。旧 `generate_paren_ope_problems` は `op_left`/`op_right`/`position` を固定してオペランドのみ再抽選する細粒度リトライだったが、現在の実装は木構造ごと再抽選するより単純な戦略に変更されている。
 - `render_expr_tree()`: ルート以外の全内部ノードを括弧で包んで再帰的にレンダリングする(`build_tree_ope_expression_tex` はTeX記号版、`build_tree_ope_structure_text` は演算子名版でCSV出力用)。
 - `build_ope_pages()` は `ini.use_parentheses` が真の場合、通常の2項 `ope` 生成ロジックに入らず `build_tree_ope_pages()` に委譲する。`--vertical`/`--intermediate` は非対応のため `Page.layout` は常に `'inline'`。
+- `build_tree_ope_slot_content_tex(problem, show_answer)`(issue #206): `build_tree_ope_block_tex` 向けの番号なし Layer-3 content variant(`build_com_slot_content_tex`/`build_ope_slot_content_tex` と同型、#184/#205)。`$<expression> = result$` 本文のみを返し `f"{problem.index}) "` prefix を持たない。`backend/app.py` の `_generate_tree_ope_pdf`(`ope --use-parentheses`、issue #206)が `content_format` として使う。`build_content_area_slot_tex(problem.index, build_tree_ope_slot_content_tex(problem, show_answer), layout)` は `build_tree_ope_block_tex(problem, show_answer)` と(`number_box_width_mm=0` の場合)バイト単位で等価であることを `backend/tests/test_nuts_calc_tex_content_area_layout.py` の等価性テストで担保している(`build_com_slot_content_tex`/`build_ope_slot_content_tex` と同じ検証パターン)。
 
 ### `ope --terms`/`--terms-min`/`--terms-max`/`--mixed-operators`(issue #71)
 
@@ -153,7 +154,7 @@
 - `_build_presentation_grid_tex(blocks, columns, grid_layout)`(`nuts_calc_tex.py:1273-1283`): `GridLayout = Literal['inline', 'tabular', 'block']` に応じて既存の `build_inline_grid_tex`/`build_tabular_grid_tex`/`build_block_grid_tex`(いずれも無変更で再利用)へ dispatch する。`build_page_tex` 内の同種の分岐を模倣しているが、`build_page_tex` はレガシー経路の一部のため直接呼ばず、小さな dispatch を新規コードとして複製している。
 - `build_presentation_document_tex(paper_size, pages, content_format, page_shell, content_area_layout, engine_adapter, show_answer, grid_layout='inline', with_name_field=False)`(`nuts_calc_tex.py:1286-1317`): 各 `PresentationPage` について `content_format` でスロット本文を生成し、`build_content_area_tex` で番号ボックスと合成し、`_build_presentation_grid_tex` でグリッド化し、`build_page_shell_body_tex` でヘッダー・フッター枠に収める。全ページを `\newpage` で連結し、`build_page_shell_preamble_tex(page_shell, paper_size, engine_adapter)` のプリアンブルと結合してドキュメント全体の TeX 文字列を返す。PDF化は呼び出し側が既存の `engine_adapter.compile(tex, out_pdf_path)` をそのまま呼ぶ(新規の PDF 書き込みラッパーは導入しない、`main()` と同じ「TeX文字列を生成 → `engine_adapter.compile` で変換」の2段呼び出し規約を踏襲)。
 - 実証: `backend/tests/test_nuts_calc_tex_presentation_api.py` が `com` コマンドグループ(既存の `generate_com_problems` によるデータ生成 + #184 の `build_com_slot_content_tex` を `content_format` として使用)で、カスタム `PageShell`・`ContentAreaLayout`・`show_answer` 切り替え・複数ページ・grid_layout の tabular/block dispatch を pure-Python で検証したうえで、`pdflatex` がある場合に実際に1枚の PDF を生成できることまで確認している(`test_build_presentation_document_tex_produces_a_pdf_for_com_command_group`、`pdflatex` 不在時は `pytest.mark.skipif` で自動スキップ)。
-- issue #199(#174、B-5 の最初のコマンドグループ移行)が `backend/app.py`(`/generate-pdf`)から `command_type == 'com'` に限りこの内部 API を利用するようになった(`a_value`/`rows`/`columns` のみ対応するベーシックケース限定、詳細は [[../app.py]] を参照)。issue #205(#201 パターン1a移行トラッキングissueの最初の子issue)は同じ内部 API を plain 2-term `ope`(横式 add/sub/mul/div/mix、`--vertical`/`--intermediate`/`--use-parentheses`/`--missing-value`/`terms`系/`--mixed-operators` いずれも未指定)にも拡張し、`content_format=build_ope_slot_content_tex`(下記 `ope` コマンドセクション参照)を使う。未実施(将来の作業、#183 自体のスコープ外): `com`/`ope`(plain 2-term)以外のコマンド・variantへの `content_format` 展開(それぞれ番号なし Layer-3 variant が未実装。パターン1aの残り`ope --use-parentheses`/`ope`(多項)/`99`/`squ`/`pi`/`lcm`/`gcd` は #206/#207/#208/#209/#210/#211/#212 で追跡中)、`mode='merge'` の統合(現状は `show_answer` で blank/filled を個別に生成する呼び出し規約のみ)、CLI からのこの内部APIの利用。
+- issue #199(#174、B-5 の最初のコマンドグループ移行)が `backend/app.py`(`/generate-pdf`)から `command_type == 'com'` に限りこの内部 API を利用するようになった(`a_value`/`rows`/`columns` のみ対応するベーシックケース限定、詳細は [[../app.py]] を参照)。issue #205(#201 パターン1a移行トラッキングissueの最初の子issue)は同じ内部 API を plain 2-term `ope`(横式 add/sub/mul/div/mix、`--vertical`/`--intermediate`/`--use-parentheses`/`--missing-value`/`terms`系/`--mixed-operators` いずれも未指定)にも拡張し、`content_format=build_ope_slot_content_tex`(下記 `ope` コマンドセクション参照)を使う。issue #206 はさらに `ope --use-parentheses`(tree variant、`--vertical`/`--intermediate`/`--missing-value` 非併用。`terms`系/`--mixed-operators` は tree variant 自身の N項一般化(issue #71)として併用可)にも拡張し、`content_format=build_tree_ope_slot_content_tex`(下記 `ope` コマンドセクション参照)を使う。未実施(将来の作業、#183 自体のスコープ外): `com`/`ope`(plain 2-term)/`ope --use-parentheses` 以外のコマンド・variantへの `content_format` 展開(それぞれ番号なし Layer-3 variant が未実装。パターン1aの残り`ope`(多項)/`99`/`squ`/`pi`/`lcm`/`gcd` は #207/#208/#209/#210/#211/#212 で追跡中)、`mode='merge'` の統合(現状は `show_answer` で blank/filled を個別に生成する呼び出し規約のみ)、CLI からのこの内部APIの利用。
 
 ## 動作の概要
 
@@ -388,7 +389,8 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴(git log より自動生成)
 
-- b5c565d feat(#205): migrate plain 2-term ope to the internal presentation API
+- e25ee8b feat(#206): migrate ope --use-parentheses to the internal presentation API
+- 99a8279 #205 generate-pdf: migrate ope (plain 2-term) to the internal presentation API (#239)
 - 37a5a80 #230 Split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits (#236)
 - 700f115 #232 backend: remove nuts_calc.py (ReportLab renderer) and the reportlab dependency (#234)
 - 2eeb1cd #183 nuts_calc_tex.py: compose the internal (data x page_shell x content_area_layout x content_format) -> PDF presentation API (#198)
@@ -397,4 +399,3 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - 490f44b #171 compare: support int/decimal/fraction kind mixing, expose via POST /generate-problems (#192)
 - 9393898 #186 renderers/engine: make latex+lualatex the default (and only reachable) configuration (#187)
 - 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
-- 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)
