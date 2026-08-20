@@ -2419,6 +2419,22 @@ def build_multi_term_ope_block_tex(problem: MultiTermOpeProblem, show_answer: bo
     return f"{problem.index}) ${' '.join(parts)} = {result_tex}$"
 
 
+def build_multi_term_ope_slot_content_tex(problem: MultiTermOpeProblem, show_answer: bool) -> str:
+    """
+    Number-free Layer-3 content for one flat multi-term `ope` problem
+    (content-format pattern 1a, issue #207): the same body as
+    build_multi_term_ope_block_tex but without the embedded
+    `problem.index)` prefix, for use with build_content_area_slot_tex,
+    which owns the number box instead. Mirrors build_tree_ope_slot_content_tex's
+    relationship to build_tree_ope_block_tex (#206).
+    """
+    parts = [str(problem.operands[0])]
+    for operand, operator in zip(problem.operands[1:], problem.operators):
+        parts += [OPERATOR_TEX_SYMBOLS[operator], str(operand)]
+    result_tex = str(problem.result) if show_answer else BLANK_ANSWER_TEX
+    return f"${' '.join(parts)} = {result_tex}$"
+
+
 def build_multi_term_ope_page_pair(problems: list[MultiTermOpeProblem], columns: int) -> tuple[Page, Page]:
     """Build the (blank, filled) Page pair for one page's worth of flat multi-term `ope` problems."""
     blank_page = Page(

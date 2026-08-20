@@ -167,3 +167,34 @@ def test_build_tree_ope_slot_content_tex_matches_block_tex_body_when_composed() 
 
     assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
     assert original_tex == f"{problem.index}) {slot_content_tex}"
+
+
+def test_build_multi_term_ope_slot_content_tex_omits_problem_number() -> None:
+    problem = tex_module.MultiTermOpeProblem(
+        index=5, operands=[3, 4, 2], operators=["add", "mul"], mixed=False, result=14,
+    )
+
+    content_tex = tex_module.build_multi_term_ope_slot_content_tex(problem, show_answer=True)
+
+    assert content_tex == "$3 + 4 \\times 2 = 14$"
+    assert "5)" not in content_tex
+
+
+def test_build_multi_term_ope_slot_content_tex_matches_block_tex_body_when_composed() -> None:
+    """Composing the Layer-2 slot with the number-free Layer-3 content must
+    reproduce the existing build_multi_term_ope_block_tex() output
+    byte-for-byte (content-format pattern 1a, issue #207), so Layer 2 can be
+    adopted without a visual regression."""
+    problem = tex_module.MultiTermOpeProblem(
+        index=5, operands=[3, 4, 2], operators=["add", "mul"], mixed=False, result=14,
+    )
+    layout = tex_module.ContentAreaLayout(
+        rows=1, columns=1, number_box_width_mm=0
+    )
+
+    original_tex = tex_module.build_multi_term_ope_block_tex(problem, show_answer=True)
+    slot_content_tex = tex_module.build_multi_term_ope_slot_content_tex(problem, show_answer=True)
+    composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
+
+    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert original_tex == f"{problem.index}) {slot_content_tex}"

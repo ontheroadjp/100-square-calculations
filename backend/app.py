@@ -92,11 +92,11 @@ def _is_plain_ope_pdf_request(data: renderers.RendererRequest) -> bool:
     the first migration under the pattern-1a tracking issue #201) covers:
     the horizontal add/sub/mul/div/mix layout (build_horizontal_block_tex),
     with none of the flags that select a different content-format pattern
-    or a not-yet-migrated pattern-1a-adjacent variant --
+    or a different pattern-1a variant migrated separately --
     vertical(pattern 6)/intermediate(pattern 5)/use_parentheses(#206's tree
-    variant, now migrated separately by _is_tree_ope_pdf_request)/
-    missing_value(pattern 2)/the terms family
-    (terms/terms_min/terms_max/mixed_operators, #207's multi-term variant).
+    variant, migrated by _is_tree_ope_pdf_request)/missing_value(pattern 2)/
+    the terms family (terms/terms_min/terms_max/mixed_operators, #207's
+    flat multi-term variant, migrated by _is_multi_term_ope_pdf_request).
     Every other combination keeps using renderers.py's subprocess path.
     """
     if data.get('command_type') != 'ope':
@@ -307,6 +307,126 @@ def _generate_tree_ope_pdf(data: renderers.RendererRequest, output_dir: str) -> 
     return output_filepath, output_filename
 
 
+def _is_multi_term_ope_pdf_request(data: renderers.RendererRequest) -> bool:
+    """
+    True when `data` requests the flat multi-term `ope` ('multi_term'
+    variant, no parentheses) PDF this issue (#207, the last migration under
+    the pattern-1a tracking issue #201, following #205's plain 2-term and
+    #206's tree-variant migrations) covers: command_type == 'ope' with the
+    terms family (terms/terms_min/terms_max/mixed_operators) requesting more
+    than the plain 2-term shape, and none of
+    vertical/intermediate/use_parentheses/missing_value also set (each
+    selects a different content-format pattern or the tree variant already
+    migrated separately). Mirrors nuts_calc_tex.py's
+    _ope_uses_multi_term(ini) predicate (nuts_calc_tex.py:3091-3097), which
+    the same request would hit inside build_ope_pages() on the subprocess
+    path.
+    """
+    if data.get('command_type') != 'ope':
+        return False
+    if data.get('vertical') or data.get('intermediate'):
+        return False
+    if data.get('use_parentheses') or data.get('missing_value'):
+        return False
+    if data.get('mixed_operators'):
+        return True
+    return any(key in data for key in ('terms', 'terms_min', 'terms_max'))
+
+
+def _generate_multi_term_ope_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+    """
+    Build a flat multi-term 'ope' command PDF (no parentheses; terms/
+    terms_min/terms_max/mixed_operators) via nuts_calc_tex.py's internal
+    presentation API (build_presentation_document_tex, issue #183),
+    mirroring _generate_tree_ope_pdf's pattern (issue #206) for the last
+    pattern-1a migration (#201/#207). Basic-case only: a/b range
+    (a_digits/b_digits or a_min/a_max/b_min/b_max), operator,
+    mixed_operators, the terms family, result_max, plus rows/columns --
+    always a single blank (practice) page. Callers must route here only
+    when _is_multi_term_ope_pdf_request(data) is true; with_bottom_answer/
+    with_name_field/multi-page/merge are unsupported here too, matching
+    _generate_ope_pdf/_generate_tree_ope_pdf's scope.
+
+    'ope' is in nuts_calc_tex.DIGIT_COUNT_SHORTHAND_COMMANDS, so a/b are
+    resolved via problem_generation.resolve_digit_count_range (see
+    _generate_com_pdf's docstring). terms_min/terms_max resolution mirrors
+    problem_generation._determine_ope_variant's 'multi_term' branch (not
+    called directly here since that function also covers the tree/
+    missing_value branches this issue does not route to) -- unlike
+    _generate_tree_ope_pdf, resolve_term_range is called with
+    use_parentheses=False (floor 2, not 3).
+    """
+    a_min, a_max = problem_generation.resolve_digit_count_range(
+        data, 'a_digits', 'a_min', 'a_max',
+        problem_generation.DEFAULT_A_MIN, problem_generation.DEFAULT_A_MAX,
+    )
+    b_min, b_max = problem_generation.resolve_digit_count_range(
+        data, 'b_digits', 'b_min', 'b_max',
+        problem_generation.DEFAULT_B_MIN, problem_generation.DEFAULT_B_MAX,
+    )
+    operator = list(data.get('operator') or problem_generation.DEFAULT_OPERATOR)
+    mixed_operators = bool(data.get('mixed_operators', False))
+
+    terms = data.get('terms')
+    terms_min = data.get('terms_min', nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT)
+    terms_max = data.get('terms_max', nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT)
+    if terms is not None:
+        terms_min = terms_max = terms
+    if terms_min > terms_max:
+        raise ValueError("terms_min must be less than or equal to terms_max.")
+    terms_min, terms_max = nuts_calc_tex.resolve_term_range(terms_min, terms_max, use_parentheses=False)
+
+    rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
+    columns = int(data.get('columns', 2))
+    if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
+        raise ValueError(
+            f"rows and columns must be at least {nuts_calc_tex.MIN_ROWS_OR_COLUMNS}."
+        )
+
+    engine_adapter = nuts_calc_tex.get_latex_engine_adapter()
+    if shutil.which(engine_adapter.binary_name) is None:
+        raise ValueError(
+            f"{engine_adapter.binary_name} not found. Install a LaTeX distribution first "
+            "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
+        )
+
+    nums_a = list(range(a_min, a_max + 1))
+    nums_b = list(range(b_min, b_max + 1))
+    problems = nuts_calc_tex.generate_multi_term_ope_problems(
+        nums_a, nums_b, operator, mixed_operators, terms_min, terms_max,
+        rows * columns, 1, data.get('result_max'),
+    )
+    page = nuts_calc_tex.PresentationPage(
+        problems=problems, indices=[problem.index for problem in problems]
+    )
+    tex_source = nuts_calc_tex.build_presentation_document_tex(
+        data['paper_size'],
+        pages=[page],
+        content_format=nuts_calc_tex.build_multi_term_ope_slot_content_tex,
+        page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        engine_adapter=engine_adapter,
+        show_answer=False,
+    )
+
+    output_filename = f"worksheet_{uuid.uuid4()}.pdf"
+    output_filepath = os.path.join(output_dir, output_filename)
+
+    # See _generate_com_pdf's matching comment: engine_adapter.compile()
+    # raises SystemExit (via nuts_calc_tex.failure()) rather than a normal
+    # exception on a LaTeX compile error, which must be caught and converted
+    # here so this in-process request handler still returns a JSON response.
+    captured_stdout = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(captured_stdout):
+            engine_adapter.compile(tex_source, output_filepath)
+    except SystemExit as e:
+        error_reason = captured_stdout.getvalue().strip() or "PDF compilation failed"
+        raise RuntimeError(f'PDF generation failed: {error_reason}') from e
+
+    return output_filepath, output_filename
+
+
 @app.route('/generate-pdf', methods=['POST'])
 def generate_pdf():
     data = request.json
@@ -323,6 +443,8 @@ def generate_pdf():
             output_filepath, output_filename = _generate_ope_pdf(data, PDF_OUTPUT_DIR)
         elif _is_tree_ope_pdf_request(data):
             output_filepath, output_filename = _generate_tree_ope_pdf(data, PDF_OUTPUT_DIR)
+        elif _is_multi_term_ope_pdf_request(data):
+            output_filepath, output_filename = _generate_multi_term_ope_pdf(data, PDF_OUTPUT_DIR)
         else:
             renderer_name = renderers.get_renderer_name()
             output_filepath, output_filename, result = renderers.run(
