@@ -636,13 +636,10 @@ def generate_pdf():
     try:
         if data.get('command_type') == 'com':
             output_filepath, output_filename = _generate_com_pdf(data, PDF_OUTPUT_DIR)
-<<<<<<< HEAD
-        elif data.get('command_type') == 'pi':
-            output_filepath, output_filename = _generate_pi_pdf(data, PDF_OUTPUT_DIR)
-=======
         elif data.get('command_type') == '99':
             output_filepath, output_filename = _generate_kuku_pdf(data, PDF_OUTPUT_DIR)
->>>>>>> origin/main
+        elif data.get('command_type') == 'pi':
+            output_filepath, output_filename = _generate_pi_pdf(data, PDF_OUTPUT_DIR)
         elif _is_plain_ope_pdf_request(data):
             output_filepath, output_filename = _generate_ope_pdf(data, PDF_OUTPUT_DIR)
         elif _is_tree_ope_pdf_request(data):
