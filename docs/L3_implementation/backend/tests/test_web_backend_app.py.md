@@ -6,7 +6,7 @@ Flask test client を使い、`backend/app.py` の3ルートと PDF generation r
 
 ## 動作の概要と主要な判定ロジック
 
-`POST /generate-pdf` の内部 presentation API 移行済み command ごとに、`renderers.run` を失敗 stub へ置き換えて subprocess fallback が呼ばれないことを固定する。`evenodd` は PDF 応答と compile failure の JSON 500 変換を検証する(`test_web_backend_app.py:577-623`)。`multiples` は同じ経路に加え、`multiples_count` の伝播、`a_min`/`multiples_count`/rows の入力検証も確認する(`test_web_backend_app.py:626-702`)。未移行 command の subprocess fallback は直後の共通テストで維持する(`test_web_backend_app.py:705-722`)。
+`POST /generate-pdf` の内部 presentation API 移行済み command ごとに、`renderers.run` を失敗 stub へ置き換えて subprocess fallback が呼ばれないことを固定する。`divisors` は range/layout 伝播・入力検証・compile failure を検証する(`test_web_backend_app.py:705-789`)。`frac` は `\displaystyle` と blank PDF、分数制約、compile failure を検証する(`test_web_backend_app.py:811-884`)。基本2項 `mixed` は内部 API 利用と入力検証を確認し、terms/mixed-operator/reducible variants は subprocess を維持することも固定する(`test_web_backend_app.py:887-985`)。
 
 ## 重要な設計判断
 
@@ -23,6 +23,9 @@ Flask test client の単体・結合テストであり、実 HTTP server や実 
 
 ## 変更履歴（git log より自動生成）
 
+- 5cd034c feat(#218): migrate mixed PDF generation (#253)
+- 5736b74 feat(#217): migrate frac PDF generation (#252)
+- 1c331f9 feat(#216): migrate divisors to presentation API (#251)
 - c85124d Migrate multiples PDF generation to the presentation API (#249)
 - 8117acc Migrate evenodd PDF generation to the presentation API (#248)
 - 757d736 feat(#213): migrate abc pdf generation to presentation api
