@@ -3361,6 +3361,17 @@ def build_evenodd_block_tex(problem: EvenOddProblem, show_answer: bool) -> str:
     return f"{problem.index}) ${problem.a} \\Rightarrow {label_tex}$"
 
 
+def build_evenodd_slot_content_tex(problem: EvenOddProblem, show_answer: bool) -> str:
+    """
+    Number-free Layer-3 content for one `evenodd` problem (issue #214): the
+    same body as build_evenodd_block_tex() but without the embedded
+    `problem.index)` prefix, for use with build_content_area_slot_tex, which
+    owns the number box instead.
+    """
+    label_tex = f"\\mathrm{{{problem.label}}}" if show_answer else BLANK_ANSWER_TEX
+    return f"${problem.a} \\Rightarrow {label_tex}$"
+
+
 def build_evenodd_page_pair(problems: list[EvenOddProblem], columns: int) -> tuple[Page, Page]:
     """Build the (blank, filled) Page pair for one page's worth of `evenodd` problems."""
     blank_page = Page(
