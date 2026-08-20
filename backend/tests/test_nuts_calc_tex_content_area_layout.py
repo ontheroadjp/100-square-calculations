@@ -310,6 +310,30 @@ def test_build_gcd_slot_content_tex_matches_block_tex_body_when_composed() -> No
     assert original_tex == f"{problem.index}) {slot_content_tex}"
 
 
+def test_build_evenodd_slot_content_tex_omits_problem_number() -> None:
+    problem = tex_module.EvenOddProblem(index=5, a=4, is_even=True)
+
+    content_tex = tex_module.build_evenodd_slot_content_tex(problem, show_answer=True)
+
+    assert content_tex == "$4 \\Rightarrow \\mathrm{even}$"
+    assert "5)" not in content_tex
+
+
+def test_build_evenodd_slot_content_tex_matches_block_tex_body_when_composed() -> None:
+    """The Layer-3 body must preserve the existing even/odd TeX output."""
+    problem = tex_module.EvenOddProblem(index=5, a=3, is_even=False)
+    layout = tex_module.ContentAreaLayout(
+        rows=1, columns=1, number_box_width_mm=0
+    )
+
+    original_tex = tex_module.build_evenodd_block_tex(problem, show_answer=True)
+    slot_content_tex = tex_module.build_evenodd_slot_content_tex(problem, show_answer=True)
+    composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
+
+    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert original_tex == f"{problem.index}) {slot_content_tex}"
+
+
 def test_build_squ_slot_content_tex_omits_problem_number() -> None:
     problem = tex_module.SquProblem(index=5, a=3, c=9)
 
