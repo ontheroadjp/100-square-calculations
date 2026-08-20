@@ -497,6 +497,69 @@ def _generate_multi_term_ope_pdf(data: renderers.RendererRequest, output_dir: st
     return output_filepath, output_filename
 
 
+def _generate_squ_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+    """
+    Build a 'squ' command PDF via nuts_calc_tex.py's internal presentation
+    API (build_presentation_document_tex, issue #183), following #199's
+    'com' precedent (issue #209, tracked under #174/B-5's remaining
+    pattern-1a migrations #208/#209/#210/#211/#212). Basic-case only:
+    a_value plus optional rows/columns, always a single blank (practice)
+    page -- descend/shuffle/reverse/with_bottom_answer/with_name_field/
+    multi-page/merge are not wired for 'squ' yet (explicitly out of scope
+    for #209, matching #199's scope).
+
+    'squ' reads a_value directly (it's always a literal starting square
+    number, never a digit count -- like 'com', unlike
+    nuts_calc_tex.DIGIT_COUNT_SHORTHAND_COMMANDS).
+    """
+    start_num = problem_generation.validate_squ_start(data.get('a_value'))
+
+    rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
+    columns = int(data.get('columns', 2))
+    if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
+        raise ValueError(
+            f"rows and columns must be at least {nuts_calc_tex.MIN_ROWS_OR_COLUMNS}."
+        )
+
+    engine_adapter = nuts_calc_tex.get_latex_engine_adapter()
+    if shutil.which(engine_adapter.binary_name) is None:
+        raise ValueError(
+            f"{engine_adapter.binary_name} not found. Install a LaTeX distribution first "
+            "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
+        )
+
+    problems = nuts_calc_tex.generate_squ_problems(start_num, rows * columns, 1, False, False)
+    page = nuts_calc_tex.PresentationPage(
+        problems=problems, indices=[problem.index for problem in problems]
+    )
+    tex_source = nuts_calc_tex.build_presentation_document_tex(
+        data['paper_size'],
+        pages=[page],
+        content_format=nuts_calc_tex.build_squ_slot_content_tex,
+        page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        engine_adapter=engine_adapter,
+        show_answer=False,
+    )
+
+    output_filename = f"worksheet_{uuid.uuid4()}.pdf"
+    output_filepath = os.path.join(output_dir, output_filename)
+
+    # See _generate_com_pdf's matching comment: engine_adapter.compile()
+    # raises SystemExit (via nuts_calc_tex.failure()) rather than a normal
+    # exception on a LaTeX compile error, which must be caught and converted
+    # here so this in-process request handler still returns a JSON response.
+    captured_stdout = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(captured_stdout):
+            engine_adapter.compile(tex_source, output_filepath)
+    except SystemExit as e:
+        error_reason = captured_stdout.getvalue().strip() or "PDF compilation failed"
+        raise RuntimeError(f'PDF generation failed: {error_reason}') from e
+
+    return output_filepath, output_filename
+
+
 @app.route('/generate-pdf', methods=['POST'])
 def generate_pdf():
     data = request.json
@@ -517,6 +580,8 @@ def generate_pdf():
             output_filepath, output_filename = _generate_tree_ope_pdf(data, PDF_OUTPUT_DIR)
         elif _is_multi_term_ope_pdf_request(data):
             output_filepath, output_filename = _generate_multi_term_ope_pdf(data, PDF_OUTPUT_DIR)
+        elif data.get('command_type') == 'squ':
+            output_filepath, output_filename = _generate_squ_pdf(data, PDF_OUTPUT_DIR)
         else:
             renderer_name = renderers.get_renderer_name()
             output_filepath, output_filename, result = renderers.run(

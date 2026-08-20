@@ -225,3 +225,31 @@ def test_build_multi_term_ope_slot_content_tex_matches_block_tex_body_when_compo
 
     assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
     assert original_tex == f"{problem.index}) {slot_content_tex}"
+
+
+def test_build_squ_slot_content_tex_omits_problem_number() -> None:
+    problem = tex_module.SquProblem(index=5, a=3, c=9)
+
+    content_tex = tex_module.build_squ_slot_content_tex(problem, show_answer=True)
+
+    assert content_tex == "$3 \\times 3 = 9$"
+    assert "5)" not in content_tex
+
+
+def test_build_squ_slot_content_tex_matches_block_tex_body_when_composed() -> None:
+    """Composing the Layer-2 slot with the number-free Layer-3 content must
+    reproduce the existing build_squ_block_tex() output byte-for-byte
+    (content-format pattern 1a, issue #209), so Layer 2 can be adopted
+    without a visual regression. Only the non-reversed form is covered
+    (basic-case scope, matching #199's `com` precedent)."""
+    problem = tex_module.SquProblem(index=5, a=3, c=9)
+    layout = tex_module.ContentAreaLayout(
+        rows=1, columns=1, number_box_width_mm=0
+    )
+
+    original_tex = tex_module.build_squ_block_tex(problem, show_answer=True, reverse=False)
+    slot_content_tex = tex_module.build_squ_slot_content_tex(problem, show_answer=True)
+    composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
+
+    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert original_tex == f"{problem.index}) {slot_content_tex}"
