@@ -36,7 +36,8 @@
 
 ## 変更履歴(git log より自動生成)
 
-- e25ee8b feat(#206): migrate ope --use-parentheses to the internal presentation API
+- b373507 feat(#207): migrate flat multi-term ope to the internal presentation API
+- 5ec3e56 #206 generate-pdf: migrate ope --use-parentheses (tree variant) to the internal presentation API (#240)
 - 99a8279 #205 generate-pdf: migrate ope (plain 2-term) to the internal presentation API (#239)
 - 36288a2 #237 app.py: dedupe 'com' a_value/target validation with problem_generation.py (#238)
 - 37a5a80 #230 Split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits (#236)
