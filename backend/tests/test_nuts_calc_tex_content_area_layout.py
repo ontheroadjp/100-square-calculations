@@ -420,3 +420,29 @@ def test_build_multiples_slot_content_tex_matches_block_tex_body_when_composed()
     assert tex_module.build_multiples_slot_content_tex(
         problem, show_answer=False
     ) == f"$6 \\Rightarrow {tex_module.BLANK_ANSWER_TEX}$"
+
+
+def test_build_divisors_slot_content_tex_omits_problem_number() -> None:
+    problem = tex_module.DivisorsProblem(index=5, a=12, divisors=[1, 2, 3, 4, 6, 12])
+
+    content_tex = tex_module.build_divisors_slot_content_tex(problem, show_answer=True)
+
+    assert content_tex == "$12 \\Rightarrow 1, 2, 3, 4, 6, 12$"
+    assert "5)" not in content_tex
+
+
+def test_build_divisors_slot_content_tex_matches_block_tex_body_when_composed() -> None:
+    problem = tex_module.DivisorsProblem(index=5, a=12, divisors=[1, 2, 3, 4, 6, 12])
+    layout = tex_module.ContentAreaLayout(
+        rows=1, columns=1, number_box_width_mm=0
+    )
+
+    original_tex = tex_module.build_divisors_block_tex(problem, show_answer=True)
+    slot_content_tex = tex_module.build_divisors_slot_content_tex(problem, show_answer=True)
+    composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
+
+    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert original_tex == f"{problem.index}) {slot_content_tex}"
+    assert tex_module.build_divisors_slot_content_tex(
+        problem, show_answer=False
+    ) == f"$12 \\Rightarrow {tex_module.BLANK_ANSWER_TEX}$"
