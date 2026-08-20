@@ -3439,6 +3439,12 @@ def build_multiples_block_tex(problem: MultiplesProblem, show_answer: bool) -> s
     return f"{problem.index}) ${problem.a} \\Rightarrow {multiples_tex}$"
 
 
+def build_multiples_slot_content_tex(problem: MultiplesProblem, show_answer: bool) -> str:
+    """Render the number-free Layer-3 body of one `multiples` problem."""
+    multiples_tex = ', '.join(str(m) for m in problem.multiples) if show_answer else BLANK_ANSWER_TEX
+    return f"${problem.a} \\Rightarrow {multiples_tex}$"
+
+
 def build_multiples_page_pair(problems: list[MultiplesProblem], columns: int) -> tuple[Page, Page]:
     """Build the (blank, filled) Page pair for one page's worth of `multiples` problems."""
     blank_page = Page(
