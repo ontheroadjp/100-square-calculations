@@ -140,7 +140,7 @@
 
 ### presentation-layer Layer 2: `ContentAreaLayout`(content-area base layout、issue #184)
 
-- issue #166 の B-3。Layer 1(`PageShell`、#182)の content-area boundary の内側、Layer 3(content format、#122)の外側に位置する、問題スロットのグリッドテンプレート(rows×columns)と各スロットの番号ボックス位置を明示的に所有する追加専用の新規レイヤー。`docs/latex/tex_calculation_drill_layout_guidelines.md` 項目2・10(「問題番号を問題本体と分離し、内容によらずページレイアウトで位置を決める」)に基づき、番号の描画責務を各コマンドの `build_*_block_tex()` から切り出す第一歩として導入した。既存の `build_*_block_tex()`(例: `build_com_block_tex`)・`build_*_page_pair()` は無変更のまま残存し、本番 `/generate-pdf` の subprocess 経路(`com` 以外の全コマンド)はこの Layer 2 を参照しない。#183(internal presentation API、B-4)が Layer 1/2/3 を合成する際の Layer 2 側の受け皿となり、`command_type == 'com'` については issue #199 で本番 `/generate-pdf`(`backend/app.py` の `_generate_com_pdf`)から直接参照されるようになった。
+- issue #166 の B-3。Layer 1(`PageShell`、#182)の content-area boundary の内側、Layer 3(content format、#122)の外側に位置する、問題スロットのグリッドテンプレート(rows×columns)と各スロットの番号ボックス位置を明示的に所有するレイヤー。番号の描画責務を各コマンドの `build_*_block_tex()` から分離し、内部 presentation API に移行した command では `build_*_slot_content_tex()` と合成される。既存 CLI 用の `build_*_block_tex()`/`build_*_page_pair()` は残存する。
 - `ContentAreaLayout`(`nuts_calc_tex.py:1050-1064`、frozen dataclass): `rows`(`int | None`)/`columns`(`int`)/`number_box_width_mm`(既定 `CONTENT_AREA_NUMBER_BOX_WIDTH_MM` = 8)を保持する。任意の rows/columns を受け付け、プリセット値に制限しない(issue #184 の2026-08-19 /mtg 決定: 「10/20/30 は名前付きショートカットであり、固定語彙ではない」)。
 - `CONTENT_AREA_LAYOUT_PRESETS`(`nuts_calc_tex.py:1068-1072`、`dict[int, ContentAreaLayout]`): 問題数10/20/30 を rows/columns へマッピングする named preset。`frontend/web/src/presetDetail.js:51-55` の `LAYOUT_BY_PROBLEM_COUNT`(`10: {rows:5,columns:2}`/`20: {rows:10,columns:2}`/`30: {rows:10,columns:3}`)と同じ値を踏襲し、frontend専用だった概念に backend 側の対応物を与えた。
 - `build_content_area_slot_tex(index, content_tex, layout)`(`nuts_calc_tex.py:1075-1082`): `\makebox[{layout.number_box_width_mm}mm][l]{{index)}}` で固定幅の番号ボックスを組み立て、番号を含まない `content_tex`(Layer 3 の出力)の直前に連結する。番号を描画する唯一の箇所であり、呼び出し側は番号なしコンテンツを渡す契約とした。
@@ -250,7 +250,7 @@
 - `multiples`: `MultiplesProblem`(`index`/`a`/`multiples: list[int]`)。`generate_multiples_problems(nums_a, order, start_index, count)` が抽選した `a` の `a, 2a, ..., count*a` を返す。`count` は新設の `--multiples-count`(既定 `DEFAULT_MULTIPLES_COUNT`=4、最小 `MIN_MULTIPLES_COUNT`=1)で制御し、`_init()` は `command == 'multiples'` のときのみこのオプションを許可する。
 - `divisors`: `DivisorsProblem`(`index`/`a`/`divisors: list[int]`)。`generate_divisors_problems(nums_a, order, start_index)` が抽選した `a` の約数を `range(1, a+1)` の総当たりで昇順に列挙する(1と`a`自身を必ず含む)。追加オプションはない(常に全約数)。
 - `_init()` は `command in ('multiples', 'divisors')` のとき `--a-min >= 1` を要求する(`multiples`/`divisors` はともに0以下の基準値が数学的に無意味なため。`evenodd` は負数でも偶奇判定が可能なためこの制約はない)。
-- レンダリングは3コマンドとも `aBc`/`squ` と同じ `n) $a \Rightarrow 結果$` 形式(`build_evenodd_block_tex`/`build_multiples_block_tex`/`build_divisors_block_tex`)。blank 版は既存の `BLANK_ANSWER_TEX`(`\hspace{1.5em}`)で結果全体を隠す(`multiples`/`divisors` の可変長リストに対しても、項目ごとの個別空欄ではなく単一の空欄で答え全体を隠す、`aBc` の複数桁答えと同じ簡素化方針)。
+- レンダリングは3コマンドとも `aBc`/`squ` と同じ `n) $a \Rightarrow 結果$` 形式(`build_evenodd_block_tex`/`build_multiples_block_tex`/`build_divisors_block_tex`)。blank 版は既存の `BLANK_ANSWER_TEX`(`\hspace{1.5em}`)で結果全体を隠す。issue #214/#215 は `evenodd`/`multiples` に番号なし `build_evenodd_slot_content_tex`/`build_multiples_slot_content_tex` を追加し、Layer 2 の番号ボックスと合成しても既存 block 本文を維持する形で `/generate-pdf` の内部 presentation API に接続した(`nuts_calc_tex.py:3348-3373,3447-3457`)。CLI 用 block/page 経路は変更していない。
 - **CJK制約への対応**(issue #93 の `--with-name-field` と同じ理由): 本ファイルは素の `pdflatex`(CJK/日本語フォント未読込)でコンパイルしており、日本語グリフを含む文字列を渡すと `Fatal error occurred, no output PDF file produced` で確実に失敗する。`evenodd` の答えは本来「偶数」「奇数」だが、これを踏襲できないため英語 `even`/`odd` を採用した。`\mathrm{even}`/`\mathrm{odd}`(コアLaTeX2eの `\mathrm`、追加パッケージ不要)で数式モード内に upright 表示する。`multiples`/`divisors` の答えは数字とカンマのみのためこの制約に該当しない。
 - `build_evenodd_pages`/`build_multiples_pages`/`build_divisors_pages` は `squ`/`pi` と同じ構造(`order = ini.rows * ini.columns` 問をページごとに生成、`--with-bottom-answer` で `build_X_bottom_answer_tex` を末尾に追加)。`Page.layout` は常に `'inline'`(`--vertical` 等は他コマンドと同じく `_init()` の汎用チェックで拒否される)。
 - CSV列: `evenodd` は `[page_number, index, a, label]` の固定4列。`multiples`/`divisors` はリスト長が可変のため、`build_multiples_csv_rows`/`build_divisors_csv_rows` はリストをスペース区切りの単一文字列に変換した `[page_number, index, a, "6 12 18 24"]` 形式にする(多項 `ope`/`mixed` の自己記述文字列カラムと同じ方針)。
@@ -370,7 +370,7 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 統合ポイント
 
-- 呼び出し元: CLI 直接実行(`python3 nuts_calc_tex.py <paper_size> <command> ...`)、`backend`(`NUTS_CALC_RENDERER=latex`。issue #232 で `nuts_calc.py`/`reportlab` を削除して以降、事実上 `latex` が唯一到達可能なレンダラー)、`backend/factory.sh`(issue #232 でバッチ生成の呼び出し先を `nuts_calc.py` から切り替え)。backend は `renderers.py:48-54,170-189` で script を選択し subprocess 起動する。加えて `backend/problem_generation.py`(`POST /generate-problems`)がプロセス内で本ファイルの生成関数を直接 import して呼ぶ([[problem_generation.py]] 参照)。
+- 呼び出し元: CLI 直接実行(`python3 nuts_calc_tex.py <paper_size> <command> ...`)、`backend/factory.sh`、未移行 PDF command の `backend/renderers.py` subprocess 経路。加えて `backend/problem_generation.py`(`POST /generate-problems`)と、`backend/app.py` の移行済み `POST /generate-pdf` helperがプロセス内で生成関数・slot formatter・`build_presentation_document_tex` を直接 import して呼ぶ。issue #214/#215 では `evenodd`/`multiples` がこの経路へ加わった。
 - 呼び出し先: `NUTS_CALC_TEX_ENGINE` 未設定時は既定エンジンの `lualatex`(要 `texlive-luatex`、`fonts-noto-cjk`。issue #121/#186、詳細は `CLAUDE.md` の Local Tooling Environment を参照)を呼び出す。`NUTS_CALC_TEX_ENGINE=pdflatex` 明示指定時は代わりに `pdflatex`(要 LaTeX ディストリビューション、`texlive-latex-base` + `texlive-latex-extra`)を呼び出す。
 
 ## 注意事項・既知の制限
@@ -395,6 +395,8 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴（git log より自動生成）
 
+- c85124d Migrate multiples PDF generation to the presentation API (#249)
+- 8117acc Migrate evenodd PDF generation to the presentation API (#248)
 - 757d736 feat(#213): migrate abc pdf generation to presentation api
 - 3370b1c #212 Migrate generate-pdf gcd to the internal presentation API (#246)
 - 1c3fdee #211 generate-pdf: migrate lcm to the internal presentation API (#245)
