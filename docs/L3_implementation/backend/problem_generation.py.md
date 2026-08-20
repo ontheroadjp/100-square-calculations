@@ -122,10 +122,10 @@ issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマ�
 
 ## 変更履歴(git log より自動生成)
 
+- 40ad870 #209 generate-pdf: migrate squ to the internal presentation API (#243)
 - 9f75d13 feat(#210): migrate generate-pdf pi command to internal presentation API
-- 885ad04 feat(#208): migrate 99 (kuku) to the internal presentation API
-- 9f68b15 feat(#209): migrate generate-pdf's squ command to the internal presentation API
-- 98b2c83 fix(#237): dedupe com a_value validation between app.py and problem_generation.py
+- a6187e9 #208 generate-pdf: migrate 99 (kuku) to the internal presentation API (#242)
+- 36288a2 #237 app.py: dedupe 'com' a_value/target validation with problem_generation.py (#238)
 - 37a5a80 #230 Split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits (#236)
 - 700f115 #232 backend: remove nuts_calc.py (ReportLab renderer) and the reportlab dependency (#234)
 - 0c1f60c #173 problem_generation.py: support simplify/commondenom/frac2dec/dec2frac/divfrac, expose via POST /generate-problems (#194)
