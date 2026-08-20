@@ -16,7 +16,7 @@
 ## 統合ポイント
 
 - 呼び出し元: `frontend/web/src/catalog.js`・`preset.js`・`pcMakeFlow.js`(`GET /renderer-info`)、`frontend/web/src/presetDetail.js`(`POST /generate-problems`、issue #139。`command_type: 'ope'` かつ未対応フラグなしのプリセットのみ、マウント時・設定変更時にデバウンスして呼び出す)。`frontend/web` には `com` を使うプリセットも自由入力フォームも存在せず(`command_type_com` という翻訳文字列だけが `frontend/web/src/strings.ja.json` に孤立して残っている)、`frontend/web` からは `command_type: 'com'` の `POST /generate-pdf` に到達不可。かつては `frontend/spa/src/CustomGenerator.jsx`(`frontend/spa/src/drillPresets.js` の「10のあわせて」`a_value: 10`/「100のあわせて」`a_value: 100` プリセットと、自由入力フォームの `<option value="com">` から到達)が `command_type: 'com'` を選択できる唯一のフロントエンドだったが、`frontend/spa` 自体が issue #233 で削除されたため、現状 `command_type: 'com'` の `POST /generate-pdf` へ到達できる UI 経路は存在しない(直接 API を叩けば依然到達可能)。同様に `frontend/spa/src/GradeDrills.jsx` が呼んでいた `GET /renderer-info` の呼び出しも、`frontend/web` 側の上記3ファイルに引き継がれている。
-- 呼び出し先: `command_type == 'com'` の場合は `backend/nuts_calc_tex.py` の内部プレゼンテーション API(`generate_com_problems`/`build_com_slot_content_tex`/`PresentationPage`/`ContentAreaLayout`/`DEFAULT_PAGE_SHELL`/`build_presentation_document_tex`/`get_latex_engine_adapter`、issue #199)を直接呼ぶ。それ以外は従来どおり `backend/renderers.py`(レンダラー選択・PDF生成実行の subprocess 経路)、`backend/problem_generation.py`(問題データのみのプロセス内直接生成)。
+- 呼び出し先: `command_type == 'com'` の場合は `backend/nuts_calc_tex.py` の内部プレゼンテーション API(`generate_com_problems`/`build_com_slot_content_tex`/`PresentationPage`/`ContentAreaLayout`/`DEFAULT_PAGE_SHELL`/`build_presentation_document_tex`/`get_latex_engine_adapter`、issue #199)を直接呼ぶほか、`backend/problem_generation.py`(`validate_com_target`、issue #237)を `a_value` 検証に呼ぶ。それ以外は従来どおり `backend/renderers.py`(レンダラー選択・PDF生成実行の subprocess 経路)、`backend/problem_generation.py`(問題データのみのプロセス内直接生成)。
 
 ## 注意事項・既知の制限
 
