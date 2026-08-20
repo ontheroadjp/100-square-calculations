@@ -156,7 +156,7 @@
 - `_build_presentation_grid_tex(blocks, columns, grid_layout)`(`nuts_calc_tex.py:1273-1283`): `GridLayout = Literal['inline', 'tabular', 'block']` に応じて既存の `build_inline_grid_tex`/`build_tabular_grid_tex`/`build_block_grid_tex`(いずれも無変更で再利用)へ dispatch する。`build_page_tex` 内の同種の分岐を模倣しているが、`build_page_tex` はレガシー経路の一部のため直接呼ばず、小さな dispatch を新規コードとして複製している。
 - `build_presentation_document_tex(paper_size, pages, content_format, page_shell, content_area_layout, engine_adapter, show_answer, grid_layout='inline', with_name_field=False)`(`nuts_calc_tex.py:1286-1317`): 各 `PresentationPage` について `content_format` でスロット本文を生成し、`build_content_area_tex` で番号ボックスと合成し、`_build_presentation_grid_tex` でグリッド化し、`build_page_shell_body_tex` でヘッダー・フッター枠に収める。全ページを `\newpage` で連結し、`build_page_shell_preamble_tex(page_shell, paper_size, engine_adapter)` のプリアンブルと結合してドキュメント全体の TeX 文字列を返す。PDF化は呼び出し側が既存の `engine_adapter.compile(tex, out_pdf_path)` をそのまま呼ぶ(新規の PDF 書き込みラッパーは導入しない、`main()` と同じ「TeX文字列を生成 → `engine_adapter.compile` で変換」の2段呼び出し規約を踏襲)。
 - 実証: `backend/tests/test_nuts_calc_tex_presentation_api.py` が `com` コマンドグループ(既存の `generate_com_problems` によるデータ生成 + #184 の `build_com_slot_content_tex` を `content_format` として使用)で、カスタム `PageShell`・`ContentAreaLayout`・`show_answer` 切り替え・複数ページ・grid_layout の tabular/block dispatch を pure-Python で検証したうえで、`pdflatex` がある場合に実際に1枚の PDF を生成できることまで確認している(`test_build_presentation_document_tex_produces_a_pdf_for_com_command_group`、`pdflatex` 不在時は `pytest.mark.skipif` で自動スキップ)。
-- issue #199 で `com` がこの内部 API を最初に本番利用し、#205〜#218 で `ope` の plain/tree/flat multi-term、`99`、`squ`、`pi`、`lcm`/`gcd`、`aBc`、`evenodd`、`multiples`、`divisors`、`frac`、基本2項 `mixed` へ順次展開した。いずれの移行も基本ケース限定で、未実施のコマンド・variantへの `content_format` 展開、`mode='merge'` の統合、CLI からの内部 API 利用は将来作業として残る。
+- issue #199 で `com` がこの内部 API を最初に本番利用し、#205〜#220 で `ope` の plain/tree/flat multi-term、`99`、`squ`、`pi`、`lcm`/`gcd`、`aBc`、`evenodd`、`multiples`、`divisors`、`frac`、基本2項 `mixed`、`divfrac`、`simplify` へ順次展開した。いずれの移行も基本ケース限定で、未実施のコマンド・variantへの `content_format` 展開、`mode='merge'` の統合、CLI からの内部 API 利用は将来作業として残る。
 
 ## 動作の概要
 
@@ -251,6 +251,8 @@
 - `divisors`: `DivisorsProblem`(`index`/`a`/`divisors: list[int]`)。`generate_divisors_problems(nums_a, order, start_index)` が抽選した `a` の約数を `range(1, a+1)` の総当たりで昇順に列挙する(1と`a`自身を必ず含む)。追加オプションはない(常に全約数)。
 - `_init()` は `command in ('multiples', 'divisors')` のとき `--a-min >= 1` を要求する(`multiples`/`divisors` はともに0以下の基準値が数学的に無意味なため。`evenodd` は負数でも偶奇判定が可能なためこの制約はない)。
 - レンダリングは3コマンドとも `aBc`/`squ` と同じ `n) $a \Rightarrow 結果$` 形式(`build_evenodd_block_tex`/`build_multiples_block_tex`/`build_divisors_block_tex`)。blank 版は既存の `BLANK_ANSWER_TEX`(`\hspace{1.5em}`)で結果全体を隠す。issue #214〜#216 は3コマンドすべてに番号なし slot formatter を追加し、Layer 2 の番号ボックスと合成しても既存 block 本文を維持する形で `/generate-pdf` の内部 presentation API に接続した。`divisors` の可変長リストは `build_divisors_slot_content_tex` が既存と同じコンマ区切りで返す(`nuts_calc_tex.py:3534-3544`)。CLI 用 block/page 経路は変更していない。
+- `build_simplify_slot_content_tex(problem, show_answer)`(`nuts_calc_tex.py:4432-4435`、issue #220)は pattern-4b の番号なし Layer-3 content。未約分 `FractionOperand`、`\Rightarrow`、約分済み `Fraction` または `BLANK_ANSWER_TEX` を `\displaystyle` 内に並べる。`build_simplify_block_tex` は番号 prefix とこの formatter の合成へ変更され、既存 CLI 本文との同値性を保つ。
+- `build_divfrac_slot_content_tex(problem, show_answer)`(`nuts_calc_tex.py:4867-4876`、issue #219)は pattern-1b の番号なし Layer-3 content。`Fraction` へ変換すると自動約分されるため、既存 block と同じ `FractionOperand(problem.a, problem.b)` を使い、`a \div b = a/b` の答えを未約分のまま保持する。blank 版は同じ `BLANK_ANSWER_TEX` を返す。
 - **CJK制約への対応**(issue #93 の `--with-name-field` と同じ理由): 本ファイルは素の `pdflatex`(CJK/日本語フォント未読込)でコンパイルしており、日本語グリフを含む文字列を渡すと `Fatal error occurred, no output PDF file produced` で確実に失敗する。`evenodd` の答えは本来「偶数」「奇数」だが、これを踏襲できないため英語 `even`/`odd` を採用した。`\mathrm{even}`/`\mathrm{odd}`(コアLaTeX2eの `\mathrm`、追加パッケージ不要)で数式モード内に upright 表示する。`multiples`/`divisors` の答えは数字とカンマのみのためこの制約に該当しない。
 - `build_evenodd_pages`/`build_multiples_pages`/`build_divisors_pages` は `squ`/`pi` と同じ構造(`order = ini.rows * ini.columns` 問をページごとに生成、`--with-bottom-answer` で `build_X_bottom_answer_tex` を末尾に追加)。`Page.layout` は常に `'inline'`(`--vertical` 等は他コマンドと同じく `_init()` の汎用チェックで拒否される)。
 - CSV列: `evenodd` は `[page_number, index, a, label]` の固定4列。`multiples`/`divisors` はリスト長が可変のため、`build_multiples_csv_rows`/`build_divisors_csv_rows` はリストをスペース区切りの単一文字列に変換した `[page_number, index, a, "6 12 18 24"]` 形式にする(多項 `ope`/`mixed` の自己記述文字列カラムと同じ方針)。
@@ -370,7 +372,7 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 統合ポイント
 
-- 呼び出し元: CLI 直接実行(`python3 nuts_calc_tex.py <paper_size> <command> ...`)、`backend/factory.sh`、未移行 PDF command/variant の `backend/renderers.py` subprocess 経路。加えて `backend/problem_generation.py`(`POST /generate-problems`)と、`backend/app.py` の移行済み `POST /generate-pdf` helperがプロセス内で生成関数・slot formatter・`build_presentation_document_tex` を直接 import して呼ぶ。issue #216〜#218 では `divisors`/`frac`/基本2項 `mixed` がこの経路へ加わった。
+- 呼び出し元: CLI 直接実行(`python3 nuts_calc_tex.py <paper_size> <command> ...`)、`backend/factory.sh`、未移行 PDF command/variant の `backend/renderers.py` subprocess 経路。加えて `backend/problem_generation.py`(`POST /generate-problems`)と、`backend/app.py` の移行済み `POST /generate-pdf` helperがプロセス内で生成関数・slot formatter・`build_presentation_document_tex` を直接 import して呼ぶ。issue #219/#220 では `divfrac`/`simplify` がこの経路へ加わった。
 - 呼び出し先: `NUTS_CALC_TEX_ENGINE` 未設定時は既定エンジンの `lualatex`(要 `texlive-luatex`、`fonts-noto-cjk`。issue #121/#186、詳細は `CLAUDE.md` の Local Tooling Environment を参照)を呼び出す。`NUTS_CALC_TEX_ENGINE=pdflatex` 明示指定時は代わりに `pdflatex`(要 LaTeX ディストリビューション、`texlive-latex-base` + `texlive-latex-extra`)を呼び出す。
 
 ## 注意事項・既知の制限
@@ -395,6 +397,9 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴（git log より自動生成）
 
+- 156c2d2 Merge remote-tracking branch 'origin/main' into feat/220-migrate-simplify-presentation-api
+- ab8daf7 feat(#220): migrate simplify PDF generation
+- 1fe5a14 feat(#219): migrate divfrac to presentation API
 - 5cd034c feat(#218): migrate mixed PDF generation (#253)
 - 5736b74 feat(#217): migrate frac PDF generation (#252)
 - 1c331f9 feat(#216): migrate divisors to presentation API (#251)

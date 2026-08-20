@@ -8,11 +8,13 @@
 
 - 10/20/30問の preset、任意 rows/columns、番号ボックス幅、slot順序を検証する。
 - 各 `build_*_slot_content_tex` が問題番号を含まず、`number_box_width_mm=0` の Layer-2 slot と合成した本文が既存 `build_*_block_tex` と一致することを確認する。
-- `evenodd` は `\mathrm{even/odd}` を保持する番号なし本文を検証する(`test_nuts_calc_tex_content_area_layout.py:391-422`)。
-- `multiples` は可変長のコンマ区切り回答と blank 表示を保持する番号なし本文を検証する(`test_nuts_calc_tex_content_area_layout.py:443-466`)。
+- `evenodd` は `\mathrm{even/odd}` を保持する番号なし本文を検証する(`test_nuts_calc_tex_content_area_layout.py:454-482`)。
+- `multiples` は可変長のコンマ区切り回答と blank 表示を保持する番号なし本文を検証する(`test_nuts_calc_tex_content_area_layout.py:506-529`)。
 - `frac` は `\displaystyle`、厳密分数・帯分数、blank を保った番号なし本文と legacy block の合成同値性を検証する(`test_nuts_calc_tex_content_area_layout.py:112-143`)。
-- `mixed` は整数・小数・分数の混在式、厳密分数結果、blank を保持する番号なし本文を検証する(`test_nuts_calc_tex_content_area_layout.py:306-334`)。
-- `divisors` は可変長のコンマ区切り約数リストと blank を保持し、legacy block と合成後の本文が一致することを検証する(`test_nuts_calc_tex_content_area_layout.py:469-492`)。
+- `mixed` は整数・小数・分数の混在式、厳密分数結果、blank を保持する番号なし本文を検証する(`test_nuts_calc_tex_content_area_layout.py:340-367`)。
+- `simplify` は pattern-4b の分数、矢印、blank/filled 表示を検証し、番号なし本文と legacy block の合成同値性を固定する(`test_nuts_calc_tex_content_area_layout.py:146-176`)。
+- `divfrac` は pattern-1b の番号なし本文が答えを未約分のまま保持すること、blank 表示、legacy block との合成同値性を検証する(`test_nuts_calc_tex_content_area_layout.py:369-395`)。
+- `divisors` は可変長のコンマ区切り約数リストと blank を保持し、legacy block と合成後の本文が一致することを検証する(`test_nuts_calc_tex_content_area_layout.py:532-556`)。
 
 ## 重要な設計判断
 
@@ -28,6 +30,9 @@ TeX文字列の構成だけを検証し、実際の LaTeX compile や画像差�
 
 ## 変更履歴（git log より自動生成）
 
+- 156c2d2 Merge remote-tracking branch 'origin/main' into feat/220-migrate-simplify-presentation-api
+- ab8daf7 feat(#220): migrate simplify PDF generation
+- 1fe5a14 feat(#219): migrate divfrac to presentation API
 - 5cd034c feat(#218): migrate mixed PDF generation (#253)
 - 5736b74 feat(#217): migrate frac PDF generation (#252)
 - 1c331f9 feat(#216): migrate divisors to presentation API (#251)
