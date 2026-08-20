@@ -87,6 +87,105 @@ def _generate_com_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple
     return output_filepath, output_filename
 
 
+def _is_plain_mixed_pdf_request(data: renderers.RendererRequest) -> bool:
+    """Return whether data selects the basic two-term mixed worksheet."""
+    if data.get('command_type') != 'mixed':
+        return False
+    if data.get('mixed_operators') or data.get('reducible_mode') is not None:
+        return False
+    return not any(key in data for key in ('terms', 'terms_min', 'terms_max'))
+
+
+def _generate_mixed_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+    """Build a basic two-term mixed PDF through the presentation API.
+
+    Operand kinds, operator, fraction digit counts, and decimal places retain
+    the CLI defaults when omitted. Multi-term, mixed-operator, and reducibility
+    variants remain on the subprocess path and are excluded by the caller.
+    """
+    numerator_digits = data.get('numerator_digits', 1)
+    denominator_digits = data.get('denominator_digits', 1)
+    for option_name, value in (
+        ('numerator_digits', numerator_digits),
+        ('denominator_digits', denominator_digits),
+    ):
+        if not nuts_calc_tex.MIN_FRACTION_DIGITS <= value <= nuts_calc_tex.MAX_FRACTION_DIGITS:
+            raise ValueError(
+                f"{option_name} must be between {nuts_calc_tex.MIN_FRACTION_DIGITS} and "
+                f"{nuts_calc_tex.MAX_FRACTION_DIGITS} for the 'mixed' command."
+            )
+
+    decimal_places = data.get('decimal_places', 1)
+    if not nuts_calc_tex.MIN_DECIMAL_PLACES <= decimal_places <= nuts_calc_tex.MAX_DECIMAL_PLACES:
+        raise ValueError(
+            f"decimal_places must be between {nuts_calc_tex.MIN_DECIMAL_PLACES} and "
+            f"{nuts_calc_tex.MAX_DECIMAL_PLACES} for the 'mixed' command."
+        )
+
+    a_kinds = list(data.get('a_kind') or nuts_calc_tex.MIXED_OPERAND_KINDS)
+    b_kinds = list(data.get('b_kind') or nuts_calc_tex.MIXED_OPERAND_KINDS)
+    operators = list(data.get('operator') or problem_generation.DEFAULT_OPERATOR)
+    valid_operand_kinds = set(nuts_calc_tex.MIXED_OPERAND_KINDS)
+    if not set(a_kinds) <= valid_operand_kinds or not set(b_kinds) <= valid_operand_kinds:
+        raise ValueError(
+            f"a_kind and b_kind must contain only: {', '.join(nuts_calc_tex.MIXED_OPERAND_KINDS)}."
+        )
+    valid_operators = set(nuts_calc_tex.MIX_OPERATORS) | {'mix'}
+    if not set(operators) <= valid_operators:
+        raise ValueError(
+            f"operator must contain only: {', '.join(sorted(valid_operators))}."
+        )
+
+    rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
+    columns = int(data.get('columns', 2))
+    if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
+        raise ValueError(
+            f"rows and columns must be at least {nuts_calc_tex.MIN_ROWS_OR_COLUMNS}."
+        )
+
+    engine_adapter = nuts_calc_tex.get_latex_engine_adapter()
+    if shutil.which(engine_adapter.binary_name) is None:
+        raise ValueError(
+            f"{engine_adapter.binary_name} not found. Install a LaTeX distribution first "
+            "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
+        )
+
+    terms_min, terms_max = nuts_calc_tex.resolve_term_range(
+        nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT,
+        nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT,
+        False,
+    )
+    problems = nuts_calc_tex.generate_mixed_problems(
+        a_kinds, b_kinds, operators, False,
+        numerator_digits, denominator_digits, decimal_places,
+        terms_min, terms_max, rows * columns, 1,
+    )
+    page = nuts_calc_tex.PresentationPage(
+        problems=problems, indices=[problem.index for problem in problems]
+    )
+    tex_source = nuts_calc_tex.build_presentation_document_tex(
+        data['paper_size'],
+        pages=[page],
+        content_format=nuts_calc_tex.build_mixed_slot_content_tex,
+        page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        engine_adapter=engine_adapter,
+        show_answer=False,
+    )
+
+    output_filename = f"worksheet_{uuid.uuid4()}.pdf"
+    output_filepath = os.path.join(output_dir, output_filename)
+    captured_stdout = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(captured_stdout):
+            engine_adapter.compile(tex_source, output_filepath)
+    except SystemExit as e:
+        error_reason = captured_stdout.getvalue().strip() or "PDF compilation failed"
+        raise RuntimeError(f'PDF generation failed: {error_reason}') from e
+
+    return output_filepath, output_filename
+
+
 def _generate_lcm_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
     """
     Build an 'lcm' command PDF via nuts_calc_tex.py's internal presentation
@@ -1123,6 +1222,8 @@ def generate_pdf():
             output_filepath, output_filename = _generate_abc_pdf(data, PDF_OUTPUT_DIR)
         elif data.get('command_type') == 'pi':
             output_filepath, output_filename = _generate_pi_pdf(data, PDF_OUTPUT_DIR)
+        elif _is_plain_mixed_pdf_request(data):
+            output_filepath, output_filename = _generate_mixed_pdf(data, PDF_OUTPUT_DIR)
         elif _is_plain_ope_pdf_request(data):
             output_filepath, output_filename = _generate_ope_pdf(data, PDF_OUTPUT_DIR)
         elif _is_tree_ope_pdf_request(data):
