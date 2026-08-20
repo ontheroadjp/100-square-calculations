@@ -2859,6 +2859,20 @@ def build_kuku_block_tex(problem: KukuProblem, show_answer: bool, reverse: bool)
     return f"{problem.index}) ${problem.a} \\times {problem.b} = {result_tex}$"
 
 
+def build_kuku_slot_content_tex(problem: KukuProblem, show_answer: bool) -> str:
+    """
+    Number-free Layer-3 content for one `99` problem (#208, following
+    build_com_slot_content_tex's #184 pattern): the same body as
+    build_kuku_block_tex but without the embedded `problem.index)` prefix,
+    for use with build_content_area_slot_tex, which owns the number box
+    instead. Always the non-reverse ($a \\times b = c$) form -- the internal
+    presentation API's basic-case scope (backend/app.py's _generate_kuku_pdf)
+    does not support --reverse.
+    """
+    result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
+    return f"${problem.a} \\times {problem.b} = {result_tex}$"
+
+
 def build_kuku_page_pair(problems: list[KukuProblem], columns: int, reverse: bool) -> tuple[Page, Page]:
     """Build the (blank, filled) Page pair for one page's worth of `99` problems."""
     blank_page = Page(
@@ -3055,6 +3069,20 @@ def build_squ_block_tex(problem: SquProblem, show_answer: bool, reverse: bool) -
     if reverse:
         return f"{problem.index}) ${result_tex} = {problem.a} \\times {problem.a}$"
     return f"{problem.index}) ${problem.a} \\times {problem.a} = {result_tex}$"
+
+
+def build_squ_slot_content_tex(problem: SquProblem, show_answer: bool) -> str:
+    """
+    Number-free Layer-3 content for one `squ` problem (content-format
+    pattern 1a, issue #209): the same body as build_squ_block_tex's
+    non-reversed form, but without the embedded `problem.index)` prefix,
+    for use with build_content_area_slot_tex, which owns the number box
+    instead. Mirrors build_com_slot_content_tex's relationship to
+    build_com_block_tex (#184); `reverse` is not covered here (basic-case
+    scope only, matching #199's `com` precedent).
+    """
+    result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
+    return f"${problem.a} \\times {problem.a} = {result_tex}$"
 
 
 def build_squ_page_pair(problems: list[SquProblem], columns: int, reverse: bool) -> tuple[Page, Page]:
