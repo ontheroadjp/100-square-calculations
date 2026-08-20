@@ -122,7 +122,8 @@ issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマ�
 
 ## 変更履歴(git log より自動生成)
 
-- 3b6bc6c refactor(#230): split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits
+- 98b2c83 fix(#237): dedupe com a_value validation between app.py and problem_generation.py
+- 37a5a80 #230 Split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits (#236)
 - 700f115 #232 backend: remove nuts_calc.py (ReportLab renderer) and the reportlab dependency (#234)
 - 0c1f60c #173 problem_generation.py: support simplify/commondenom/frac2dec/dec2frac/divfrac, expose via POST /generate-problems (#194)
 - 00d9891 #172 problem_generation.py: support evenodd/multiples/divisors/lcm/gcd, expose via POST /generate-problems (#193)
