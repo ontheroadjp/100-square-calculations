@@ -4426,8 +4426,13 @@ def generate_simplify_problems(
 
 def build_simplify_block_tex(problem: SimplifyProblem, show_answer: bool) -> str:
     """Render one `simplify` problem: `n) $\\frac{18}{24} \\Rightarrow \\frac{3}{4}$` (blank hides the reduced fraction)."""
+    return f"{problem.index}) {build_simplify_slot_content_tex(problem, show_answer)}"
+
+
+def build_simplify_slot_content_tex(problem: SimplifyProblem, show_answer: bool) -> str:
+    """Render number-free `simplify` content for a presentation slot."""
     result_tex = fraction_to_tex(problem.reduced) if show_answer else BLANK_ANSWER_TEX
-    return f"{problem.index}) $\\displaystyle {fraction_to_tex(problem.operand)} \\Rightarrow {result_tex}$"
+    return f"$\\displaystyle {fraction_to_tex(problem.operand)} \\Rightarrow {result_tex}$"
 
 
 def build_simplify_page_pair(problems: list[SimplifyProblem], columns: int) -> tuple[Page, Page]:
