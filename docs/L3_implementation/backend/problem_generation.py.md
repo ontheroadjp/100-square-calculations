@@ -109,11 +109,7 @@ issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマ�
 
 ## 統合ポイント
 
-<<<<<<< HEAD
-- 呼び出し元: `backend/app.py` の `POST /generate-problems` ルートハンドラ。加えて `backend/app.py` の `_generate_com_pdf` が `validate_com_target()` を、`_generate_pi_pdf` が `validate_pi_start()` を直接呼ぶ(issue #237/#210、[[app.py]] 参照)。
-=======
-- 呼び出し元: `backend/app.py` の `POST /generate-problems` ルートハンドラ。加えて `backend/app.py` の `_generate_com_pdf` が `validate_com_target()` を、`_generate_kuku_pdf` が `validate_kuku_a_value()` を、`_generate_squ_pdf` が `validate_squ_start()` を直接呼ぶ(issue #237/#208/#209、[[app.py]] 参照)。
->>>>>>> origin/main
+- 呼び出し元: `backend/app.py` の `POST /generate-problems` ルートハンドラ。加えて `backend/app.py` の `_generate_com_pdf` が `validate_com_target()` を、`_generate_kuku_pdf` が `validate_kuku_a_value()` を、`_generate_squ_pdf` が `validate_squ_start()` を、`_generate_pi_pdf` が `validate_pi_start()` を直接呼ぶ(issue #237/#208/#209/#210、[[app.py]] 参照)。
 - 呼び出し先: `backend/nuts_calc_tex.py`(`generate_ope_problems`/`generate_tree_ope_problems`/`generate_multi_term_ope_problems`/`generate_missing_value_problems`/`resolve_term_range`/`build_intermediate_memo`/`set_min_max_value`(issue #232)/`MIN_DECIMAL_PLACES`/`INTERMEDIATE_SINGLE_DIGIT_MAX`/`TERM_COUNT_FLOOR_DEFAULT`/`generate_com_problems`/`generate_kuku_problems`/`generate_abc_problems`/`generate_squ_problems`/`generate_pi_problems`/`MIN_COMPLEMENT_TARGET`/`generate_fraction_problems`/`generate_mixed_problems`/`generate_fraction_comparison_problems`/`MIN_FRACTION_DIGITS`/`MAX_FRACTION_DIGITS`/`MAX_DECIMAL_PLACES`/`MIXED_OPERAND_KINDS`/`generate_evenodd_problems`/`generate_multiples_problems`/`generate_divisors_problems`/`generate_number_pair_problems`/`DEFAULT_MULTIPLES_COUNT`/`MIN_MULTIPLES_COUNT`/`generate_simplify_problems`/`generate_commondenom_problems`/`generate_frac2dec_problems`/`generate_dec2frac_problems`/`generate_divfrac_problems`)、`backend/renderers.py`(`get_renderer_name`、`RendererRequest` 型)。加えて標準ライブラリ `fractions.Fraction`(`_dataclass_to_dict()` の型判定用、issue #170)、`math`(`math.lcm`/`math.gcd`、issue #172)。issue #232 以前は `backend/nuts_calc.py`(`get_operation_data`/`set_min_max_value`/`SINGLE_DIGIT_MAX`)も呼び出し先だったが、同issueでの削除に伴い依存を解消した。
 
 ## 注意事項・既知の制限
