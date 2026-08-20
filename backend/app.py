@@ -262,6 +262,69 @@ def _generate_lcm_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple
     return output_filepath, output_filename
 
 
+def _generate_divfrac_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+    """Build a basic division-as-fraction PDF through the presentation API.
+
+    The digit-count shorthand and explicit ranges retain the CLI contract.
+    This basic-case migration produces one blank page; extended output fields
+    remain on neither this in-process path nor its caller.
+    """
+    a_min, a_max = problem_generation.resolve_digit_count_range(
+        data, 'a_digits', 'a_min', 'a_max',
+        problem_generation.DEFAULT_A_MIN, problem_generation.DEFAULT_A_MAX,
+    )
+    b_min, b_max = problem_generation.resolve_digit_count_range(
+        data, 'b_digits', 'b_min', 'b_max',
+        problem_generation.DEFAULT_B_MIN, problem_generation.DEFAULT_B_MAX,
+    )
+    if b_min < 1:
+        raise ValueError("b_min must be at least 1 for the 'divfrac' command.")
+
+    rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
+    columns = int(data.get('columns', 2))
+    if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
+        raise ValueError(
+            f"rows and columns must be at least {nuts_calc_tex.MIN_ROWS_OR_COLUMNS}."
+        )
+
+    engine_adapter = nuts_calc_tex.get_latex_engine_adapter()
+    if shutil.which(engine_adapter.binary_name) is None:
+        raise ValueError(
+            f"{engine_adapter.binary_name} not found. Install a LaTeX distribution first "
+            "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
+        )
+
+    nums_a = list(range(a_min, a_max + 1))
+    nums_b = list(range(b_min, b_max + 1))
+    problems = nuts_calc_tex.generate_divfrac_problems(
+        nums_a, nums_b, rows * columns, 1
+    )
+    page = nuts_calc_tex.PresentationPage(
+        problems=problems, indices=[problem.index for problem in problems]
+    )
+    tex_source = nuts_calc_tex.build_presentation_document_tex(
+        data['paper_size'],
+        pages=[page],
+        content_format=nuts_calc_tex.build_divfrac_slot_content_tex,
+        page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        engine_adapter=engine_adapter,
+        show_answer=False,
+    )
+
+    output_filename = f"worksheet_{uuid.uuid4()}.pdf"
+    output_filepath = os.path.join(output_dir, output_filename)
+    captured_stdout = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(captured_stdout):
+            engine_adapter.compile(tex_source, output_filepath)
+    except SystemExit as e:
+        error_reason = captured_stdout.getvalue().strip() or "PDF compilation failed"
+        raise RuntimeError(f'PDF generation failed: {error_reason}') from e
+
+    return output_filepath, output_filename
+
+
 def _generate_gcd_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
     """
     Build a 'gcd' command PDF via nuts_calc_tex.py's internal presentation
@@ -1212,6 +1275,8 @@ def generate_pdf():
             output_filepath, output_filename = _generate_com_pdf(data, PDF_OUTPUT_DIR)
         elif data.get('command_type') == 'lcm':
             output_filepath, output_filename = _generate_lcm_pdf(data, PDF_OUTPUT_DIR)
+        elif data.get('command_type') == 'divfrac':
+            output_filepath, output_filename = _generate_divfrac_pdf(data, PDF_OUTPUT_DIR)
         elif data.get('command_type') == 'gcd':
             output_filepath, output_filename = _generate_gcd_pdf(data, PDF_OUTPUT_DIR)
         elif data.get('command_type') == 'evenodd':

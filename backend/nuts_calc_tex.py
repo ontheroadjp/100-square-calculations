@@ -4859,6 +4859,17 @@ def build_divfrac_block_tex(problem: DivFracProblem, show_answer: bool) -> str:
     return f"{problem.index}) ${problem.a} \\div {problem.b} = {result_tex}$"
 
 
+def build_divfrac_slot_content_tex(problem: DivFracProblem, show_answer: bool) -> str:
+    """Render number-free division-as-fraction content for a presentation slot.
+
+    ContentAreaLayout owns the problem number. The remaining pattern-1b body
+    matches build_divfrac_block_tex, including its unreduced FractionOperand
+    answer and blank-answer marker.
+    """
+    result_tex = fraction_to_tex(problem.operand) if show_answer else BLANK_ANSWER_TEX
+    return f"${problem.a} \\div {problem.b} = {result_tex}$"
+
+
 def build_divfrac_page_pair(problems: list[DivFracProblem], columns: int) -> tuple[Page, Page]:
     """Build the (blank, filled) Page pair for one page's worth of `divfrac` problems."""
     blank_page = Page(
