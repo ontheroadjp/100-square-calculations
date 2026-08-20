@@ -260,15 +260,25 @@ def _generate_ope_problems_latex(params: renderers.RendererRequest, num: int) ->
     return problems
 
 
-def _generate_com_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
-    target = params.get("a_value")
-    if target is None:
+def validate_com_target(a_value: int | None) -> int:
+    """Validate the 'com' command's complement target (issue #237).
+
+    Shared by `_generate_com_problems` (below) and `backend/app.py`'s
+    `_generate_com_pdf`, which independently duplicated this check before
+    issue #237.
+    """
+    if a_value is None:
         raise ValueError("a_value (complement target) is required for the 'com' command.")
-    if target < nuts_calc_tex.MIN_COMPLEMENT_TARGET:
+    if a_value < nuts_calc_tex.MIN_COMPLEMENT_TARGET:
         raise ValueError(
             f"a_value (complement target) must be at least {nuts_calc_tex.MIN_COMPLEMENT_TARGET} "
             "for the 'com' command."
         )
+    return a_value
+
+
+def _generate_com_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+    target = validate_com_target(params.get("a_value"))
     problems = nuts_calc_tex.generate_com_problems(target, num, 1)
     return [_dataclass_to_dict(problem) for problem in problems]
 

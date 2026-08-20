@@ -36,14 +36,7 @@ def _generate_com_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple
     problem_generation.resolve_digit_count_range(data, 'a_digits', 'a_min',
     'a_max', ...), not read a_value/a_digits directly like this function does.
     """
-    target = data.get('a_value')
-    if target is None:
-        raise ValueError("a_value (complement target) is required for the 'com' command.")
-    if target < nuts_calc_tex.MIN_COMPLEMENT_TARGET:
-        raise ValueError(
-            f"a_value (complement target) must be at least {nuts_calc_tex.MIN_COMPLEMENT_TARGET} "
-            "for the 'com' command."
-        )
+    target = problem_generation.validate_com_target(data.get('a_value'))
 
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
