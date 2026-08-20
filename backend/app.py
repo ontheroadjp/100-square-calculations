@@ -234,7 +234,7 @@ def _generate_evenodd_pdf(data: renderers.RendererRequest, output_dir: str) -> t
     Build an 'evenodd' command PDF via the internal presentation API (issue
     #214). Basic-case only: a_min/a_max plus optional rows/columns, always a
     single blank page. Answer pages, bottom answers, name fields, multiple
-    pages, and merged output remain on the legacy CLI path.
+    pages, and merged output are not wired in this builder.
     """
     a_min = data.get('a_min', problem_generation.DEFAULT_A_MIN)
     a_max = data.get('a_max', problem_generation.DEFAULT_A_MAX)
