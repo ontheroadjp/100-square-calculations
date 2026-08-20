@@ -38,11 +38,11 @@ cd frontend/web
 npm run build
 ```
 
-## 実行結果(2026-08-20、issue #232 の `nuts_calc.py` 削除後に再検証)
+## 実行結果(2026-08-20、issue #214/#215 の結合後に再検証)
 
 | 検証 | 結果 |
 |---|---|
-| `cd backend && python3 -m pytest -q` | 687 passed |
+| `cd backend && python3 -m pytest -q` | 754 passed |
 | `frontend/web` `node --test ...`(2ファイル) | 45 passed |
 | `cd frontend/web && npm run build` | 成功(3 HTML エントリ: `index.html`/`catalog.html`/`preset.html`。`custom.html` は issue #97 で削除) |
 

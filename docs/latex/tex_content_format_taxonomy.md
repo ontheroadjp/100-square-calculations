@@ -62,8 +62,8 @@ issue #122 の成果物。`docs/latex/tex_calculation_drill_layout_guidelines.md
 | 関数 | コマンド | 備考 |
 |---|---|---|
 | `build_abc_block_tex` | `aBc` | `abcd \Rightarrow <答え>`(`nuts_calc_tex.py:2670-2673`) |
-| `build_evenodd_block_tex` | `evenodd` | `a \Rightarrow \mathrm{even/odd}`。CJKフォント未読込のためASCIIラベル(`nuts_calc_tex.py:3011-3024`) |
-| `build_multiples_block_tex` | `multiples` | Bがコンマ区切りの可変長リスト(`nuts_calc_tex.py:3099-3102`) |
+| `build_evenodd_block_tex` / `build_evenodd_slot_content_tex` | `evenodd` | `a \Rightarrow \mathrm{even/odd}`。slot版は番号なしで内部 presentation API が使用する(`nuts_calc_tex.py:3348-3373`) |
+| `build_multiples_block_tex` / `build_multiples_slot_content_tex` | `multiples` | Bがコンマ区切りの可変長リスト。slot版は番号なし(`nuts_calc_tex.py:3447-3457`) |
 | `build_divisors_block_tex` | `divisors` | Bがコンマ区切りの可変長リスト(`nuts_calc_tex.py:3180-3183`) |
 
 ### 4b. 分数を含む矢印変換

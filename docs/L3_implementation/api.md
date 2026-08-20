@@ -1,6 +1,6 @@
 # Web API
 
-Flask backend は worksheet 生成(PDF)・問題データのみ生成(JSON、issue #138)・renderer 能力確認の3エンドポイントを提供する。DB は使わない。`POST /generate-pdf` は生成 CLI を subprocess として起動して PDF を返し、backend はこの生成ロジックを重複実装しない(`backend/app.py:15-50`、`backend/renderers.py:170-189`)。`POST /generate-problems`(`command_type` は `'ope'`/`'com'`/`'99'`/`'aBc'`/`'squ'`/`'pi'`/`'frac'`/`'mixed'`/`'compare'`/`'evenodd'`/`'multiples'`/`'divisors'`/`'lcm'`/`'gcd'`/`'simplify'`/`'commondenom'`/`'frac2dec'`/`'dec2frac'`/`'divfrac'` に対応、`'100'` は対象外)は例外で、CLI を subprocess 起動せず、`backend/problem_generation.py` が CLI スクリプト内の既存データ生成関数を `command_type` → 生成関数のディスパッチテーブル経由でプロセス内で直接呼び出す(`backend/problem_generation.py:47-642`)。
+Flask backend は worksheet 生成(PDF)・問題データのみ生成(JSON、issue #138)・renderer 能力確認の3エンドポイントを提供する。DB は使わない。`POST /generate-pdf` は移行済み command を `nuts_calc_tex.py` の内部 presentation API で生成し、未移行 command だけを `backend/renderers.py` の CLI/subprocess 経路へフォールバックする hybrid routing である(`backend/app.py:939-1003`)。`POST /generate-problems`(`command_type` は `'ope'`/`'com'`/`'99'`/`'aBc'`/`'squ'`/`'pi'`/`'frac'`/`'mixed'`/`'compare'`/`'evenodd'`/`'multiples'`/`'divisors'`/`'lcm'`/`'gcd'`/`'simplify'`/`'commondenom'`/`'frac2dec'`/`'dec2frac'`/`'divfrac'` に対応、`'100'` は対象外)も CLI を subprocess 起動せず、`backend/problem_generation.py` が既存データ生成関数を直接呼び出す。
 
 ## `POST /generate-pdf`
 
@@ -8,9 +8,9 @@ Flask backend は worksheet 生成(PDF)・問題データのみ生成(JSON、iss
 
 `Content-Type: application/json`。`paper_size` と `command_type` が必須で、欠落時は HTTP 400 を返す(`backend/app.py:17-22`)。
 
-任意フィールドは `RendererRequest` に列挙される(`backend/renderers.py:9-58`)。
+任意フィールドは原則として `RendererRequest` に列挙される(`backend/renderers.py:9-58`)。`multiples_count` は既存の `multiples` data/CLI contract として、内部 API 経路の `_generate_multiples_pdf` が追加で直接読む。
 
-- 数値/範囲: `a_value`, `b_value`, `a_digits`, `b_digits`, `a_min`, `a_max`, `b_min`, `b_max`, `result_max`, `numerator_digits`, `denominator_digits`, `a_decimal_places`, `b_decimal_places`, `decimal_places`, `terms`, `terms_min`, `terms_max`, `rows`, `columns`, `page`
+- 数値/範囲: `a_value`, `b_value`, `a_digits`, `b_digits`, `a_min`, `a_max`, `b_min`, `b_max`, `result_max`, `numerator_digits`, `denominator_digits`, `a_decimal_places`, `b_decimal_places`, `decimal_places`, `terms`, `terms_min`, `terms_max`, `rows`, `columns`, `page`。`multiples` 内部 API 経路はさらに `multiples_count` を受け付ける。
 - 演算: `operator`, `a_kind`, `b_kind`(いずれも文字列配列)、`carry_mode`/`remainder_mode`(`required`|`none`|`mixed`)
 - flag: `descend`, `reverse`, `shuffle`, `intermediate`, `vertical`, `use_parentheses`, `missing_value`, `mixed_operators`, `same_denominator`, `different_denominators`, `proper_operands`, `proper_result`, `with_bottom_answer`, `merge`, `csv`, `debug`
 
@@ -18,7 +18,7 @@ backend は renderer 互換性を事前検証せず、値を CLI option へ変�
 
 ### Processing and response
 
-`NUTS_CALC_RENDERER` から `latex`(default、issue #186 で `reportlab` から変更。`nuts_calc.py`/`reportlab` は issue #232 でコード自体が削除され、明示指定は他の未知の値と同じ汎用エラーで拒否される)を選び、実行中の Python interpreter (`sys.executable`) と対応 script を使う(`backend/renderers.py:61-67,90-107,254-273`)。出力名は `worksheet_<uuid>.pdf` で、`PDF_OUTPUT_DIR` に生成後 `send_file(..., as_attachment=True)` で返す(`backend/app.py:11-13,24-34`、`backend/renderers.py:182-189`)。
+`com`/`lcm`/`gcd`/`evenodd`/`99`/`aBc`/`pi`/移行済み `ope` variants/`squ`/`multiples` は対応する `_generate_*_pdf` helper から `build_presentation_document_tex` と選択済み `LatexEngineAdapter` をプロセス内で直接呼ぶ。それ以外は `NUTS_CALC_RENDERER` から `latex` を選び、実行中の Python interpreter と CLI script を subprocess 起動する。`evenodd`(#214)と`multiples`(#215)はいずれも既定の1ページ blank basic-caseで、前者は `a_min`/`a_max`、後者はさらに `multiples_count` を既存データ生成関数へ渡す。出力名は両経路とも `worksheet_<uuid>.pdf` で、`PDF_OUTPUT_DIR` に生成後 `send_file(..., as_attachment=True)` で返す(`backend/app.py:232-283,874-1003`)。
 
 | 条件 | Status | Body |
 |---|---:|---|
