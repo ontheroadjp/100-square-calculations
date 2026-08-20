@@ -393,9 +393,9 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴(git log より自動生成)
 
+- 40ad870 #209 generate-pdf: migrate squ to the internal presentation API (#243)
 - 9f75d13 feat(#210): migrate generate-pdf pi command to internal presentation API
-- 885ad04 feat(#208): migrate 99 (kuku) to the internal presentation API
-- 9f68b15 feat(#209): migrate generate-pdf's squ command to the internal presentation API
+- a6187e9 #208 generate-pdf: migrate 99 (kuku) to the internal presentation API (#242)
 - 7a159b9 #207 generate-pdf: migrate ope (multi-term) to the internal presentation API (#241)
 - 5ec3e56 #206 generate-pdf: migrate ope --use-parentheses (tree variant) to the internal presentation API (#240)
 - 99a8279 #205 generate-pdf: migrate ope (plain 2-term) to the internal presentation API (#239)
