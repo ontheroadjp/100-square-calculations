@@ -3537,6 +3537,12 @@ def build_divisors_block_tex(problem: DivisorsProblem, show_answer: bool) -> str
     return f"{problem.index}) ${problem.a} \\Rightarrow {divisors_tex}$"
 
 
+def build_divisors_slot_content_tex(problem: DivisorsProblem, show_answer: bool) -> str:
+    """Render the number-free Layer-3 body of one `divisors` problem."""
+    divisors_tex = ', '.join(str(d) for d in problem.divisors) if show_answer else BLANK_ANSWER_TEX
+    return f"${problem.a} \\Rightarrow {divisors_tex}$"
+
+
 def build_divisors_page_pair(problems: list[DivisorsProblem], columns: int) -> tuple[Page, Page]:
     """Build the (blank, filled) Page pair for one page's worth of `divisors` problems."""
     blank_page = Page(
@@ -3784,11 +3790,16 @@ def fraction_to_mixed_number_tex(value: Fraction | FractionOperand) -> str:
 
 
 def build_fraction_block_tex(problem: FractionProblem, show_answer: bool) -> str:
+    return f"{problem.index}) {build_fraction_slot_content_tex(problem, show_answer)}"
+
+
+def build_fraction_slot_content_tex(problem: FractionProblem, show_answer: bool) -> str:
+    """Render the number-free body for one fraction-arithmetic slot."""
     symbol = OPERATOR_TEX_SYMBOLS[problem.operator]
     render = fraction_to_mixed_number_tex if problem.mixed_number_display else fraction_to_tex
     result_tex = render(problem.c) if show_answer else BLANK_ANSWER_TEX
     return (
-        f"{problem.index}) $\\displaystyle {render(problem.a)} {symbol} "
+        f"$\\displaystyle {render(problem.a)} {symbol} "
         f"{render(problem.b)} = {result_tex}$"
     )
 
