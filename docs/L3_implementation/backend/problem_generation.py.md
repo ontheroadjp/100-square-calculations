@@ -118,7 +118,9 @@ issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマ�
 
 ## 変更履歴(git log より自動生成)
 
-- ccb1225 feat(#173): problem_generation.py: support simplify/commondenom/frac2dec/dec2frac/divfrac, expose via POST /generate-problems
+- 3b6bc6c refactor(#230): split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits
+- 700f115 #232 backend: remove nuts_calc.py (ReportLab renderer) and the reportlab dependency (#234)
+- 0c1f60c #173 problem_generation.py: support simplify/commondenom/frac2dec/dec2frac/divfrac, expose via POST /generate-problems (#194)
 - 00d9891 #172 problem_generation.py: support evenodd/multiples/divisors/lcm/gcd, expose via POST /generate-problems (#193)
 - 490f44b #171 compare: support int/decimal/fraction kind mixing, expose via POST /generate-problems (#192)
 - 20b9462 #170 backend: support frac/mixed in POST /generate-problems (#191)

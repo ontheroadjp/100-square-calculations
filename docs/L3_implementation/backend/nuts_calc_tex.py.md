@@ -387,7 +387,9 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴(git log より自動生成)
 
-- e6e5b19 feat(#183): compose internal (data x page_shell x content_area_layout x content_format) -> PDF presentation API
+- 3b6bc6c refactor(#230): split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits
+- 700f115 #232 backend: remove nuts_calc.py (ReportLab renderer) and the reportlab dependency (#234)
+- 2eeb1cd #183 nuts_calc_tex.py: compose the internal (data x page_shell x content_area_layout x content_format) -> PDF presentation API (#198)
 - 144d465 #184 nuts_calc_tex.py: introduce Layer-2 content-area base layout for the presentation-layer API (#197)
 - 4eb1500 #182 nuts_calc_tex.py: extract Layer-1 page shell (header/margins/footer) for the presentation-layer API (#196)
 - 490f44b #171 compare: support int/decimal/fraction kind mixing, expose via POST /generate-problems (#192)
@@ -395,6 +397,3 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
 - 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)
 - bc0eef5 #113 nuts_calc_tex.py: allow --carry-borrow with decimal operands (#164)
-- 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)
-- d2e8744 #152 #155 Fix kuku multiplier range and descend order in both renderers (#156)
-- e8db9d7 #112 nuts_calc_tex.py: add mixed-number (帯分数) display support to the frac command (#125)

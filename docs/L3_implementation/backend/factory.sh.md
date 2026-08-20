@@ -30,4 +30,6 @@
 
 ## 変更履歴(git log より自動生成)
 
-（このファイルは issue #232 で L3 ドキュメントを新規作成したため、変更履歴は未収集）
+- 3b6bc6c refactor(#230): split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits
+- 700f115 #232 backend: remove nuts_calc.py (ReportLab renderer) and the reportlab dependency (#234)
+- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

@@ -8,9 +8,9 @@ Flask backend は worksheet 生成(PDF)・問題データのみ生成(JSON、iss
 
 `Content-Type: application/json`。`paper_size` と `command_type` が必須で、欠落時は HTTP 400 を返す(`backend/app.py:17-22`)。
 
-任意フィールドは `RendererRequest` に列挙される(`backend/renderers.py:9-54`)。
+任意フィールドは `RendererRequest` に列挙される(`backend/renderers.py:9-58`)。
 
-- 数値/範囲: `a_value`, `b_value`, `a_min`, `a_max`, `b_min`, `b_max`, `result_max`, `numerator_digits`, `denominator_digits`, `a_decimal_places`, `b_decimal_places`, `decimal_places`, `terms`, `terms_min`, `terms_max`, `rows`, `columns`, `page`
+- 数値/範囲: `a_value`, `b_value`, `a_digits`, `b_digits`, `a_min`, `a_max`, `b_min`, `b_max`, `result_max`, `numerator_digits`, `denominator_digits`, `a_decimal_places`, `b_decimal_places`, `decimal_places`, `terms`, `terms_min`, `terms_max`, `rows`, `columns`, `page`
 - 演算: `operator`, `a_kind`, `b_kind`(いずれも文字列配列)、`carry_mode`/`remainder_mode`(`required`|`none`|`mixed`)
 - flag: `descend`, `reverse`, `shuffle`, `intermediate`, `vertical`, `use_parentheses`, `missing_value`, `mixed_operators`, `same_denominator`, `different_denominators`, `proper_operands`, `proper_result`, `with_bottom_answer`, `merge`, `csv`, `debug`
 
@@ -32,7 +32,7 @@ CLI は validation error を stdout に出すため、`CalledProcessError` 時�
 
 ### Request
 
-`Content-Type: application/json`。`paper_size`、`command_type`(`'ope'`/`'com'`/`'99'`/`'aBc'`/`'squ'`/`'pi'`/`'frac'`/`'mixed'`/`'compare'`/`'evenodd'`/`'multiples'`/`'divisors'`/`'lcm'`/`'gcd'`/`'simplify'`/`'commondenom'`/`'frac2dec'`/`'dec2frac'`/`'divfrac'` に対応)、`num`(生成する問題数、正の整数)が必須で、いずれか欠落・`num` が不正な場合は HTTP 400 を返す(`backend/app.py`)。それ以外の任意フィールドは `POST /generate-pdf` と同じ `RendererRequest` を使う。`com`/`99`/`squ`/`pi` は `a_value` も必須(`com` はさらに最小値 `nuts_calc_tex.MIN_COMPLEMENT_TARGET` 以上)。`frac`/`mixed`/`compare`/`simplify`/`commondenom`/`frac2dec` は `numerator_digits`/`denominator_digits`(既定1、範囲1〜3)、`operator` 等の CLI 相当パラメータを任意で受け付け、`nuts_calc_tex.py` の `_init()` と同じバリデーション(排他フラグ・digit 制約・`reducible_mode` の operator/operand-kind 制約、`compare` は `comparison_pattern`+非既定 kind の組み合わせ制約)を再現する。`multiples`/`divisors` は `a_min`(既定1)が1未満だと拒否し、`multiples` はさらに `multiples_count`(既定 `nuts_calc_tex.DEFAULT_MULTIPLES_COUNT`)が `nuts_calc_tex.MIN_MULTIPLES_COUNT` 未満だと拒否する。`lcm`/`gcd`/`divfrac` は `a_value`/`b_value` ショートハンドに対応する(`evenodd`/`multiples`/`divisors` は非対応で `a_min`/`a_max` を直接使う)。`divfrac` はさらに `b_min`(既定1)が1未満だと拒否する(0除算回避)。`dec2frac` は digit 系オプションを受け付けない(小数桁数は `nuts_calc_tex.py` 側の固定レンジからランダムに決まる)。
+`Content-Type: application/json`。`paper_size`、`command_type`(`'ope'`/`'com'`/`'99'`/`'aBc'`/`'squ'`/`'pi'`/`'frac'`/`'mixed'`/`'compare'`/`'evenodd'`/`'multiples'`/`'divisors'`/`'lcm'`/`'gcd'`/`'simplify'`/`'commondenom'`/`'frac2dec'`/`'dec2frac'`/`'divfrac'` に対応)、`num`(生成する問題数、正の整数)が必須で、いずれか欠落・`num` が不正な場合は HTTP 400 を返す(`backend/app.py`)。それ以外の任意フィールドは `POST /generate-pdf` と同じ `RendererRequest` を使う。`com`/`99`/`squ`/`pi` は `a_value` も必須(`com` はさらに最小値 `nuts_calc_tex.MIN_COMPLEMENT_TARGET` 以上)。`frac`/`mixed`/`compare`/`simplify`/`commondenom`/`frac2dec` は `numerator_digits`/`denominator_digits`(既定1、範囲1〜3)、`operator` 等の CLI 相当パラメータを任意で受け付け、`nuts_calc_tex.py` の `_init()` と同じバリデーション(排他フラグ・digit 制約・`reducible_mode` の operator/operand-kind 制約、`compare` は `comparison_pattern`+非既定 kind の組み合わせ制約)を再現する。`multiples`/`divisors` は `a_min`(既定1)が1未満だと拒否し、`multiples` はさらに `multiples_count`(既定 `nuts_calc_tex.DEFAULT_MULTIPLES_COUNT`)が `nuts_calc_tex.MIN_MULTIPLES_COUNT` 未満だと拒否する。`lcm`/`gcd`/`divfrac` は `a_digits`/`b_digits` ショートハンドに対応する(issue #230。`a_value`/`b_value` はこの3コマンドでは読まれない。`evenodd`/`multiples`/`divisors` は `a_digits` にも非対応で `a_min`/`a_max` を直接使う)。`divfrac` はさらに `b_min`(既定1)が1未満だと拒否する(0除算回避)。`dec2frac` は digit 系オプションを受け付けない(小数桁数は `nuts_calc_tex.py` 側の固定レンジからランダムに決まる)。
 
 ### Processing and response
 

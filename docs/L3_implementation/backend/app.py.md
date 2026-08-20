@@ -28,6 +28,8 @@
 
 ## 変更履歴(git log より自動生成)
 
-- bf8fb57 feat(#199): migrate generate-pdf's com command group to the internal presentation API
+- 3b6bc6c refactor(#230): split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits
+- 700f115 #232 backend: remove nuts_calc.py (ReportLab renderer) and the reportlab dependency (#234)
+- 3d752d8 #199 generate-pdf: migrate the com command group to the internal presentation API (#200)
 - 13bef63 #138 backend: add POST /generate-problems for PDF-free ope problem generation (#175)
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

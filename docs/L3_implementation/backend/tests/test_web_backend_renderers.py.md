@@ -14,7 +14,9 @@ FlaskバックエンドがPDF生成リクエストを正しいCLI引数へ変換
 
 ## 変更履歴(git log より自動生成)
 
-- 506d7b4 feat(#186): make latex+lualatex the default reachable configuration
+- 3b6bc6c refactor(#230): split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits
+- 700f115 #232 backend: remove nuts_calc.py (ReportLab renderer) and the reportlab dependency (#234)
+- 9393898 #186 renderers/engine: make latex+lualatex the default (and only reachable) configuration (#187)
 - 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)
 - 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)
 - 26ec449 #93 nuts_calc_tex.py: add optional name field to generated worksheets (#105)
