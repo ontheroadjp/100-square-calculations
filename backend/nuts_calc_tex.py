@@ -4676,8 +4676,13 @@ def generate_frac2dec_problems(
 
 def build_frac2dec_block_tex(problem: Frac2DecProblem, show_answer: bool) -> str:
     """Render one `frac2dec` problem: `n) $\\frac{3}{4} \\Rightarrow 0.75$` (blank hides the decimal)."""
+    return f"{problem.index}) {build_frac2dec_slot_content_tex(problem, show_answer)}"
+
+
+def build_frac2dec_slot_content_tex(problem: Frac2DecProblem, show_answer: bool) -> str:
+    """Render number-free `frac2dec` content for a presentation slot."""
     result_tex = problem.decimal_display if show_answer else BLANK_ANSWER_TEX
-    return f"{problem.index}) $\\displaystyle {fraction_to_tex(problem.operand)} \\Rightarrow {result_tex}$"
+    return f"$\\displaystyle {fraction_to_tex(problem.operand)} \\Rightarrow {result_tex}$"
 
 
 def build_frac2dec_page_pair(problems: list[Frac2DecProblem], columns: int) -> tuple[Page, Page]:
