@@ -17,9 +17,9 @@ DB は存在しないため `database.md` は生成していない(永続化層�
 ### `POST /generate-pdf`
 
 - 入力: JSON ボディ。必須キーは `paper_size`, `command_type`。任意キーには通常 CLI option、分数・小数・mixed・compare option、LaTeX 専用の `vertical`/`use_parentheses`/`missing_value`/`terms` 系、`carry_mode`、`remainder_mode`、`reducible_mode`、`result_max` を含む(`backend/renderers.py:9-54`)。
-- 処理: `com`(#199)、移行済み `ope` variants(#205〜#207)、`99`〜`multiples`(#208〜#215)、`divisors`(#216)、`frac`(#217)、基本2項 `mixed`(#218)、`divfrac`(#219)、`simplify`(#220)は、CLI/subprocess 経路を使わず `nuts_calc_tex.py` の内部プレゼンテーション API(`build_presentation_document_tex`)を Flask プロセス内で直接呼んで PDF を生成する(`backend/app.py:90-187,265-327,1037-1326,1330-1395`)。`divfrac` は未約分の `a/b` を保つ pattern-1b slot formatter、`simplify` は未約分から約分結果への矢印を保つ pattern-4b slot formatter を Layer 2 の番号ボックスと合成する。いずれも1ページ blank のベーシックケース限定で、`mixed` の terms系・mixed-operator・reducible variants と未移行 command/variant は従来どおり `renderers.run` の subprocess 経路を使う。
+- 処理: `com`(#199)、移行済み `ope` variants(#205〜#207)、`99`〜`multiples`(#208〜#215)、`divisors`(#216)、`frac`(#217)、基本2項 `mixed`(#218)、`divfrac`(#219)、`simplify`(#220)、`frac2dec`(#221)は、CLI/subprocess 経路を使わず `nuts_calc_tex.py` の内部プレゼンテーション API(`build_presentation_document_tex`)を Flask プロセス内で直接呼んで PDF を生成する(`backend/app.py:90-187,265-327,1037-1375,1378-1455`)。`divfrac` は未約分の `a/b` を保つ pattern-1b slot formatter、`simplify` と `frac2dec` は入力から変換結果への矢印を保つ pattern-4b slot formatter を Layer 2 の番号ボックスと合成する。いずれも1ページ blank のベーシックケース限定で、`mixed` の terms系・mixed-operator・reducible variants と未移行 command/variant は従来どおり `renderers.run` の subprocess 経路を使う。
 - 出力: 成功時は PDF attachment。JSON/必須値欠落は HTTP 400、renderer/CLI 等の実行時失敗は HTTP 500(`backend/app.py`)。
-- 入力検証: 必須キーの存在を共通検証し、内部 API builder は command 固有値も検証する。`divfrac` は `a_digits`/`b_digits` または明示 range を解決して `b_min >= 1` を要求し、`simplify` は fraction digit を1〜3に制限する。両経路とも rows/columns を1以上に制限する。
+- 入力検証: 必須キーの存在を共通検証し、内部 API builder は command 固有値も検証する。`divfrac` は `a_digits`/`b_digits` または明示 range を解決して `b_min >= 1` を要求し、`simplify`/`frac2dec` は fraction digit を1〜3に制限する。各経路とも rows/columns を1以上に制限する。
 
 ### `POST /generate-problems`(issue #138)
 

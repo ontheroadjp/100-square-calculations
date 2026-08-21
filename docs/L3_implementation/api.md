@@ -1,6 +1,6 @@
 # Web API
 
-Flask backend は worksheet 生成(PDF)・問題データのみ生成(JSON、issue #138)・renderer 能力確認の3エンドポイントを提供する。DB は使わない。`POST /generate-pdf` は移行済み command/variant(`divfrac`/`simplify` を含む)を `nuts_calc_tex.py` の内部 presentation API で生成し、未移行 command/variant だけを `backend/renderers.py` の CLI/subprocess 経路へフォールバックする hybrid routing である(`backend/app.py:90-187,265-327,1037-1326,1330-1395`)。`POST /generate-problems`(`command_type` は `'ope'`/`'com'`/`'99'`/`'aBc'`/`'squ'`/`'pi'`/`'frac'`/`'mixed'`/`'compare'`/`'evenodd'`/`'multiples'`/`'divisors'`/`'lcm'`/`'gcd'`/`'simplify'`/`'commondenom'`/`'frac2dec'`/`'dec2frac'`/`'divfrac'` に対応、`'100'` は対象外)も CLI を subprocess 起動せず、`backend/problem_generation.py` が既存データ生成関数を直接呼び出す。
+Flask backend は worksheet 生成(PDF)・問題データのみ生成(JSON、issue #138)・renderer 能力確認の3エンドポイントを提供する。DB は使わない。`POST /generate-pdf` は移行済み command/variant(`divfrac`/`simplify`/`frac2dec` を含む)を `nuts_calc_tex.py` の内部 presentation API で生成し、未移行 command/variant だけを `backend/renderers.py` の CLI/subprocess 経路へフォールバックする hybrid routing である(`backend/app.py:90-187,265-327,1037-1375,1378-1455`)。`POST /generate-problems`(`command_type` は `'ope'`/`'com'`/`'99'`/`'aBc'`/`'squ'`/`'pi'`/`'frac'`/`'mixed'`/`'compare'`/`'evenodd'`/`'multiples'`/`'divisors'`/`'lcm'`/`'gcd'`/`'simplify'`/`'commondenom'`/`'frac2dec'`/`'dec2frac'`/`'divfrac'` に対応、`'100'` は対象外)も CLI を subprocess 起動せず、`backend/problem_generation.py` が既存データ生成関数を直接呼び出す。
 
 ## `POST /generate-pdf`
 
@@ -18,7 +18,7 @@ backend は renderer 互換性を事前検証せず、値を CLI option へ変�
 
 ### Processing and response
 
-`com`/`lcm`/`divfrac`/`gcd`/`evenodd`/`99`/`aBc`/`pi`/移行済み `ope` variants/`squ`/`multiples`/`divisors`/`frac`/`simplify` と基本2項 `mixed` は対応する `_generate_*_pdf` helper から `build_presentation_document_tex` と選択済み `LatexEngineAdapter` をプロセス内で直接呼ぶ。それ以外は `NUTS_CALC_RENDERER` から `latex` を選び、実行中の Python interpreter と CLI script を subprocess 起動する。`mixed` の terms系・`mixed_operators`・`reducible_mode` variants は明示的に subprocess を維持する。内部 API 経路は既定の1ページ blank basic-caseで、出力名は両経路とも `worksheet_<uuid>.pdf`、`PDF_OUTPUT_DIR` に生成後 `send_file(..., as_attachment=True)` で返す(`backend/app.py:90-187,265-327,1037-1326,1330-1395`)。
+`com`/`lcm`/`divfrac`/`gcd`/`evenodd`/`99`/`aBc`/`pi`/移行済み `ope` variants/`squ`/`multiples`/`divisors`/`frac`/`simplify`/`frac2dec` と基本2項 `mixed` は対応する `_generate_*_pdf` helper から `build_presentation_document_tex` と選択済み `LatexEngineAdapter` をプロセス内で直接呼ぶ。それ以外は `NUTS_CALC_RENDERER` から `latex` を選び、実行中の Python interpreter と CLI script を subprocess 起動する。`mixed` の terms系・`mixed_operators`・`reducible_mode` variants は明示的に subprocess を維持する。内部 API 経路は既定の1ページ blank basic-caseで、出力名は両経路とも `worksheet_<uuid>.pdf`、`PDF_OUTPUT_DIR` に生成後 `send_file(..., as_attachment=True)` で返す(`backend/app.py:90-187,265-327,1037-1375,1378-1455`)。
 
 | 条件 | Status | Body |
 |---|---:|---|
