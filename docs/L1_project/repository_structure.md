@@ -22,7 +22,7 @@
 ├── frontend/
 │   └── web/               # HTML/CSS(Sass)/JS のみの軽量実装(新規、issue #88)。日本語のみ、i18nライブラリ不要。かつて併存していた spa/(React SPA)は issue #233 で削除
 │       ├── index.html / catalog.html / preset.html  # 画面ごとに実在するページ(SPAではない複数ページ構成、ユーザー要望)。custom.html は issue #97 で削除
-│       ├── vite.config.js       # Vite マルチページビルド設定(3 HTML エントリ、issue #97 で custom entry を削除)
+│       ├── vite.config.js / vite.config.test.js  # Vite マルチページビルド設定(3 HTML エントリ)と dev sourcemap 設定テスト
 │       ├── src/
 │       │   ├── home.js / catalog.js / preset.js  # 各ページのエントリスクリプト。custom.js は issue #97 で削除
 │       │   ├── navShell.js  # モバイル下部タブバー/PCサイドバーの共通ナビゲーションシェル(issue #97)
@@ -44,7 +44,7 @@
 - `memo.md`: コードではなく、暗算指導法・学習ステップ・受験算数における計算力の重要性を説明する日本語の教育コンテンツ。
 - `LICENSE`: MIT License(`LICENSE:1-21`、Copyright (c) 2025 ontheroadjp)。
 - `README.md` / `README_ja.md`: 英語/日本語で内容が対応した利用者向け説明。CLI・`factory.sh`・Web UI(バックエンド/フロントエンド起動手順)をカバーしている。README.md には `Architecture`/`Design Principles` セクションがあるが README_ja.md には対応するセクションがなく、両者は完全な対訳ではなくなっている(下記「未確認事項」参照)。
-- `backend/tests/`: pytestテストスイート(26個の `test_*.py`、`test_problem_generation.py` は issue #138 の `backend/problem_generation.py` を検証する)。Flask/CLI変換、各ドリル生成を検証する(issue #232 でレンダラーは `latex` の1種類のみになった)。`frontend/web` には `node:test` 2ファイルがある(かつて併存していた `frontend/spa` には3ファイルあったが issue #233 で削除)。詳細は [[../L2_development/test]]。
+- `backend/tests/`: pytestテストスイート(26個の `test_*.py`、`test_problem_generation.py` は issue #138 の `backend/problem_generation.py` を検証する)。Flask/CLI変換、各ドリル生成を検証する(issue #232 でレンダラーは `latex` の1種類のみになった)。`frontend/web` には `node:test` 3ファイル(`src/` の2ファイルと `vite.config.test.js`)がある。詳細は [[../L2_development/test]]。
 - `docs/reference/`: 教材仕様の根拠となる一次資料を出典・取得日・SHA-256と共に保存する(`docs/reference/README.md:1-24`)。
 - `backend/vendor/texmf/tex/latex/longdivision/`: CTAN の `longdivision` パッケージ(LPPLライセンス)を vendoring したもの。Ubuntu の `texlive-latex-extra` に同梱されていないため、`nuts_calc_tex.py` が `TEXINPUTS` 経由でこのパスを解決する([[../L3_implementation/nuts_calc_tex.py]] 参照)。
 - `backend/app.py`: Flask アプリ。`POST /generate-pdf`(PDF生成)、`POST /generate-problems`(PDFを生成せず問題データのみJSONで返す、issue #138)、`GET /renderer-info`(有効レンダラー名の取得)の3エンドポイント。コマンド構築・レンダラー選択・subprocess実行は `backend/renderers.py` に切り出されている(詳細は [[../L1_project/project_overview]])。`frontend/web` から利用される(かつては `frontend/spa` も共通利用していたが issue #233 で削除)。`POST /generate-problems` は現状 `frontend/web` の `preset.html` のみが呼ぶ。
@@ -57,4 +57,4 @@
 - `docs/` 以外に、リポジトリ外で管理されているドキュメント(Notion、Google Docs等)があるかどうかは本リポジトリから確認できない。
 - `backend/generated_pdfs/`(実行時に自動作成されるディレクトリ、`backend/app.py:11-12`)が `.gitignore` の対象になっていない点は [[../L0_concept/policy]] に記録済み。
 - README.md には存在する `Architecture`/`Design Principles` セクションが README_ja.md にはない(`grep -n '^##' README_ja.md` で確認済み)。意図的な省略か更新漏れかは本リポジトリから確認できない。
-- ブラウザDOM/E2Eテストの方針は未確認。`frontend/web` の2つの `node:test` はデータモデルと純粋ヘルパーのみを対象とする。
+- ブラウザDOM/E2Eテストの方針は未確認。`frontend/web` の3つの `node:test` はデータモデル・純粋ヘルパー・Vite 設定のみを対象とする。

@@ -74,20 +74,20 @@ cd backend
 pip install pytest
 python3 -m pytest -q
 ```
-`backend/pytest.ini` により `backend/` ディレクトリ内で実行する。issue #232(`nuts_calc.py` 削除)後は687件全てが成功する。詳細は [[test]]。
+`backend/pytest.ini` により `backend/` ディレクトリ内で実行する。2026-08-21 の再検証では808件全てが成功した。詳細は [[test]]。
 
 frontend の純粋関数テストは `package.json` に script がないため直接実行する:
 
 ```bash
-node --test frontend/web/src/drillPresets.test.js frontend/web/src/presetDetail.test.js
+node --test frontend/web/src/drillPresets.test.js frontend/web/src/presetDetail.test.js frontend/web/vite.config.test.js
 ```
 
-45件すべて成功した(かつて併存していた `frontend/spa` は2026-08-19時点で `node --test frontend/spa/src/drillPresets.test.js frontend/spa/src/drillCatalog.test.js frontend/spa/src/verticalLayout.test.js` の17件すべて成功していたが、`frontend/spa` 自体が issue #233 で削除された)。
+2026-08-21 の再検証では3ファイル59件すべて成功した。`frontend/web/vite.config.test.js:1-9` は開発用 CSS sourcemap が有効で production sourcemap は未設定であることを検証する。
 
 ## ビルド
 
 - CLI/Web バックエンド: ビルド工程なし(PDF/CSV 生成そのものが成果物)。
-- `frontend/web`: `npm run build`(Vite、マルチページ)。2026-08-12 実機確認済み(成功)。(かつて併存していた `frontend/spa` の `npm run build` も同日実機確認済み(成功)だったが、`frontend/spa` 自体が issue #233 で削除された。)
+- `frontend/web`: `npm run build`(Vite、マルチページ)。2026-08-21 に Vite 8.2.1 で実機確認済み(3 HTML エントリの build 成功)。
 
 ## 未確認事項
 

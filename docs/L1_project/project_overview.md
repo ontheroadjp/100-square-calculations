@@ -13,9 +13,9 @@ CI 定義・パッケージ定義(lock file 等)は Python 側に存在しない
 | CLI 言語 | Python 3 | `backend/nuts_calc_tex.py:1` shebang、`README.md:106` |
 | 主要レンダリング方式(CLI) | LaTeX(既定エンジン `lualatex`、`pdflatex` も選択可、issue #121/#186) | `backend/nuts_calc_tex.py` の `LatexEngineAdapter` 群 |
 | Web バックエンド | Flask + Flask-Cors | `backend/app.py:1-2,7-8`、`README.md:107-108` |
-| Web フロントエンド | vanilla JS + Vite(React/i18nライブラリ非依存)+ Sass(日本語のみ、issue #88) | `frontend/web/package.json`、[[../L3_implementation/specification_summary]] |
+| Web フロントエンド | vanilla JS + Vite 8.2.1 + Sass 1.102.0 + KaTeX 0.16.47(React/i18nライブラリ非依存、日本語のみ、issue #88) | `frontend/web/package.json:1-17`、`frontend/web/package-lock.json:698,1110,1158`、[[../L3_implementation/specification_summary]] |
 | バッチ生成 | Bash(`set -Ceu`) | `backend/factory.sh:1,38` |
-| テスト | pytest(`backend/tests/`、26個の `test_*.py`) + Node.js 組み込み `node:test`(`frontend/web` 2ファイル) | `backend/pytest.ini:1-3`、`backend/tests/`、`frontend/web/src/*.test.js` |
+| テスト | pytest(`backend/tests/`、26個の `test_*.py`) + Node.js 組み込み `node:test`(`frontend/web` 3ファイル) | `backend/pytest.ini:1-3`、`backend/tests/`、`frontend/web/src/*.test.js`、`frontend/web/vite.config.test.js` |
 | パッケージマネージャ(Python) | pip(lock file なし。旧 `setup.py` は削除済み、`git log` のコミット `d9fc0a3` で確認) | `README.md:13-14` は pip インストールを謳うが検証すると裏付けとなるパッケージ定義ファイルは存在しない |
 | パッケージマネージャ(Web) | npm(`frontend/web` が独立した `package-lock.json` を持つ) | `frontend/web/package-lock.json` |
 | ライセンス | MIT | `LICENSE:1-21` |
@@ -66,4 +66,4 @@ React・i18n ライブラリを使わず(日本語のみ対応)、HTML/CSS(Sass)
 
 - CI/CD: `.github/workflows` 等の定義は存在しない(`find .github -type f` で確認済み)。
 - Web UI の実運用(本番デプロイ)構成: README には開発サーバーの起動手順と frontend build だけがあり、本番デプロイ手順はない。
-- Python/Node 単体テストは Flask と React を実プロセスで接続する結合テストを含まない。React コンポーネントの DOM 描画も未テストで、frontend の2テストは純粋なプリセット/レイアウト関数だけを対象とする([[../L2_development/test]])。
+- Python/Node 単体テストは Flask とブラウザを実プロセスで接続する結合テストを含まない。ブラウザ DOM 描画も未テストで、frontend の3テストは純粋なプリセット/レイアウト関数と Vite 設定だけを対象とする([[../L2_development/test]])。
