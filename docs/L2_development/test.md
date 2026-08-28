@@ -43,7 +43,7 @@ npm run build
 
 | 検証 | 結果 |
 |---|---|
-| `cd backend && python3 -m pytest -q` | 808 passed in 94.58s |
+| `cd backend && python3 -m pytest -q` | 808 passed in 94.58s(2026-08-21 時点)。その後 issue #222 で +6、issue #228 で +5・1 置換となり、2026-08-29 に `python3 -m pytest -q --ignore=tests/test_nuts_calc_init.py` で 818 passed を再確認 |
 | `frontend/web` `node --test ...`(3ファイル) | 59 passed |
 | `cd frontend/web && npm run build` | 成功(3 HTML エントリ: `index.html`/`catalog.html`/`preset.html`。`custom.html` は issue #97 で削除) |
 
