@@ -4773,8 +4773,13 @@ def generate_dec2frac_problems(order: int, start_index: int) -> list[Dec2FracPro
 
 def build_dec2frac_block_tex(problem: Dec2FracProblem, show_answer: bool) -> str:
     """Render one `dec2frac` problem: `n) $0.6 \\Rightarrow \\frac{3}{5}$` (blank hides the fraction)."""
+    return f"{problem.index}) {build_dec2frac_slot_content_tex(problem, show_answer)}"
+
+
+def build_dec2frac_slot_content_tex(problem: Dec2FracProblem, show_answer: bool) -> str:
+    """Render number-free `dec2frac` content for a presentation slot."""
     result_tex = fraction_to_tex(problem.reduced) if show_answer else BLANK_ANSWER_TEX
-    return f"{problem.index}) $\\displaystyle {problem.decimal_display} \\Rightarrow {result_tex}$"
+    return f"$\\displaystyle {problem.decimal_display} \\Rightarrow {result_tex}$"
 
 
 def build_dec2frac_page_pair(problems: list[Dec2FracProblem], columns: int) -> tuple[Page, Page]:
