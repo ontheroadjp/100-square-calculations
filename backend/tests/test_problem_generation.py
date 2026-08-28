@@ -223,9 +223,40 @@ def test_generate_problems_latex_decimal_places_are_recorded() -> None:
     assert all(problem["a_decimal_places"] == 1 and problem["b_decimal_places"] == 0 for problem in problems)
 
 
-def test_generate_problems_hundred_square_is_explicitly_unsupported() -> None:
-    params = {"paper_size": "A4", "command_type": "100", "num": 1, "a_value": 1, "b_value": 1}
-    with pytest.raises(ValueError, match="not yet supported"):
+def test_generate_hundred_square_table_returns_10x10_grid() -> None:
+    result = problem_generation.generate_hundred_square_table(
+        {"paper_size": "A4", "command_type": "100", "num": 1}
+    )
+    assert set(result) == {"table"}
+    table = result["table"]
+    left_values = table["left_values"]
+    top_values = table["top_values"]
+    answers = table["answers"]
+    assert len(left_values) == 10
+    assert len(top_values) == 10
+    assert len(answers) == 10
+    for row in answers:
+        assert len(row) == 10
+    for r in range(10):
+        for c in range(10):
+            assert answers[r][c] == left_values[r] + top_values[c]
+    assert all(1 <= value <= 9 for value in left_values + top_values)
+
+
+def test_generate_hundred_square_table_rejects_too_narrow_range() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "100", "num": 1,
+        "a_min": 1, "a_max": 3,  # only 3 distinct values, below the 5 the table needs
+    }
+    with pytest.raises(ValueError):
+        problem_generation.generate_hundred_square_table(params)
+
+
+def test_generate_problems_hundred_square_points_to_dedicated_helper() -> None:
+    # `100` is reversed from "not yet supported" (issue #228): generate_problems()
+    # now redirects direct callers to generate_hundred_square_table().
+    params = {"paper_size": "A4", "command_type": "100", "num": 1}
+    with pytest.raises(ValueError, match="generate_hundred_square_table"):
         problem_generation.generate_problems(params, "latex")
 
 

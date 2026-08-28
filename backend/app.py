@@ -1519,6 +1519,14 @@ def generate_problems():
 
     try:
         renderer_name = renderers.get_renderer_name()
+        if data.get('command_type') == '100':
+            # `100` (hundred-square addition table) uses a dedicated
+            # `{"table": {...}}` response envelope, not `{"problems": [...]}`:
+            # a single 10x10 grid has no `num`-many problem decomposition
+            # (issue #228, reversing #169's exclusion). `num` stays required
+            # by the guard above for uniform validation, but is ignored here.
+            table = problem_generation.generate_hundred_square_table(data)
+            return jsonify(table)
         problems = problem_generation.generate_problems(data, renderer_name)
         return jsonify({'problems': problems})
 
