@@ -9,13 +9,15 @@ subprocess-based, PDF-generation (presentation) layer.
 `com`/`99`/`aBc`/`squ`/`pi` (issue #169), `frac`/`mixed` (issue #170),
 `compare` (issue #171), `evenodd`/`multiples`/`divisors`/`lcm`/`gcd`
 (issue #172), and `simplify`/`commondenom`/`frac2dec`/`dec2frac`/`divfrac`
-(issue #173) via `_COMMAND_GENERATORS`. `100` is intentionally
-excluded (raises ValueError): nuts_calc_tex.py's generate_hundred_square()
-returns a single HundredSquareTable object, not a `num`-many problem list,
-so it does not fit the `{"problems": [...]}` envelope this endpoint
-returns; representing it would need its own response shape, which is a
-bigger contract decision left for a future issue if real demand shows up
-(issue #169). Every other command type raises ValueError; see issue #166.
+(issue #173) via `_COMMAND_GENERATORS`. `100` is also supported, but NOT
+through `_COMMAND_GENERATORS` or the `{"problems": [...]}` envelope: its
+nuts_calc_tex.py `generate_hundred_square()` output is a single 10x10
+HundredSquareTable, not a `num`-many problem list, so
+`generate_hundred_square_table()` returns it in a dedicated top-level
+`{"table": {...}}` envelope instead (a sibling key to `problems`, never
+nested inside it). This reverses issue #169's earlier decision to exclude
+`100` here, per the 2026-08-19 /mtg on issue #174 (issue #228). Every other
+command type raises ValueError; see issue #166.
 """
 
 import dataclasses
@@ -68,6 +70,20 @@ def generate_problems(params: renderers.RendererRequest, renderer_name: str | No
 
     if command_type == "ope":
         return _generate_ope_problems(params, num)
+
+    if command_type == "100":
+        # `100` is served through generate_hundred_square_table()'s dedicated
+        # `{"table": {...}}` envelope, not this function's `{"problems": [...]}`
+        # list contract (issue #228). The `/generate-problems` endpoint routes
+        # `100` there before ever calling generate_problems(); this branch only
+        # guards direct callers, giving them an explicit pointer instead of the
+        # generic "not yet supported" fallthrough below -- which would now be
+        # misleading, since `100` IS supported, just with a different shape.
+        raise ValueError(
+            "command_type '100' is served by generate_hundred_square_table(), not "
+            "generate_problems(); its single 10x10 table does not fit the "
+            '\'{"problems": [...]}\' list contract (issue #228).'
+        )
 
     generator = _COMMAND_GENERATORS.get(command_type)
     if generator is None:
@@ -215,6 +231,75 @@ def resolve_digit_count_range(
     if digit_count is not None:
         return nuts_calc_tex.set_min_max_value(digit_count)
     return params.get(min_key, default_min), params.get(max_key, default_max)
+
+
+# Minimum distinct values each `100` axis range must span. nuts_calc_tex's
+# sample_hundred_square_values() duplicates the axis list
+# HUNDRED_SQUARE_SAMPLE_REPEAT_FACTOR times, then draws HUNDRED_SQUARE_SIZE
+# without replacement, so a shorter range makes its bare `random.sample`
+# raise an unexplained ValueError; generate_hundred_square_table() checks
+# this threshold first to raise an explanatory one instead.
+_HUNDRED_SQUARE_MIN_AXIS_VALUES = (
+    nuts_calc_tex.HUNDRED_SQUARE_SIZE // nuts_calc_tex.HUNDRED_SQUARE_SAMPLE_REPEAT_FACTOR
+)
+
+
+def generate_hundred_square_table(params: renderers.RendererRequest) -> dict[str, object]:
+    """Generate one `100` addition table for the `/generate-problems` endpoint.
+
+    `100` is the single command_type this endpoint serves that does NOT use
+    the `{"problems": [...]}` envelope every other command shares. A single
+    10x10 addition table has no natural `num`-many "problem" decomposition,
+    so the `problems` list would force an artificial shape onto it. Instead
+    this returns a dedicated top-level `table` key -- a sibling of `problems`,
+    never nested inside it::
+
+        {"table": {"left_values": [ ...10 ints... ],
+                   "top_values":  [ ...10 ints... ],
+                   "answers":     [ [ ...10 ints... ], ...10 rows total... ]}}
+
+    where ``answers[r][c] == left_values[r] + top_values[c]``. This reverses
+    issue #169's decision to exclude `100` from `/generate-problems`, per the
+    2026-08-19 /mtg on issue #174 (issue #228).
+
+    The a/b ranges are resolved exactly like the other
+    nuts_calc_tex.DIGIT_COUNT_SHORTHAND_COMMANDS via
+    `resolve_digit_count_range` (a_digits/b_digits digit-count shorthand,
+    else explicit a_min/a_max / b_min/b_max, else the module DEFAULT_*_MIN/MAX
+    of 1..9). `params` may carry `num` -- the endpoint keeps it required for
+    uniform input validation across all command types -- but it is
+    semantically irrelevant here and is ignored, mirroring how the CLI
+    accepts but ignores rows/columns/with_bottom_answer for `100`.
+
+    Raises ValueError if either axis range spans fewer than
+    `_HUNDRED_SQUARE_MIN_AXIS_VALUES` distinct values (see that constant).
+    """
+    a_min, a_max = resolve_digit_count_range(
+        params, "a_digits", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX,
+    )
+    b_min, b_max = resolve_digit_count_range(
+        params, "b_digits", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX,
+    )
+    nums_left = list(range(a_min, a_max + 1))
+    nums_top = list(range(b_min, b_max + 1))
+    if (
+        len(nums_left) < _HUNDRED_SQUARE_MIN_AXIS_VALUES
+        or len(nums_top) < _HUNDRED_SQUARE_MIN_AXIS_VALUES
+    ):
+        raise ValueError(
+            f"the '100' command needs an a/b range of at least "
+            f"{_HUNDRED_SQUARE_MIN_AXIS_VALUES} distinct values to fill the "
+            f"{nuts_calc_tex.HUNDRED_SQUARE_SIZE}x{nuts_calc_tex.HUNDRED_SQUARE_SIZE} table"
+        )
+
+    table = nuts_calc_tex.generate_hundred_square(nums_left, nums_top)
+    return {
+        "table": {
+            "left_values": table.left_values,
+            "top_values": table.top_values,
+            "answers": table.answers,
+        }
+    }
 
 
 def _validate_intermediate(operator: list[str], b_max: int, single_digit_max: int) -> None:
@@ -631,8 +716,11 @@ def _generate_divfrac_problems(params: renderers.RendererRequest, num: int) -> l
 # command_type -> generator dispatch table (issue #167's contract): each
 # sub-issue of #166 adds one generator function and one entry here, without
 # touching the shared if/elif chain generate_problems() used to have.
-# `100` has no entry (see the module docstring for why) and falls through
-# to generate_problems()'s "not yet supported" ValueError.
+# `100` has no entry: it is handled by generate_hundred_square_table() and
+# the endpoint's dedicated `command_type == '100'` branch, not this dispatch
+# table, because its single-table `{"table": {...}}` contract does not fit
+# the list-shaped generators collected here (issue #228). generate_problems()
+# also raises a targeted ValueError for `100` pointing callers there.
 _COMMAND_GENERATORS = {
     "com": _generate_com_problems,
     "99": _generate_kuku_problems,

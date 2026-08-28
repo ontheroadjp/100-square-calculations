@@ -88,6 +88,35 @@ def test_generate_problems_rejects_invalid_num(client, num) -> None:
     assert "num" in response.get_json()["error"]
 
 
+def test_generate_problems_hundred_square_returns_table_envelope(client) -> None:
+    response = client.post(
+        "/generate-problems", json={"paper_size": "A4", "command_type": "100", "num": 1}
+    )
+    assert response.status_code == 200
+    body = response.get_json()
+    assert "table" in body
+    assert "problems" not in body
+    table = body["table"]
+    left_values = table["left_values"]
+    top_values = table["top_values"]
+    answers = table["answers"]
+    assert len(left_values) == 10
+    assert len(top_values) == 10
+    assert len(answers) == 10
+    for r in range(10):
+        assert len(answers[r]) == 10
+        for c in range(10):
+            assert answers[r][c] == left_values[r] + top_values[c]
+
+
+def test_generate_problems_hundred_square_still_requires_num(client) -> None:
+    response = client.post(
+        "/generate-problems", json={"paper_size": "A4", "command_type": "100"}
+    )
+    assert response.status_code == 400
+    assert "num" in response.get_json()["error"]
+
+
 def test_generate_problems_maps_data_layer_value_error_to_500(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
 
