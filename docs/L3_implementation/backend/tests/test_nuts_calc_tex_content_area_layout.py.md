@@ -33,6 +33,7 @@ TeX文字列の構成だけを検証し、実際の LaTeX compile や画像差�
 
 ## 変更履歴（git log より自動生成）
 
+- 21b1a66 feat(#229): migrate the 100 hundred-square command to the internal presentation API
 - ce8f8b6 feat(#222): migrate dec2frac to the internal presentation API (#261)
 - 4cb1c11 feat(#221): migrate frac2dec to presentation API
 - 156c2d2 Merge remote-tracking branch 'origin/main' into feat/220-migrate-simplify-presentation-api

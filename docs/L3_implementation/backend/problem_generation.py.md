@@ -128,6 +128,7 @@ issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマ�
 
 ## 変更履歴(git log より自動生成)
 
+- 21b1a66 feat(#229): migrate the 100 hundred-square command to the internal presentation API
 - c952709 feat(#228): expose the 100 hundred-square table via the /generate-problems JSON contract (#262)
 - 40ad870 #209 generate-pdf: migrate squ to the internal presentation API (#243)
 - 9f75d13 feat(#210): migrate generate-pdf pi command to internal presentation API

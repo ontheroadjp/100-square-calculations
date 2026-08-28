@@ -23,6 +23,7 @@ Flask test client の単体・結合テストであり、実 HTTP server や実 
 
 ## 変更履歴（git log より自動生成）
 
+- 21b1a66 feat(#229): migrate the 100 hundred-square command to the internal presentation API
 - c952709 feat(#228): expose the 100 hundred-square table via the /generate-problems JSON contract (#262)
 - ce8f8b6 feat(#222): migrate dec2frac to the internal presentation API (#261)
 - 4cb1c11 feat(#221): migrate frac2dec to presentation API
