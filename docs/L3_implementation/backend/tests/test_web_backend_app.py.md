@@ -6,7 +6,7 @@ Flask test client を使い、`backend/app.py` の3ルートと PDF generation r
 
 ## 動作の概要と主要な判定ロジック
 
-`POST /generate-pdf` の内部 presentation API 移行済み command ごとに、`renderers.run` を失敗 stub へ置き換えて subprocess fallback が呼ばれないことを固定する。`divfrac` は内部 routing、`a_digits` と明示 range の解決、`b_min >= 1` と layout の検証、compile failure を確認する(`test_web_backend_app.py:524-634`)。`simplify` は分数・矢印・blank PDF、fraction digit と layout の検証、compile failure を確認する(`test_web_backend_app.py:1000-1075`)。`frac2dec` は分数から有限小数への矢印と blank PDF、subprocess 非使用、fraction digit/layout 検証、compile failure を確認する(`test_web_backend_app.py:1078-1153`)。基本2項 `mixed` は内部 API 利用と入力検証を確認し、terms/mixed-operator/reducible variants は subprocess を維持することも固定する(`test_web_backend_app.py:1156-1255`)。
+`POST /generate-pdf` の内部 presentation API 移行済み command ごとに、`renderers.run` を失敗 stub へ置き換えて subprocess fallback が呼ばれないことを固定する。`divfrac` は内部 routing、`a_digits` と明示 range の解決、`b_min >= 1` と layout の検証、compile failure を確認する(`test_web_backend_app.py:524-634`)。`simplify` は分数・矢印・blank PDF、fraction digit と layout の検証、compile failure を確認する(`test_web_backend_app.py:1000-1075`)。`frac2dec` は分数から有限小数への矢印と blank PDF、subprocess 非使用、fraction digit/layout 検証、compile failure を確認する(`test_web_backend_app.py:1078-1153`)。`dec2frac`(issue #222)は小数から約分済み分数への矢印と blank PDF、subprocess 非使用、`rows`/`columns` の下限検証、compile failure を確認する(digit 系オプションを取らないため fraction digit の検証はない)。基本2項 `mixed` は内部 API 利用と入力検証を確認し、terms/mixed-operator/reducible variants は subprocess を維持することも固定する(`test_web_backend_app.py:1156-1255`)。`POST /generate-problems` については、`command_type == '100'`(issue #228)が `{"table": {left_values, top_values, answers}}` の10×10 envelope(`problems` キーなし、`answers[r][c] == left_values[r] + top_values[c]`)を返すこと、および `100` でも `num` 欠落は HTTP 400 のままであることを固定する。
 
 ## 重要な設計判断
 
@@ -23,6 +23,8 @@ Flask test client の単体・結合テストであり、実 HTTP server や実 
 
 ## 変更履歴（git log より自動生成）
 
+- c952709 feat(#228): expose the 100 hundred-square table via the /generate-problems JSON contract (#262)
+- ce8f8b6 feat(#222): migrate dec2frac to the internal presentation API (#261)
 - 4cb1c11 feat(#221): migrate frac2dec to presentation API
 - 156c2d2 Merge remote-tracking branch 'origin/main' into feat/220-migrate-simplify-presentation-api
 - ab8daf7 feat(#220): migrate simplify PDF generation
