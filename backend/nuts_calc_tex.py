@@ -1093,11 +1093,19 @@ class ContentAreaLayout:
     items 2 and 10 ("number position independent of content"). rows/columns
     accept any positive value; CONTENT_AREA_LAYOUT_PRESETS below are named
     shortcuts on top, not a restriction.
+
+    numbered=False selects the second Layer-2 variant (#229): a single
+    unnumbered full-content-area slot, for content formats that are one
+    self-contained block per page with no per-problem numbering (the `100`
+    hundred-square table). In that mode build_presentation_document_tex
+    skips the number box entirely and rows/columns/number_box_width_mm are
+    unused.
     """
 
     rows: int | None
     columns: int
     number_box_width_mm: int = CONTENT_AREA_NUMBER_BOX_WIDTH_MM
+    numbered: bool = True
 
 
 # Mirrors frontend/web/src/presetDetail.js's LAYOUT_BY_PROBLEM_COUNT rows/columns values.
@@ -1339,7 +1347,14 @@ def build_presentation_document_tex(
     pages_tex = []
     for page in pages:
         slot_bodies = [content_format(problem, show_answer) for problem in page.problems]
-        blocks = build_content_area_tex(page.indices, slot_bodies, content_area_layout)
+        if content_area_layout.numbered:
+            blocks = build_content_area_tex(page.indices, slot_bodies, content_area_layout)
+        else:
+            # Layer-2 single unnumbered full-area variant (#229): the content
+            # format is one self-contained block per page (the `100` grid) with
+            # no per-problem number, so the number box build_content_area_tex
+            # would prepend is skipped and the slot bodies are the blocks.
+            blocks = slot_bodies
         grid_tex = _build_presentation_grid_tex(blocks, content_area_layout.columns, grid_layout)
         pages_tex.append(
             build_page_shell_body_tex(page_shell, grid_tex, with_name_field, page.bottom_answer_tex)
@@ -2766,6 +2781,19 @@ def build_hundred_square_block_tex(table: HundredSquareTable, show_answer: bool)
     lines.append("\\end{tabular}")
     lines.append("\\end{center}")
     return "\n".join(lines)
+
+
+def build_hundred_square_slot_content_tex(table: HundredSquareTable, show_answer: bool) -> str:
+    """
+    Number-free Layer-3 content for one `100` addition table (#229): the grid
+    exactly as build_hundred_square_block_tex renders it, which already
+    carries no per-problem number prefix (100masu is one table per page).
+    Used as the content_format with ContentAreaLayout(numbered=False) via
+    build_presentation_document_tex. Retrofitting this grid to guidelines-doc
+    shared macros is #185/#270's scope, not this one's -- the existing
+    visuals are ported as-is here.
+    """
+    return build_hundred_square_block_tex(table, show_answer)
 
 
 def build_hundred_square_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], list[HundredSquareTable]]:

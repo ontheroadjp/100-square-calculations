@@ -199,6 +199,53 @@ def test_build_presentation_document_tex_grid_layout_dispatches_to_tabular_and_b
     assert "\\vfill\n" in block_tex
 
 
+def test_build_presentation_document_tex_unnumbered_layout_omits_number_box() -> None:
+    """Issue #229's second Layer-2 variant: ContentAreaLayout(numbered=False)
+    is a single unnumbered full-content-area slot -- build_content_area_tex's
+    number box (\\makebox[...][l]{N)}) is skipped and the content_format's
+    output is the block verbatim."""
+    layout = tex_module.ContentAreaLayout(rows=1, columns=1, numbered=False)
+    table = tex_module.HundredSquareTable(
+        left_values=list(range(1, 11)), top_values=list(range(1, 11))
+    )
+    page = tex_module.PresentationPage(problems=[table], indices=[1])
+
+    tex = tex_module.build_presentation_document_tex(
+        "A4",
+        pages=[page],
+        content_format=tex_module.build_hundred_square_slot_content_tex,
+        page_shell=tex_module.DEFAULT_PAGE_SHELL,
+        content_area_layout=layout,
+        engine_adapter=tex_module.PdflatexEngineAdapter(),
+        show_answer=False,
+        grid_layout='block',
+    )
+
+    assert "\\makebox[" not in tex
+    assert "{1)}" not in tex
+    block_tex = tex_module.build_hundred_square_block_tex(table, show_answer=False)
+    assert f"\\vfill\n{block_tex}\n\\vfill" in tex
+
+
+def test_build_presentation_document_tex_numbered_layout_still_emits_number_box() -> None:
+    """The numbered=True default path is unchanged: the number box is still
+    composed in front of each slot (regression guard for #229's added branch)."""
+    layout = tex_module.ContentAreaLayout(rows=1, columns=1)
+    page, _ = _build_com_page(target=10, order=1, start_index=1)
+
+    tex = tex_module.build_presentation_document_tex(
+        "A4",
+        pages=[page],
+        content_format=tex_module.build_com_slot_content_tex,
+        page_shell=tex_module.DEFAULT_PAGE_SHELL,
+        content_area_layout=layout,
+        engine_adapter=tex_module.PdflatexEngineAdapter(),
+        show_answer=False,
+    )
+
+    assert "\\makebox[8mm][l]{1)}" in tex
+
+
 @pytest.mark.skipif(
     shutil.which("pdflatex") is None,
     reason="requires pdflatex on PATH to compile the presentation API's output into a real PDF",

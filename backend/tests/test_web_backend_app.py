@@ -1628,3 +1628,125 @@ def test_generate_pdf_ope_multi_term_maps_compile_failure_to_500(client, monkeyp
     )
     assert response.status_code == 500
     assert "lualatex failed while building the worksheet" in response.get_json()["error"]
+
+
+def test_generate_pdf_hundred_square_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
+    """The '100' command_type must build its PDF via the internal
+    presentation API (issue #229), not renderers.run's subprocess path, and
+    without a per-problem number box (single unnumbered full-area slot)."""
+    backend_app = sys.modules["app"]
+    captured_tex = []
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("renderers.run must not be called for command_type '100'")
+
+    def fake_compile(self, tex_source, out_pdf_path):
+        captured_tex.append(tex_source)
+        with open(out_pdf_path, "wb") as f:
+            f.write(b"%PDF-1.4 fake")
+
+    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf",
+        json={"paper_size": "A4", "command_type": "100"},
+    )
+
+    assert response.status_code == 200
+    assert response.data.startswith(b"%PDF")
+    assert len(captured_tex) == 1
+    assert f"\\rowcolor{{{backend_app.nuts_calc_tex.HUNDRED_SQUARE_HEADER_COLOR}}}" in captured_tex[0]
+    assert "\\makebox[" not in captured_tex[0]
+
+
+def test_generate_pdf_hundred_square_matches_legacy_document_output(client, monkeypatch) -> None:
+    """Issue #229 Done Criteria: existing visual output is preserved as-is.
+    The presentation-API TeX for one blank table must be byte-identical to
+    the legacy build_document_tex path for the same table."""
+    backend_app = sys.modules["app"]
+    tex_module = backend_app.nuts_calc_tex
+    captured_tex = []
+
+    table = tex_module.HundredSquareTable(
+        left_values=list(range(1, 11)), top_values=list(range(1, 11))
+    )
+
+    def fake_generate_hundred_square(nums_left, nums_top):
+        return table
+
+    def fake_compile(self, tex_source, out_pdf_path):
+        captured_tex.append(tex_source)
+        with open(out_pdf_path, "wb") as f:
+            f.write(b"%PDF-1.4 fake")
+
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex, "generate_hundred_square", fake_generate_hundred_square
+    )
+    monkeypatch.setattr(
+        tex_module.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+    monkeypatch.setattr(
+        tex_module.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf", json={"paper_size": "A4", "command_type": "100"}
+    )
+    assert response.status_code == 200
+
+    engine_adapter = tex_module.get_latex_engine_adapter()
+    blank_page = tex_module.Page(
+        blocks=[tex_module.build_hundred_square_block_tex(table, show_answer=False)],
+        columns=1,
+        layout="block",
+    )
+    filled_page = tex_module.Page(
+        blocks=[tex_module.build_hundred_square_block_tex(table, show_answer=True)],
+        columns=1,
+        layout="block",
+    )
+    legacy_tex = tex_module.build_document_tex(
+        "A4", [blank_page], [filled_page], "blank", engine_adapter
+    )
+
+    assert captured_tex[0] == legacy_tex
+
+
+def test_generate_pdf_hundred_square_maps_compile_failure_to_500(client, monkeypatch) -> None:
+    backend_app = sys.modules["app"]
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+
+    def failing_compile(self, tex_source, out_pdf_path):
+        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+    )
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf", json={"paper_size": "A4", "command_type": "100"}
+    )
+    assert response.status_code == 500
+    assert "lualatex failed while building the worksheet" in response.get_json()["error"]
+
+
+def test_generate_pdf_hundred_square_rejects_too_narrow_axis_range(client) -> None:
+    """Shared with the /generate-problems `100` path: an axis range spanning
+    fewer than the minimum distinct values is a 500 ValueError, not a crash."""
+    response = client.post(
+        "/generate-pdf",
+        json={"paper_size": "A4", "command_type": "100", "a_min": 5, "a_max": 5},
+    )
+    assert response.status_code == 500
+    assert "distinct values" in response.get_json()["error"]

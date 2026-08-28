@@ -17,6 +17,7 @@
 - `dec2frac`(issue #222)は pattern-4b の小数、矢印、約分済み分数または blank の表示を検証し、番号なし本文(`build_dec2frac_slot_content_tex`)と legacy block(`build_dec2frac_block_tex`)の合成同値性を固定する。`frac2dec` と対になる逆向きの変換。
 - `divfrac` は pattern-1b の番号なし本文が答えを未約分のまま保持すること、blank 表示、legacy block との合成同値性を検証する(`test_nuts_calc_tex_content_area_layout.py:405-431`)。
 - `divisors` は可変長のコンマ区切り約数リストと blank を保持し、legacy block と合成後の本文が一致することを検証する(`test_nuts_calc_tex_content_area_layout.py:568-591`)。
+- `ContentAreaLayout.numbered` の既定が `True` であること、および `100` の `build_hundred_square_slot_content_tex` が `build_hundred_square_block_tex` へバイト等価に委譲し `\makebox` を含まないこと(番号 prefix を元々持たない grid)を検証する(issue #229、`test_content_area_layout_defaults_to_numbered`/`test_build_hundred_square_slot_content_tex_ports_block_tex_as_is`)。
 
 ## 重要な設計判断
 
