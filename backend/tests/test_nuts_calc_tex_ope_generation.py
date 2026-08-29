@@ -511,8 +511,17 @@ def test_build_horizontal_intermediate_block_tex_blank_hides_answer_without_unde
     filled_tex = tex_module.build_horizontal_intermediate_block_tex(problem, show_answer=True)
     assert '92' not in blank_tex
     assert '\\underline' not in blank_tex
-    assert '23 \\times 4 \\Rightarrow 0812 \\Rightarrow \\hspace{1.5em}$' in blank_tex
-    assert '23 \\times 4 \\Rightarrow 0812 \\Rightarrow 92$' in filled_tex
+    # issue #268: emitted via the shared staged arrow-chain components -- the
+    # \times carries the centralized \opspace gap, the memo goes in a
+    # fixed-width \stagechainmemo box, and \stagechainarrow separates the stages.
+    assert blank_tex == (
+        '1) \\stagedchaineq{23 \\opspace \\times \\opspace 4 \\stagechainarrow '
+        '\\stagechainmemo{0812} \\stagechainarrow \\hspace{1.5em}}'
+    )
+    assert filled_tex == (
+        '1) \\stagedchaineq{23 \\opspace \\times \\opspace 4 \\stagechainarrow '
+        '\\stagechainmemo{0812} \\stagechainarrow 92}'
+    )
 
 
 def test_build_vertical_block_tex_div_uses_stage_zero_for_blank() -> None:

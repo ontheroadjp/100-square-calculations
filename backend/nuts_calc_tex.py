@@ -103,6 +103,19 @@ CONTENT_FORMAT_OPSPACE_WIDTH_TEX = '0.16em'
 # Consumed only by build_content_format_macros_tex's \boxedblankwidth
 # \newlength.
 CONTENT_FORMAT_BOXED_BLANK_WIDTH_TEX = '1em'
+# Single tuning point for the pattern-5 staged arrow-chain gap placed on both
+# sides of each of the two \Rightarrow arrows (issue #268; guidelines items 5,
+# 6, 20). Reuses the "explicit \hspace on both sides, keep the symbol's own
+# math spacing" convention \opspace uses for +/\times. Consumed only by
+# build_content_format_macros_tex's \stagechaingapwidth \newlength.
+CONTENT_FORMAT_STAGE_CHAIN_ARROW_GAP_TEX = '0.2em'
+# Single tuning point for the pattern-5 mental-math memo segment's fixed box
+# width (issue #268; guidelines item 6). The memo (build_intermediate_memo) is
+# always exactly 4 digits, so this box never overflows; a constant width keeps
+# the second arrow anchored at the same x-offset on every problem regardless of
+# the memo's digits. Consumed only by build_content_format_macros_tex's
+# \stagechainmemowidth \newlength.
+CONTENT_FORMAT_STAGE_CHAIN_MEMO_WIDTH_TEX = '3em'
 MIN_DECIMAL_PLACES = 0
 MAX_DECIMAL_PLACES = 2
 DEC2FRAC_MIN_DECIMAL_PLACES = 1
@@ -1207,6 +1220,19 @@ def build_content_format_macros_tex() -> str:
       diverge from pattern 1b without coupling. The blanked relation symbol
       reuses ``\\boxedblank``; the ``\\opspace`` gap sits on both sides of the
       relation.
+    - ``\\stagechainarrow`` / ``\\stagechainmemo{<memo>}`` /
+      ``\\stagedchaineq{<body>}`` for pattern 5 (taxonomy "staged arrow-chain":
+      ``ope --intermediate``, issue #268). ``\\stagechainarrow`` is the
+      centralized ``\\hspace{\\stagechaingapwidth}\\Rightarrow\\hspace{...}``
+      stage separator placed between each of the three terms (guidelines items
+      5, 20). ``\\stagechainmemo`` is a fixed-width (``\\stagechainmemowidth``),
+      centered ``\\hbox to`` for the always-4-digit mental-math memo, so the
+      second arrow anchors at a constant x-offset on every problem (guidelines
+      item 6).
+      ``\\stagedchaineq`` mirrors ``\\horizontaleq`` (this pattern is
+      integer-only, no ``\\displaystyle``) plus ``\\vphantom{0}`` so a blank
+      trailing result (a zero-height ``\\hspace``) keeps the same row height as
+      an answer-key digit.
     """
     return (
         "\\newlength{\\opspacewidth}\n"
@@ -1231,6 +1257,24 @@ def build_content_format_macros_tex() -> str:
         # \fractioneq (comparisons freely mix int/decimal/\frac operands), kept
         # a separate name so its vertical handling can diverge later.
         "\\newcommand{\\compareeq}[1]{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}\n"
+        # Pattern 5 (staged arrow-chain, issue #268): centralized stage
+        # separator + fixed-width memo box + integer-only wrapper. Appended
+        # after the #264/#265/#266 definitions, which are left untouched.
+        "\\newlength{\\stagechaingapwidth}\n"
+        f"\\setlength{{\\stagechaingapwidth}}{{{CONTENT_FORMAT_STAGE_CHAIN_ARROW_GAP_TEX}}}\n"
+        "\\newcommand{\\stagechainarrow}{\\hspace{\\stagechaingapwidth}\\Rightarrow\\hspace{\\stagechaingapwidth}}\n"
+        "\\newlength{\\stagechainmemowidth}\n"
+        f"\\setlength{{\\stagechainmemowidth}}{{{CONTENT_FORMAT_STAGE_CHAIN_MEMO_WIDTH_TEX}}}\n"
+        # Fixed-width, centered box for the always-4-digit mental-math memo so
+        # the second arrow anchors at the same x-offset on every problem
+        # (guidelines item 6). A plain \hbox to <dim> (not \makebox) keeps the
+        # #229 "\makebox[ absent => number box skipped" layout assertions
+        # meaningful; \hfil on both sides centers, \ensuremath keeps the digits
+        # in the math font inside the restricted-horizontal box.
+        "\\newcommand{\\stagechainmemo}[1]{\\hbox to \\stagechainmemowidth{\\hfil\\ensuremath{#1}\\hfil}}\n"
+        # Integer-only wrapper: like \horizontaleq ($#1$, no \displaystyle) plus
+        # \vphantom{0} so a blank trailing result keeps the answer-key row height.
+        "\\newcommand{\\stagedchaineq}[1]{$#1\\vphantom{0}$}\n"
     )
 
 
@@ -1292,6 +1336,25 @@ def build_comparison_equation_tex(a_tex: str, relation_tex: str, b_tex: str) -> 
     ``\\opspace`` gap sits on both sides of the relation.
     """
     return f"\\compareeq{{{a_tex} \\opspace {relation_tex} \\opspace {b_tex}}}"
+
+
+def build_staged_chain_equation_tex(expr_tex: str, memo_tex: str, result_tex: str) -> str:
+    """
+    Wrap one pattern-5 (taxonomy "staged arrow-chain") three-stage
+    ``<expr> => <memo> => <result>`` body via the shared ``\\stagedchaineq`` /
+    ``\\stagechainarrow`` / ``\\stagechainmemo`` components instead of a raw
+    ``$...$`` f-string (issue #268; guidelines items 5, 6, 20). ``expr_tex`` is
+    the ``a \\times b`` left term already interleaved by
+    ``build_equation_lhs_tex`` (centralized ``\\opspace`` gap); ``memo_tex`` is
+    the mental-math memo from ``build_intermediate_memo``; ``result_tex`` is the
+    always-shown answer or the trailing blank marker. A ``\\stagechainarrow``
+    stage separator sits between each of the three terms and the memo goes in a
+    fixed-width centered box.
+    """
+    return (
+        f"\\stagedchaineq{{{expr_tex} \\stagechainarrow "
+        f"\\stagechainmemo{{{memo_tex}}} \\stagechainarrow {result_tex}}}"
+    )
 
 
 def build_page_header_tex(with_name_field: bool = False) -> str:
@@ -1952,10 +2015,23 @@ def build_intermediate_memo(a: int, b: int) -> str:
 
 
 def build_horizontal_intermediate_block_tex(problem: OpeProblem, show_answer: bool) -> str:
-    """Render one `ope --intermediate` problem: `n) $a * b => memo => c$`."""
+    """Render one `ope --intermediate` problem: `n) ` + a staged arrow-chain
+    ``a \\times b => <memo> => c`` body.
+
+    Emitted via the shared ``\\stagedchaineq`` / ``\\stagechainarrow`` /
+    ``\\stagechainmemo`` components (``build_staged_chain_equation_tex``,
+    taxonomy pattern 5, issue #268) instead of a raw ``$...$`` f-string. The
+    ``\\times`` operator carries the #264 centralized ``\\opspace`` gap (reused
+    via ``build_equation_lhs_tex``, same as ``squ``/``99``); the mental-math
+    memo string is still produced by ``build_intermediate_memo``. The trailing
+    result is the always-fixed-width ``BLANK_ANSWER_TEX`` when blank, kept
+    row-height consistent with the answer key by ``\\stagedchaineq``'s
+    ``\\vphantom``.
+    """
+    expr_tex = build_equation_lhs_tex([str(problem.a), str(problem.b)], ['\\times'])
     memo = build_intermediate_memo(problem.a, problem.b)
     result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
-    return f"{problem.index}) ${problem.a} \\times {problem.b} \\Rightarrow {memo} \\Rightarrow {result_tex}$"
+    return f"{problem.index}) {build_staged_chain_equation_tex(expr_tex, memo, result_tex)}"
 
 
 def build_vertical_block_tex(problem: OpeProblem, show_answer: bool) -> str:
