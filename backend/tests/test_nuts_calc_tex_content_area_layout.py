@@ -247,6 +247,44 @@ def test_build_dec2frac_slot_content_tex_reconstructs_legacy_block_body() -> Non
     )
 
 
+def _commondenom_problem() -> "tex_module.CommonDenomProblem":
+    return tex_module.CommonDenomProblem(
+        index=5,
+        a=tex_module.FractionOperand(1, 3),
+        b=tex_module.FractionOperand(1, 4),
+        a_converted=tex_module.FractionOperand(4, 12),
+        b_converted=tex_module.FractionOperand(3, 12),
+    )
+
+
+def test_build_commondenom_slot_content_tex_omits_number_and_renders_answers() -> None:
+    problem = _commondenom_problem()
+
+    filled_content = tex_module.build_commondenom_slot_content_tex(problem, show_answer=True)
+    blank_content = tex_module.build_commondenom_slot_content_tex(problem, show_answer=False)
+
+    assert filled_content == (
+        "$\\displaystyle \\frac{1}{3}, \\frac{1}{4} \\Rightarrow \\frac{4}{12}, \\frac{3}{12}$"
+    )
+    assert "5)" not in filled_content
+    assert blank_content == (
+        f"$\\displaystyle \\frac{{1}}{{3}}, \\frac{{1}}{{4}} \\Rightarrow {tex_module.BLANK_ANSWER_TEX}$"
+    )
+
+
+def test_build_commondenom_slot_content_tex_reconstructs_legacy_block_body() -> None:
+    problem = _commondenom_problem()
+    layout = tex_module.ContentAreaLayout(rows=1, columns=1, number_box_width_mm=0)
+
+    slot_content_tex = tex_module.build_commondenom_slot_content_tex(problem, show_answer=True)
+    composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
+
+    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert tex_module.build_commondenom_block_tex(problem, True) == (
+        f"{problem.index}) {slot_content_tex}"
+    )
+
+
 def test_build_ope_slot_content_tex_matches_block_tex_body_when_composed() -> None:
     """Composing the Layer-2 slot with the number-free Layer-3 content must
     reproduce the existing build_horizontal_block_tex() output byte-for-byte
