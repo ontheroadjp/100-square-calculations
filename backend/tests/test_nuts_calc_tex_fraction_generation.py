@@ -105,8 +105,9 @@ def test_build_fraction_block_tex_hides_and_shows_answer() -> None:
     blank = tex_module.build_fraction_block_tex(problem, False)
     filled = tex_module.build_fraction_block_tex(problem, True)
     assert r"\frac{5}{6}" not in blank
-    assert r"\frac{1}{2} + \frac{1}{3}" in blank
+    assert r"\fractioneq{\frac{1}{2} \opspace + \opspace \frac{1}{3} \opspace = \opspace" in blank
     assert r"\frac{5}{6}" in filled
+    assert filled.startswith(r"1) \fractioneq{")
 
 
 def test_build_fraction_csv_rows_keeps_operands_and_reduced_answer() -> None:

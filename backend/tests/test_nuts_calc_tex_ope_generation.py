@@ -471,27 +471,38 @@ def test_build_horizontal_block_tex_blank_hides_answer() -> None:
     problem = tex_module.OpeProblem(index=1, a=2, b=3, operator='add', c=5)
     blank_tex = tex_module.build_horizontal_block_tex(problem, show_answer=False)
     filled_tex = tex_module.build_horizontal_block_tex(problem, show_answer=True)
-    assert '= 5$' not in blank_tex
+    assert '= \\opspace 5}' not in blank_tex
     assert '\\underline' not in blank_tex
-    assert '2 + 3' in blank_tex
-    assert '2 + 3 = \\hspace{1.5em}$' in blank_tex
-    assert '2 + 3 = 5' in filled_tex
+    assert '2 \\opspace + \\opspace 3' in blank_tex
+    assert blank_tex == (
+        '1) \\horizontaleq{2 \\opspace + \\opspace 3 \\opspace = \\opspace \\hspace{1.5em}}'
+    )
+    assert filled_tex == (
+        '1) \\horizontaleq{2 \\opspace + \\opspace 3 \\opspace = \\opspace 5}'
+    )
 
 
 def test_build_horizontal_block_tex_div_without_remainder_is_unchanged() -> None:
     problem = tex_module.OpeProblem(index=1, a=6, b=3, operator='div', c=2)
     filled_tex = tex_module.build_horizontal_block_tex(problem, show_answer=True)
     assert 'あまり' not in filled_tex
-    assert '6 \\div 3 = 2$' in filled_tex
+    assert filled_tex == (
+        '1) \\horizontaleq{6 \\opspace \\div \\opspace 3 \\opspace = \\opspace 2}'
+    )
 
 
 def test_build_horizontal_block_tex_div_with_remainder_shows_cdots_and_blanks_it() -> None:
     problem = tex_module.OpeProblem(index=1, a=17, b=5, operator='div', c=3, remainder=2)
     blank_tex = tex_module.build_horizontal_block_tex(problem, show_answer=False)
     filled_tex = tex_module.build_horizontal_block_tex(problem, show_answer=True)
-    assert '17 \\div 5 = \\hspace{1.5em} \\cdots \\hspace{1.5em}$' in blank_tex
+    assert blank_tex == (
+        '1) \\horizontaleq{17 \\opspace \\div \\opspace 5 \\opspace = \\opspace '
+        '\\hspace{1.5em} \\cdots \\hspace{1.5em}}'
+    )
     assert '2' not in blank_tex
-    assert '17 \\div 5 = 3 \\cdots 2$' in filled_tex
+    assert filled_tex == (
+        '1) \\horizontaleq{17 \\opspace \\div \\opspace 5 \\opspace = \\opspace 3 \\cdots 2}'
+    )
 
 
 def test_build_horizontal_intermediate_block_tex_blank_hides_answer_without_underline() -> None:
@@ -629,7 +640,9 @@ def test_render_expr_tree_wraps_every_internal_node_except_the_root() -> None:
             right=tex_module.ExprTreeNode(value=2),
         ),
     )
-    assert tex_module.build_tree_ope_expression_tex(tree) == '3 + (5 \\times 2)'
+    assert tex_module.build_tree_ope_expression_tex(tree) == (
+        '3 \\opspace + \\opspace (5 \\opspace \\times \\opspace 2)'
+    )
     assert tex_module.build_tree_ope_structure_text(tree) == '3 add (5 mul 2)'
 
 
@@ -801,10 +814,16 @@ def test_build_multi_term_ope_block_tex_renders_flat_without_parentheses() -> No
     )
     blank_tex = tex_module.build_multi_term_ope_block_tex(problem, show_answer=False)
     filled_tex = tex_module.build_multi_term_ope_block_tex(problem, show_answer=True)
-    expression_tex = filled_tex.split('$', 1)[1]
+    expression_tex = filled_tex.split('\\horizontaleq{', 1)[1]
     assert '(' not in expression_tex and ')' not in expression_tex
-    assert '5 + 3 - 2 = \\hspace{1.5em}$' in blank_tex
-    assert '5 + 3 - 2 = 6$' in filled_tex
+    assert blank_tex == (
+        '1) \\horizontaleq{5 \\opspace + \\opspace 3 \\opspace - \\opspace 2 '
+        '\\opspace = \\opspace \\hspace{1.5em}}'
+    )
+    assert filled_tex == (
+        '1) \\horizontaleq{5 \\opspace + \\opspace 3 \\opspace - \\opspace 2 '
+        '\\opspace = \\opspace 6}'
+    )
 
 
 def test_build_multi_term_ope_csv_rows_has_one_row_per_problem() -> None:

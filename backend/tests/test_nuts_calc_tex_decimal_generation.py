@@ -102,8 +102,10 @@ def test_build_horizontal_block_tex_renders_decimal_points() -> None:
     )
     filled = tex_module.build_horizontal_block_tex(problem, show_answer=True)
     blank = tex_module.build_horizontal_block_tex(problem, show_answer=False)
-    assert "3.60 + 2.80 = 6.40" in filled
-    assert "3.60 + 2.80" in blank
+    assert (
+        "3.60 \\opspace + \\opspace 2.80 \\opspace = \\opspace 6.40" in filled
+    )
+    assert "3.60 \\opspace + \\opspace 2.80" in blank
     assert "6.40" not in blank
 
 

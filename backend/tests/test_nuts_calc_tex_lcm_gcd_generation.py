@@ -44,14 +44,20 @@ def test_build_number_pair_block_tex_blank_hides_answer() -> None:
     blank_tex = tex_module.build_number_pair_block_tex(problem, show_answer=False, label='LCM')
     filled_tex = tex_module.build_number_pair_block_tex(problem, show_answer=True, label='LCM')
     assert '24' not in blank_tex
-    assert '\\mathrm{LCM}(6, 8) = \\hspace{1.5em}' in blank_tex
-    assert '\\mathrm{LCM}(6, 8) = 24$' in filled_tex
+    assert blank_tex == (
+        '1) \\horizontaleq{\\mathrm{LCM}(6, 8) \\opspace = \\opspace \\hspace{1.5em}}'
+    )
+    assert filled_tex == (
+        '1) \\horizontaleq{\\mathrm{LCM}(6, 8) \\opspace = \\opspace 24}'
+    )
 
 
 def test_build_number_pair_block_tex_uses_given_label() -> None:
     problem = tex_module.NumberPairProblem(index=1, a=18, b=24, c=6)
     filled_tex = tex_module.build_number_pair_block_tex(problem, show_answer=True, label='GCD')
-    assert '\\mathrm{GCD}(18, 24) = 6$' in filled_tex
+    assert filled_tex == (
+        '1) \\horizontaleq{\\mathrm{GCD}(18, 24) \\opspace = \\opspace 6}'
+    )
 
 
 def test_build_number_pair_bottom_answer_tex_lists_answers_by_index() -> None:

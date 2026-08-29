@@ -160,6 +160,21 @@
 - 実証: `backend/tests/test_nuts_calc_tex_presentation_api.py` が `com` コマンドグループ(既存の `generate_com_problems` によるデータ生成 + #184 の `build_com_slot_content_tex` を `content_format` として使用)で、カスタム `PageShell`・`ContentAreaLayout`・`show_answer` 切り替え・複数ページ・grid_layout の tabular/block dispatch を pure-Python で検証したうえで、`pdflatex` がある場合に実際に1枚の PDF を生成できることまで確認している(`test_build_presentation_document_tex_produces_a_pdf_for_com_command_group`、`pdflatex` 不在時は `pytest.mark.skipif` で自動スキップ)。
 - issue #199 で `com` がこの内部 API を最初に本番利用し、#205〜#222 で `ope` の plain/tree/flat multi-term、`99`、`squ`、`pi`、`lcm`/`gcd`、`aBc`、`evenodd`、`multiples`、`divisors`、`frac`、基本2項 `mixed`、`divfrac`、`simplify`、`frac2dec`、`dec2frac` へ順次展開した。issue #229 で `100`(グリッド表、`ContentAreaLayout(numbered=False)` + `grid_layout='block'` + `build_hundred_square_slot_content_tex`)、issue #223 で `ope --missing-value`(虫食い算、コンテンツフォーマットパターン2、`build_missing_value_slot_content_tex`)、issue #224 で `compare`(分数比較、コンテンツフォーマットパターン3、`build_fraction_comparison_slot_content_tex`)、issue #225 で `commondenom`(通分、コンテンツフォーマットパターン4c、`build_commondenom_slot_content_tex`)を追加した。いずれの移行も基本ケース限定で、未移行の command/variant(`ope` の `--vertical`/`--intermediate`、`mixed` の terms/mixed-operator/reducible variant)は subprocess fallback を維持する。未実施 variantへの `content_format` 展開、`mode='merge'` の統合、CLI からの内部 API 利用は将来作業として残る。
 
+### presentation-layer Layer 3: 「等式」コンテンツフォーマット共通部品(taxonomy patterns 1a/1b、issue #264)
+
+- issue #185(Layer 3 retrofit、#166 B-6)の子。`docs/latex/tex_content_format_taxonomy.md` のパターン1a(整数・小数の単純等式: `ope` 横式 plain/tree/multi-term、`99`、`squ`、`pi`、`lcm`/`gcd`)とパターン1b(分数を含む等式: `frac`、`mixed`、`divfrac`)の `build_*_block_tex()` / `build_*_slot_content_tex()` を、生の f-string 連結ではなく `docs/latex/tex_calculation_drill_layout_guidelines.md` が推奨する共通 TeX 部品経由で出力するように改修した。パターン2(`build_com_block_tex` / `build_missing_value_block_tex`、issue #265)・Layer 1/2 の契約・他パターンの builder は対象外。
+- `build_content_format_macros_tex()`(`nuts_calc_tex.py`): 等式ファミリー共通の TeX マクロ群を1ブロックの文字列として返す。`\newlength{\opspacewidth}` +`\setlength`(定数 `CONTENT_FORMAT_OPSPACE_WIDTH_TEX = '0.16em'` が唯一の調整点、guidelines 項目5/6/20)、`\newcommand{\opspace}{\hspace{\opspacewidth}}`、`\newcommand{\horizontaleq}[1]{$#1$}`(パターン1a wrapper)、`\newcommand{\fractioneq}[1]{$\displaystyle #1\vphantom{\frac{0}{0}}$}`(パターン1b wrapper: `\displaystyle` と、`\displaystyle` 下で測られる `\frac{0}{0}` の高さ strut を付与し、答えが分数・帯分数・整数・blank のいずれでも行高を一定に保つ、guidelines 項目17)。`\vphantom{\frac{0}{0}}` は preamble が `amsmath` を読まないため `\dfrac` を避けている。
+- 挿入場所: `build_document_tex`(レガシー CLI 経路)と `build_presentation_document_tex`(内部 presentation API)の両方が、page-shell preamble と `\begin{document}` の間にこのブロックを連結する。両経路が同一マクロを得るため、パターン1a/1b の等式はどちらの経路でもバイト等価に描画される。`build_page_shell_preamble_tex`(Layer 1)は無変更。`\opspace` はパターン単位ではなくここで1回だけ定義しており、issue #265 は再定義せずにこの上に boxed-operand 部品を組める。
+- 等式本文の組み立てヘルパー:
+  - `build_equation_lhs_tex(operands, symbols)`: 被演算子と中置演算子を交互に並べ、各演算子の両側に `\opspace` を挿入する。`symbols` は `len(operands) - 1` 個。1要素リスト(例: `\mathrm{LCM}(a, b)`)はそのまま返す。
+  - `build_horizontal_equation_tex(lhs_tex, rhs_tex, *, suffix_tex='')`: `\horizontaleq{<lhs> \opspace = \opspace <rhs><suffix>}` を返す。`suffix_tex` は `ope` 除算の `\cdots <余り>` 末尾(先頭スペース込み)を担う。
+  - `build_fraction_equation_tex(lhs_tex, rhs_tex)`: `\fractioneq{<lhs> \opspace = \opspace <rhs>}` を返す。
+- 各 builder は `build_*_block_tex` = `f"{index}) " + build_*_slot_content_tex(...)` の関係へ統一し(`ope`/`tree`/`multi_term`/`99`/`squ`/`pi`/`lcm`/`gcd` も `frac` に倣って合流)、レガシー経路と presentation 経路の本文が構造的に一致し続けることを保証する。`build_tree_ope_expression_tex` は `render_expr_tree` へ渡す symbol callback を `\opspace <記号> \opspace` に変えて演算子間隔を挿入する(CSV 用 `build_tree_ope_structure_text` は無変更のまま単語演算子の非間隔形を保つ)。`99`/`squ`/`pi` の `--reverse`(レガシー block のみ)は左右入れ替えを保ったまま同じ部品を使う。`build_number_pair_equation_tex(problem, show_answer, label)` を新設し block と `build_lcm_slot_content_tex`/`build_gcd_slot_content_tex` が共有する。
+- 個別レイアウト欠陥の対応:
+  - 修正(視覚のみ): 演算子・`=` 間隔の明示化と一元管理(項目5/20)。パターン1b の `\displaystyle` + 固定高 strut による行リズム統一と blank/filled 行の幾何一致(項目17)。`divfrac` は従来 problem 本文に `\displaystyle` が無かった(答えキーの `build_divfrac_bottom_answer_tex` のみ使用)ため、パターン1b として `\fractioneq` 経由に揃えた。パターン1a と 1b を別 wrapper に分離(項目15)。
+  - 見送り(PR 本文に理由記載): tabular figures / 桁揃え(項目11/13、fontspec の font feature = Layer 1・engine 差異)、問題本体の固定幅・固定高 `\problembox`(項目1/18、Layer 2 グリッドの列幅所有と重複)、演算子カラム・筆算下線・小数点揃え(項目3/12/16、パターン6 の縦式専用で単一行等式には非該当)。
+- 検証: `backend/tests/test_nuts_calc_tex_equation_content_format.py`(共通マクロの両経路への挿入、wrapper 選択、blank 幾何、全10 builder の block==`n) `+slot 等価、`ope`/`frac`/`mixed` blank の実 PDF コンパイルを pdflatex・lualatex 両方で)。既存の `backend/tests/test_nuts_calc_tex_content_area_layout.py` の block==slot 等価テストは無変更で回帰ガードとして機能する。
+
 ## 動作の概要
 
 ### 共通基盤(Phase 1)
@@ -408,15 +423,13 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴（git log より自動生成）
 
-- feat(#225): migrate commondenom to the internal presentation API
+- add210a feat(#264): render equation content formats via shared TeX components
+- 2d4c435 feat(#225): migrate commondenom to the internal presentation API (#274)
 - 84c789b feat(#224): migrate compare to the internal presentation API (#273)
-- c22ee17 feat(#223): migrate ope --missing-value to the internal presentation API
+- 7943190 feat(#223): migrate ope --missing-value to the internal presentation API (#272)
 - 7585ce7 feat(#229): migrate the 100 hundred-square command to the internal presentation API (#271)
 - ce8f8b6 feat(#222): migrate dec2frac to the internal presentation API (#261)
 - 4cb1c11 feat(#221): migrate frac2dec to presentation API
 - 156c2d2 Merge remote-tracking branch 'origin/main' into feat/220-migrate-simplify-presentation-api
 - ab8daf7 feat(#220): migrate simplify PDF generation
 - 1fe5a14 feat(#219): migrate divfrac to presentation API
-- 5cd034c feat(#218): migrate mixed PDF generation (#253)
-- 5736b74 feat(#217): migrate frac PDF generation (#252)
-- 1c331f9 feat(#216): migrate divisors to presentation API (#251)

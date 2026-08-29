@@ -172,7 +172,8 @@ def test_build_mixed_block_tex_hides_and_shows_fraction_answer() -> None:
     )
     blank = tex_module.build_mixed_block_tex(problem, show_answer=False)
     filled = tex_module.build_mixed_block_tex(problem, show_answer=True)
-    assert "2 \\div 3" in blank
+    assert "2 \\opspace \\div \\opspace 3" in blank
+    assert blank.startswith(r"1) \fractioneq{")
     assert r"\frac{2}{3}" not in blank
     assert r"\frac{2}{3}" in filled
 
