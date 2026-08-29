@@ -1533,7 +1533,6 @@ def test_generate_pdf_mixed_maps_compile_failure_to_500(client, monkeypatch) -> 
 @pytest.mark.parametrize(
     "variant_fields",
     [
-        {"vertical": True},
         {"intermediate": True},
         # use_parentheses combined with a mutually-exclusive flag (invalid
         # per nuts_calc_tex.py's _init() validation, nuts_calc_tex.py:
@@ -1549,13 +1548,14 @@ def test_generate_pdf_ope_variants_still_use_subprocess_renderer(client, monkeyp
     """
     Only the plain 2-term 'ope' shape (build_horizontal_block_tex, content-
     format pattern 1a) is migrated by #205; every variant flag that selects
-    a still-unmigrated pattern (vertical/intermediate) or an invalid
-    use_parentheses combination must keep using the subprocess path. Plain
-    use_parentheses (no other variant flag) is covered separately below
-    (#206), the terms family (terms/terms_min/terms_max/mixed_operators
-    without use_parentheses) below (#207), and missing_value below (#223):
-    each now uses the presentation API. Only an invalid use_parentheses +
-    missing_value combination stays on the subprocess path here.
+    a still-unmigrated pattern (intermediate) or an invalid use_parentheses
+    combination must keep using the subprocess path. Plain use_parentheses
+    (no other variant flag) is covered separately below (#206), the terms
+    family (terms/terms_min/terms_max/mixed_operators without use_parentheses)
+    below (#207), missing_value below (#223), and vertical below (#227): each
+    now uses the presentation API. Only an invalid use_parentheses +
+    (vertical|intermediate|missing_value) combination stays on the subprocess
+    path here.
     """
     backend_app = sys.modules["app"]
 
@@ -1860,6 +1860,105 @@ def test_generate_pdf_ope_missing_value_maps_compile_failure_to_500(client, monk
     )
     assert response.status_code == 500
     assert "lualatex failed while building the worksheet" in response.get_json()["error"]
+
+
+def test_generate_pdf_ope_vertical_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
+    """
+    An `ope --vertical` (hissan / written-calculation) request must build its
+    PDF via nuts_calc_tex.build_presentation_document_tex (issue #227), not via
+    renderers.run's subprocess path -- assert this the same way
+    test_generate_pdf_ope_missing_value_uses_presentation_api_not_subprocess
+    does, and additionally check the captured TeX carries the pattern-6
+    written-calculation body (\\verticalcalcblank for a blank practice page),
+    the Layer-2 numbered slot box, and the tabular grid the multi-row xlop /
+    longdivision output needs.
+    """
+    backend_app = sys.modules["app"]
+    captured_tex = []
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("renderers.run must not be called for an 'ope --vertical' request")
+
+    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+
+    def fake_compile(self, tex_source, out_pdf_path):
+        captured_tex.append(tex_source)
+        with open(out_pdf_path, "wb") as f:
+            f.write(b"%PDF-1.4 fake")
+
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf",
+        json={
+            "paper_size": "A4", "command_type": "ope", "vertical": True,
+            "a_min": 10, "a_max": 99, "operator": ["add"],
+        },
+    )
+    assert response.status_code == 200
+    assert response.data.startswith(b"%PDF")
+    assert len(captured_tex) == 1
+    assert "\\verticalcalcblank{" in captured_tex[0]
+    assert "\\makebox[" in captured_tex[0]
+    assert "\\begin{tabular}" in captured_tex[0]
+
+
+def test_generate_pdf_ope_vertical_maps_compile_failure_to_500(client, monkeypatch) -> None:
+    backend_app = sys.modules["app"]
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+
+    def failing_compile(self, tex_source, out_pdf_path):
+        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+    )
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf",
+        json={
+            "paper_size": "A4", "command_type": "ope", "vertical": True,
+            "a_min": 10, "a_max": 99,
+        },
+    )
+    assert response.status_code == 500
+    assert "lualatex failed while building the worksheet" in response.get_json()["error"]
+
+
+def test_generate_pdf_ope_vertical_rejects_decimal_divisor(client, monkeypatch) -> None:
+    """
+    `ope --vertical -o div` with a decimal divisor (b_decimal_places > 0) is
+    rejected before compilation (longdivision's `\\intlongdivision` takes an
+    integer divisor only), with the same message nuts_calc_tex.py's _init()
+    uses -- app.py bypasses _init(), so _generate_vertical_ope_pdf
+    re-implements the check. renderers.run must not be reached either.
+    """
+    backend_app = sys.modules["app"]
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("renderers.run must not be called for a rejected 'ope --vertical' request")
+
+    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+
+    response = client.post(
+        "/generate-pdf",
+        json={
+            "paper_size": "A4", "command_type": "ope", "vertical": True,
+            "operator": ["div"], "a_decimal_places": 1, "b_decimal_places": 1,
+        },
+    )
+    assert response.status_code == 500
+    assert "does not yet support a decimal --b-decimal-places" in response.get_json()["error"]
 
 
 def test_generate_pdf_hundred_square_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:

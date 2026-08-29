@@ -178,6 +178,21 @@ def test_build_vertical_block_tex_is_prefix_plus_number_free_body() -> None:
             assert block == f"3)\\newline {body}"
 
 
+# --- Layer-3 slot formatter for the internal presentation API (issue #227) --
+
+def test_build_vertical_ope_slot_content_tex_is_the_number_free_body() -> None:
+    """The pattern-6 slot formatter (issue #227) is the number-free
+    build_vertical_calc_tex body, with no embedded `n)` prefix -- mirroring
+    build_ope_slot_content_tex vs build_horizontal_block_tex."""
+    for operator, c in [("add", 27), ("sub", 19), ("mul", 92), ("div", 5)]:
+        problem = _problem(index=7, a=48, b=12, operator=operator, c=c)
+        for show_answer in (True, False):
+            slot = tex_module.build_vertical_ope_slot_content_tex(problem, show_answer)
+            assert slot == tex_module.build_vertical_calc_tex(problem, show_answer)
+            assert not slot.startswith("7)")
+            assert "\\newline" not in slot
+
+
 # --- blanking mechanism is preserved ------------------------------------
 
 def test_blank_add_uses_the_phantom_style_hooks_filled_does_not() -> None:
@@ -272,6 +287,47 @@ def test_vertical_decimal_page_compiles_to_pdf(engine_name: str, tmp_path: Path)
     blank, filled = tex_module.build_ope_page_pair(problems, 2, True, False)
     tex = tex_module.build_document_tex("A4", [blank], [filled], "filled", engine_adapter)
     out_pdf_path = tmp_path / f"{engine_name}_decimal.pdf"
+    engine_adapter.compile(tex, str(out_pdf_path))
+    data = out_pdf_path.read_bytes()
+    assert data.startswith(b"%PDF")
+    assert len(data) > 500
+
+
+@pytest.mark.parametrize("engine_name", sorted(_ENGINES))
+@pytest.mark.parametrize("show_answer", [False, True])
+def test_vertical_presentation_document_compiles_to_pdf(
+    engine_name: str, show_answer: bool, tmp_path: Path
+) -> None:
+    """Issue #227: the `ope --vertical` migration builds its document through
+    the internal presentation API (build_presentation_document_tex) with the
+    pattern-6 slot formatter, the Layer-2 numbered content area and the tabular
+    grid the multi-row xlop / longdivision output needs. Compile it end to end
+    with both engines, blank and answer-key, all four operators."""
+    if shutil.which(engine_name) is None:
+        pytest.skip(f"requires {engine_name} on PATH")
+    engine_adapter = _ENGINES[engine_name]()
+    problems = [
+        tex_module.OpeProblem(index=1, a=23, b=4, operator="add", c=27),
+        tex_module.OpeProblem(index=2, a=91, b=48, operator="sub", c=43),
+        tex_module.OpeProblem(index=3, a=123, b=45, operator="mul", c=5535),
+        tex_module.OpeProblem(index=4, a=144, b=12, operator="div", c=12),
+    ]
+    page = tex_module.PresentationPage(
+        problems=problems, indices=[p.index for p in problems]
+    )
+    tex = tex_module.build_presentation_document_tex(
+        "A4",
+        pages=[page],
+        content_format=tex_module.build_vertical_ope_slot_content_tex,
+        page_shell=tex_module.DEFAULT_PAGE_SHELL,
+        content_area_layout=tex_module.ContentAreaLayout(rows=2, columns=2),
+        engine_adapter=engine_adapter,
+        show_answer=show_answer,
+        grid_layout="tabular",
+    )
+    assert "\\begin{tabular}" in tex
+    assert "\\makebox[" in tex
+    out_pdf_path = tmp_path / f"{engine_name}_{show_answer}.pdf"
     engine_adapter.compile(tex, str(out_pdf_path))
     data = out_pdf_path.read_bytes()
     assert data.startswith(b"%PDF")
