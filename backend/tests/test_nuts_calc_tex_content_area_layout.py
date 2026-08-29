@@ -265,10 +265,12 @@ def test_build_fraction_comparison_slot_content_tex_omits_number_and_renders_ans
     filled_content = tex_module.build_fraction_comparison_slot_content_tex(problem, show_answer=True)
     blank_content = tex_module.build_fraction_comparison_slot_content_tex(problem, show_answer=False)
 
-    assert filled_content == "$\\displaystyle \\frac{1}{2} < \\frac{2}{3}$"
+    # issue #266: pattern 3 emits via the shared \compareeq/\opspace components;
+    # both operands here are \frac, so neither is \vcenter-wrapped.
+    assert filled_content == r"\compareeq{\frac{1}{2} \opspace < \opspace \frac{2}{3}}"
     assert "5)" not in filled_content
     assert blank_content == (
-        f"$\\displaystyle \\frac{{1}}{{2}} {tex_module.BOXED_BLANK_TEX} \\frac{{2}}{{3}}$"
+        r"\compareeq{\frac{1}{2} \opspace \boxedblank \opspace \frac{2}{3}}"
     )
 
 

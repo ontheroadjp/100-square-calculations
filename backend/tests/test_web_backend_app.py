@@ -1291,7 +1291,10 @@ def test_generate_pdf_compare_uses_presentation_api_not_subprocess(client, monke
     assert response.data.startswith(b"%PDF")
     assert len(captured_tex) == 1
     assert "\\displaystyle" in captured_tex[0]
-    assert backend_app.nuts_calc_tex.BOXED_BLANK_TEX in captured_tex[0]
+    # issue #266: pattern 3 now emits via the shared \compareeq wrapper and
+    # reuses pattern 2's \boxedblank marker for the blanked relation symbol.
+    assert "\\compareeq{" in captured_tex[0]
+    assert backend_app.nuts_calc_tex.COMPARE_REL_BLANK_TEX in captured_tex[0]
 
 
 @pytest.mark.parametrize(

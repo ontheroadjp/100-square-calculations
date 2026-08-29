@@ -62,8 +62,10 @@ def test_content_format_macros_leave_the_pattern_1_definitions_intact() -> None:
 
 def test_boxed_blank_operand_marker_is_the_macro_call_not_the_raw_box() -> None:
     assert tex_module.BOXED_BLANK_OPERAND_TEX == "\\boxedblank"
-    # pattern 3's raw constant is unchanged
-    assert tex_module.BOXED_BLANK_TEX == "\\vcenter{\\hbox{\\fbox{\\rule{0pt}{1em}\\hspace{1em}}}}"
+    # issue #266 removed the old raw \vcenter BOXED_BLANK_TEX constant (pattern 3
+    # was its last user and now shares the \boxedblank macro via COMPARE_REL_BLANK_TEX).
+    assert not hasattr(tex_module, "BOXED_BLANK_TEX")
+    assert tex_module.COMPARE_REL_BLANK_TEX == "\\boxedblank"
 
 
 def test_macros_are_spliced_into_the_legacy_document_builder() -> None:

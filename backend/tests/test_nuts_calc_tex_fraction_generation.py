@@ -161,9 +161,12 @@ def test_comparison_tex_uses_box_for_question_and_relation_for_answer() -> None:
     blank = tex_module.build_fraction_comparison_block_tex(problem, False)
     filled = tex_module.build_fraction_comparison_block_tex(problem, True)
 
-    assert tex_module.BOXED_BLANK_TEX in blank
+    # issue #266: the blanked relation reuses pattern 2's shared \boxedblank
+    # marker; the relation symbol carries the centralized \opspace gap.
+    assert tex_module.COMPARE_REL_BLANK_TEX in blank
+    assert r"\opspace \boxedblank \opspace" in blank
     assert r"2\frac{1}{3}" in blank
-    assert " < " in filled
+    assert r"\opspace < \opspace" in filled
 
 
 def test_comparison_csv_rows_include_displayed_operands_and_relation() -> None:
@@ -209,10 +212,15 @@ def test_generate_fraction_comparison_problems_supports_kind_mixing(a_kind: list
 
 
 def test_comparison_operand_to_tex_renders_int_and_decimal_kinds() -> None:
-    assert tex_module.comparison_operand_to_tex(tex_module.FractionComparisonOperand(7, 1, 0, "int")) == "7"
+    # issue #266: int/decimal operands are \vcenter-wrapped so they sit on the
+    # math axis alongside a \frac operand; a \frac is already axis-centered and
+    # is left bare.
+    assert tex_module.comparison_operand_to_tex(
+        tex_module.FractionComparisonOperand(7, 1, 0, "int"),
+    ) == r"\vcenter{\hbox{$7$}}"
     assert tex_module.comparison_operand_to_tex(
         tex_module.FractionComparisonOperand(5, 10, 0, "decimal", 1),
-    ) == "0.5"
+    ) == r"\vcenter{\hbox{$0.5$}}"
     assert tex_module.comparison_operand_to_tex(
         tex_module.FractionComparisonOperand(1, 2, 0, "fraction"),
     ) == r"\frac{1}{2}"
