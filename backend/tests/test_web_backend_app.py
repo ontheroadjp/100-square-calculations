@@ -1894,7 +1894,13 @@ def test_generate_pdf_hundred_square_uses_presentation_api_not_subprocess(client
     assert response.status_code == 200
     assert response.data.startswith(b"%PDF")
     assert len(captured_tex) == 1
-    assert f"\\rowcolor{{{backend_app.nuts_calc_tex.HUNDRED_SQUARE_HEADER_COLOR}}}" in captured_tex[0]
+    # issue #270: the shaded header row/column go through the centralized
+    # \hundredsquareheadercolor name, defined from HUNDRED_SQUARE_HEADER_COLOR.
+    assert "\\rowcolor{\\hundredsquareheadercolor}" in captured_tex[0]
+    assert (
+        f"\\newcommand{{\\hundredsquareheadercolor}}{{{backend_app.nuts_calc_tex.HUNDRED_SQUARE_HEADER_COLOR}}}"
+        in captured_tex[0]
+    )
     assert "\\makebox[" not in captured_tex[0]
 
 

@@ -259,6 +259,21 @@
   - triage/対象外: (1) `longdivision` の div ブラケットのルール太さ・寸法は package キーが無く一元管理不可(自前の罫線描画=TikZ 規模の変更が要る。issue #134 で日本式罫線は対応しないと決定済み)。(2) tabular figures / 専用数字フォント(項目13/14)は fontspec の font feature = Layer 1・エンジン差異の領分。(3) 問題本体の固定幅・固定高 `\problembox`(項目1/18)は Layer 2 グリッドの列幅所有と重複。(4) 小数除数の除算(小数×小数の筆算)は本 issue のスコープ外(issue #180 agenda で検討中)。いずれも #264〜#268 と同じ方針。
 - 検証: `backend/tests/test_nuts_calc_tex_written_calculation_content_format.py`(共通マクロの両経路のうちレガシー経路への挿入と #264〜#268 定義が無傷であること、4つの `\newlength`/`\setlength` と `\verticalcalcsetup`/`\verticalcalc`/`\verticalcalcblank`/`\longdivisioncalc`/`\longdivisioncalcblank` の内容、中央管理定数が `xlop` 既定値と一致すること、`build_vertical_calc_tex` の add/sub/mul/div × blank/filled の完全一致、`build_vertical_block_tex == "n)\newline " + body`、blank が `\verticalcalcblank`/`\longdivisioncalcblank` を名指すこと、小数オペランドが `format_decimal_value` 経由であること、add/sub/mul/div × blank/filled × pdflatex/lualatex と小数筆算の実 PDF コンパイル、`\makebox[` の不在)。既存の `test_nuts_calc_tex_ope_generation.py` の `build_vertical_block_tex` アサーション2件は新形式へ更新。
 
+### presentation-layer Layer 3: 「グリッド表」コンテンツフォーマット共通部品(taxonomy pattern 7、issue #270)
+
+- issue #185(Layer 3 retrofit、#166 B-6)の子。`docs/latex/tex_content_format_taxonomy.md` のパターン7(1問=1行の他パターンと違い、ページの一部を占める `tabular` 全体を1ブロックとして返す。問題番号の概念がなく、ヘッダ行・ヘッダ列に色付けが入る唯一のパターン): `build_hundred_square_block_tex`(`100` の加算表)を、インラインの `tabular` メトリクスとリテラルの色名を直書きする形から、共通 TeX 部品経由の出力へ改修した。表の数学的内容・サイズ(`HUNDRED_SQUARE_SIZE`)は無変更。`ope --intermediate`(#268)と違い `100` は #229 で内部プレゼンテーション API へ移行済みのため、レガシー CLI 経路(`build_document_tex`、`POST /generate-pdf` も利用)と内部 API 経路(`build_presentation_document_tex` + `ContentAreaLayout(numbered=False)`、`POST /generate-problems` が利用)の両方が共通マクロを差し込む。Layer 1/2 の契約・`build_presentation_document_tex` の契約・他パターンの builder は対象外。
+- `build_content_format_macros_tex()` への追加(issue #264/#265/#266/#267/#268 の定義行は無変更、`\stagedchaineq` 行の後に追記のみ):
+  - `\newlength{\hundredsquarecellwidth}` + `\setlength`(Python 側定数 `CONTENT_FORMAT_HUNDRED_SQUARE_CELL_WIDTH_TEX = '1.6em'` が唯一の調整点、項目6/11/20)、`\newcommand{\hundredsquarecell}[1]{\hbox to \hundredsquarecellwidth{\hfil #1\hfil}}`: ヘッダ・データを問わず全セルを固定幅・中央寄せの箱に入れ、1〜2桁のエントリが同じ幅を占めて列がガタつかないようにする。`\makebox[...]` ではなく素の `\hbox to <dim>` + 両側 `\hfil` を使うのは、issue #229 のレイアウトテストが「`\makebox[` が無い = 問題番号ボックスがスキップされた」を `100` 経路で検証しているため。
+  - `\newlength{\hundredsquarecolsep}` + `\setlength`(定数 `CONTENT_FORMAT_HUNDRED_SQUARE_COLSEP_TEX = '6pt'`、項目6)、`\newlength{\hundredsquarerulewidth}` + `\setlength`(定数 `CONTENT_FORMAT_HUNDRED_SQUARE_RULE_WIDTH_TEX = '0.4pt'`、項目12)。`build_hundred_square_grid_tex` が `center` グループ内で `\setlength{\tabcolsep}{\hundredsquarecolsep}` / `\setlength{\arrayrulewidth}{\hundredsquarerulewidth}` として適用する。いずれも LaTeX 既定値に設定しているため、#270 以前のインライン `tabular` から視覚的変化はなく、一元管理のみが目的。
+  - `\newcommand{\hundredsquareheadercolor}{lightgray}`(Python 側定数 `HUNDRED_SQUARE_HEADER_COLOR` から生成、項目6): 網掛けヘッダの色の唯一の指定点。`\rowcolor{\hundredsquareheadercolor}` / `>{\columncolor{\hundredsquareheadercolor}}c` の形で展開される。
+- Python 側:
+  - `build_hundred_square_grid_tex(table, show_answer)`(新設): `\begin{center}` … `\end{center}` の表ブロック全体を上記マクロ経由で組み立てる。左上角・ブランクデータセルは `\hundredsquarecell{}`(空の固定幅箱)。
+  - `build_hundred_square_block_tex` は `build_hundred_square_grid_tex` へそのまま委譲する薄いラッパーになった。パターン7 は問題番号 prefix を持たない唯一の形式のため、`build_hundred_square_slot_content_tex`(#229、`build_hundred_square_block_tex` へ委譲)と合わせて block == grid == slot がバイト等価であることは従来どおり。`build_hundred_square_pages` / `build_hundred_square_csv_rows` は無変更。
+- 個別レイアウト欠陥の対応:
+  - 修正(視覚のみ): データ列がエントリの最大桁数で不揃いになる問題を、全セルの固定幅化(`\hundredsquarecell` + `\hundredsquarecellwidth`、項目6/11/20)で解消。ヘッダの網掛け色・`\tabcolsep`・`\arrayrulewidth` をそれぞれ1箇所へ集約(項目6/12)。
+  - triage/対象外: tabular figures / 専用数字フォント(項目13/14)は #264〜#268 と同じ理由で見送り。3〜4桁のオペランドレンジ(`--a-digits 3` 等)では固定幅箱を僅かにはみ出しうる(パターン5 の暗算メモ箱と同じ許容トレードオフ。issue のスコープが明示する設計ターゲットは1〜2桁エントリ)。
+- 検証: `backend/tests/test_nuts_calc_tex_hundred_square_content_format.py`(共通マクロの両経路への挿入と #264〜#268 定義が無傷であること、3つの `\newlength`/`\setlength`・`\hundredsquareheadercolor`・`\hundredsquarecell` の内容、`build_hundred_square_grid_tex` の blank/filled 本文がヘッダ・データを全て `\hundredsquarecell` で包みリテラル色を残さないこと、`\hline`/行終端の本数、block==grid==slot 等価、blank/filled × pdflatex/lualatex の実 PDF コンパイルとプレゼンテーション API 経路の実 PDF コンパイル)。既存の `test_nuts_calc_tex_hundred_square_generation.py` と `test_web_backend_app.py` のヘッダ色アサーションは `\hundredsquareheadercolor` 形へ更新。
+
 ## 動作の概要
 
 ### 共通基盤(Phase 1)
@@ -302,8 +317,9 @@
 - `HundredSquareTable` データクラス(`left_values`/`top_values`、`answers` プロパティで `left_values[r] + top_values[c]` の10×10行列を計算)が1枚の加算表を表す。
 - `sample_hundred_square_values`(`nuts_calc_tex.py` の `100` セクション): 候補範囲のリストを `HUNDRED_SQUARE_SAMPLE_REPEAT_FACTOR`(2)倍に複製してから `random.sample` で10個抽出する。既定の桁数1レンジ(1-9、9個の値)は10枠に対して1個不足するため、複製しないと `random.sample` が母集団不足で失敗する。`nuts_calc.py:1469-1474` の `seed.extend(...)` パターンと同じ意味論を再実装している(コード共有なし)。
 - `generate_hundred_square`: 左列・上段それぞれに `sample_hundred_square_values` を適用して `HundredSquareTable` を作る。
-- `build_hundred_square_block_tex`: 11×11の LaTeX `tabular` を1枚組み立てる。左上角は空欄、ヘッダー行(`top_values`)・ヘッダー列(`left_values`)は `colortbl`(`xcolor[table]` 経由)の `\rowcolor`/`\columncolor` で網掛けする。blank 版はデータセルを空文字列、filled 版は `left + top` の和を表示する。問題番号 prefix は元々持たない(1ページ1表)。
-- `build_hundred_square_slot_content_tex(table, show_answer)`(issue #229): 番号なし Layer-3 content format。`build_hundred_square_block_tex` にそのまま委譲するだけ(グリッドは元々番号 prefix を持たないため剥がす番号がない)。`ContentAreaLayout(numbered=False)` と組み合わせて `build_presentation_document_tex` から `POST /generate-pdf` の `100` 経路が使う。既存のグリッド視覚をそのまま移植しており、ガイドライン doc 準拠の共有マクロ化は issue #185/#270 のスコープ。
+- `build_hundred_square_grid_tex`(issue #270 で新設): 11×11の LaTeX `tabular` を1枚組み立てる。左上角は空欄、ヘッダー行(`top_values`)・ヘッダー列(`left_values`)は `colortbl`(`xcolor[table]` 経由)の `\rowcolor`/`\columncolor` で網掛けする。blank 版はデータセルを空、filled 版は `left + top` の和を表示する。問題番号 prefix は元々持たない(1ページ1表)。issue #270 以降、全ヘッダ・データセルを共通部品 `\hundredsquarecell` で包み、`\tabcolsep`/`\arrayrulewidth`/網掛け色を中央管理された `\hundredsquare*` 長さ・`\hundredsquareheadercolor` 経由で指定する(上記「グリッド表」セクション参照。インラインの `tabular` メトリクス直書きは廃止)。
+- `build_hundred_square_block_tex`: パターン7 のブロック本体を返す名前付きエントリポイント。issue #270 以降 `build_hundred_square_grid_tex` へそのまま委譲する薄いラッパー。他パターンと違い問題番号 prefix を付ける処理がない(1ページ1表)ため block == grid。
+- `build_hundred_square_slot_content_tex(table, show_answer)`(issue #229): 番号なし Layer-3 content format。`build_hundred_square_block_tex` にそのまま委譲するだけ(グリッドは元々番号 prefix を持たないため剥がす番号がない)。`ContentAreaLayout(numbered=False)` と組み合わせて `build_presentation_document_tex` から `POST /generate-pdf` の `100` 経路が使う。グリッド本体は `build_hundred_square_grid_tex` がガイドライン doc 準拠の共通部品経由で emit する(issue #270)。
 - `build_hundred_square_pages`: `ini.page` 枚分、1ページ1表(`Page(blocks=[...], columns=1, layout='block')`)の blank/filled ペアを生成する。CLI(`main()`)・`--csv` 経路が使う。`ini.rows`/`ini.columns`/`ini.with_bottom_answer` は `nuts_calc.py` の元実装同様に未使用(固定サイズの表1枚のみ、下部解答欄なし)。`POST /generate-pdf` の `100` は issue #229 で内部 API 経路(`_generate_hundred_square_pdf`)へ移行済みで、この関数は経由しない(CLI 専用に残存)。
 - `build_hundred_square_csv_rows`: ページごとに、ヘッダー行(`[page_number, '', *top_values]`)と10本のデータ行(`[page_number, left, *answer_row]`)を書き出す。
 
@@ -507,7 +523,9 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴（git log より自動生成）
 
-- 9367697 feat(#269): render the written-calculation (hissan) content format via shared TeX components
+- a4ca3f0 Merge branch 'main' into feat/270-hundred-square-grid-component
+- a704907 feat(#269): render the written-calculation (hissan) content format via shared TeX components (#281)
+- a43a730 feat(#270): render the hundred-square grid table via shared TeX components
 - 8cce41a feat(#268): render the staged arrow-chain content format via a shared TeX component (#278)
 - 299eab0 feat(#267): render arrow-conversion content formats via shared TeX components (#279)
 - f794743 feat(#266): render the comparison content format via a shared TeX component (#277)
@@ -515,5 +533,3 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - 4088bf0 feat(#264): render equation content formats via shared TeX components (#275)
 - 2d4c435 feat(#225): migrate commondenom to the internal presentation API (#274)
 - 84c789b feat(#224): migrate compare to the internal presentation API (#273)
-- 7943190 feat(#223): migrate ope --missing-value to the internal presentation API (#272)
-- 7585ce7 feat(#229): migrate the 100 hundred-square command to the internal presentation API (#271)

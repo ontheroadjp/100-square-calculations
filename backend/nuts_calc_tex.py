@@ -145,6 +145,28 @@ CONTENT_FORMAT_VERTICAL_ROW_HEIGHT_TEX = '\\baselineskip'
 # PDFs are unchanged. Consumed only by build_content_format_macros_tex's
 # \verticaldecimalsepoffset \newlength.
 CONTENT_FORMAT_VERTICAL_DECIMAL_SEP_OFFSET_TEX = '0pt'
+# Single tuning point for the pattern-7 hundred-square grid's data/header cell
+# width (issue #270; guidelines items 6, 11, 20). Every cell (headers and
+# data alike) is a fixed-width centered box so a 1- or 2-digit entry occupies
+# the same width and columns never go ragged. Sized for the 1-2 digit design
+# target (the default `100` table sums two 1-digit operands); 3-4 digit
+# operand ranges (`--a-digits 3`) may slightly overfill the box, the same
+# accepted tradeoff as the pattern-5 memo box. Consumed only by
+# build_content_format_macros_tex's \hundredsquarecellwidth \newlength.
+CONTENT_FORMAT_HUNDRED_SQUARE_CELL_WIDTH_TEX = '1.6em'
+# Single tuning point for the pattern-7 hundred-square grid's inter-column
+# padding (issue #270; guidelines item 6). Set to LaTeX's default \tabcolsep
+# so this is centralization only, with no visual change from the pre-#270
+# inline tabular. Consumed only by build_content_format_macros_tex's
+# \hundredsquarecolsep \newlength.
+CONTENT_FORMAT_HUNDRED_SQUARE_COLSEP_TEX = '6pt'
+# Single tuning point for the pattern-7 hundred-square grid's rule width
+# (issue #270; guidelines item 12). Set to LaTeX's default \arrayrulewidth so
+# every horizontal/vertical rule has one uniform, centralized weight
+# regardless of the generated numbers; no visual change from the pre-#270
+# inline tabular. Consumed only by build_content_format_macros_tex's
+# \hundredsquarerulewidth \newlength.
+CONTENT_FORMAT_HUNDRED_SQUARE_RULE_WIDTH_TEX = '0.4pt'
 MIN_DECIMAL_PLACES = 0
 MAX_DECIMAL_PLACES = 2
 DEC2FRAC_MIN_DECIMAL_PLACES = 1
@@ -1297,6 +1319,20 @@ def build_content_format_macros_tex() -> str:
       blanking. Named apart from ``\\horizontaleq`` because the vertical layout
       is its own component (item 15). Every length equals the value already in
       effect so compiled PDFs are byte-for-byte unchanged.
+    - ``\\hundredsquarecell{<entry>}`` plus the ``\\hundredsquarecellwidth`` /
+      ``\\hundredsquarecolsep`` / ``\\hundredsquarerulewidth`` lengths and the
+      ``\\hundredsquareheadercolor`` name for pattern 7 (taxonomy "grid table":
+      the ``100`` addition table, issue #270). ``\\hundredsquarecell`` is a
+      fixed-width (``\\hundredsquarecellwidth``), centered ``\\hbox to`` wrapped
+      around every header and data entry so a 1- or 2-digit number occupies the
+      same width and no column goes ragged (guidelines items 6, 11, 20); a
+      plain ``\\hbox to`` (not ``\\makebox[``) keeps #229's "``\\makebox[``
+      absent => number box skipped" layout assertions meaningful. The two
+      length constants set ``\\tabcolsep`` and ``\\arrayrulewidth`` from one
+      place (guidelines items 6, 12); both default to LaTeX's own values, so
+      they are centralization only with no visual change. Deferred as triage
+      (same as #264-#268): tabular figures / a dedicated digit font
+      (guidelines items 13, 14).
     """
     return (
         "\\newlength{\\opspacewidth}\n"
@@ -1392,6 +1428,26 @@ def build_content_format_macros_tex() -> str:
         # only).
         "\\newcommand{\\longdivisioncalc}[2]{\\intlongdivision{#1}{#2}}\n"
         "\\newcommand{\\longdivisioncalcblank}[2]{\\intlongdivision[stage=0]{#1}{#2}}\n"
+        # Pattern 7 (hundred-square grid table, issue #270): one place for the
+        # `100` addition table's cell width, inter-column padding, rule width
+        # and header colour, replacing the inline tabular metrics in
+        # build_hundred_square_grid_tex. Appended after the #264/#265/#266/#267/
+        # #268/#269 definitions, which are left untouched.
+        "\\newlength{\\hundredsquarecellwidth}\n"
+        f"\\setlength{{\\hundredsquarecellwidth}}{{{CONTENT_FORMAT_HUNDRED_SQUARE_CELL_WIDTH_TEX}}}\n"
+        "\\newlength{\\hundredsquarecolsep}\n"
+        f"\\setlength{{\\hundredsquarecolsep}}{{{CONTENT_FORMAT_HUNDRED_SQUARE_COLSEP_TEX}}}\n"
+        "\\newlength{\\hundredsquarerulewidth}\n"
+        f"\\setlength{{\\hundredsquarerulewidth}}{{{CONTENT_FORMAT_HUNDRED_SQUARE_RULE_WIDTH_TEX}}}\n"
+        # Single named tuning point for the shaded header row/column colour
+        # (guidelines item 6); expands inside \rowcolor{...} / \columncolor{...}.
+        f"\\newcommand{{\\hundredsquareheadercolor}}{{{HUNDRED_SQUARE_HEADER_COLOR}}}\n"
+        # Fixed-width, centered box around every header and data entry so a 1-
+        # or 2-digit number occupies the same width and columns never go ragged
+        # (guidelines items 6, 11, 20). A plain \hbox to <dim> (not \makebox[)
+        # keeps the #229 "\makebox[ absent => number box skipped" layout
+        # assertions meaningful; \hfil on both sides centers.
+        "\\newcommand{\\hundredsquarecell}[1]{\\hbox to \\hundredsquarecellwidth{\\hfil #1\\hfil}}\n"
     )
 
 
@@ -3184,30 +3240,55 @@ def generate_hundred_square(nums_left: list[int], nums_top: list[int]) -> Hundre
     )
 
 
-def build_hundred_square_block_tex(table: HundredSquareTable, show_answer: bool) -> str:
+def build_hundred_square_grid_tex(table: HundredSquareTable, show_answer: bool) -> str:
     """
     Render one addition table as an (HUNDRED_SQUARE_SIZE+1)-square LaTeX
     tabular: a blank top-left corner, a shaded header row (table.top_values)
     and header column (table.left_values), and a HUNDRED_SQUARE_SIZE x
     HUNDRED_SQUARE_SIZE grid of data cells (left+top sums when show_answer,
     otherwise blank for the student to fill in).
+
+    Pattern 7 ("grid table", ``docs/latex/tex_content_format_taxonomy.md``)
+    emitted via the shared ``\\hundredsquarecell`` component and the
+    centralized ``\\hundredsquarecellwidth`` / ``\\hundredsquarecolsep`` /
+    ``\\hundredsquarerulewidth`` lengths + ``\\hundredsquareheadercolor`` name
+    (build_content_format_macros_tex, issue #270) instead of inline tabular
+    metrics. Every header and data entry goes through ``\\hundredsquarecell``
+    so a 1- or 2-digit number occupies the same width and no column goes
+    ragged (guidelines items 6, 11, 20); ``\\tabcolsep`` / ``\\arrayrulewidth``
+    are set from the two lengths inside the ``center`` group (items 6, 12).
     """
-    column_spec = f">{{\\columncolor{{{HUNDRED_SQUARE_HEADER_COLOR}}}}}c|" + "c" * HUNDRED_SQUARE_SIZE
+    column_spec = ">{\\columncolor{\\hundredsquareheadercolor}}c|" + "c" * HUNDRED_SQUARE_SIZE
     header_cells = [''] + [str(value) for value in table.top_values]
     lines = [
         "\\begin{center}",
+        "\\setlength{\\tabcolsep}{\\hundredsquarecolsep}",
+        "\\setlength{\\arrayrulewidth}{\\hundredsquarerulewidth}",
         f"\\begin{{tabular}}{{|{column_spec}|}}",
         "\\hline",
-        f"\\rowcolor{{{HUNDRED_SQUARE_HEADER_COLOR}}} {' & '.join(header_cells)} \\\\",
+        "\\rowcolor{\\hundredsquareheadercolor} "
+        + ' & '.join(f"\\hundredsquarecell{{{cell}}}" for cell in header_cells)
+        + " \\\\",
         "\\hline",
     ]
     for left, answer_row in zip(table.left_values, table.answers):
         data_cells = [str(value) for value in answer_row] if show_answer else [''] * HUNDRED_SQUARE_SIZE
-        lines.append(' & '.join([str(left)] + data_cells) + " \\\\")
+        row_cells = [str(left)] + data_cells
+        lines.append(' & '.join(f"\\hundredsquarecell{{{cell}}}" for cell in row_cells) + " \\\\")
         lines.append("\\hline")
     lines.append("\\end{tabular}")
     lines.append("\\end{center}")
     return "\n".join(lines)
+
+
+def build_hundred_square_block_tex(table: HundredSquareTable, show_answer: bool) -> str:
+    """
+    One `100` addition table as a whole block (taxonomy pattern 7). Delegates
+    to build_hundred_square_grid_tex; kept as a named entry point because,
+    unlike every other pattern, this format has no per-problem number prefix
+    to prepend (100masu is one table per page), so block == grid == slot.
+    """
+    return build_hundred_square_grid_tex(table, show_answer)
 
 
 def build_hundred_square_slot_content_tex(table: HundredSquareTable, show_answer: bool) -> str:
@@ -3216,9 +3297,9 @@ def build_hundred_square_slot_content_tex(table: HundredSquareTable, show_answer
     exactly as build_hundred_square_block_tex renders it, which already
     carries no per-problem number prefix (100masu is one table per page).
     Used as the content_format with ContentAreaLayout(numbered=False) via
-    build_presentation_document_tex. Retrofitting this grid to guidelines-doc
-    shared macros is #185/#270's scope, not this one's -- the existing
-    visuals are ported as-is here.
+    build_presentation_document_tex. The grid itself is emitted through the
+    shared guidelines-doc components by build_hundred_square_grid_tex (issue
+    #270).
     """
     return build_hundred_square_block_tex(table, show_answer)
 
