@@ -523,8 +523,9 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴（git log より自動生成）
 
-- a43a730 feat(#270): render the hundred-square grid table via shared TeX components
+- a4ca3f0 Merge branch 'main' into feat/270-hundred-square-grid-component
 - a704907 feat(#269): render the written-calculation (hissan) content format via shared TeX components (#281)
+- a43a730 feat(#270): render the hundred-square grid table via shared TeX components
 - 8cce41a feat(#268): render the staged arrow-chain content format via a shared TeX component (#278)
 - 299eab0 feat(#267): render arrow-conversion content formats via shared TeX components (#279)
 - f794743 feat(#266): render the comparison content format via a shared TeX component (#277)
@@ -532,5 +533,3 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - 4088bf0 feat(#264): render equation content formats via shared TeX components (#275)
 - 2d4c435 feat(#225): migrate commondenom to the internal presentation API (#274)
 - 84c789b feat(#224): migrate compare to the internal presentation API (#273)
-- 7943190 feat(#223): migrate ope --missing-value to the internal presentation API (#272)
-- 7585ce7 feat(#229): migrate the 100 hundred-square command to the internal presentation API (#271)
