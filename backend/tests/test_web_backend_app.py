@@ -1058,7 +1058,10 @@ def test_generate_pdf_simplify_uses_presentation_api_not_subprocess(client, monk
     assert response.status_code == 200
     assert response.data.startswith(b"%PDF")
     assert len(captured_tex) == 1
-    assert "\\displaystyle \\frac" in captured_tex[0]
+    # issue #267: pattern 4b now emits via the shared \fractionarroweq wrapper
+    # (\displaystyle + the display-fraction height strut live in its
+    # \newcommand definition, not inline in the problem body).
+    assert "\\fractionarroweq{" in captured_tex[0]
     assert "\\Rightarrow" in captured_tex[0]
     assert backend_app.nuts_calc_tex.BLANK_ANSWER_TEX in captured_tex[0]
 
@@ -1136,7 +1139,10 @@ def test_generate_pdf_frac2dec_uses_presentation_api_not_subprocess(client, monk
     assert response.status_code == 200
     assert response.data.startswith(b"%PDF")
     assert len(captured_tex) == 1
-    assert "\\displaystyle \\frac" in captured_tex[0]
+    # issue #267: pattern 4b now emits via the shared \fractionarroweq wrapper
+    # (\displaystyle + the display-fraction height strut live in its
+    # \newcommand definition, not inline in the problem body).
+    assert "\\fractionarroweq{" in captured_tex[0]
     assert "\\Rightarrow" in captured_tex[0]
     assert backend_app.nuts_calc_tex.BLANK_ANSWER_TEX in captured_tex[0]
 
@@ -1215,6 +1221,8 @@ def test_generate_pdf_dec2frac_uses_presentation_api_not_subprocess(client, monk
     assert response.data.startswith(b"%PDF")
     assert len(captured_tex) == 1
     assert "\\Rightarrow" in captured_tex[0]
+    # issue #267: pattern 4b emits via the shared \fractionarroweq wrapper.
+    assert "\\fractionarroweq{" in captured_tex[0]
     assert "\\displaystyle" in captured_tex[0]
     assert backend_app.nuts_calc_tex.BLANK_ANSWER_TEX in captured_tex[0]
 
@@ -1371,6 +1379,9 @@ def test_generate_pdf_commondenom_uses_presentation_api_not_subprocess(client, m
     assert response.data.startswith(b"%PDF")
     assert len(captured_tex) == 1
     assert "\\Rightarrow" in captured_tex[0]
+    # issue #267: pattern 4c emits via the shared \fractionarroweq wrapper
+    # (two-element-pair left side joined by build_fraction_pair_conversion_tex).
+    assert "\\fractionarroweq{" in captured_tex[0]
     assert "\\displaystyle" in captured_tex[0]
     assert backend_app.nuts_calc_tex.BLANK_ANSWER_TEX in captured_tex[0]
 
