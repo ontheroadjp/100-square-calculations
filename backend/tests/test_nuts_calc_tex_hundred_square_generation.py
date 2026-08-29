@@ -52,8 +52,11 @@ def test_build_hundred_square_block_tex_blank_hides_answers() -> None:
 
     assert '11' not in blank_tex  # 1 + 10
     assert '11' in filled_tex
-    assert '\\rowcolor{lightgray}' in blank_tex
-    assert '\\columncolor{lightgray}' in blank_tex
+    # issue #270: header row/column shading goes through the centralized
+    # \hundredsquareheadercolor name (backed by HUNDRED_SQUARE_HEADER_COLOR),
+    # not an inline literal color at the call site.
+    assert '\\rowcolor{\\hundredsquareheadercolor}' in blank_tex
+    assert '\\columncolor{\\hundredsquareheadercolor}' in blank_tex
     # header row/column values are shown in both variants
     assert '10' in blank_tex and '10' in filled_tex
 
