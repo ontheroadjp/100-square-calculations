@@ -2225,24 +2225,42 @@ def build_intermediate_memo(a: int, b: int) -> str:
     return f"{tens_digit * b:02d}{ones_digit * b:02d}"
 
 
-def build_horizontal_intermediate_block_tex(problem: OpeProblem, show_answer: bool) -> str:
-    """Render one `ope --intermediate` problem: `n) ` + a staged arrow-chain
-    ``a \\times b => <memo> => c`` body.
+def build_intermediate_ope_slot_content_tex(problem: OpeProblem, show_answer: bool) -> str:
+    """
+    Number-free Layer-3 content for one `ope --intermediate` problem (content-
+    format pattern 5, issue #226): the same staged arrow-chain
+    ``a \\times b => <memo> => c`` body as build_horizontal_intermediate_block_tex
+    but without the embedded `problem.index)` prefix, for use with
+    build_content_area_slot_tex, which owns the number box instead. Mirrors
+    build_ope_slot_content_tex's relationship to build_horizontal_block_tex
+    (#205) -- issue #268 retrofitted the shared components but deliberately left
+    this number-free counterpart to the presentation-API migration (this issue).
 
     Emitted via the shared ``\\stagedchaineq`` / ``\\stagechainarrow`` /
     ``\\stagechainmemo`` components (``build_staged_chain_equation_tex``,
-    taxonomy pattern 5, issue #268) instead of a raw ``$...$`` f-string. The
-    ``\\times`` operator carries the #264 centralized ``\\opspace`` gap (reused
-    via ``build_equation_lhs_tex``, same as ``squ``/``99``); the mental-math
-    memo string is still produced by ``build_intermediate_memo``. The trailing
-    result is the always-fixed-width ``BLANK_ANSWER_TEX`` when blank, kept
-    row-height consistent with the answer key by ``\\stagedchaineq``'s
-    ``\\vphantom``.
+    taxonomy pattern 5, issue #268). The ``\\times`` operator carries the #264
+    centralized ``\\opspace`` gap (reused via ``build_equation_lhs_tex``, same
+    as ``squ``/``99``); the mental-math memo string is still produced by
+    ``build_intermediate_memo``. The trailing result is the always-fixed-width
+    ``BLANK_ANSWER_TEX`` when blank, kept row-height consistent with the answer
+    key by ``\\stagedchaineq``'s ``\\vphantom``.
     """
     expr_tex = build_equation_lhs_tex([str(problem.a), str(problem.b)], ['\\times'])
     memo = build_intermediate_memo(problem.a, problem.b)
     result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
-    return f"{problem.index}) {build_staged_chain_equation_tex(expr_tex, memo, result_tex)}"
+    return build_staged_chain_equation_tex(expr_tex, memo, result_tex)
+
+
+def build_horizontal_intermediate_block_tex(problem: OpeProblem, show_answer: bool) -> str:
+    """Render one `ope --intermediate` problem: `n) ` + a staged arrow-chain
+    ``a \\times b => <memo> => c`` body.
+
+    The number-free body is built by build_intermediate_ope_slot_content_tex
+    (pattern-5 shared staged arrow-chain components, issue #268/#226); this
+    wrapper only prepends the legacy `n)` prefix, mirroring
+    build_horizontal_block_tex's relationship to build_ope_slot_content_tex.
+    """
+    return f"{problem.index}) {build_intermediate_ope_slot_content_tex(problem, show_answer)}"
 
 
 def build_vertical_calc_tex(problem: OpeProblem, show_answer: bool) -> str:
