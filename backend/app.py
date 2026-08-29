@@ -1992,13 +1992,10 @@ def generate_pdf():
             output_filepath, output_filename = _generate_multi_term_ope_pdf(data, PDF_OUTPUT_DIR)
         elif _is_missing_value_ope_pdf_request(data):
             output_filepath, output_filename = _generate_missing_value_ope_pdf(data, PDF_OUTPUT_DIR)
-<<<<<<< HEAD
         elif _is_vertical_ope_pdf_request(data):
             output_filepath, output_filename = _generate_vertical_ope_pdf(data, PDF_OUTPUT_DIR)
-=======
         elif _is_intermediate_ope_pdf_request(data):
             output_filepath, output_filename = _generate_intermediate_ope_pdf(data, PDF_OUTPUT_DIR)
->>>>>>> origin/main
         elif data.get('command_type') == 'squ':
             output_filepath, output_filename = _generate_squ_pdf(data, PDF_OUTPUT_DIR)
         elif data.get('command_type') == 'multiples':
