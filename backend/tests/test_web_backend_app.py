@@ -1533,7 +1533,11 @@ def test_generate_pdf_mixed_maps_compile_failure_to_500(client, monkeypatch) -> 
 @pytest.mark.parametrize(
     "variant_fields",
     [
+<<<<<<< HEAD
         {"intermediate": True},
+=======
+        {"vertical": True},
+>>>>>>> origin/main
         # use_parentheses combined with a mutually-exclusive flag (invalid
         # per nuts_calc_tex.py's _init() validation, nuts_calc_tex.py:
         # 676-692) must NOT be picked up by _is_tree_ope_pdf_request either;
@@ -1548,6 +1552,7 @@ def test_generate_pdf_ope_variants_still_use_subprocess_renderer(client, monkeyp
     """
     Only the plain 2-term 'ope' shape (build_horizontal_block_tex, content-
     format pattern 1a) is migrated by #205; every variant flag that selects
+<<<<<<< HEAD
     a still-unmigrated pattern (intermediate) or an invalid use_parentheses
     combination must keep using the subprocess path. Plain use_parentheses
     (no other variant flag) is covered separately below (#206), the terms
@@ -1556,6 +1561,16 @@ def test_generate_pdf_ope_variants_still_use_subprocess_renderer(client, monkeyp
     now uses the presentation API. Only an invalid use_parentheses +
     (vertical|intermediate|missing_value) combination stays on the subprocess
     path here.
+=======
+    a still-unmigrated pattern (vertical, content-format pattern 6) or an
+    invalid use_parentheses combination must keep using the subprocess path.
+    Plain use_parentheses (no other variant flag) is covered separately below
+    (#206), the terms family (terms/terms_min/terms_max/mixed_operators
+    without use_parentheses) below (#207), missing_value below (#223), and
+    intermediate (content-format pattern 5) below (#226): each now uses the
+    presentation API. An invalid use_parentheses + intermediate/missing_value
+    combination stays on the subprocess path here.
+>>>>>>> origin/main
     """
     backend_app = sys.modules["app"]
 
@@ -1862,6 +1877,7 @@ def test_generate_pdf_ope_missing_value_maps_compile_failure_to_500(client, monk
     assert "lualatex failed while building the worksheet" in response.get_json()["error"]
 
 
+<<<<<<< HEAD
 def test_generate_pdf_ope_vertical_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
     """
     An `ope --vertical` (hissan / written-calculation) request must build its
@@ -1878,12 +1894,29 @@ def test_generate_pdf_ope_vertical_uses_presentation_api_not_subprocess(client, 
 
     def fail_if_called(*args, **kwargs):
         raise AssertionError("renderers.run must not be called for an 'ope --vertical' request")
+=======
+def test_generate_pdf_ope_intermediate_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
+    """
+    An `ope --intermediate` (staged mental-math arrow-chain, content-format
+    pattern 5) request must build its PDF via
+    nuts_calc_tex.build_presentation_document_tex (issue #226), not via
+    renderers.run's subprocess path -- assert this the same way
+    test_generate_pdf_ope_missing_value_uses_presentation_api_not_subprocess does.
+    """
+    backend_app = sys.modules["app"]
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("renderers.run must not be called for an 'ope --intermediate' request")
+>>>>>>> origin/main
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
+<<<<<<< HEAD
         captured_tex.append(tex_source)
+=======
+>>>>>>> origin/main
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
@@ -1897,12 +1930,18 @@ def test_generate_pdf_ope_vertical_uses_presentation_api_not_subprocess(client, 
     response = client.post(
         "/generate-pdf",
         json={
+<<<<<<< HEAD
             "paper_size": "A4", "command_type": "ope", "vertical": True,
             "a_min": 10, "a_max": 99, "operator": ["add"],
+=======
+            "paper_size": "A4", "command_type": "ope", "intermediate": True,
+            "operator": ["mul"], "a_min": 1, "a_max": 9, "b_min": 1, "b_max": 9,
+>>>>>>> origin/main
         },
     )
     assert response.status_code == 200
     assert response.data.startswith(b"%PDF")
+<<<<<<< HEAD
     assert len(captured_tex) == 1
     assert "\\verticalcalcblank{" in captured_tex[0]
     assert "\\makebox[" in captured_tex[0]
@@ -1910,6 +1949,11 @@ def test_generate_pdf_ope_vertical_uses_presentation_api_not_subprocess(client, 
 
 
 def test_generate_pdf_ope_vertical_maps_compile_failure_to_500(client, monkeypatch) -> None:
+=======
+
+
+def test_generate_pdf_ope_intermediate_maps_compile_failure_to_500(client, monkeypatch) -> None:
+>>>>>>> origin/main
     backend_app = sys.modules["app"]
     monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
@@ -1926,14 +1970,20 @@ def test_generate_pdf_ope_vertical_maps_compile_failure_to_500(client, monkeypat
     response = client.post(
         "/generate-pdf",
         json={
+<<<<<<< HEAD
             "paper_size": "A4", "command_type": "ope", "vertical": True,
             "a_min": 10, "a_max": 99,
+=======
+            "paper_size": "A4", "command_type": "ope", "intermediate": True,
+            "operator": ["mul"], "a_min": 1, "a_max": 9,
+>>>>>>> origin/main
         },
     )
     assert response.status_code == 500
     assert "lualatex failed while building the worksheet" in response.get_json()["error"]
 
 
+<<<<<<< HEAD
 def test_generate_pdf_ope_vertical_rejects_decimal_divisor(client, monkeypatch) -> None:
     """
     `ope --vertical -o div` with a decimal divisor (b_decimal_places > 0) is
@@ -1949,16 +1999,38 @@ def test_generate_pdf_ope_vertical_rejects_decimal_divisor(client, monkeypatch) 
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+=======
+def test_generate_pdf_ope_intermediate_rejects_non_mul_operator(client, monkeypatch) -> None:
+    """--intermediate only supports a single 'mul' operator; an out-of-scope
+    operator must fail the same way nuts_calc_tex.py's _init() would rather
+    than silently producing a different worksheet (issue #226)."""
+    backend_app = sys.modules["app"]
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("renderers.run must not be called for an 'ope --intermediate' request")
+
+    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
+>>>>>>> origin/main
 
     response = client.post(
         "/generate-pdf",
         json={
+<<<<<<< HEAD
             "paper_size": "A4", "command_type": "ope", "vertical": True,
             "operator": ["div"], "a_decimal_places": 1, "b_decimal_places": 1,
         },
     )
     assert response.status_code == 500
     assert "does not yet support a decimal --b-decimal-places" in response.get_json()["error"]
+=======
+            "paper_size": "A4", "command_type": "ope", "intermediate": True,
+            "operator": ["add"], "a_min": 1, "a_max": 9,
+        },
+    )
+    assert response.status_code == 500
+    assert "single 'mul' operator" in response.get_json()["error"]
+>>>>>>> origin/main
 
 
 def test_generate_pdf_hundred_square_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:

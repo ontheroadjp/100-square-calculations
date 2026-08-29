@@ -1077,6 +1077,7 @@ def _generate_missing_value_ope_pdf(data: renderers.RendererRequest, output_dir:
     return output_filepath, output_filename
 
 
+<<<<<<< HEAD
 def _is_vertical_ope_pdf_request(data: renderers.RendererRequest) -> bool:
     """
     True when `data` requests the `ope --vertical` (hissan / written-calculation)
@@ -1097,6 +1098,26 @@ def _is_vertical_ope_pdf_request(data: renderers.RendererRequest) -> bool:
     if not data.get('vertical'):
         return False
     if data.get('intermediate') or data.get('use_parentheses') or data.get('missing_value'):
+=======
+def _is_intermediate_ope_pdf_request(data: renderers.RendererRequest) -> bool:
+    """
+    True when `data` requests the `ope --intermediate` (staged mental-math
+    arrow-chain) PDF this issue (#226, one of #174/B-5's breadth=1 pattern-5
+    batches, following the pattern-1a `ope` migrations #205/#206/#207 and the
+    pattern-2 `--missing-value` migration #223) covers: command_type == 'ope'
+    with intermediate set, and none of
+    vertical/use_parentheses/missing_value/mixed_operators/the terms family
+    also set -- each is mutually exclusive with --intermediate per
+    nuts_calc_tex.py's _init() validation (nuts_calc_tex.py:750-797), so a
+    request combining them keeps using renderers.py's subprocess path
+    unchanged. `ope --vertical` (pattern 6) stays on the subprocess path.
+    """
+    if data.get('command_type') != 'ope':
+        return False
+    if not data.get('intermediate'):
+        return False
+    if data.get('vertical') or data.get('use_parentheses') or data.get('missing_value'):
+>>>>>>> origin/main
         return False
     if data.get('mixed_operators'):
         return False
@@ -1105,6 +1126,7 @@ def _is_vertical_ope_pdf_request(data: renderers.RendererRequest) -> bool:
     return True
 
 
+<<<<<<< HEAD
 def _generate_vertical_ope_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
     """
     Build an `ope --vertical` (hissan) command PDF via nuts_calc_tex.py's
@@ -1131,6 +1153,29 @@ def _generate_vertical_ope_pdf(data: renderers.RendererRequest, output_dir: str)
     (nuts_calc_tex.py:900-912) -- app.py bypasses _init(), so that check is
     re-implemented rather than inherited. `--vertical` + equal decimal places is
     otherwise allowed (issue #134).
+=======
+def _generate_intermediate_ope_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+    """
+    Build an `ope --intermediate` (staged mental-math arrow-chain) command PDF
+    via nuts_calc_tex.py's internal presentation API
+    (build_presentation_document_tex, issue #183), mirroring _generate_ope_pdf's
+    pattern (issue #205) for #174/B-5's pattern-5 migration (#226). Basic-case
+    only: a/b range (a_digits/b_digits or a_min/a_max/b_min/b_max), result_max,
+    plus rows/columns -- always a single blank (practice) page. Callers must
+    route here only when _is_intermediate_ope_pdf_request(data) is true;
+    with_bottom_answer/with_name_field/multi-page/merge are unsupported here
+    too, matching _generate_ope_pdf's scope.
+
+    'ope' is in nuts_calc_tex.DIGIT_COUNT_SHORTHAND_COMMANDS, so a/b are
+    resolved via problem_generation.resolve_digit_count_range (see
+    _generate_com_pdf's docstring). --intermediate only supports a single
+    'mul' operator and a single-digit second operand, and rejects decimal
+    places (nuts_calc_tex.py:750-797, 880-881); the same constraints are
+    enforced here with ValueError so an out-of-scope request fails the same way
+    the subprocess path would rather than silently producing a different
+    worksheet. carry_mode/remainder_mode/decimal places are not forwarded --
+    they are meaningless for a mul-only variant (cf. _generate_missing_value_ope_pdf).
+>>>>>>> origin/main
     """
     a_min, a_max = problem_generation.resolve_digit_count_range(
         data, 'a_digits', 'a_min', 'a_max',
@@ -1140,6 +1185,7 @@ def _generate_vertical_ope_pdf(data: renderers.RendererRequest, output_dir: str)
         data, 'b_digits', 'b_min', 'b_max',
         problem_generation.DEFAULT_B_MIN, problem_generation.DEFAULT_B_MAX,
     )
+<<<<<<< HEAD
     operator = list(data.get('operator') or problem_generation.DEFAULT_OPERATOR)
     a_decimal_places = data.get('a_decimal_places', nuts_calc_tex.MIN_DECIMAL_PLACES)
     b_decimal_places = data.get('b_decimal_places', nuts_calc_tex.MIN_DECIMAL_PLACES)
@@ -1149,6 +1195,14 @@ def _generate_vertical_ope_pdf(data: renderers.RendererRequest, output_dir: str)
             "--vertical does not yet support a decimal --b-decimal-places "
             "divisor for the 'div' operator (see the open question in "
             "nuts_calc_tex.py.md)."
+=======
+    operator = list(data.get('operator') or ['mul'])
+    if operator != ['mul']:
+        raise ValueError("--intermediate only supports a single 'mul' operator (use -o mul).")
+    if b_max > nuts_calc_tex.INTERMEDIATE_SINGLE_DIGIT_MAX:
+        raise ValueError(
+            "--intermediate only supports a single-digit second operand (use -b 1 or --b-max <= 9)."
+>>>>>>> origin/main
         )
 
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
@@ -1168,9 +1222,13 @@ def _generate_vertical_ope_pdf(data: renderers.RendererRequest, output_dir: str)
     nums_a = list(range(a_min, a_max + 1))
     nums_b = list(range(b_min, b_max + 1))
     problems = nuts_calc_tex.generate_ope_problems(
+<<<<<<< HEAD
         nums_a, nums_b, operator, rows * columns, 1,
         a_decimal_places, b_decimal_places,
         data.get('carry_mode'), data.get('remainder_mode'), data.get('result_max'),
+=======
+        nums_a, nums_b, operator, rows * columns, 1, result_max=data.get('result_max'),
+>>>>>>> origin/main
     )
     page = nuts_calc_tex.PresentationPage(
         problems=problems, indices=[problem.index for problem in problems]
@@ -1178,12 +1236,19 @@ def _generate_vertical_ope_pdf(data: renderers.RendererRequest, output_dir: str)
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
         pages=[page],
+<<<<<<< HEAD
         content_format=nuts_calc_tex.build_vertical_ope_slot_content_tex,
+=======
+        content_format=nuts_calc_tex.build_intermediate_ope_slot_content_tex,
+>>>>>>> origin/main
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
         show_answer=False,
+<<<<<<< HEAD
         grid_layout='tabular',
+=======
+>>>>>>> origin/main
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
@@ -1878,8 +1943,13 @@ def generate_pdf():
             output_filepath, output_filename = _generate_multi_term_ope_pdf(data, PDF_OUTPUT_DIR)
         elif _is_missing_value_ope_pdf_request(data):
             output_filepath, output_filename = _generate_missing_value_ope_pdf(data, PDF_OUTPUT_DIR)
+<<<<<<< HEAD
         elif _is_vertical_ope_pdf_request(data):
             output_filepath, output_filename = _generate_vertical_ope_pdf(data, PDF_OUTPUT_DIR)
+=======
+        elif _is_intermediate_ope_pdf_request(data):
+            output_filepath, output_filename = _generate_intermediate_ope_pdf(data, PDF_OUTPUT_DIR)
+>>>>>>> origin/main
         elif data.get('command_type') == 'squ':
             output_filepath, output_filename = _generate_squ_pdf(data, PDF_OUTPUT_DIR)
         elif data.get('command_type') == 'multiples':

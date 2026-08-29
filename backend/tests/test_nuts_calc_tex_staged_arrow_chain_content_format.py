@@ -142,6 +142,25 @@ def test_intermediate_block_memo_is_wrapped_in_the_fixed_width_box_from_build_in
     assert f"\\stagechainmemo{{{memo}}}" in block
 
 
+# --- number-free slot formatter (issue #226) --------------------------
+
+def test_intermediate_slot_content_omits_the_index_prefix_and_matches_the_block_body() -> None:
+    """issue #226 adds the number-free Layer-3 counterpart of
+    build_horizontal_intermediate_block_tex for the presentation-API
+    migration; the block builder now delegates to it and only prepends the
+    `n) ` prefix (same relationship as build_horizontal_block_tex /
+    build_ope_slot_content_tex)."""
+    problem = _problem(index=3, a=23, b=4, c=92)
+
+    for show_answer in (False, True):
+        slot = tex_module.build_intermediate_ope_slot_content_tex(problem, show_answer=show_answer)
+        block = tex_module.build_horizontal_intermediate_block_tex(problem, show_answer=show_answer)
+
+        assert not slot.startswith("3)")
+        assert block == f"3) {slot}"
+        assert slot.startswith("\\stagedchaineq{23 \\opspace \\times \\opspace 4 \\stagechainarrow ")
+
+
 # --- real-PDF spot checks (both engines, blank + filled) --------------
 
 _ENGINES = {

@@ -536,6 +536,47 @@ def test_build_missing_value_slot_content_tex_matches_block_tex_body_when_compos
             assert original_tex == f"{problem.index}) {slot_content_tex}"
 
 
+def test_build_intermediate_ope_slot_content_tex_omits_problem_number() -> None:
+    problem = tex_module.OpeProblem(index=5, a=23, b=4, operator="mul", c=92)
+
+    blank_tex = tex_module.build_intermediate_ope_slot_content_tex(problem, show_answer=False)
+    filled_tex = tex_module.build_intermediate_ope_slot_content_tex(problem, show_answer=True)
+
+    assert blank_tex == (
+        "\\stagedchaineq{23 \\opspace \\times \\opspace 4 \\stagechainarrow "
+        "\\stagechainmemo{0812} \\stagechainarrow \\hspace{1.5em}}"
+    )
+    assert filled_tex == (
+        "\\stagedchaineq{23 \\opspace \\times \\opspace 4 \\stagechainarrow "
+        "\\stagechainmemo{0812} \\stagechainarrow 92}"
+    )
+    assert "5)" not in blank_tex
+
+
+def test_build_intermediate_ope_slot_content_tex_matches_block_tex_body_when_composed() -> None:
+    """Composing the Layer-2 slot with the number-free Layer-3 content must
+    reproduce the existing build_horizontal_intermediate_block_tex() output
+    byte-for-byte (content-format pattern 5, issue #226), so Layer 2 can be
+    adopted without a visual regression -- for both the blank and filled
+    variants."""
+    problem = tex_module.OpeProblem(index=5, a=23, b=4, operator="mul", c=92)
+    layout = tex_module.ContentAreaLayout(rows=1, columns=1, number_box_width_mm=0)
+
+    for show_answer in (False, True):
+        original_tex = tex_module.build_horizontal_intermediate_block_tex(
+            problem, show_answer=show_answer
+        )
+        slot_content_tex = tex_module.build_intermediate_ope_slot_content_tex(
+            problem, show_answer=show_answer
+        )
+        composed_tex = tex_module.build_content_area_slot_tex(
+            problem.index, slot_content_tex, layout
+        )
+
+        assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+        assert original_tex == f"{problem.index}) {slot_content_tex}"
+
+
 def _make_mixed_problem(index: int) -> "tex_module.MixedProblem":
     return tex_module.MixedProblem(
         index=index,
