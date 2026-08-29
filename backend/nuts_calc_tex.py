@@ -2575,6 +2575,21 @@ def build_missing_value_block_tex(problem: MissingValueProblem, show_answer: boo
     return f"{problem.index}) ${a_tex} {symbol} {b_tex} = {problem.c}$"
 
 
+def build_missing_value_slot_content_tex(problem: MissingValueProblem, show_answer: bool) -> str:
+    """
+    Number-free Layer-3 content for one `ope --missing-value` problem
+    (content-format pattern 2, issue #223): the same body as
+    build_missing_value_block_tex but without the embedded `problem.index)`
+    prefix, for use with build_content_area_slot_tex, which owns the number
+    box instead. Mirrors build_ope_slot_content_tex's relationship to
+    build_horizontal_block_tex (#205).
+    """
+    symbol = OPERATOR_TEX_SYMBOLS[problem.operator]
+    a_tex = str(problem.a) if show_answer or problem.blank != 'a' else BOXED_BLANK_TEX
+    b_tex = str(problem.b) if show_answer or problem.blank != 'b' else BOXED_BLANK_TEX
+    return f"${a_tex} {symbol} {b_tex} = {problem.c}$"
+
+
 def build_missing_value_page_pair(problems: list[MissingValueProblem], columns: int) -> tuple[Page, Page]:
     """Build the (blank, filled) Page pair for one page's worth of missing-value `ope` problems."""
     blank_page = Page(
