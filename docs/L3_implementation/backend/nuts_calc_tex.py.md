@@ -524,9 +524,9 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴（git log より自動生成）
 
-- a4ca3f0 Merge branch 'main' into feat/270-hundred-square-grid-component
+- 8c28b2e feat(#226): migrate ope --intermediate to the internal presentation API
+- 9b643c3 feat(#270): render the hundred-square grid table via shared TeX components (#280)
 - a704907 feat(#269): render the written-calculation (hissan) content format via shared TeX components (#281)
-- a43a730 feat(#270): render the hundred-square grid table via shared TeX components
 - 8cce41a feat(#268): render the staged arrow-chain content format via a shared TeX component (#278)
 - 299eab0 feat(#267): render arrow-conversion content formats via shared TeX components (#279)
 - f794743 feat(#266): render the comparison content format via a shared TeX component (#277)
