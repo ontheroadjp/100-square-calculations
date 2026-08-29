@@ -48,8 +48,8 @@ def test_build_abc_block_tex_blank_hides_answer() -> None:
     filled_tex = tex_module.build_abc_block_tex(problem, show_answer=True)
     assert '154' not in blank_tex
     assert '\\underline' not in blank_tex
-    assert '1234 \\Rightarrow \\hspace{1.5em}' in blank_tex
-    assert '1234 \\Rightarrow 154$' in filled_tex
+    assert '\\arroweq{1234 \\opspace \\Rightarrow \\opspace \\hspace{1.5em}}' in blank_tex
+    assert '\\arroweq{1234 \\opspace \\Rightarrow \\opspace 154}' in filled_tex
 
 
 def test_build_abc_slot_content_tex_matches_block_body_without_number() -> None:

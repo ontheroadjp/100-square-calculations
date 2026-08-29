@@ -1207,6 +1207,23 @@ def build_content_format_macros_tex() -> str:
       diverge from pattern 1b without coupling. The blanked relation symbol
       reuses ``\\boxedblank``; the ``\\opspace`` gap sits on both sides of the
       relation.
+    - ``\\arroweq{<body>}`` / ``\\fractionarroweq{<body>}`` for the
+      "arrow-conversion" family (taxonomy patterns 4a/4b/4c, issue #267):
+      ``A => B`` where the ``\\Rightarrow`` gets the centralized ``\\opspace``
+      gap on both sides (guidelines item 5). ``\\arroweq`` is the plain
+      ``$...$`` wrapper for pattern 4a (``aBc``, ``evenodd``, ``multiples``,
+      ``divisors`` -- integer/label/comma-list operands only), same shape as
+      ``\\horizontaleq`` but named separately so 4a's horizontal treatment can
+      diverge and its call sites read in their own terms. ``\\fractionarroweq``
+      is the ``$\\displaystyle ...\\vphantom{\\frac{0}{0}}$`` variant (same
+      shape as ``\\fractioneq``/``\\compareeq``) for the fraction-bearing 4b
+      (``simplify``, ``frac2dec``, ``dec2frac``) and the two-element-pair 4c
+      (``commondenom``): the display-fraction height strut keeps the blank and
+      answer-key rows the same height whether a side renders as a ``\\frac``,
+      an integer, a decimal, or the blank marker (guidelines item 17). 4b and
+      4c share this one wrapper -- they are a single taxonomy sub-family that
+      differs only in operand arity (a Python-helper concern handled by
+      ``build_fraction_pair_conversion_tex``), not in vertical metrics.
     """
     return (
         "\\newlength{\\opspacewidth}\n"
@@ -1231,6 +1248,16 @@ def build_content_format_macros_tex() -> str:
         # \fractioneq (comparisons freely mix int/decimal/\frac operands), kept
         # a separate name so its vertical handling can diverge later.
         "\\newcommand{\\compareeq}[1]{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}\n"
+        # Pattern 4a (arrow conversion, issue #267): plain $...$ wrapper for
+        # aBc/evenodd/multiples/divisors (integer/label/comma-list operands),
+        # same shape as \horizontaleq, separate name so 4a can diverge later.
+        "\\newcommand{\\arroweq}[1]{$#1$}\n"
+        # Patterns 4b/4c (fraction-bearing / two-element-pair arrow conversion,
+        # issue #267): same display-math + height-strut shape as \fractioneq so
+        # blank and answer-key rows stay the same height across \frac/int/
+        # decimal/blank sides (guidelines item 17). One wrapper for both: they
+        # differ only in operand arity, not vertical metrics.
+        "\\newcommand{\\fractionarroweq}[1]{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}\n"
     )
 
 
@@ -1292,6 +1319,44 @@ def build_comparison_equation_tex(a_tex: str, relation_tex: str, b_tex: str) -> 
     ``\\opspace`` gap sits on both sides of the relation.
     """
     return f"\\compareeq{{{a_tex} \\opspace {relation_tex} \\opspace {b_tex}}}"
+
+
+def build_arrow_conversion_tex(lhs_tex: str, rhs_tex: str) -> str:
+    """
+    Wrap one pattern-4a (taxonomy "arrow conversion": ``aBc``, ``evenodd``,
+    ``multiples``, ``divisors``) single-line body via the shared
+    ``\\arroweq``/``\\opspace`` components instead of a raw ``$...$`` f-string
+    (issue #267; guidelines item 5). ``rhs_tex`` is the converted answer (a
+    digit run, an ``\\mathrm{}`` label, or a comma-separated list) in the
+    answer key, else the shared unboxed ``BLANK_ANSWER_TEX`` marker. The
+    ``\\opspace`` gap sits on both sides of ``\\Rightarrow``.
+    """
+    return f"\\arroweq{{{lhs_tex} \\opspace \\Rightarrow \\opspace {rhs_tex}}}"
+
+
+def build_fraction_arrow_conversion_tex(lhs_tex: str, rhs_tex: str) -> str:
+    """
+    Wrap one pattern-4b (fraction-bearing "arrow conversion": ``simplify``,
+    ``frac2dec``, ``dec2frac``) single-line body via the shared
+    ``\\fractionarroweq``/``\\opspace`` components instead of a raw
+    ``$\\displaystyle ...$`` f-string (issue #267; guidelines items 5, 17).
+    The ``\\displaystyle`` + ``\\vphantom`` height strut keeps blank and
+    answer-key rows the same height whether a side is a ``\\frac``, an
+    integer, a decimal, or the blank marker.
+    """
+    return f"\\fractionarroweq{{{lhs_tex} \\opspace \\Rightarrow \\opspace {rhs_tex}}}"
+
+
+def build_fraction_pair_conversion_tex(a_tex: str, b_tex: str, rhs_tex: str) -> str:
+    """
+    Wrap one pattern-4c (two-element-pair "arrow conversion": ``commondenom``)
+    body via the shared ``\\fractionarroweq``/``\\opspace`` components (issue
+    #267). 4c fixes the element count at 2 (``A, B \\Rightarrow A', B'``); the
+    two-fraction left side is joined here and the right side (``rhs_tex``) is
+    either the joined converted pair or the blank marker. Shares 4b's wrapper
+    -- the sub-family differs only in operand arity, not vertical metrics.
+    """
+    return build_fraction_arrow_conversion_tex(f"{a_tex}, {b_tex}", rhs_tex)
 
 
 def build_page_header_tex(with_name_field: bool = False) -> str:
@@ -3193,15 +3258,24 @@ def generate_abc_problems(order: int, start_index: int) -> list[AbcProblem]:
 
 
 def build_abc_block_tex(problem: AbcProblem, show_answer: bool) -> str:
-    """Render one `aBc` problem: `n) $abcd \\Rightarrow ____$`, filled with the converted answer when show_answer."""
-    result_tex = str(problem.answer) if show_answer else BLANK_ANSWER_TEX
-    return f"{problem.index}) ${problem.abcd_display} \\Rightarrow {result_tex}$"
+    """Render one `aBc` problem: `n) ` + the number-free slot body, filled with the converted answer when show_answer.
+
+    Number-free body built by build_abc_slot_content_tex (pattern-4a shared
+    arrow-conversion components, issue #267); this wrapper only prepends the
+    legacy `n)` prefix.
+    """
+    return f"{problem.index}) {build_abc_slot_content_tex(problem, show_answer)}"
 
 
 def build_abc_slot_content_tex(problem: AbcProblem, show_answer: bool) -> str:
-    """Render number-free Layer-3 content for one basic-case `aBc` problem."""
+    """Render number-free Layer-3 content for one basic-case `aBc` problem.
+
+    Pattern-4a: emitted via the shared \\arroweq/\\opspace components (issue
+    #267) instead of a raw `$...$` f-string, so the `\\Rightarrow` gets the
+    centralized operator gap.
+    """
     result_tex = str(problem.answer) if show_answer else BLANK_ANSWER_TEX
-    return f"${problem.abcd_display} \\Rightarrow {result_tex}$"
+    return build_arrow_conversion_tex(problem.abcd_display, result_tex)
 
 
 def build_abc_page_pair(problems: list[AbcProblem], columns: int) -> tuple[Page, Page]:
@@ -3597,20 +3671,24 @@ def build_evenodd_block_tex(problem: EvenOddProblem, show_answer: bool) -> str:
     --with-name-field's "Name:" label, issue #93). `\\mathrm` is core
     LaTeX2e (no extra package needed) and keeps the label upright inside
     math mode instead of being spaced out like a product of variables.
+
+    Number-free body built by build_evenodd_slot_content_tex (pattern-4a
+    shared arrow-conversion components, issue #267); this wrapper only
+    prepends the legacy `n)` prefix.
     """
-    label_tex = f"\\mathrm{{{problem.label}}}" if show_answer else BLANK_ANSWER_TEX
-    return f"{problem.index}) ${problem.a} \\Rightarrow {label_tex}$"
+    return f"{problem.index}) {build_evenodd_slot_content_tex(problem, show_answer)}"
 
 
 def build_evenodd_slot_content_tex(problem: EvenOddProblem, show_answer: bool) -> str:
     """
-    Number-free Layer-3 content for one `evenodd` problem (issue #214): the
-    same body as build_evenodd_block_tex() but without the embedded
+    Number-free Layer-3 content for one `evenodd` problem (issues #214/#267):
+    the body of build_evenodd_block_tex() without the embedded
     `problem.index)` prefix, for use with build_content_area_slot_tex, which
-    owns the number box instead.
+    owns the number box instead. Emitted via the shared \\arroweq/\\opspace
+    components (pattern 4a) instead of a raw `$...$` f-string.
     """
     label_tex = f"\\mathrm{{{problem.label}}}" if show_answer else BLANK_ANSWER_TEX
-    return f"${problem.a} \\Rightarrow {label_tex}$"
+    return build_arrow_conversion_tex(str(problem.a), label_tex)
 
 
 def build_evenodd_page_pair(problems: list[EvenOddProblem], columns: int) -> tuple[Page, Page]:
@@ -3686,15 +3764,24 @@ def generate_multiples_problems(nums_a: list[int], order: int, start_index: int,
 
 
 def build_multiples_block_tex(problem: MultiplesProblem, show_answer: bool) -> str:
-    """Render one `multiples` problem: `n) $a \\Rightarrow 6, 12, 18, 24$` (blank hides the list)."""
-    multiples_tex = ', '.join(str(m) for m in problem.multiples) if show_answer else BLANK_ANSWER_TEX
-    return f"{problem.index}) ${problem.a} \\Rightarrow {multiples_tex}$"
+    """Render one `multiples` problem: `n) ` + the number-free slot body (blank hides the list).
+
+    Number-free body built by build_multiples_slot_content_tex (pattern-4a
+    shared arrow-conversion components, issue #267); this wrapper only
+    prepends the legacy `n)` prefix.
+    """
+    return f"{problem.index}) {build_multiples_slot_content_tex(problem, show_answer)}"
 
 
 def build_multiples_slot_content_tex(problem: MultiplesProblem, show_answer: bool) -> str:
-    """Render the number-free Layer-3 body of one `multiples` problem."""
+    """Render the number-free Layer-3 body of one `multiples` problem.
+
+    Pattern-4a: emitted via the shared \\arroweq/\\opspace components (issue
+    #267) instead of a raw `$...$` f-string. The answer side is a
+    comma-separated multiples list, else the shared unboxed blank marker.
+    """
     multiples_tex = ', '.join(str(m) for m in problem.multiples) if show_answer else BLANK_ANSWER_TEX
-    return f"${problem.a} \\Rightarrow {multiples_tex}$"
+    return build_arrow_conversion_tex(str(problem.a), multiples_tex)
 
 
 def build_multiples_page_pair(problems: list[MultiplesProblem], columns: int) -> tuple[Page, Page]:
@@ -3773,15 +3860,24 @@ def generate_divisors_problems(nums_a: list[int], order: int, start_index: int) 
 
 
 def build_divisors_block_tex(problem: DivisorsProblem, show_answer: bool) -> str:
-    """Render one `divisors` problem: `n) $a \\Rightarrow 1, 2, 3, 4, 6, 12$` (blank hides the list)."""
-    divisors_tex = ', '.join(str(d) for d in problem.divisors) if show_answer else BLANK_ANSWER_TEX
-    return f"{problem.index}) ${problem.a} \\Rightarrow {divisors_tex}$"
+    """Render one `divisors` problem: `n) ` + the number-free slot body (blank hides the list).
+
+    Number-free body built by build_divisors_slot_content_tex (pattern-4a
+    shared arrow-conversion components, issue #267); this wrapper only
+    prepends the legacy `n)` prefix.
+    """
+    return f"{problem.index}) {build_divisors_slot_content_tex(problem, show_answer)}"
 
 
 def build_divisors_slot_content_tex(problem: DivisorsProblem, show_answer: bool) -> str:
-    """Render the number-free Layer-3 body of one `divisors` problem."""
+    """Render the number-free Layer-3 body of one `divisors` problem.
+
+    Pattern-4a: emitted via the shared \\arroweq/\\opspace components (issue
+    #267) instead of a raw `$...$` f-string. The answer side is a
+    comma-separated divisors list, else the shared unboxed blank marker.
+    """
     divisors_tex = ', '.join(str(d) for d in problem.divisors) if show_answer else BLANK_ANSWER_TEX
-    return f"${problem.a} \\Rightarrow {divisors_tex}$"
+    return build_arrow_conversion_tex(str(problem.a), divisors_tex)
 
 
 def build_divisors_page_pair(problems: list[DivisorsProblem], columns: int) -> tuple[Page, Page]:
@@ -4721,9 +4817,15 @@ def build_simplify_block_tex(problem: SimplifyProblem, show_answer: bool) -> str
 
 
 def build_simplify_slot_content_tex(problem: SimplifyProblem, show_answer: bool) -> str:
-    """Render number-free `simplify` content for a presentation slot."""
+    """Render number-free `simplify` content for a presentation slot.
+
+    Pattern-4b: emitted via the shared \\fractionarroweq/\\opspace components
+    (issue #267) instead of a raw `$\\displaystyle ...$` f-string, so the
+    `\\Rightarrow` gets the centralized gap and the row height stays uniform
+    across the fraction answer and the blank marker (guidelines item 17).
+    """
     result_tex = fraction_to_tex(problem.reduced) if show_answer else BLANK_ANSWER_TEX
-    return f"$\\displaystyle {fraction_to_tex(problem.operand)} \\Rightarrow {result_tex}$"
+    return build_fraction_arrow_conversion_tex(fraction_to_tex(problem.operand), result_tex)
 
 
 def build_simplify_page_pair(problems: list[SimplifyProblem], columns: int) -> tuple[Page, Page]:
@@ -4828,14 +4930,21 @@ def build_commondenom_block_tex(problem: CommonDenomProblem, show_answer: bool) 
 
 
 def build_commondenom_slot_content_tex(problem: CommonDenomProblem, show_answer: bool) -> str:
-    """Render number-free `commondenom` content for a presentation slot."""
+    """Render number-free `commondenom` content for a presentation slot.
+
+    Pattern-4c (two-element-pair arrow conversion, issue #267): emitted via
+    the shared \\fractionarroweq/\\opspace components
+    (build_fraction_pair_conversion_tex) instead of a raw
+    `$\\displaystyle ...$` f-string. Both sides are comma-separated fraction
+    pairs; the answer side is the converted pair, else the shared unboxed
+    blank marker.
+    """
     if show_answer:
         result_tex = f"{fraction_to_tex(problem.a_converted)}, {fraction_to_tex(problem.b_converted)}"
     else:
         result_tex = BLANK_ANSWER_TEX
-    return (
-        f"$\\displaystyle {fraction_to_tex(problem.a)}, "
-        f"{fraction_to_tex(problem.b)} \\Rightarrow {result_tex}$"
+    return build_fraction_pair_conversion_tex(
+        fraction_to_tex(problem.a), fraction_to_tex(problem.b), result_tex
     )
 
 
@@ -4976,9 +5085,13 @@ def build_frac2dec_block_tex(problem: Frac2DecProblem, show_answer: bool) -> str
 
 
 def build_frac2dec_slot_content_tex(problem: Frac2DecProblem, show_answer: bool) -> str:
-    """Render number-free `frac2dec` content for a presentation slot."""
+    """Render number-free `frac2dec` content for a presentation slot.
+
+    Pattern-4b: emitted via the shared \\fractionarroweq/\\opspace components
+    (issue #267) instead of a raw `$\\displaystyle ...$` f-string.
+    """
     result_tex = problem.decimal_display if show_answer else BLANK_ANSWER_TEX
-    return f"$\\displaystyle {fraction_to_tex(problem.operand)} \\Rightarrow {result_tex}$"
+    return build_fraction_arrow_conversion_tex(fraction_to_tex(problem.operand), result_tex)
 
 
 def build_frac2dec_page_pair(problems: list[Frac2DecProblem], columns: int) -> tuple[Page, Page]:
@@ -5073,9 +5186,15 @@ def build_dec2frac_block_tex(problem: Dec2FracProblem, show_answer: bool) -> str
 
 
 def build_dec2frac_slot_content_tex(problem: Dec2FracProblem, show_answer: bool) -> str:
-    """Render number-free `dec2frac` content for a presentation slot."""
+    """Render number-free `dec2frac` content for a presentation slot.
+
+    Pattern-4b: emitted via the shared \\fractionarroweq/\\opspace components
+    (issue #267) instead of a raw `$\\displaystyle ...$` f-string. The
+    display-fraction height strut keeps the blank row the same height as the
+    fraction answer row (guidelines item 17).
+    """
     result_tex = fraction_to_tex(problem.reduced) if show_answer else BLANK_ANSWER_TEX
-    return f"$\\displaystyle {problem.decimal_display} \\Rightarrow {result_tex}$"
+    return build_fraction_arrow_conversion_tex(problem.decimal_display, result_tex)
 
 
 def build_dec2frac_page_pair(problems: list[Dec2FracProblem], columns: int) -> tuple[Page, Page]:

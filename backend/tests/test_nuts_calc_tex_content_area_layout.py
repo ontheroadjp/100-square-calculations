@@ -161,10 +161,12 @@ def test_build_simplify_slot_content_tex_omits_number_and_renders_answers() -> N
     filled_content = tex_module.build_simplify_slot_content_tex(problem, show_answer=True)
     blank_content = tex_module.build_simplify_slot_content_tex(problem, show_answer=False)
 
-    assert filled_content == "$\\displaystyle \\frac{18}{24} \\Rightarrow \\frac{3}{4}$"
+    assert filled_content == (
+        "\\fractionarroweq{\\frac{18}{24} \\opspace \\Rightarrow \\opspace \\frac{3}{4}}"
+    )
     assert "5)" not in filled_content
     assert blank_content == (
-        f"$\\displaystyle \\frac{{18}}{{24}} \\Rightarrow {tex_module.BLANK_ANSWER_TEX}$"
+        f"\\fractionarroweq{{\\frac{{18}}{{24}} \\opspace \\Rightarrow \\opspace {tex_module.BLANK_ANSWER_TEX}}}"
     )
 
 
@@ -196,10 +198,12 @@ def test_build_frac2dec_slot_content_tex_omits_number_and_renders_answers() -> N
     filled_content = tex_module.build_frac2dec_slot_content_tex(problem, show_answer=True)
     blank_content = tex_module.build_frac2dec_slot_content_tex(problem, show_answer=False)
 
-    assert filled_content == "$\\displaystyle \\frac{3}{4} \\Rightarrow 0.75$"
+    assert filled_content == (
+        "\\fractionarroweq{\\frac{3}{4} \\opspace \\Rightarrow \\opspace 0.75}"
+    )
     assert "5)" not in filled_content
     assert blank_content == (
-        f"$\\displaystyle \\frac{{3}}{{4}} \\Rightarrow {tex_module.BLANK_ANSWER_TEX}$"
+        f"\\fractionarroweq{{\\frac{{3}}{{4}} \\opspace \\Rightarrow \\opspace {tex_module.BLANK_ANSWER_TEX}}}"
     )
 
 
@@ -232,9 +236,13 @@ def test_build_dec2frac_slot_content_tex_omits_number_and_renders_answers() -> N
     filled_content = tex_module.build_dec2frac_slot_content_tex(problem, show_answer=True)
     blank_content = tex_module.build_dec2frac_slot_content_tex(problem, show_answer=False)
 
-    assert filled_content == "$\\displaystyle 0.6 \\Rightarrow \\frac{3}{5}$"
+    assert filled_content == (
+        "\\fractionarroweq{0.6 \\opspace \\Rightarrow \\opspace \\frac{3}{5}}"
+    )
     assert "5)" not in filled_content
-    assert blank_content.endswith(f"\\Rightarrow {tex_module.BLANK_ANSWER_TEX}$")
+    assert blank_content.endswith(
+        f"\\Rightarrow \\opspace {tex_module.BLANK_ANSWER_TEX}}}"
+    )
 
 
 def test_build_dec2frac_slot_content_tex_reconstructs_legacy_block_body() -> None:
@@ -308,11 +316,13 @@ def test_build_commondenom_slot_content_tex_omits_number_and_renders_answers() -
     blank_content = tex_module.build_commondenom_slot_content_tex(problem, show_answer=False)
 
     assert filled_content == (
-        "$\\displaystyle \\frac{1}{3}, \\frac{1}{4} \\Rightarrow \\frac{4}{12}, \\frac{3}{12}$"
+        "\\fractionarroweq{\\frac{1}{3}, \\frac{1}{4} \\opspace \\Rightarrow \\opspace "
+        "\\frac{4}{12}, \\frac{3}{12}}"
     )
     assert "5)" not in filled_content
     assert blank_content == (
-        f"$\\displaystyle \\frac{{1}}{{3}}, \\frac{{1}}{{4}} \\Rightarrow {tex_module.BLANK_ANSWER_TEX}$"
+        f"\\fractionarroweq{{\\frac{{1}}{{3}}, \\frac{{1}}{{4}} \\opspace \\Rightarrow \\opspace "
+        f"{tex_module.BLANK_ANSWER_TEX}}}"
     )
 
 
@@ -671,7 +681,7 @@ def test_build_evenodd_slot_content_tex_omits_problem_number() -> None:
 
     content_tex = tex_module.build_evenodd_slot_content_tex(problem, show_answer=True)
 
-    assert content_tex == "$4 \\Rightarrow \\mathrm{even}$"
+    assert content_tex == "\\arroweq{4 \\opspace \\Rightarrow \\opspace \\mathrm{even}}"
     assert "5)" not in content_tex
 
 
@@ -725,7 +735,7 @@ def test_build_multiples_slot_content_tex_omits_problem_number() -> None:
 
     content_tex = tex_module.build_multiples_slot_content_tex(problem, show_answer=True)
 
-    assert content_tex == "$6 \\Rightarrow 6, 12, 18, 24$"
+    assert content_tex == "\\arroweq{6 \\opspace \\Rightarrow \\opspace 6, 12, 18, 24}"
     assert "5)" not in content_tex
 
 
@@ -743,7 +753,7 @@ def test_build_multiples_slot_content_tex_matches_block_tex_body_when_composed()
     assert original_tex == f"{problem.index}) {slot_content_tex}"
     assert tex_module.build_multiples_slot_content_tex(
         problem, show_answer=False
-    ) == f"$6 \\Rightarrow {tex_module.BLANK_ANSWER_TEX}$"
+    ) == f"\\arroweq{{6 \\opspace \\Rightarrow \\opspace {tex_module.BLANK_ANSWER_TEX}}}"
 
 
 def test_build_divisors_slot_content_tex_omits_problem_number() -> None:
@@ -751,7 +761,7 @@ def test_build_divisors_slot_content_tex_omits_problem_number() -> None:
 
     content_tex = tex_module.build_divisors_slot_content_tex(problem, show_answer=True)
 
-    assert content_tex == "$12 \\Rightarrow 1, 2, 3, 4, 6, 12$"
+    assert content_tex == "\\arroweq{12 \\opspace \\Rightarrow \\opspace 1, 2, 3, 4, 6, 12}"
     assert "5)" not in content_tex
 
 
@@ -769,7 +779,7 @@ def test_build_divisors_slot_content_tex_matches_block_tex_body_when_composed() 
     assert original_tex == f"{problem.index}) {slot_content_tex}"
     assert tex_module.build_divisors_slot_content_tex(
         problem, show_answer=False
-    ) == f"$12 \\Rightarrow {tex_module.BLANK_ANSWER_TEX}$"
+    ) == f"\\arroweq{{12 \\opspace \\Rightarrow \\opspace {tex_module.BLANK_ANSWER_TEX}}}"
 
 
 def test_content_area_layout_defaults_to_numbered() -> None:

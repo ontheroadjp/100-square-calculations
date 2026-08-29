@@ -44,14 +44,14 @@ def test_build_evenodd_block_tex_blank_hides_label() -> None:
     filled_tex = tex_module.build_evenodd_block_tex(problem, show_answer=True)
     assert 'even' not in blank_tex
     assert '\\hspace{1.5em}' in blank_tex
-    assert '6 \\Rightarrow \\hspace{1.5em}$' in blank_tex
-    assert '6 \\Rightarrow \\mathrm{even}$' in filled_tex
+    assert '\\arroweq{6 \\opspace \\Rightarrow \\opspace \\hspace{1.5em}}' in blank_tex
+    assert '\\arroweq{6 \\opspace \\Rightarrow \\opspace \\mathrm{even}}' in filled_tex
 
 
 def test_build_evenodd_block_tex_odd_label() -> None:
     problem = tex_module.EvenOddProblem(index=1, a=7, is_even=False)
     filled_tex = tex_module.build_evenodd_block_tex(problem, show_answer=True)
-    assert '7 \\Rightarrow \\mathrm{odd}$' in filled_tex
+    assert '\\arroweq{7 \\opspace \\Rightarrow \\opspace \\mathrm{odd}}' in filled_tex
 
 
 def test_build_evenodd_bottom_answer_tex_lists_answers_by_index() -> None:
