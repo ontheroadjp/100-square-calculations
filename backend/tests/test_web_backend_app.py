@@ -1533,11 +1533,6 @@ def test_generate_pdf_mixed_maps_compile_failure_to_500(client, monkeypatch) -> 
 @pytest.mark.parametrize(
     "variant_fields",
     [
-<<<<<<< HEAD
-        {"intermediate": True},
-=======
-        {"vertical": True},
->>>>>>> origin/main
         # use_parentheses combined with a mutually-exclusive flag (invalid
         # per nuts_calc_tex.py's _init() validation, nuts_calc_tex.py:
         # 676-692) must NOT be picked up by _is_tree_ope_pdf_request either;
