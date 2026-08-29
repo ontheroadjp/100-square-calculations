@@ -148,3 +148,8 @@ issue #122 本文にあった予備仮説は「分数を含む式(frac/mixed/sim
 - #183(表示レイヤーの内部API設計)は本タキソノミーのパターン単位でコンポーネント境界を検討する
 - #185(レイヤー3retrofit)は本タキソノミーのパターンごとに子issueを分割する
 - 番号領域(`n)`)の共通化は #184 が別途扱う(本タキソノミーは問題本体のみを対象とし、番号の描画方式には触れていない)
+
+## retrofit 状況
+
+- **パターン1a・1b(issue #264、#185 の子)**: 表内の全 `build_*_block_tex` / `build_*_slot_content_tex`(1a: `ope` 横式 plain/tree/multi-term、`99`、`squ`、`pi`、`lcm`/`gcd`。1b: `frac`、`mixed`、`divfrac`)が、生の f-string ではなく共有 TeX マクロ経由で出力するようになった。`backend/nuts_calc_tex.py` の `build_content_format_macros_tex()` が `\newlength{\opspacewidth}`(定数 `CONTENT_FORMAT_OPSPACE_WIDTH_TEX`)・`\opspace`(guidelines 項目5/6/20)・`\horizontaleq`(1a wrapper)・`\fractioneq`(1b wrapper: `\displaystyle` + `\vphantom` 高さ strut、guidelines 項目17)を emit し、`build_document_tex`(レガシー CLI)と `build_presentation_document_tex`(内部 API)の両方が preamble 直後にこのブロックを差し込む。各 `build_*_block_tex` は `n) ` prefix + 対応する番号なし slot formatter の合成へ統一された。`divfrac` の problem 本文は本 retrofit で `\displaystyle` を得た(従来は答えキーのみ)。パターン2以降・Layer 1/2 の契約は対象外。
+- パターン2(`build_com_block_tex` / `build_missing_value_block_tex`)以降は未 retrofit。

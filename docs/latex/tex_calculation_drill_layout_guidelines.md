@@ -759,3 +759,15 @@ LuaLaTeX / XeLaTeX なら fontspec でOpenType featureを指定できる。
 この2点を基本原則とする。
 
 これにより、問題形式や桁数が増えてもレイアウトが崩れにくく、デザイン変更もTeX側の修正だけで対応できる。
+
+---
+
+# 実装状況
+
+本方針は段階的に `backend/nuts_calc_tex.py` へ適用中。適用済みの部品:
+
+- **「等式」コンテンツフォーマット（`docs/latex/tex_content_format_taxonomy.md` パターン1a・1b、issue #264）**: 単一行の等式（1a: `ope` 横式 plain/かっこ/多項、`99`、`squ`、`pi`、`lcm`/`gcd`。1b: `frac`、`mixed`、`divfrac`）が以下を使う。
+  - `\newlength{\opspacewidth}` + `\setlength`（Python 側定数 `CONTENT_FORMAT_OPSPACE_WIDTH_TEX = 0.16em` が唯一の調整点、項目5・6・20）、`\newcommand{\opspace}{\hspace{\opspacewidth}}` を演算子・`=` の両側に挿入。
+  - パターン1a wrapper `\newcommand{\horizontaleq}[1]{$#1$}`、パターン1b wrapper `\newcommand{\fractioneq}[1]{$\displaystyle #1\vphantom{\frac{0}{0}}$}`（`\displaystyle` と、`\displaystyle` 下で測る `\frac{0}{0}` の高さ strut で 1b の行高を一定化、項目15・17。`\dfrac` を避けるため `amsmath` は不要）。
+  - これらは `build_content_format_macros_tex()` が emit し、レガシー CLI 経路（`build_document_tex`）と内部プレゼンテーション API（`build_presentation_document_tex`）の両方が preamble 直後に差し込む。Layer 1 の `build_page_shell_preamble_tex` は無変更。
+- 未適用（今後の retrofit 対象）: 項目1・2・9・10（`\problembox` 等の固定サイズ部品・問題番号マクロ）、項目3・4・11・12・16（筆算の演算子カラム・下線・小数点揃え）、項目13・14（tabular figures / 専用数字フォント）、パターン2以降のコンテンツフォーマット。

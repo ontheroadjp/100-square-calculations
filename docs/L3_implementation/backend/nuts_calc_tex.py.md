@@ -423,15 +423,13 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴（git log より自動生成）
 
-- feat(#225): migrate commondenom to the internal presentation API
+- add210a feat(#264): render equation content formats via shared TeX components
+- 2d4c435 feat(#225): migrate commondenom to the internal presentation API (#274)
 - 84c789b feat(#224): migrate compare to the internal presentation API (#273)
-- c22ee17 feat(#223): migrate ope --missing-value to the internal presentation API
+- 7943190 feat(#223): migrate ope --missing-value to the internal presentation API (#272)
 - 7585ce7 feat(#229): migrate the 100 hundred-square command to the internal presentation API (#271)
 - ce8f8b6 feat(#222): migrate dec2frac to the internal presentation API (#261)
 - 4cb1c11 feat(#221): migrate frac2dec to presentation API
 - 156c2d2 Merge remote-tracking branch 'origin/main' into feat/220-migrate-simplify-presentation-api
 - ab8daf7 feat(#220): migrate simplify PDF generation
 - 1fe5a14 feat(#219): migrate divfrac to presentation API
-- 5cd034c feat(#218): migrate mixed PDF generation (#253)
-- 5736b74 feat(#217): migrate frac PDF generation (#252)
-- 1c331f9 feat(#216): migrate divisors to presentation API (#251)
