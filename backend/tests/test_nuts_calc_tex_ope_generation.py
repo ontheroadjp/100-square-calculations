@@ -903,21 +903,29 @@ def test_build_missing_value_block_tex_boxes_only_the_blank_position() -> None:
     blank_tex = tex_module.build_missing_value_block_tex(problem, show_answer=False)
     filled_tex = tex_module.build_missing_value_block_tex(problem, show_answer=True)
 
-    assert blank_tex == f"1) $2 + {tex_module.BOXED_BLANK_TEX} = 5$"
-    assert filled_tex == "1) $2 + 3 = 5$"
+    # Pattern 2 now emits via the shared \boxedblankeq / \opspace / \boxedblank
+    # components (issue #265) instead of a raw $...$ f-string.
+    assert blank_tex == (
+        "1) \\boxedblankeq{2 \\opspace + \\opspace "
+        f"{tex_module.BOXED_BLANK_OPERAND_TEX} \\opspace = \\opspace 5}}"
+    )
+    assert filled_tex == "1) \\boxedblankeq{2 \\opspace + \\opspace 3 \\opspace = \\opspace 5}"
 
 
 def test_build_missing_value_block_tex_boxes_a_when_blank_is_a() -> None:
     problem = tex_module.MissingValueProblem(index=1, a=2, b=3, operator='add', c=5, blank='a')
     blank_tex = tex_module.build_missing_value_block_tex(problem, show_answer=False)
-    assert blank_tex == f"1) ${tex_module.BOXED_BLANK_TEX} + 3 = 5$"
+    assert blank_tex == (
+        "1) \\boxedblankeq{"
+        f"{tex_module.BOXED_BLANK_OPERAND_TEX} \\opspace + \\opspace 3 \\opspace = \\opspace 5}}"
+    )
 
 
 def test_build_missing_value_block_tex_always_shows_the_result() -> None:
     problem = tex_module.MissingValueProblem(index=1, a=2, b=3, operator='add', c=5, blank='a')
     blank_tex = tex_module.build_missing_value_block_tex(problem, show_answer=False)
-    assert '= 5$' in blank_tex
-    assert tex_module.BOXED_BLANK_TEX not in blank_tex.split('=')[-1]
+    assert '\\opspace = \\opspace 5}' in blank_tex
+    assert tex_module.BOXED_BLANK_OPERAND_TEX not in blank_tex.split('=')[-1]
 
 
 def test_build_missing_value_bottom_answer_tex_returns_the_blanked_value() -> None:

@@ -82,10 +82,24 @@ MIN_FRACTION_DIGITS = 1
 MAX_FRACTION_DIGITS = 3
 BLANK_ANSWER_TEX = '\\hspace{1.5em}'
 BOXED_BLANK_TEX = '\\vcenter{\\hbox{\\fbox{\\rule{0pt}{1em}\\hspace{1em}}}}'
+# Pattern-2 (taxonomy "boxed-blank equation", issue #265) mid-expression
+# operand marker. Unlike BOXED_BLANK_TEX (a raw \vcenter box, still used
+# verbatim by pattern 3's build_fraction_comparison_*), this is the shared
+# \boxedblank macro call defined by build_content_format_macros_tex, so its
+# glyph (baseline-anchored \fbox + strut) and interior width live in one
+# place.
+BOXED_BLANK_OPERAND_TEX = '\\boxedblank'
 # Single tuning point for the pattern-1a/1b equation operator gap (issue #264;
 # guidelines items 5, 6, 20). Consumed only by build_content_format_macros_tex's
 # \opspacewidth \newlength.
 CONTENT_FORMAT_OPSPACE_WIDTH_TEX = '0.16em'
+# Single tuning point for the pattern-2 boxed-blank operand slot's interior
+# width (issue #265; guidelines item 6). Deliberately fixed/uniform -- it is
+# NOT sized to the hidden operand's digit count, so every problem on a page
+# stays visually equal and the box does not leak the answer's magnitude.
+# Consumed only by build_content_format_macros_tex's \boxedblankwidth
+# \newlength.
+CONTENT_FORMAT_BOXED_BLANK_WIDTH_TEX = '1em'
 MIN_DECIMAL_PLACES = 0
 MAX_DECIMAL_PLACES = 2
 DEC2FRAC_MIN_DECIMAL_PLACES = 1
@@ -1163,8 +1177,8 @@ def build_content_format_macros_tex() -> str:
     ``\\begin{document}``, so pattern-1a/1b equations render identically on
     both paths. It is deliberately kept out of
     ``build_page_shell_preamble_tex`` so Layer 1's contract is untouched.
-    ``\\opspace`` is defined here (not per pattern) so pattern 2 (#265) can
-    build its boxed-operand component on top without redefining it.
+    ``\\opspace`` is defined here (not per pattern) so pattern 2 (#265)
+    builds its boxed-operand component on top without redefining it.
 
     - ``\\horizontaleq{<body>}`` -> ``$<body>$`` for pattern 1a.
     - ``\\fractioneq{<body>}`` -> ``$\\displaystyle <body>\\vphantom{...}$``
@@ -1172,6 +1186,16 @@ def build_content_format_macros_tex() -> str:
       height strut so fraction rows keep a uniform vertical rhythm whether
       the answer renders as a fraction, a mixed number, an integer, or the
       blank marker.
+    - ``\\boxedblank`` / ``\\boxedblankeq{<body>}`` for pattern 2 (taxonomy
+      "boxed-blank equation": ``com``, ``ope --missing-value``, issue #265).
+      ``\\boxedblankwidth`` is the centralized, deliberately uniform interior
+      width (guidelines item 6; not sized to the hidden operand's digit
+      count). ``\\boxedblank`` is a baseline-anchored ``\\fbox`` + strut
+      (``\\rule[-0.2em]{0pt}{0.9em}``) so the box sits on the digit baseline
+      instead of ``\\vcenter``'s math-axis centering (guidelines item 20).
+      ``\\boxedblankeq`` wraps the line in ``$...$`` and adds
+      ``\\vphantom{\\boxedblank}`` so the answer-key row (a digit in the
+      slot, no box) keeps the same height/depth as the blank row.
     """
     return (
         "\\newlength{\\opspacewidth}\n"
@@ -1182,6 +1206,16 @@ def build_content_format_macros_tex() -> str:
         # here is display-fraction height without needing amsmath's \dfrac (the
         # preamble does not load amsmath).
         "\\newcommand{\\fractioneq}[1]{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}\n"
+        "\\newlength{\\boxedblankwidth}\n"
+        f"\\setlength{{\\boxedblankwidth}}{{{CONTENT_FORMAT_BOXED_BLANK_WIDTH_TEX}}}\n"
+        # Baseline-anchored: no \vcenter, so the \fbox sits on the surrounding
+        # baseline like the digits; the invisible \rule strut gives it a digit-
+        # like height (0.9em) and a small depth (0.2em) so it brackets the
+        # number run instead of floating above it (guidelines item 20).
+        "\\newcommand{\\boxedblank}{\\fbox{\\rule[-0.2em]{0pt}{0.9em}\\hspace{\\boxedblankwidth}}}\n"
+        # \vphantom{\boxedblank} keeps the filled (answer-key) row the same
+        # height/depth as the blank row even though only the blank row has a box.
+        "\\newcommand{\\boxedblankeq}[1]{$#1\\vphantom{\\boxedblank}$}\n"
     )
 
 
@@ -1218,6 +1252,18 @@ def build_fraction_equation_tex(lhs_tex: str, rhs_tex: str) -> str:
     ``$\\displaystyle ...$`` f-string (issue #264; guidelines item 17).
     """
     return f"\\fractioneq{{{lhs_tex} \\opspace = \\opspace {rhs_tex}}}"
+
+
+def build_boxed_blank_equation_tex(lhs_tex: str, rhs_tex: str) -> str:
+    """
+    Wrap one pattern-2 (taxonomy "boxed-blank equation") single-line body via
+    the shared ``\\boxedblankeq``/``\\opspace`` components instead of a raw
+    ``$...$`` f-string (issue #265). ``lhs_tex`` is the left side already
+    interleaved by ``build_equation_lhs_tex`` (one operand is
+    ``BOXED_BLANK_OPERAND_TEX`` in the blank variant); ``rhs_tex`` is the
+    always-shown result. Used by ``com`` and ``ope --missing-value``.
+    """
+    return f"\\boxedblankeq{{{lhs_tex} \\opspace = \\opspace {rhs_tex}}}"
 
 
 def build_page_header_tex(with_name_field: bool = False) -> str:
@@ -2663,26 +2709,26 @@ def generate_missing_value_problems(
 
 
 def build_missing_value_block_tex(problem: MissingValueProblem, show_answer: bool) -> str:
-    """Render one `ope --missing-value` problem: `n) $a op b = c$` with the blanked operand boxed. `c` is always shown."""
-    symbol = OPERATOR_TEX_SYMBOLS[problem.operator]
-    a_tex = str(problem.a) if show_answer or problem.blank != 'a' else BOXED_BLANK_TEX
-    b_tex = str(problem.b) if show_answer or problem.blank != 'b' else BOXED_BLANK_TEX
-    return f"{problem.index}) ${a_tex} {symbol} {b_tex} = {problem.c}$"
+    """Render one `ope --missing-value` problem: `n) ` + the number-free slot body. `c` is always shown."""
+    return f"{problem.index}) " + build_missing_value_slot_content_tex(problem, show_answer)
 
 
 def build_missing_value_slot_content_tex(problem: MissingValueProblem, show_answer: bool) -> str:
     """
     Number-free Layer-3 content for one `ope --missing-value` problem
-    (content-format pattern 2, issue #223): the same body as
-    build_missing_value_block_tex but without the embedded `problem.index)`
-    prefix, for use with build_content_area_slot_tex, which owns the number
-    box instead. Mirrors build_ope_slot_content_tex's relationship to
-    build_horizontal_block_tex (#205).
+    (content-format pattern 2, issues #223/#265): the blanked operand is the
+    shared `\\boxedblank` marker, the rest of the equation goes through the
+    shared `build_equation_lhs_tex` (centralized `\\opspace` gap, guidelines
+    items 5/20) and the `\\boxedblankeq` wrapper. `c` is always shown. Used
+    with build_content_area_slot_tex, which owns the number box. Mirrors
+    build_ope_slot_content_tex's relationship to build_horizontal_block_tex
+    (#205).
     """
     symbol = OPERATOR_TEX_SYMBOLS[problem.operator]
-    a_tex = str(problem.a) if show_answer or problem.blank != 'a' else BOXED_BLANK_TEX
-    b_tex = str(problem.b) if show_answer or problem.blank != 'b' else BOXED_BLANK_TEX
-    return f"${a_tex} {symbol} {b_tex} = {problem.c}$"
+    a_tex = str(problem.a) if show_answer or problem.blank != 'a' else BOXED_BLANK_OPERAND_TEX
+    b_tex = str(problem.b) if show_answer or problem.blank != 'b' else BOXED_BLANK_OPERAND_TEX
+    lhs_tex = build_equation_lhs_tex([a_tex, b_tex], [symbol])
+    return build_boxed_blank_equation_tex(lhs_tex, str(problem.c))
 
 
 def build_missing_value_page_pair(problems: list[MissingValueProblem], columns: int) -> tuple[Page, Page]:
@@ -2772,20 +2818,22 @@ def generate_com_problems(target: int, order: int, start_index: int) -> list[Com
 
 
 def build_com_block_tex(problem: ComProblem, show_answer: bool) -> str:
-    """Render one `com` problem with a boxed missing operand in the blank version."""
-    result_tex = str(problem.c) if show_answer else BOXED_BLANK_TEX
-    return f"{problem.index}) ${problem.a} + {result_tex} = {problem.target}$"
+    """Render one `com` problem: `n) ` + the number-free slot body (boxed missing operand in the blank version)."""
+    return f"{problem.index}) " + build_com_slot_content_tex(problem, show_answer)
 
 
 def build_com_slot_content_tex(problem: ComProblem, show_answer: bool) -> str:
     """
-    Number-free Layer-3 content for one `com` problem (#184): the same
-    body as build_com_block_tex but without the embedded `problem.index)`
-    prefix, for use with build_content_area_slot_tex, which owns the
-    number box instead.
+    Number-free Layer-3 content for one `com` problem (content-format
+    pattern 2, issues #184/#265): fixed `a + [box] = target` shape where the
+    box is the shared `\\boxedblank` marker, emitted through the shared
+    `build_equation_lhs_tex` (centralized `\\opspace` gap) and the
+    `\\boxedblankeq` wrapper. For use with build_content_area_slot_tex, which
+    owns the number box instead.
     """
-    result_tex = str(problem.c) if show_answer else BOXED_BLANK_TEX
-    return f"${problem.a} + {result_tex} = {problem.target}$"
+    result_tex = str(problem.c) if show_answer else BOXED_BLANK_OPERAND_TEX
+    lhs_tex = build_equation_lhs_tex([str(problem.a), result_tex], ["+"])
+    return build_boxed_blank_equation_tex(lhs_tex, str(problem.target))
 
 
 def build_com_page_pair(problems: list[ComProblem], columns: int) -> tuple[Page, Page]:
