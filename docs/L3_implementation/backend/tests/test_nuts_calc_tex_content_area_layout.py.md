@@ -20,6 +20,7 @@
 - `divisors` は可変長のコンマ区切り約数リストと blank を保持し、legacy block と合成後の本文が一致することを検証する(`test_nuts_calc_tex_content_area_layout.py:568-591`)。
 - `ContentAreaLayout.numbered` の既定が `True` であること、および `100` の `build_hundred_square_slot_content_tex` が `build_hundred_square_block_tex` へバイト等価に委譲し `\makebox` を含まないこと(番号 prefix を元々持たない grid)を検証する(issue #229、`test_content_area_layout_defaults_to_numbered`/`test_build_hundred_square_slot_content_tex_ports_block_tex_as_is`)。
 - `ope --missing-value`(issue #223)は `build_missing_value_slot_content_tex` が問題番号を含まないこと、および blank/filled × blanked-a/blanked-b の全組合せで番号なし本文と legacy `build_missing_value_block_tex` の合成同値性(`number_box_width_mm=0`)を検証する(`test_build_missing_value_slot_content_tex_omits_problem_number`/`test_build_missing_value_slot_content_tex_matches_block_tex_body_when_composed`)。
+- `compare`(issue #224)は pattern-3 の番号なし本文(`build_fraction_comparison_slot_content_tex`)が `\displaystyle`・両オペランドの `\frac`・中置の関係記号(filled は `<`、blank は `BOXED_BLANK_TEX`)を保ち問題番号を含まないこと、および `number_box_width_mm=0` の Layer-2 slot と合成した本文が legacy `build_fraction_comparison_block_tex` と一致することを検証する(`test_build_fraction_comparison_slot_content_tex_omits_number_and_renders_answers`/`test_build_fraction_comparison_slot_content_tex_reconstructs_legacy_block_body`)。
 
 ## 重要な設計判断
 
@@ -36,6 +37,7 @@ TeX文字列の構成だけを検証し、実際の LaTeX compile や画像差�
 ## 変更履歴（git log より自動生成）
 
 - feat(#225): migrate commondenom to the internal presentation API
+- 84c789b feat(#224): migrate compare to the internal presentation API (#273)
 - c22ee17 feat(#223): migrate ope --missing-value to the internal presentation API
 - 7585ce7 feat(#229): migrate the 100 hundred-square command to the internal presentation API (#271)
 - ce8f8b6 feat(#222): migrate dec2frac to the internal presentation API (#261)
