@@ -18,6 +18,7 @@
 - `divfrac` は pattern-1b の番号なし本文が答えを未約分のまま保持すること、blank 表示、legacy block との合成同値性を検証する(`test_nuts_calc_tex_content_area_layout.py:405-431`)。
 - `divisors` は可変長のコンマ区切り約数リストと blank を保持し、legacy block と合成後の本文が一致することを検証する(`test_nuts_calc_tex_content_area_layout.py:568-591`)。
 - `ContentAreaLayout.numbered` の既定が `True` であること、および `100` の `build_hundred_square_slot_content_tex` が `build_hundred_square_block_tex` へバイト等価に委譲し `\makebox` を含まないこと(番号 prefix を元々持たない grid)を検証する(issue #229、`test_content_area_layout_defaults_to_numbered`/`test_build_hundred_square_slot_content_tex_ports_block_tex_as_is`)。
+- `ope --missing-value`(issue #223)は `build_missing_value_slot_content_tex` が問題番号を含まないこと、および blank/filled × blanked-a/blanked-b の全組合せで番号なし本文と legacy `build_missing_value_block_tex` の合成同値性(`number_box_width_mm=0`)を検証する(`test_build_missing_value_slot_content_tex_omits_problem_number`/`test_build_missing_value_slot_content_tex_matches_block_tex_body_when_composed`)。
 
 ## 重要な設計判断
 
@@ -33,7 +34,8 @@ TeX文字列の構成だけを検証し、実際の LaTeX compile や画像差�
 
 ## 変更履歴（git log より自動生成）
 
-- 21b1a66 feat(#229): migrate the 100 hundred-square command to the internal presentation API
+- c22ee17 feat(#223): migrate ope --missing-value to the internal presentation API
+- 7585ce7 feat(#229): migrate the 100 hundred-square command to the internal presentation API (#271)
 - ce8f8b6 feat(#222): migrate dec2frac to the internal presentation API (#261)
 - 4cb1c11 feat(#221): migrate frac2dec to presentation API
 - 156c2d2 Merge remote-tracking branch 'origin/main' into feat/220-migrate-simplify-presentation-api
@@ -42,11 +44,3 @@ TeX文字列の構成だけを検証し、実際の LaTeX compile や画像差�
 - 5cd034c feat(#218): migrate mixed PDF generation (#253)
 - 5736b74 feat(#217): migrate frac PDF generation (#252)
 - 1c331f9 feat(#216): migrate divisors to presentation API (#251)
-- c85124d Migrate multiples PDF generation to the presentation API (#249)
-- 8117acc Migrate evenodd PDF generation to the presentation API (#248)
-- 3370b1c #212 Migrate generate-pdf gcd to the internal presentation API (#246)
-- 1c3fdee #211 generate-pdf: migrate lcm to the internal presentation API (#245)
-- 429c088 #210 generate-pdf: migrate pi to the internal presentation API (#244)
-- 40ad870 #209 generate-pdf: migrate squ to the internal presentation API (#243)
-- a6187e9 #208 generate-pdf: migrate 99 (kuku) to the internal presentation API (#242)
-- 7a159b9 #207 generate-pdf: migrate ope (multi-term) to the internal presentation API (#241)

@@ -108,6 +108,7 @@
 - `build_missing_value_block_tex()` は `n) $a op b = c$` を生成し、`blank` が `'a'`/`'b'` のときだけその位置を `BOXED_BLANK_TEX`(`com` の欠けた加数と共有する角枠、旧 `COM_BLANK_ANSWER_TEX` からリネーム)に置き換える。`c` は常に実値を表示する。
 - `build_missing_value_page_pair`/`build_missing_value_bottom_answer_tex`/`build_missing_value_csv_rows`/`build_missing_value_pages` は `ope --use-parentheses` の対応する関数群と同じ構造。`build_missing_value_csv_rows` は `[page_number, index, a, operator, b, c, blank]` の7列。`Page.layout` は常に `'inline'`(`--vertical`/`--intermediate` 非対応)。
 - `build_ope_pages()` は `ini.use_parentheses` の次に `ini.missing_value` をチェックし、真の場合は `build_missing_value_pages()` に委譲する(`nuts_calc_tex.py:1539-1560`)。両フラグは `_init()` のバリデーションで排他が保証されているため、この2分岐は同時に真にならない。
+- `build_missing_value_slot_content_tex(problem, show_answer)`(issue #223): `build_missing_value_block_tex` 向けの番号なし Layer-3 content variant(`build_com_slot_content_tex`/`build_ope_slot_content_tex` と同型、#184/#205)。`$a op b = c$` 本文のみを返し `f"{problem.index}) "` prefix を持たない(`blank` に応じて `a`/`b` を `BOXED_BLANK_TEX` に、`c` は常に実値)。`backend/app.py` の `_generate_missing_value_ope_pdf`(`ope --missing-value`、コンテンツフォーマットパターン2、issue #223)が `content_format` として使う。`build_content_area_slot_tex(problem.index, build_missing_value_slot_content_tex(problem, show_answer), layout)` は `build_missing_value_block_tex(problem, show_answer)` と(`number_box_width_mm=0` の場合)バイト単位で等価であることを `backend/tests/test_nuts_calc_tex_content_area_layout.py` の等価性テストで担保している(blank/filled × blanked-a/blanked-b の全組合せ)。CLI 経路(`build_missing_value_pages`/`build_missing_value_block_tex`/`main()`)は無変更。
 
 ### `lcm`/`gcd` コマンド(issue #95)
 
@@ -156,7 +157,7 @@
 - `_build_presentation_grid_tex(blocks, columns, grid_layout)`(`nuts_calc_tex.py:1273-1283`): `GridLayout = Literal['inline', 'tabular', 'block']` に応じて既存の `build_inline_grid_tex`/`build_tabular_grid_tex`/`build_block_grid_tex`(いずれも無変更で再利用)へ dispatch する。`build_page_tex` 内の同種の分岐を模倣しているが、`build_page_tex` はレガシー経路の一部のため直接呼ばず、小さな dispatch を新規コードとして複製している。
 - `build_presentation_document_tex(paper_size, pages, content_format, page_shell, content_area_layout, engine_adapter, show_answer, grid_layout='inline', with_name_field=False)`(`nuts_calc_tex.py:1322-1361`): 各 `PresentationPage` について `content_format` でスロット本文を生成し、`content_area_layout.numbered` が真なら `build_content_area_tex` で番号ボックスと合成し(偽なら合成をスキップしスロット本文をそのまま blocks とする、issue #229 の単一・番号なし variant)、`_build_presentation_grid_tex` でグリッド化し、`build_page_shell_body_tex` でヘッダー・フッター枠に収める。全ページを `\newpage` で連結し、`build_page_shell_preamble_tex(page_shell, paper_size, engine_adapter)` のプリアンブルと結合してドキュメント全体の TeX 文字列を返す。PDF化は呼び出し側が既存の `engine_adapter.compile(tex, out_pdf_path)` をそのまま呼ぶ(新規の PDF 書き込みラッパーは導入しない、`main()` と同じ「TeX文字列を生成 → `engine_adapter.compile` で変換」の2段呼び出し規約を踏襲)。
 - 実証: `backend/tests/test_nuts_calc_tex_presentation_api.py` が `com` コマンドグループ(既存の `generate_com_problems` によるデータ生成 + #184 の `build_com_slot_content_tex` を `content_format` として使用)で、カスタム `PageShell`・`ContentAreaLayout`・`show_answer` 切り替え・複数ページ・grid_layout の tabular/block dispatch を pure-Python で検証したうえで、`pdflatex` がある場合に実際に1枚の PDF を生成できることまで確認している(`test_build_presentation_document_tex_produces_a_pdf_for_com_command_group`、`pdflatex` 不在時は `pytest.mark.skipif` で自動スキップ)。
-- issue #199 で `com` がこの内部 API を最初に本番利用し、#205〜#222 で `ope` の plain/tree/flat multi-term、`99`、`squ`、`pi`、`lcm`/`gcd`、`aBc`、`evenodd`、`multiples`、`divisors`、`frac`、基本2項 `mixed`、`divfrac`、`simplify`、`frac2dec`、`dec2frac` へ順次展開した。issue #229 で `100`(グリッド表、`ContentAreaLayout(numbered=False)` + `grid_layout='block'` + `build_hundred_square_slot_content_tex`)を追加した。いずれの移行も基本ケース限定で、未移行の command/variant(`compare`、`ope` の `--vertical`/`--intermediate`/`--missing-value`、`mixed` の terms/mixed-operator/reducible variant)は subprocess fallback を維持する。未実施 variantへの `content_format` 展開、`mode='merge'` の統合、CLI からの内部 API 利用は将来作業として残る。
+- issue #199 で `com` がこの内部 API を最初に本番利用し、#205〜#222 で `ope` の plain/tree/flat multi-term、`99`、`squ`、`pi`、`lcm`/`gcd`、`aBc`、`evenodd`、`multiples`、`divisors`、`frac`、基本2項 `mixed`、`divfrac`、`simplify`、`frac2dec`、`dec2frac` へ順次展開した。issue #229 で `100`(グリッド表、`ContentAreaLayout(numbered=False)` + `grid_layout='block'` + `build_hundred_square_slot_content_tex`)、issue #223 で `ope --missing-value`(虫食い算、コンテンツフォーマットパターン2、`build_missing_value_slot_content_tex`)を追加した。いずれの移行も基本ケース限定で、未移行の command/variant(`compare`、`ope` の `--vertical`/`--intermediate`、`mixed` の terms/mixed-operator/reducible variant)は subprocess fallback を維持する。未実施 variantへの `content_format` 展開、`mode='merge'` の統合、CLI からの内部 API 利用は将来作業として残る。
 
 ## 動作の概要
 
@@ -404,7 +405,8 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴（git log より自動生成）
 
-- 21b1a66 feat(#229): migrate the 100 hundred-square command to the internal presentation API
+- c22ee17 feat(#223): migrate ope --missing-value to the internal presentation API
+- 7585ce7 feat(#229): migrate the 100 hundred-square command to the internal presentation API (#271)
 - ce8f8b6 feat(#222): migrate dec2frac to the internal presentation API (#261)
 - 4cb1c11 feat(#221): migrate frac2dec to presentation API
 - 156c2d2 Merge remote-tracking branch 'origin/main' into feat/220-migrate-simplify-presentation-api
@@ -413,15 +415,3 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - 5cd034c feat(#218): migrate mixed PDF generation (#253)
 - 5736b74 feat(#217): migrate frac PDF generation (#252)
 - 1c331f9 feat(#216): migrate divisors to presentation API (#251)
-- c85124d Migrate multiples PDF generation to the presentation API (#249)
-- 8117acc Migrate evenodd PDF generation to the presentation API (#248)
-- 757d736 feat(#213): migrate abc pdf generation to presentation api
-- 3370b1c #212 Migrate generate-pdf gcd to the internal presentation API (#246)
-- 1c3fdee #211 generate-pdf: migrate lcm to the internal presentation API (#245)
-- 429c088 #210 generate-pdf: migrate pi to the internal presentation API (#244)
-- 40ad870 #209 generate-pdf: migrate squ to the internal presentation API (#243)
-- a6187e9 #208 generate-pdf: migrate 99 (kuku) to the internal presentation API (#242)
-- 7a159b9 #207 generate-pdf: migrate ope (multi-term) to the internal presentation API (#241)
-- 5ec3e56 #206 generate-pdf: migrate ope --use-parentheses (tree variant) to the internal presentation API (#240)
-- 99a8279 #205 generate-pdf: migrate ope (plain 2-term) to the internal presentation API (#239)
-- 37a5a80 #230 Split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits (#236)
