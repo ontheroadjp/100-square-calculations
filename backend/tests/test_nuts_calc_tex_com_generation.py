@@ -44,11 +44,15 @@ def test_build_com_block_tex_blank_hides_answer() -> None:
     filled_tex = tex_module.build_com_block_tex(problem, show_answer=True)
     assert '63' not in blank_tex
     assert '\\underline' not in blank_tex
-    assert f'37 + {tex_module.BOXED_BLANK_TEX}' in blank_tex
-    assert '\\vcenter{\\hbox{\\fbox{' in blank_tex
+    # Pattern 2 now emits via the shared \boxedblankeq / \opspace / \boxedblank
+    # components (issue #265) instead of a raw $...$ f-string.
+    assert blank_tex == (
+        "1) \\boxedblankeq{37 \\opspace + \\opspace "
+        f"{tex_module.BOXED_BLANK_OPERAND_TEX} \\opspace = \\opspace 100}}"
+    )
+    assert tex_module.BOXED_BLANK_OPERAND_TEX in blank_tex
     assert tex_module.BLANK_ANSWER_TEX not in blank_tex
-    assert '= 100$' in blank_tex
-    assert '37 + 63 = 100' in filled_tex
+    assert filled_tex == "1) \\boxedblankeq{37 \\opspace + \\opspace 63 \\opspace = \\opspace 100}"
 
 
 def test_build_com_csv_rows_has_one_row_per_problem() -> None:

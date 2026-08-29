@@ -175,6 +175,22 @@
   - 見送り(PR 本文に理由記載): tabular figures / 桁揃え(項目11/13、fontspec の font feature = Layer 1・engine 差異)、問題本体の固定幅・固定高 `\problembox`(項目1/18、Layer 2 グリッドの列幅所有と重複)、演算子カラム・筆算下線・小数点揃え(項目3/12/16、パターン6 の縦式専用で単一行等式には非該当)。
 - 検証: `backend/tests/test_nuts_calc_tex_equation_content_format.py`(共通マクロの両経路への挿入、wrapper 選択、blank 幾何、全10 builder の block==`n) `+slot 等価、`ope`/`frac`/`mixed` blank の実 PDF コンパイルを pdflatex・lualatex 両方で)。既存の `backend/tests/test_nuts_calc_tex_content_area_layout.py` の block==slot 等価テストは無変更で回帰ガードとして機能する。
 
+### presentation-layer Layer 3: 「枠付き空所を埋め込む等式」コンテンツフォーマット共通部品(taxonomy pattern 2、issue #265)
+
+- issue #185(Layer 3 retrofit、#166 B-6)の子。`docs/latex/tex_content_format_taxonomy.md` のパターン2(式の**途中のオペランド**が枠付きボックスになる等式: `build_com_block_tex`/`build_com_slot_content_tex`(`com`、固定形 `a + [枠] = target`)、`build_missing_value_block_tex`/`build_missing_value_slot_content_tex`(`ope --missing-value`、`a`/`b` のどちらか一方が枠、add/sub/mul/div いずれも可))の4関数を、生の f-string(`BOXED_BLANK_TEX` を直接埋め込む `$...$`)ではなく共通 TeX 部品経由の出力に改修した。答え(`c`/`target`)は blank/filled いずれでも常に表示される。Layer 1/2 の契約・パターン3以降の builder は対象外。
+- `build_content_format_macros_tex()` への追加(issue #264 の `\opspace`/`\opspacewidth`/`\horizontaleq`/`\fractioneq` 定義行は無変更、追記のみ):
+  - `\newlength{\boxedblankwidth}` + `\setlength`(Python 側定数 `CONTENT_FORMAT_BOXED_BLANK_WIDTH_TEX = '1em'` が唯一の調整点、guidelines 項目6)。**意図的に固定幅**であり、隠したオペランドの桁数に応じてサイズを変えない — ページ内の全問題を視覚的に均等にし、枠が答えの桁数を漏らさないため(uniform vs proportional hint のトレードオフは uniform を採用、`\fractioneq` の固定高 strut と同じ思想)。マクロは桁数引数を取らない。
+  - `\newcommand{\boxedblank}{\fbox{\rule[-0.2em]{0pt}{0.9em}\hspace{\boxedblankwidth}}}`: `\vcenter`(数式軸中央揃えで数字列より上に浮く)を廃し、baseline-anchored な `\fbox` + 不可視 strut(高さ 0.9em・深さ 0.2em)にして枠が数字と同じベースライン上に座るようにした(guidelines 項目20 — 寸法を明示固定)。
+  - `\newcommand{\boxedblankeq}[1]{$#1\vphantom{\boxedblank}$}`: `\horizontaleq` と同じ `$...$` wrapper に `\vphantom{\boxedblank}` を加え、答えキー行(枠なし・スロットに数字)が blank 行と同じ高さ・深さを保つようにした(#264 の `\fractioneq` 項目17 と同じ狙い)。
+- Python 側:
+  - 定数 `BOXED_BLANK_OPERAND_TEX = '\\boxedblank'`(パターン2のオペランドマーカー、共有マクロ呼び出し)。`BOXED_BLANK_TEX`(生の `\vcenter` ボックス)は**無変更**で、`build_fraction_comparison_slot_content_tex`(パターン3、`compare`)が引き続きそのまま使う。
+  - `build_boxed_blank_equation_tex(lhs_tex, rhs_tex)`: `\boxedblankeq{<lhs> \opspace = \opspace <rhs>}` を返す(`build_horizontal_equation_tex` に倣う)。
+  - 4 builder は `build_*_block_tex` = `f"{index}) " + build_*_slot_content_tex(...)` の関係へ統一。slot 側は `build_equation_lhs_tex([a_tex, b_tex], [symbol])`(#264 由来、演算子両側に `\opspace`、項目5/20)+ `build_boxed_blank_equation_tex(lhs, str(c))` で組む。blank 変種では該当オペランドが `BOXED_BLANK_OPERAND_TEX`。`build_*_page_pair`/`build_*_bottom_answer_tex`/`build_*_csv_rows` は無変更(bottom-answer と CSV は数値のみで枠を含まない)。
+- 個別レイアウト欠陥の対応:
+  - 修正(視覚のみ): 演算子・`=` 間隔の明示化と一元管理(項目5/6/20)。枠幅の一元管理(項目6)。枠のベースライン揃え(`\vcenter` → strut、項目20)。blank/filled 行の高さ一致(`\vphantom{\boxedblank}`、項目17 相当)。桁数によらない枠の幅・高さ一定(固定 `\boxedblankwidth` + 固定 strut による構造保証)。
+  - 見送り(#264 と同じ理由、PR 本文に記載): tabular figures / 桁揃え(項目11/13、fontspec font feature = Layer 1・engine 差異)、問題本体の固定幅・固定高 `\problembox`(項目1/18、Layer 2 グリッドの列幅所有と重複)、演算子カラム・筆算下線・小数点揃え(項目3/12/16、パターン6 の縦式専用で単一行等式には非該当)。
+- 検証: `backend/tests/test_nuts_calc_tex_boxed_blank_content_format.py`(共通マクロの両経路への挿入と #264 の 1a/1b 定義が無傷であること、`\boxedblank`/`\boxedblankeq`/`\boxedblankwidth` の内容、`build_boxed_blank_equation_tex` 単体、`com` と `ope --missing-value`(a-blank/b-blank/filled、add/sub/mul/div)の slot 本文の完全一致、block==`n) `+slot 等価、`com`・`missing-value` blank/filled の実 PDF コンパイルを pdflatex・lualatex 両方で)。既存の `test_nuts_calc_tex_content_area_layout.py` の block==slot 構造等価テストは無変更で回帰ガードとして機能する(ハードコードされた本文文字列のみ新形式へ更新)。
+
 ## 動作の概要
 
 ### 共通基盤(Phase 1)

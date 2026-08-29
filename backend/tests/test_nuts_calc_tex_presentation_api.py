@@ -127,9 +127,16 @@ def test_build_presentation_document_tex_show_answer_toggles_blank_vs_filled() -
         show_answer=True,
     )
 
-    assert tex_module.BOXED_BLANK_TEX in blank_tex
+    # Pattern 2 renders the boxed operand via the shared \boxedblank macro
+    # call (issue #265); assert on the number-free slot body so the preamble's
+    # \newcommand{\boxedblank}{...} definition does not confuse the check.
+    blank_body = tex_module.build_com_slot_content_tex(problems[0], show_answer=False)
+    filled_body = tex_module.build_com_slot_content_tex(problems[0], show_answer=True)
+    assert blank_body in blank_tex
+    assert tex_module.BOXED_BLANK_OPERAND_TEX + " \\opspace" in blank_body
+    assert filled_body in filled_tex
     assert str(problems[0].c) in filled_tex
-    assert tex_module.BOXED_BLANK_TEX not in filled_tex
+    assert blank_body not in filled_tex
 
 
 def test_build_presentation_document_tex_separates_multiple_pages_with_newpage() -> None:

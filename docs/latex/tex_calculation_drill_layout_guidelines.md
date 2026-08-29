@@ -770,4 +770,9 @@ LuaLaTeX / XeLaTeX なら fontspec でOpenType featureを指定できる。
   - `\newlength{\opspacewidth}` + `\setlength`（Python 側定数 `CONTENT_FORMAT_OPSPACE_WIDTH_TEX = 0.16em` が唯一の調整点、項目5・6・20）、`\newcommand{\opspace}{\hspace{\opspacewidth}}` を演算子・`=` の両側に挿入。
   - パターン1a wrapper `\newcommand{\horizontaleq}[1]{$#1$}`、パターン1b wrapper `\newcommand{\fractioneq}[1]{$\displaystyle #1\vphantom{\frac{0}{0}}$}`（`\displaystyle` と、`\displaystyle` 下で測る `\frac{0}{0}` の高さ strut で 1b の行高を一定化、項目15・17。`\dfrac` を避けるため `amsmath` は不要）。
   - これらは `build_content_format_macros_tex()` が emit し、レガシー CLI 経路（`build_document_tex`）と内部プレゼンテーション API（`build_presentation_document_tex`）の両方が preamble 直後に差し込む。Layer 1 の `build_page_shell_preamble_tex` は無変更。
-- 未適用（今後の retrofit 対象）: 項目1・2・9・10（`\problembox` 等の固定サイズ部品・問題番号マクロ）、項目3・4・11・12・16（筆算の演算子カラム・下線・小数点揃え）、項目13・14（tabular figures / 専用数字フォント）、パターン2以降のコンテンツフォーマット。
+- **「枠付き空所を埋め込む等式」コンテンツフォーマット（`docs/latex/tex_content_format_taxonomy.md` パターン2、issue #265）**: 式の途中のオペランドが枠になる等式（`com`: `a + [枠] = target`。`ope --missing-value`: `a`/`b` の一方が枠、add/sub/mul/div）が以下を使う。答え（`c`）は常に表示。
+  - 演算子・`=` の間隔は #264 の `\opspace` / `build_equation_lhs_tex` をそのまま再利用（項目5・6・20）。
+  - `\newlength{\boxedblankwidth}` + `\setlength`（Python 側定数 `CONTENT_FORMAT_BOXED_BLANK_WIDTH_TEX = 1em` が唯一の調整点、項目6）。枠幅は**意図的に固定**で、隠したオペランドの桁数でサイズを変えない（ページ内の均等性を優先、枠が答えの桁数を漏らさない）。
+  - `\newcommand{\boxedblank}{\fbox{\rule[-0.2em]{0pt}{0.9em}\hspace{\boxedblankwidth}}}`（`\vcenter` の数式軸中央揃えをやめ、不可視 strut で数字と同じベースライン上に枠を座らせる、項目20）、`\newcommand{\boxedblankeq}[1]{$#1\vphantom{\boxedblank}$}`（`$...$` wrapper + `\vphantom` で blank/filled 行の高さを一致、項目17 相当）。
+  - `build_content_format_macros_tex()` が #264 の定義行を無変更のまま追記で emit するため、両経路で同一に描画される。`BOXED_BLANK_TEX` 定数とそれを使うパターン3（`compare`）は無変更。
+- 未適用（今後の retrofit 対象）: 項目1・2・9・10（`\problembox` 等の固定サイズ部品・問題番号マクロ）、項目3・4・11・12・16（筆算の演算子カラム・下線・小数点揃え）、項目13・14（tabular figures / 専用数字フォント）、パターン3以降のコンテンツフォーマット。

@@ -79,7 +79,7 @@ def test_build_com_slot_content_tex_omits_problem_number() -> None:
 
     content_tex = tex_module.build_com_slot_content_tex(problem, show_answer=True)
 
-    assert content_tex == "$3 + 4 = 7$"
+    assert content_tex == "\\boxedblankeq{3 \\opspace + \\opspace 4 \\opspace = \\opspace 7}"
     assert "5)" not in content_tex
 
 
@@ -491,8 +491,11 @@ def test_build_missing_value_slot_content_tex_omits_problem_number() -> None:
     blank_tex = tex_module.build_missing_value_slot_content_tex(problem, show_answer=False)
     filled_tex = tex_module.build_missing_value_slot_content_tex(problem, show_answer=True)
 
-    assert blank_tex == f"$8 + {tex_module.BOXED_BLANK_TEX} = 10$"
-    assert filled_tex == "$8 + 2 = 10$"
+    assert blank_tex == (
+        "\\boxedblankeq{8 \\opspace + \\opspace "
+        f"{tex_module.BOXED_BLANK_OPERAND_TEX} \\opspace = \\opspace 10}}"
+    )
+    assert filled_tex == "\\boxedblankeq{8 \\opspace + \\opspace 2 \\opspace = \\opspace 10}"
     assert "5)" not in blank_tex
 
 
