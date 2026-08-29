@@ -2312,12 +2312,30 @@ def build_vertical_block_tex(problem: OpeProblem, show_answer: bool) -> str:
 
     The number-free body is built by build_vertical_calc_tex (pattern-6 shared
     written-calculation components, issue #269); this wrapper only prepends the
-    legacy `n)\\newline ` prefix. `ope --vertical` is not on the internal
-    presentation API (build_ope_page_pair routes it straight to the CLI tabular
-    grid, and app.py rejects `vertical`), so -- like `ope --intermediate`
-    (#268) -- no number-free `build_vertical_slot_content_tex` is added.
+    legacy `n)\\newline ` prefix. The number-free Layer-3 slot counterpart for
+    the internal presentation API is build_vertical_ope_slot_content_tex (issue
+    #227).
     """
     return f"{problem.index})\\newline {build_vertical_calc_tex(problem, show_answer)}"
+
+
+def build_vertical_ope_slot_content_tex(problem: OpeProblem, show_answer: bool) -> str:
+    """
+    Number-free Layer-3 content for one `ope --vertical` (hissan) problem
+    (content-format pattern 6, issue #227): the written-calculation body with
+    no embedded `problem.index)` prefix, for use as build_presentation_document_tex's
+    `content_format` with build_content_area_slot_tex, which owns the number box
+    instead. Mirrors build_ope_slot_content_tex's relationship to
+    build_horizontal_block_tex (#205).
+
+    The number-free body already exists as build_vertical_calc_tex (issue #269
+    split it out of build_vertical_block_tex), so this Layer-3 slot formatter is
+    a thin, explicitly named delegation -- it exists to match the
+    `build_*_slot_content_tex` contract the presentation API and app.py's
+    per-command routing expect, without duplicating the xlop / longdivision
+    wrapping logic.
+    """
+    return build_vertical_calc_tex(problem, show_answer)
 
 
 def build_ope_page_pair(problems: list[OpeProblem], columns: int, vertical: bool, intermediate: bool) -> tuple[Page, Page]:
