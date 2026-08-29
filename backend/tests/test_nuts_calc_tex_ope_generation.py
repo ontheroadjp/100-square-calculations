@@ -528,18 +528,32 @@ def test_build_vertical_block_tex_div_uses_stage_zero_for_blank() -> None:
     problem = tex_module.OpeProblem(index=1, a=100, b=10, operator='div', c=10)
     blank_tex = tex_module.build_vertical_block_tex(problem, show_answer=False)
     filled_tex = tex_module.build_vertical_block_tex(problem, show_answer=True)
-    assert 'stage=0' in blank_tex
-    assert 'stage=0' not in filled_tex
+    # issue #269: div is emitted via the shared \longdivisioncalc /
+    # \longdivisioncalcblank wrappers; the blank one keeps longdivision's
+    # built-in stage=0 blanking (the [stage=0] option now lives inside the
+    # \longdivisioncalcblank macro body -- see build_content_format_macros_tex
+    # and test_nuts_calc_tex_written_calculation_content_format.py).
+    assert '\\longdivisioncalcblank{100}{10}' in blank_tex
+    assert '\\longdivisioncalcblank' not in filled_tex
+    assert '\\longdivisioncalc{100}{10}' in filled_tex
+    macros = tex_module.build_content_format_macros_tex()
+    assert '\\newcommand{\\longdivisioncalcblank}[2]{\\intlongdivision[stage=0]{#1}{#2}}' in macros
+    assert '\\newcommand{\\longdivisioncalc}[2]{\\intlongdivision{#1}{#2}}' in macros
 
 
 def test_build_vertical_block_tex_positions_operator_one_digit_left_of_numbers() -> None:
     problem = tex_module.OpeProblem(index=1, a=23, b=4, operator='add', c=27)
     blank_tex = tex_module.build_vertical_block_tex(problem, show_answer=False)
     filled_tex = tex_module.build_vertical_block_tex(problem, show_answer=True)
-    layout_options = 'voperator=bottom,columnwidth=2ex'
 
-    assert f'\\opset{{{layout_options}' in blank_tex
-    assert f'\\opset{{{layout_options}}}' in filled_tex
+    # issue #269: add/sub/mul are emitted via the shared \verticalcalc /
+    # \verticalcalcblank wrappers, which apply the centralized \verticalcalcsetup
+    # \opset group (voperator=bottom + columnwidth=\verticalcolumnwidth) instead
+    # of an inline magic option string. The blank wrapper layers the per-digit
+    # \phantom style hooks; the filled one does not.
+    assert filled_tex == '1)\\newline \\verticalcalc{\\[\\opadd{23}{4}\\]}'
+    assert blank_tex == '1)\\newline \\verticalcalcblank{\\[\\opadd{23}{4}\\]}'
+    assert 'resultstyle=\\phantom' not in filled_tex
 
 
 def test_build_ope_csv_rows_has_one_row_per_problem() -> None:
