@@ -4049,9 +4049,22 @@ def comparison_operand_to_tex(operand: FractionComparisonOperand) -> str:
 
 
 def build_fraction_comparison_block_tex(problem: FractionComparisonProblem, show_answer: bool) -> str:
+    return f"{problem.index}) {build_fraction_comparison_slot_content_tex(problem, show_answer)}"
+
+
+def build_fraction_comparison_slot_content_tex(
+    problem: FractionComparisonProblem, show_answer: bool
+) -> str:
+    """Render number-free `compare` content for a presentation slot.
+
+    The body of build_fraction_comparison_block_tex without the
+    ``f"{problem.index}) "`` prefix (#184/#217 pattern): the relation symbol
+    shows only with show_answer, else a boxed blank. Layer 2
+    (build_content_area_slot_tex) owns the problem number.
+    """
     relation_tex = problem.relation if show_answer else BOXED_BLANK_TEX
     return (
-        f"{problem.index}) $\\displaystyle {comparison_operand_to_tex(problem.a)} "
+        f"$\\displaystyle {comparison_operand_to_tex(problem.a)} "
         f"{relation_tex} {comparison_operand_to_tex(problem.b)}$"
     )
 

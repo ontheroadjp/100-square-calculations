@@ -1258,6 +1258,83 @@ def test_generate_pdf_dec2frac_maps_compile_failure_to_500(client, monkeypatch) 
     assert "lualatex failed while building the dec2frac worksheet" in response.get_json()["error"]
 
 
+def test_generate_pdf_compare_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
+    backend_app = sys.modules["app"]
+    captured_tex = []
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("renderers.run must not be called for command_type 'compare'")
+
+    def fake_compile(self, tex_source, out_pdf_path):
+        captured_tex.append(tex_source)
+        with open(out_pdf_path, "wb") as f:
+            f.write(b"%PDF-1.4 fake")
+
+    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf",
+        json={"paper_size": "A4", "command_type": "compare"},
+    )
+
+    assert response.status_code == 200
+    assert response.data.startswith(b"%PDF")
+    assert len(captured_tex) == 1
+    assert "\\displaystyle" in captured_tex[0]
+    assert backend_app.nuts_calc_tex.BOXED_BLANK_TEX in captured_tex[0]
+
+
+@pytest.mark.parametrize(
+    ("request_fields", "error_text"),
+    [
+        ({"numerator_digits": 0}, "numerator_digits must be between"),
+        ({"denominator_digits": 4}, "denominator_digits must be between"),
+        ({"rows": 0}, "rows and columns must be at least"),
+        ({"columns": 0}, "rows and columns must be at least"),
+    ],
+)
+def test_generate_pdf_compare_rejects_invalid_basic_input(
+    client, request_fields, error_text
+) -> None:
+    response = client.post(
+        "/generate-pdf",
+        json={"paper_size": "A4", "command_type": "compare", **request_fields},
+    )
+
+    assert response.status_code == 500
+    assert error_text in response.get_json()["error"]
+
+
+def test_generate_pdf_compare_maps_compile_failure_to_500(client, monkeypatch) -> None:
+    backend_app = sys.modules["app"]
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+
+    def failing_compile(self, tex_source, out_pdf_path):
+        backend_app.nuts_calc_tex.failure("lualatex failed while building the compare worksheet")
+
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+    )
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf",
+        json={"paper_size": "A4", "command_type": "compare", "rows": 1, "columns": 1},
+    )
+
+    assert response.status_code == 500
+    assert "lualatex failed while building the compare worksheet" in response.get_json()["error"]
+
+
 def test_generate_pdf_mixed_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
 
