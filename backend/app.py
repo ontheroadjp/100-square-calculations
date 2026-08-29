@@ -1423,6 +1423,62 @@ def _generate_dec2frac_pdf(data: renderers.RendererRequest, output_dir: str) -> 
     return output_filepath, output_filename
 
 
+def _generate_hundred_square_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+    """Build one blank `100` (hundred-square addition table) page via the
+    internal presentation API (build_presentation_document_tex, issue #183),
+    for issue #229's migration of `command_type == '100'` off renderers.py's
+    subprocess path.
+
+    Unlike every other migrated command, `100` is one self-contained table
+    per page with no per-problem numbering, so it uses the second Layer-2
+    variant: ContentAreaLayout(numbered=False) (a single unnumbered
+    full-content-area slot) plus grid_layout='block', matching the legacy
+    build_hundred_square_pages() Page(columns=1, layout='block'). The Layer-3
+    content format build_hundred_square_slot_content_tex ports the existing
+    grid visuals as-is (guidelines-doc macro retrofit is #185/#270).
+
+    The a/b axis ranges are resolved and range-checked by
+    problem_generation.resolve_hundred_square_axes, shared with the
+    `/generate-problems` `100` path (issue #228). Basic case only: always a
+    single blank (practice) page -- show_answer / merge / multi-page / the
+    `page` count are not wired here, matching the other _generate_*_pdf
+    builders.
+    """
+    nums_left, nums_top = problem_generation.resolve_hundred_square_axes(data)
+
+    engine_adapter = nuts_calc_tex.get_latex_engine_adapter()
+    if shutil.which(engine_adapter.binary_name) is None:
+        raise ValueError(
+            f"{engine_adapter.binary_name} not found. Install a LaTeX distribution first "
+            "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
+        )
+
+    table = nuts_calc_tex.generate_hundred_square(nums_left, nums_top)
+    page = nuts_calc_tex.PresentationPage(problems=[table], indices=[1])
+    tex_source = nuts_calc_tex.build_presentation_document_tex(
+        data['paper_size'],
+        pages=[page],
+        content_format=nuts_calc_tex.build_hundred_square_slot_content_tex,
+        page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=1, columns=1, numbered=False),
+        engine_adapter=engine_adapter,
+        show_answer=False,
+        grid_layout='block',
+    )
+
+    output_filename = f"worksheet_{uuid.uuid4()}.pdf"
+    output_filepath = os.path.join(output_dir, output_filename)
+    captured_stdout = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(captured_stdout):
+            engine_adapter.compile(tex_source, output_filepath)
+    except SystemExit as e:
+        error_reason = captured_stdout.getvalue().strip() or "PDF compilation failed"
+        raise RuntimeError(f'PDF generation failed: {error_reason}') from e
+
+    return output_filepath, output_filename
+
+
 @app.route('/generate-pdf', methods=['POST'])
 def generate_pdf():
     data = request.json
@@ -1449,6 +1505,8 @@ def generate_pdf():
             output_filepath, output_filename = _generate_abc_pdf(data, PDF_OUTPUT_DIR)
         elif data.get('command_type') == 'pi':
             output_filepath, output_filename = _generate_pi_pdf(data, PDF_OUTPUT_DIR)
+        elif data.get('command_type') == '100':
+            output_filepath, output_filename = _generate_hundred_square_pdf(data, PDF_OUTPUT_DIR)
         elif _is_plain_mixed_pdf_request(data):
             output_filepath, output_filename = _generate_mixed_pdf(data, PDF_OUTPUT_DIR)
         elif _is_plain_ope_pdf_request(data):

@@ -623,3 +623,28 @@ def test_build_divisors_slot_content_tex_matches_block_tex_body_when_composed() 
     assert tex_module.build_divisors_slot_content_tex(
         problem, show_answer=False
     ) == f"$12 \\Rightarrow {tex_module.BLANK_ANSWER_TEX}$"
+
+
+def test_content_area_layout_defaults_to_numbered() -> None:
+    layout = tex_module.ContentAreaLayout(rows=1, columns=1)
+
+    assert layout.numbered is True
+
+
+def test_build_hundred_square_slot_content_tex_ports_block_tex_as_is() -> None:
+    """Issue #229: the `100` Layer-3 content format is build_hundred_square_block_tex
+    verbatim -- the grid already carries no per-problem number prefix, so no
+    number needs stripping and the existing visuals are preserved as-is."""
+    table = tex_module.HundredSquareTable(
+        left_values=list(range(1, 11)), top_values=list(range(1, 11))
+    )
+
+    for show_answer in (False, True):
+        slot_content_tex = tex_module.build_hundred_square_slot_content_tex(
+            table, show_answer=show_answer
+        )
+
+        assert slot_content_tex == tex_module.build_hundred_square_block_tex(
+            table, show_answer=show_answer
+        )
+        assert "makebox" not in slot_content_tex

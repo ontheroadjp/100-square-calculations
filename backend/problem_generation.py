@@ -237,11 +237,49 @@ def resolve_digit_count_range(
 # sample_hundred_square_values() duplicates the axis list
 # HUNDRED_SQUARE_SAMPLE_REPEAT_FACTOR times, then draws HUNDRED_SQUARE_SIZE
 # without replacement, so a shorter range makes its bare `random.sample`
-# raise an unexplained ValueError; generate_hundred_square_table() checks
+# raise an unexplained ValueError; resolve_hundred_square_axes() checks
 # this threshold first to raise an explanatory one instead.
 _HUNDRED_SQUARE_MIN_AXIS_VALUES = (
     nuts_calc_tex.HUNDRED_SQUARE_SIZE // nuts_calc_tex.HUNDRED_SQUARE_SAMPLE_REPEAT_FACTOR
 )
+
+
+def resolve_hundred_square_axes(
+    params: renderers.RendererRequest,
+) -> tuple[list[int], list[int]]:
+    """Resolve the (left, top) axis value lists for one `100` addition table.
+
+    Shared by `generate_hundred_square_table` (`POST /generate-problems`,
+    issue #228) and `app._generate_hundred_square_pdf` (`POST /generate-pdf`,
+    issue #229) so both endpoints resolve the a/b ranges and enforce the
+    minimum-distinct-values rule identically, at one place.
+
+    The a/b ranges are resolved exactly like the other
+    nuts_calc_tex.DIGIT_COUNT_SHORTHAND_COMMANDS via `resolve_digit_count_range`
+    (a_digits/b_digits digit-count shorthand, else explicit
+    a_min/a_max / b_min/b_max, else the module DEFAULT_*_MIN/MAX of 1..9).
+
+    Raises ValueError if either axis range spans fewer than
+    `_HUNDRED_SQUARE_MIN_AXIS_VALUES` distinct values (see that constant).
+    """
+    a_min, a_max = resolve_digit_count_range(
+        params, "a_digits", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX,
+    )
+    b_min, b_max = resolve_digit_count_range(
+        params, "b_digits", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX,
+    )
+    nums_left = list(range(a_min, a_max + 1))
+    nums_top = list(range(b_min, b_max + 1))
+    if (
+        len(nums_left) < _HUNDRED_SQUARE_MIN_AXIS_VALUES
+        or len(nums_top) < _HUNDRED_SQUARE_MIN_AXIS_VALUES
+    ):
+        raise ValueError(
+            f"the '100' command needs an a/b range of at least "
+            f"{_HUNDRED_SQUARE_MIN_AXIS_VALUES} distinct values to fill the "
+            f"{nuts_calc_tex.HUNDRED_SQUARE_SIZE}x{nuts_calc_tex.HUNDRED_SQUARE_SIZE} table"
+        )
+    return nums_left, nums_top
 
 
 def generate_hundred_square_table(params: renderers.RendererRequest) -> dict[str, object]:
@@ -274,23 +312,7 @@ def generate_hundred_square_table(params: renderers.RendererRequest) -> dict[str
     Raises ValueError if either axis range spans fewer than
     `_HUNDRED_SQUARE_MIN_AXIS_VALUES` distinct values (see that constant).
     """
-    a_min, a_max = resolve_digit_count_range(
-        params, "a_digits", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX,
-    )
-    b_min, b_max = resolve_digit_count_range(
-        params, "b_digits", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX,
-    )
-    nums_left = list(range(a_min, a_max + 1))
-    nums_top = list(range(b_min, b_max + 1))
-    if (
-        len(nums_left) < _HUNDRED_SQUARE_MIN_AXIS_VALUES
-        or len(nums_top) < _HUNDRED_SQUARE_MIN_AXIS_VALUES
-    ):
-        raise ValueError(
-            f"the '100' command needs an a/b range of at least "
-            f"{_HUNDRED_SQUARE_MIN_AXIS_VALUES} distinct values to fill the "
-            f"{nuts_calc_tex.HUNDRED_SQUARE_SIZE}x{nuts_calc_tex.HUNDRED_SQUARE_SIZE} table"
-        )
+    nums_left, nums_top = resolve_hundred_square_axes(params)
 
     table = nuts_calc_tex.generate_hundred_square(nums_left, nums_top)
     return {
