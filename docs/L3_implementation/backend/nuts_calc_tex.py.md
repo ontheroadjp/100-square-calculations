@@ -525,11 +525,8 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴（git log より自動生成）
 
-<<<<<<< HEAD
 - c9e6de7 feat(#227): migrate ope --vertical to the internal presentation API
-=======
 - 8c28b2e feat(#226): migrate ope --intermediate to the internal presentation API
->>>>>>> origin/main
 - 9b643c3 feat(#270): render the hundred-square grid table via shared TeX components (#280)
 - a704907 feat(#269): render the written-calculation (hissan) content format via shared TeX components (#281)
 - 8cce41a feat(#268): render the staged arrow-chain content format via a shared TeX component (#278)
