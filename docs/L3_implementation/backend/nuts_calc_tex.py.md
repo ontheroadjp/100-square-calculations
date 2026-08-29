@@ -502,7 +502,9 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴（git log より自動生成）
 
-- b1dbbb7 feat(#267): render arrow-conversion content formats via shared TeX components
+- a43a730 feat(#270): render the hundred-square grid table via shared TeX components
+- 8cce41a feat(#268): render the staged arrow-chain content format via a shared TeX component (#278)
+- 299eab0 feat(#267): render arrow-conversion content formats via shared TeX components (#279)
 - f794743 feat(#266): render the comparison content format via a shared TeX component (#277)
 - 64a8412 feat(#265): render the boxed-blank equation format via a shared TeX component (#276)
 - 4088bf0 feat(#264): render equation content formats via shared TeX components (#275)
@@ -510,5 +512,3 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - 84c789b feat(#224): migrate compare to the internal presentation API (#273)
 - 7943190 feat(#223): migrate ope --missing-value to the internal presentation API (#272)
 - 7585ce7 feat(#229): migrate the 100 hundred-square command to the internal presentation API (#271)
-- ce8f8b6 feat(#222): migrate dec2frac to the internal presentation API (#261)
-- 4cb1c11 feat(#221): migrate frac2dec to presentation API
