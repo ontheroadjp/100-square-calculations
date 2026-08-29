@@ -81,14 +81,17 @@ PI_MULTIPLIER = 3.14
 MIN_FRACTION_DIGITS = 1
 MAX_FRACTION_DIGITS = 3
 BLANK_ANSWER_TEX = '\\hspace{1.5em}'
-BOXED_BLANK_TEX = '\\vcenter{\\hbox{\\fbox{\\rule{0pt}{1em}\\hspace{1em}}}}'
-# Pattern-2 (taxonomy "boxed-blank equation", issue #265) mid-expression
-# operand marker. Unlike BOXED_BLANK_TEX (a raw \vcenter box, still used
-# verbatim by pattern 3's build_fraction_comparison_*), this is the shared
-# \boxedblank macro call defined by build_content_format_macros_tex, so its
-# glyph (baseline-anchored \fbox + strut) and interior width live in one
-# place.
+# The shared boxed-blank marker: a call to the \boxedblank macro defined by
+# build_content_format_macros_tex (a baseline-anchored \fbox + strut whose
+# interior width, \boxedblankwidth, lives in one place). Marks a hidden
+# mid-expression operand in pattern 2 (taxonomy "boxed-blank equation": com,
+# ope --missing-value, issue #265).
 BOXED_BLANK_OPERAND_TEX = '\\boxedblank'
+# Pattern 3 (taxonomy "comparison": compare, issue #266) deliberately reuses
+# the same box for its hidden relation symbol, so the blanked slot looks
+# identical across the two formats and shares \boxedblankwidth. Kept as a named
+# alias so pattern-3 call sites read in their own terms.
+COMPARE_REL_BLANK_TEX = BOXED_BLANK_OPERAND_TEX
 # Single tuning point for the pattern-1a/1b equation operator gap (issue #264;
 # guidelines items 5, 6, 20). Consumed only by build_content_format_macros_tex's
 # \opspacewidth \newlength.
@@ -1196,6 +1199,14 @@ def build_content_format_macros_tex() -> str:
       ``\\boxedblankeq`` wraps the line in ``$...$`` and adds
       ``\\vphantom{\\boxedblank}`` so the answer-key row (a digit in the
       slot, no box) keeps the same height/depth as the blank row.
+    - ``\\compareeq{<body>}`` for pattern 3 (taxonomy "comparison":
+      ``compare``, issue #266). Same ``$\\displaystyle ...\\vphantom{...}$``
+      shape as ``\\fractioneq`` (a comparison mixes int/decimal/``\\frac``
+      operands and needs the display-fraction height strut for a uniform row
+      height), but named separately so pattern 3's vertical treatment can
+      diverge from pattern 1b without coupling. The blanked relation symbol
+      reuses ``\\boxedblank``; the ``\\opspace`` gap sits on both sides of the
+      relation.
     """
     return (
         "\\newlength{\\opspacewidth}\n"
@@ -1216,6 +1227,10 @@ def build_content_format_macros_tex() -> str:
         # \vphantom{\boxedblank} keeps the filled (answer-key) row the same
         # height/depth as the blank row even though only the blank row has a box.
         "\\newcommand{\\boxedblankeq}[1]{$#1\\vphantom{\\boxedblank}$}\n"
+        # Pattern 3 (comparison): same display-math + height-strut shape as
+        # \fractioneq (comparisons freely mix int/decimal/\frac operands), kept
+        # a separate name so its vertical handling can diverge later.
+        "\\newcommand{\\compareeq}[1]{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}\n"
     )
 
 
@@ -1264,6 +1279,19 @@ def build_boxed_blank_equation_tex(lhs_tex: str, rhs_tex: str) -> str:
     always-shown result. Used by ``com`` and ``ope --missing-value``.
     """
     return f"\\boxedblankeq{{{lhs_tex} \\opspace = \\opspace {rhs_tex}}}"
+
+
+def build_comparison_equation_tex(a_tex: str, relation_tex: str, b_tex: str) -> str:
+    """
+    Wrap one pattern-3 (taxonomy "comparison") relational expression via the
+    shared ``\\compareeq``/``\\opspace`` components instead of a raw
+    ``$\\displaystyle ...$`` f-string (issue #266; guidelines items 5, 17, 20).
+    ``relation_tex`` is ``<``/``>`` in the answer key or the shared
+    ``\\boxedblank`` marker (``COMPARE_REL_BLANK_TEX``) when blank; ``a_tex`` /
+    ``b_tex`` are whatever ``comparison_operand_to_tex`` produced. The
+    ``\\opspace`` gap sits on both sides of the relation.
+    """
+    return f"\\compareeq{{{a_tex} \\opspace {relation_tex} \\opspace {b_tex}}}"
 
 
 def build_page_header_tex(with_name_field: bool = False) -> str:
@@ -4212,16 +4240,31 @@ def generate_fraction_comparison_problems(
 
 
 def comparison_operand_to_tex(operand: FractionComparisonOperand) -> str:
-    """Render a comparison operand, retaining its requested kind/fraction form."""
+    """Render a comparison operand, retaining its requested kind/fraction form.
+
+    Int and decimal operands are wrapped in ``\\vcenter{\\hbox{...}}`` so they
+    sit on the math axis like a ``\\frac`` operand on the other side of the
+    relation (issue #266; guidelines item 17). A ``\\frac`` (plain or with a
+    whole-number part) already straddles the axis in ``\\displaystyle`` and is
+    left untouched. Requires the surrounding math mode that
+    ``build_comparison_equation_tex``'s ``\\compareeq`` provides.
+    """
     if operand.kind == 'int':
-        return str(operand.numerator)
+        return f"\\vcenter{{\\hbox{{${operand.numerator}$}}}}"
     if operand.kind == 'decimal':
-        return format_decimal_value(operand.numerator, operand.decimal_places)
+        decimal_tex = format_decimal_value(operand.numerator, operand.decimal_places)
+        return f"\\vcenter{{\\hbox{{${decimal_tex}$}}}}"
     fraction_tex = f"\\frac{{{operand.numerator}}}{{{operand.denominator}}}"
     return f"{operand.whole}{fraction_tex}" if operand.whole else fraction_tex
 
 
 def build_fraction_comparison_block_tex(problem: FractionComparisonProblem, show_answer: bool) -> str:
+    """Render one `compare` problem: `n) ` + the number-free slot body.
+
+    Number-free body built by build_fraction_comparison_slot_content_tex
+    (pattern-3 shared comparison components, issue #266); this wrapper only
+    prepends the legacy `n)` prefix.
+    """
     return f"{problem.index}) {build_fraction_comparison_slot_content_tex(problem, show_answer)}"
 
 
@@ -4230,15 +4273,19 @@ def build_fraction_comparison_slot_content_tex(
 ) -> str:
     """Render number-free `compare` content for a presentation slot.
 
-    The body of build_fraction_comparison_block_tex without the
-    ``f"{problem.index}) "`` prefix (#184/#217 pattern): the relation symbol
-    shows only with show_answer, else a boxed blank. Layer 2
-    (build_content_area_slot_tex) owns the problem number.
+    Pattern 3 (taxonomy "comparison", issue #266): emitted via the shared
+    ``\\compareeq``/``\\opspace`` components (``build_comparison_equation_tex``)
+    instead of a raw ``$\\displaystyle ...$`` f-string. The relation symbol
+    shows only with show_answer, else the shared ``\\boxedblank`` marker
+    (``COMPARE_REL_BLANK_TEX`` -- the same box pattern 2 uses). Layer 2
+    (build_content_area_slot_tex) owns the problem number;
+    build_fraction_comparison_block_tex prepends the legacy ``n)`` prefix.
     """
-    relation_tex = problem.relation if show_answer else BOXED_BLANK_TEX
-    return (
-        f"$\\displaystyle {comparison_operand_to_tex(problem.a)} "
-        f"{relation_tex} {comparison_operand_to_tex(problem.b)}$"
+    relation_tex = problem.relation if show_answer else COMPARE_REL_BLANK_TEX
+    return build_comparison_equation_tex(
+        comparison_operand_to_tex(problem.a),
+        relation_tex,
+        comparison_operand_to_tex(problem.b),
     )
 
 

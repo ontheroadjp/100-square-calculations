@@ -40,7 +40,7 @@ issue #122 の成果物。`docs/latex/tex_calculation_drill_layout_guidelines.md
 
 ### 2. 枠付き空所を埋め込む等式
 
-1a/1bと異なり、ブランクが式の**途中のオペランド**にあり、`BOXED_BLANK_TEX`(`\fbox` による罫線付きボックス)で表示される。答え(`c`)自体は常に表示される。
+1a/1bと異なり、ブランクが式の**途中のオペランド**にあり、`\fbox` による罫線付きボックス(issue #265 以降は共有マクロ `\boxedblank`、それ以前は定数 `BOXED_BLANK_TEX`)で表示される。答え(`c`)自体は常に表示される。
 
 | 関数 | コマンド | 備考 |
 |---|---|---|
@@ -49,7 +49,7 @@ issue #122 の成果物。`docs/latex/tex_calculation_drill_layout_guidelines.md
 
 ### 3. 比較(関係式)
 
-`A [関係記号] B` の形。ブランクは関係記号そのものが `BOXED_BLANK_TEX` になる点が2と共通するが、等号ではなく `<`/`>` を扱う点、int/decimal/fraction の kind混在に対応する点が固有。
+`A [関係記号] B` の形。ブランクは関係記号そのものが枠(2と同じ `\boxedblank`、issue #266 以降)になる点が2と共通するが、等号ではなく `<`/`>` を扱う点、int/decimal/fraction の kind混在に対応する点が固有。
 
 | 関数 | コマンド | 備考 |
 |---|---|---|
@@ -152,5 +152,6 @@ issue #122 本文にあった予備仮説は「分数を含む式(frac/mixed/sim
 ## retrofit 状況
 
 - **パターン1a・1b(issue #264、#185 の子)**: 表内の全 `build_*_block_tex` / `build_*_slot_content_tex`(1a: `ope` 横式 plain/tree/multi-term、`99`、`squ`、`pi`、`lcm`/`gcd`。1b: `frac`、`mixed`、`divfrac`)が、生の f-string ではなく共有 TeX マクロ経由で出力するようになった。`backend/nuts_calc_tex.py` の `build_content_format_macros_tex()` が `\newlength{\opspacewidth}`(定数 `CONTENT_FORMAT_OPSPACE_WIDTH_TEX`)・`\opspace`(guidelines 項目5/6/20)・`\horizontaleq`(1a wrapper)・`\fractioneq`(1b wrapper: `\displaystyle` + `\vphantom` 高さ strut、guidelines 項目17)を emit し、`build_document_tex`(レガシー CLI)と `build_presentation_document_tex`(内部 API)の両方が preamble 直後にこのブロックを差し込む。各 `build_*_block_tex` は `n) ` prefix + 対応する番号なし slot formatter の合成へ統一された。`divfrac` の problem 本文は本 retrofit で `\displaystyle` を得た(従来は答えキーのみ)。パターン2以降・Layer 1/2 の契約は対象外。
-- **パターン2(issue #265、#185 の子)**: `build_com_block_tex` / `build_com_slot_content_tex`(`com`)と `build_missing_value_block_tex` / `build_missing_value_slot_content_tex`(`ope --missing-value`)が、`BOXED_BLANK_TEX` を直接埋め込む生の f-string ではなく共有 TeX マクロ経由で出力するようになった。`build_content_format_macros_tex()` に `\newlength{\boxedblankwidth}`(定数 `CONTENT_FORMAT_BOXED_BLANK_WIDTH_TEX = '1em'`、guidelines 項目6。隠したオペランドの桁数に応じてサイズを変えない**意図的な固定幅**)・`\boxedblank`(`\vcenter` をやめた baseline-anchored な `\fbox` + strut、guidelines 項目20)・`\boxedblankeq`(`$...$` wrapper + `\vphantom{\boxedblank}` で blank/filled 行の高さを一致、guidelines 項目17 相当)を追記した(#264 の `\opspace`/`\horizontaleq`/`\fractioneq` 定義は無変更)。演算子・`=` の間隔は #264 の `build_equation_lhs_tex` + `\opspace` を再利用する(パターン1a と同じ、項目5/20)。各 `build_*_block_tex` は `n) ` prefix + 対応する番号なし slot formatter の合成へ統一。`BOXED_BLANK_TEX` 定数自体と、それを使うパターン3(`build_fraction_comparison_*`、`compare`)は無変更。Python 側はオペランドマーカー用に新定数 `BOXED_BLANK_OPERAND_TEX`(= `\boxedblank`)を使う。
-- パターン3以降(`build_fraction_comparison_*` ほか)は未 retrofit。
+- **パターン2(issue #265、#185 の子)**: `build_com_block_tex` / `build_com_slot_content_tex`(`com`)と `build_missing_value_block_tex` / `build_missing_value_slot_content_tex`(`ope --missing-value`)が、`BOXED_BLANK_TEX` を直接埋め込む生の f-string ではなく共有 TeX マクロ経由で出力するようになった。`build_content_format_macros_tex()` に `\newlength{\boxedblankwidth}`(定数 `CONTENT_FORMAT_BOXED_BLANK_WIDTH_TEX = '1em'`、guidelines 項目6。隠したオペランドの桁数に応じてサイズを変えない**意図的な固定幅**)・`\boxedblank`(`\vcenter` をやめた baseline-anchored な `\fbox` + strut、guidelines 項目20)・`\boxedblankeq`(`$...$` wrapper + `\vphantom{\boxedblank}` で blank/filled 行の高さを一致、guidelines 項目17 相当)を追記した(#264 の `\opspace`/`\horizontaleq`/`\fractioneq` 定義は無変更)。演算子・`=` の間隔は #264 の `build_equation_lhs_tex` + `\opspace` を再利用する(パターン1a と同じ、項目5/20)。各 `build_*_block_tex` は `n) ` prefix + 対応する番号なし slot formatter の合成へ統一。Python 側はオペランドマーカー用に新定数 `BOXED_BLANK_OPERAND_TEX`(= `\boxedblank`)を使う。
+- **パターン3(issue #266、#185 の子)**: `build_fraction_comparison_block_tex` / `build_fraction_comparison_slot_content_tex`(`compare`)が、生の `$\displaystyle ...$` f-string ではなく共有 `build_comparison_equation_tex`(`\compareeq{<a> \opspace <rel> \opspace <b>}`)経由で出力するようになった。`build_content_format_macros_tex()` に `\compareeq`(`\fractioneq` と同一形の `$\displaystyle #1\vphantom{\frac{0}{0}}$`、別名定義で縦位置処理を独立させる)を追記(#264/#265 の定義行は無変更)。ブランクの関係記号は #265 の `\boxedblank` を再利用し(`COMPARE_REL_BLANK_TEX` = `BOXED_BLANK_OPERAND_TEX`)、`\boxedblankwidth` を共有する。関係記号の両側に #264 の `\opspace`(項目5/20)、int/decimal オペランドは `\vcenter{\hbox{$...$}}` で `\frac` と数式軸中央を揃える(項目17)。小数点揃え(項目16)は単一行インライン比較には縦の小数カラムが無いため N/A。パターン3が最後の利用者だった生の `\vcenter` 定数 `BOXED_BLANK_TEX` は本 issue で削除された。
+- パターン4以降(`build_abc_block_tex`・`build_simplify_block_tex`・`build_commondenom_block_tex`・`build_horizontal_intermediate_block_tex`・`build_vertical_block_tex`・`build_hundred_square_block_tex` ほか)は未 retrofit。

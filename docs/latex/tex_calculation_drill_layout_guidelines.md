@@ -774,5 +774,9 @@ LuaLaTeX / XeLaTeX なら fontspec でOpenType featureを指定できる。
   - 演算子・`=` の間隔は #264 の `\opspace` / `build_equation_lhs_tex` をそのまま再利用（項目5・6・20）。
   - `\newlength{\boxedblankwidth}` + `\setlength`（Python 側定数 `CONTENT_FORMAT_BOXED_BLANK_WIDTH_TEX = 1em` が唯一の調整点、項目6）。枠幅は**意図的に固定**で、隠したオペランドの桁数でサイズを変えない（ページ内の均等性を優先、枠が答えの桁数を漏らさない）。
   - `\newcommand{\boxedblank}{\fbox{\rule[-0.2em]{0pt}{0.9em}\hspace{\boxedblankwidth}}}`（`\vcenter` の数式軸中央揃えをやめ、不可視 strut で数字と同じベースライン上に枠を座らせる、項目20）、`\newcommand{\boxedblankeq}[1]{$#1\vphantom{\boxedblank}$}`（`$...$` wrapper + `\vphantom` で blank/filled 行の高さを一致、項目17 相当）。
-  - `build_content_format_macros_tex()` が #264 の定義行を無変更のまま追記で emit するため、両経路で同一に描画される。`BOXED_BLANK_TEX` 定数とそれを使うパターン3（`compare`）は無変更。
-- 未適用（今後の retrofit 対象）: 項目1・2・9・10（`\problembox` 等の固定サイズ部品・問題番号マクロ）、項目3・4・11・12・16（筆算の演算子カラム・下線・小数点揃え）、項目13・14（tabular figures / 専用数字フォント）、パターン3以降のコンテンツフォーマット。
+  - `build_content_format_macros_tex()` が #264 の定義行を無変更のまま追記で emit するため、両経路で同一に描画される。
+- **「比較（関係式）」コンテンツフォーマット（`docs/latex/tex_content_format_taxonomy.md` パターン3、issue #266）**: `A [関係記号] B`（`compare`、int/decimal/fraction の kind 混在、ブランク時は関係記号が枠）が以下を使う。
+  - `\newcommand{\compareeq}[1]{$\displaystyle #1\vphantom{\frac{0}{0}}$}`（`\fractioneq` と同一形。比較は int/decimal/`\frac` を混在させるため表示分数高さの strut で行高を一定化、項目17。パターン1b から独立して縦位置処理を変えられるよう別名で定義）。関係記号の両側に #264 の `\opspace`（項目5・20）。
+  - ブランクの関係記号は #265 の `\boxedblank` マクロを再利用し、`\boxedblankwidth` も共有する（枠の一元管理、項目6）。整数・小数オペランドは `\vcenter{\hbox{$...$}}` で数式軸中央に揃え、反対側の `\frac` と縦位置を合わせる（項目17）。
+  - これに伴い、パターン2で残していた生の `\vcenter` 定数 `BOXED_BLANK_TEX` は利用者がいなくなったため削除された（パターン2・3とも共有マクロ `\boxedblank` を使う）。
+- 未適用（今後の retrofit 対象）: 項目1・2・9・10（`\problembox` 等の固定サイズ部品・問題番号マクロ）、項目3・4・11・12・16（筆算の演算子カラム・下線・小数点揃え）、項目13・14（tabular figures / 専用数字フォント）、パターン4以降のコンテンツフォーマット。
