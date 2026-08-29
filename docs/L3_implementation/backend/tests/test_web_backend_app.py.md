@@ -23,7 +23,8 @@ Flask test client の単体・結合テストであり、実 HTTP server や実 
 
 ## 変更履歴（git log より自動生成）
 
-- 21b1a66 feat(#229): migrate the 100 hundred-square command to the internal presentation API
+- c22ee17 feat(#223): migrate ope --missing-value to the internal presentation API
+- 7585ce7 feat(#229): migrate the 100 hundred-square command to the internal presentation API (#271)
 - c952709 feat(#228): expose the 100 hundred-square table via the /generate-problems JSON contract (#262)
 - ce8f8b6 feat(#222): migrate dec2frac to the internal presentation API (#261)
 - 4cb1c11 feat(#221): migrate frac2dec to presentation API
@@ -32,16 +33,3 @@ Flask test client の単体・結合テストであり、実 HTTP server や実 
 - 1fe5a14 feat(#219): migrate divfrac to presentation API
 - 5cd034c feat(#218): migrate mixed PDF generation (#253)
 - 5736b74 feat(#217): migrate frac PDF generation (#252)
-- 1c331f9 feat(#216): migrate divisors to presentation API (#251)
-- c85124d Migrate multiples PDF generation to the presentation API (#249)
-- 8117acc Migrate evenodd PDF generation to the presentation API (#248)
-- 757d736 feat(#213): migrate abc pdf generation to presentation api
-- 3370b1c #212 Migrate generate-pdf gcd to the internal presentation API (#246)
-- 1c3fdee #211 generate-pdf: migrate lcm to the internal presentation API (#245)
-- 429c088 #210 generate-pdf: migrate pi to the internal presentation API (#244)
-- 40ad870 #209 generate-pdf: migrate squ to the internal presentation API (#243)
-- a6187e9 #208 generate-pdf: migrate 99 (kuku) to the internal presentation API (#242)
-- 7a159b9 #207 generate-pdf: migrate ope (multi-term) to the internal presentation API (#241)
-- 5ec3e56 #206 generate-pdf: migrate ope --use-parentheses (tree variant) to the internal presentation API (#240)
-- 99a8279 #205 generate-pdf: migrate ope (plain 2-term) to the internal presentation API (#239)
-- 700f115 #232 backend: remove nuts_calc.py (ReportLab renderer) and the reportlab dependency (#234)
