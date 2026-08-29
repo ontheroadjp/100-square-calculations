@@ -1546,26 +1546,15 @@ def test_generate_pdf_mixed_maps_compile_failure_to_500(client, monkeypatch) -> 
 def test_generate_pdf_ope_variants_still_use_subprocess_renderer(client, monkeypatch, variant_fields) -> None:
     """
     Only the plain 2-term 'ope' shape (build_horizontal_block_tex, content-
-    format pattern 1a) is migrated by #205; every variant flag that selects
-<<<<<<< HEAD
-    a still-unmigrated pattern (intermediate) or an invalid use_parentheses
+    format pattern 1a) is migrated by #205; an invalid use_parentheses
     combination must keep using the subprocess path. Plain use_parentheses
     (no other variant flag) is covered separately below (#206), the terms
     family (terms/terms_min/terms_max/mixed_operators without use_parentheses)
-    below (#207), missing_value below (#223), and vertical below (#227): each
-    now uses the presentation API. Only an invalid use_parentheses +
-    (vertical|intermediate|missing_value) combination stays on the subprocess
-    path here.
-=======
-    a still-unmigrated pattern (vertical, content-format pattern 6) or an
-    invalid use_parentheses combination must keep using the subprocess path.
-    Plain use_parentheses (no other variant flag) is covered separately below
-    (#206), the terms family (terms/terms_min/terms_max/mixed_operators
-    without use_parentheses) below (#207), missing_value below (#223), and
-    intermediate (content-format pattern 5) below (#226): each now uses the
-    presentation API. An invalid use_parentheses + intermediate/missing_value
-    combination stays on the subprocess path here.
->>>>>>> origin/main
+    below (#207), missing_value below (#223), vertical (content-format
+    pattern 6) below (#227), and intermediate (content-format pattern 5)
+    below (#226): each now uses the presentation API. Only an invalid
+    use_parentheses + (vertical|intermediate|missing_value) combination stays
+    on the subprocess path here.
     """
     backend_app = sys.modules["app"]
 
