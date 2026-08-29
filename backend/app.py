@@ -1600,6 +1600,63 @@ def _generate_compare_pdf(data: renderers.RendererRequest, output_dir: str) -> t
     return output_filepath, output_filename
 
 
+def _generate_commondenom_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+    """Build one blank basic `commondenom` page via the presentation API."""
+    numerator_digits = int(data.get('numerator_digits', 1))
+    denominator_digits = int(data.get('denominator_digits', 1))
+    for option_name, value in (
+        ('numerator_digits', numerator_digits),
+        ('denominator_digits', denominator_digits),
+    ):
+        if not nuts_calc_tex.MIN_FRACTION_DIGITS <= value <= nuts_calc_tex.MAX_FRACTION_DIGITS:
+            raise ValueError(
+                f"{option_name} must be between {nuts_calc_tex.MIN_FRACTION_DIGITS} and "
+                f"{nuts_calc_tex.MAX_FRACTION_DIGITS} for the 'commondenom' command."
+            )
+
+    rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
+    columns = int(data.get('columns', 2))
+    if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
+        raise ValueError(
+            f"rows and columns must be at least {nuts_calc_tex.MIN_ROWS_OR_COLUMNS}."
+        )
+
+    engine_adapter = nuts_calc_tex.get_latex_engine_adapter()
+    if shutil.which(engine_adapter.binary_name) is None:
+        raise ValueError(
+            f"{engine_adapter.binary_name} not found. Install a LaTeX distribution first "
+            "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
+        )
+
+    problems = nuts_calc_tex.generate_commondenom_problems(
+        numerator_digits, denominator_digits, rows * columns, 1
+    )
+    page = nuts_calc_tex.PresentationPage(
+        problems=problems, indices=[problem.index for problem in problems]
+    )
+    tex_source = nuts_calc_tex.build_presentation_document_tex(
+        data['paper_size'],
+        pages=[page],
+        content_format=nuts_calc_tex.build_commondenom_slot_content_tex,
+        page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        engine_adapter=engine_adapter,
+        show_answer=False,
+    )
+
+    output_filename = f"worksheet_{uuid.uuid4()}.pdf"
+    output_filepath = os.path.join(output_dir, output_filename)
+    captured_stdout = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(captured_stdout):
+            engine_adapter.compile(tex_source, output_filepath)
+    except SystemExit as e:
+        error_reason = captured_stdout.getvalue().strip() or "PDF compilation failed"
+        raise RuntimeError(f'PDF generation failed: {error_reason}') from e
+
+    return output_filepath, output_filename
+
+
 def _generate_hundred_square_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
     """Build one blank `100` (hundred-square addition table) page via the
     internal presentation API (build_presentation_document_tex, issue #183),
@@ -1710,6 +1767,8 @@ def generate_pdf():
             output_filepath, output_filename = _generate_dec2frac_pdf(data, PDF_OUTPUT_DIR)
         elif data.get('command_type') == 'compare':
             output_filepath, output_filename = _generate_compare_pdf(data, PDF_OUTPUT_DIR)
+        elif data.get('command_type') == 'commondenom':
+            output_filepath, output_filename = _generate_commondenom_pdf(data, PDF_OUTPUT_DIR)
         else:
             renderer_name = renderers.get_renderer_name()
             output_filepath, output_filename, result = renderers.run(

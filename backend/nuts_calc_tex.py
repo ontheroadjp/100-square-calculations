@@ -4589,12 +4589,17 @@ def build_commondenom_block_tex(problem: CommonDenomProblem, show_answer: bool) 
     `n) $\\frac{1}{3}, \\frac{1}{4} \\Rightarrow \\frac{4}{12}, \\frac{3}{12}$`
     (blank hides both converted fractions).
     """
+    return f"{problem.index}) {build_commondenom_slot_content_tex(problem, show_answer)}"
+
+
+def build_commondenom_slot_content_tex(problem: CommonDenomProblem, show_answer: bool) -> str:
+    """Render number-free `commondenom` content for a presentation slot."""
     if show_answer:
         result_tex = f"{fraction_to_tex(problem.a_converted)}, {fraction_to_tex(problem.b_converted)}"
     else:
         result_tex = BLANK_ANSWER_TEX
     return (
-        f"{problem.index}) $\\displaystyle {fraction_to_tex(problem.a)}, "
+        f"$\\displaystyle {fraction_to_tex(problem.a)}, "
         f"{fraction_to_tex(problem.b)} \\Rightarrow {result_tex}$"
     )
 
