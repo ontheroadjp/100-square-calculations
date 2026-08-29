@@ -39,8 +39,8 @@ def test_build_simplify_block_tex_blank_hides_answer() -> None:
     blank_tex = tex_module.build_simplify_block_tex(problem, show_answer=False)
     filled_tex = tex_module.build_simplify_block_tex(problem, show_answer=True)
     assert '\\frac{3}{4}' not in blank_tex
-    assert '\\frac{18}{24} \\Rightarrow \\hspace{1.5em}$' in blank_tex
-    assert '\\frac{18}{24} \\Rightarrow \\frac{3}{4}$' in filled_tex
+    assert '\\fractionarroweq{\\frac{18}{24} \\opspace \\Rightarrow \\opspace \\hspace{1.5em}}' in blank_tex
+    assert '\\fractionarroweq{\\frac{18}{24} \\opspace \\Rightarrow \\opspace \\frac{3}{4}}' in filled_tex
 
 
 def test_build_simplify_bottom_answer_tex_lists_answers_by_index() -> None:
@@ -89,8 +89,15 @@ def test_build_commondenom_block_tex_blank_hides_answer() -> None:
     blank_tex = tex_module.build_commondenom_block_tex(problem, show_answer=False)
     filled_tex = tex_module.build_commondenom_block_tex(problem, show_answer=True)
     assert '\\frac{4}{12}' not in blank_tex
-    assert '\\frac{1}{3}, \\frac{1}{4} \\Rightarrow \\hspace{1.5em}$' in blank_tex
-    assert '\\frac{1}{3}, \\frac{1}{4} \\Rightarrow \\frac{4}{12}, \\frac{3}{12}$' in filled_tex
+    assert (
+        '\\fractionarroweq{\\frac{1}{3}, \\frac{1}{4} \\opspace \\Rightarrow \\opspace \\hspace{1.5em}}'
+        in blank_tex
+    )
+    assert (
+        '\\fractionarroweq{\\frac{1}{3}, \\frac{1}{4} \\opspace \\Rightarrow \\opspace '
+        '\\frac{4}{12}, \\frac{3}{12}}'
+        in filled_tex
+    )
 
 
 def test_build_commondenom_csv_rows_has_one_row_per_problem() -> None:
@@ -143,8 +150,8 @@ def test_build_frac2dec_block_tex_blank_hides_answer() -> None:
     blank_tex = tex_module.build_frac2dec_block_tex(problem, show_answer=False)
     filled_tex = tex_module.build_frac2dec_block_tex(problem, show_answer=True)
     assert '0.75' not in blank_tex
-    assert '\\frac{3}{4} \\Rightarrow \\hspace{1.5em}$' in blank_tex
-    assert '\\frac{3}{4} \\Rightarrow 0.75$' in filled_tex
+    assert '\\fractionarroweq{\\frac{3}{4} \\opspace \\Rightarrow \\opspace \\hspace{1.5em}}' in blank_tex
+    assert '\\fractionarroweq{\\frac{3}{4} \\opspace \\Rightarrow \\opspace 0.75}' in filled_tex
 
 
 def test_build_frac2dec_csv_rows_has_one_row_per_problem() -> None:
@@ -174,8 +181,8 @@ def test_build_dec2frac_block_tex_blank_hides_answer() -> None:
     blank_tex = tex_module.build_dec2frac_block_tex(problem, show_answer=False)
     filled_tex = tex_module.build_dec2frac_block_tex(problem, show_answer=True)
     assert '\\frac{3}{5}' not in blank_tex
-    assert '0.6 \\Rightarrow \\hspace{1.5em}$' in blank_tex
-    assert '0.6 \\Rightarrow \\frac{3}{5}$' in filled_tex
+    assert '\\fractionarroweq{0.6 \\opspace \\Rightarrow \\opspace \\hspace{1.5em}}' in blank_tex
+    assert '\\fractionarroweq{0.6 \\opspace \\Rightarrow \\opspace \\frac{3}{5}}' in filled_tex
 
 
 def test_build_dec2frac_csv_rows_has_one_row_per_problem() -> None:

@@ -46,8 +46,8 @@ def test_build_divisors_block_tex_blank_hides_list() -> None:
     filled_tex = tex_module.build_divisors_block_tex(problem, show_answer=True)
     assert '6, 12' not in blank_tex
     assert '\\hspace{1.5em}' in blank_tex
-    assert '12 \\Rightarrow \\hspace{1.5em}$' in blank_tex
-    assert '12 \\Rightarrow 1, 2, 3, 4, 6, 12$' in filled_tex
+    assert '\\arroweq{12 \\opspace \\Rightarrow \\opspace \\hspace{1.5em}}' in blank_tex
+    assert '\\arroweq{12 \\opspace \\Rightarrow \\opspace 1, 2, 3, 4, 6, 12}' in filled_tex
 
 
 def test_build_divisors_bottom_answer_tex_lists_answers_by_index() -> None:

@@ -41,8 +41,8 @@ def test_build_multiples_block_tex_blank_hides_list() -> None:
     filled_tex = tex_module.build_multiples_block_tex(problem, show_answer=True)
     assert '12' not in blank_tex
     assert '\\hspace{1.5em}' in blank_tex
-    assert '6 \\Rightarrow \\hspace{1.5em}$' in blank_tex
-    assert '6 \\Rightarrow 6, 12, 18$' in filled_tex
+    assert '\\arroweq{6 \\opspace \\Rightarrow \\opspace \\hspace{1.5em}}' in blank_tex
+    assert '\\arroweq{6 \\opspace \\Rightarrow \\opspace 6, 12, 18}' in filled_tex
 
 
 def test_build_multiples_bottom_answer_tex_lists_answers_by_index() -> None:
