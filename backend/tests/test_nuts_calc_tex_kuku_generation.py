@@ -63,8 +63,12 @@ def test_build_kuku_block_tex_blank_hides_answer() -> None:
     filled_tex = tex_module.build_kuku_block_tex(problem, show_answer=True, reverse=False)
     assert '12' not in blank_tex
     assert '\\underline' not in blank_tex
-    assert '3 \\times 4 = \\hspace{1.5em}' in blank_tex
-    assert '3 \\times 4 = 12$' in filled_tex
+    assert blank_tex == (
+        '1) \\horizontaleq{3 \\opspace \\times \\opspace 4 \\opspace = \\opspace \\hspace{1.5em}}'
+    )
+    assert filled_tex == (
+        '1) \\horizontaleq{3 \\opspace \\times \\opspace 4 \\opspace = \\opspace 12}'
+    )
 
 
 def test_build_kuku_block_tex_reverse_swaps_equation_sides() -> None:
@@ -73,8 +77,12 @@ def test_build_kuku_block_tex_reverse_swaps_equation_sides() -> None:
     filled_tex = tex_module.build_kuku_block_tex(problem, show_answer=True, reverse=True)
     assert '12' not in blank_tex
     assert '\\underline' not in blank_tex
-    assert '\\hspace{1.5em} = 3 \\times 4$' in blank_tex
-    assert '12 = 3 \\times 4$' in filled_tex
+    assert blank_tex == (
+        '1) \\horizontaleq{\\hspace{1.5em} \\opspace = \\opspace 3 \\opspace \\times \\opspace 4}'
+    )
+    assert filled_tex == (
+        '1) \\horizontaleq{12 \\opspace = \\opspace 3 \\opspace \\times \\opspace 4}'
+    )
 
 
 def test_build_kuku_bottom_answer_tex_lists_answers_by_index() -> None:

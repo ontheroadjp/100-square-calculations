@@ -978,7 +978,10 @@ def test_generate_pdf_frac_uses_presentation_api_not_subprocess(client, monkeypa
     assert response.status_code == 200
     assert response.data.startswith(b"%PDF")
     assert len(captured_tex) == 1
-    assert "\\displaystyle \\frac" in captured_tex[0]
+    # Pattern-1b bodies now go through the shared \fractioneq wrapper (issue
+    # #264), which supplies \displaystyle in its \newcommand definition.
+    assert "\\newcommand{\\fractioneq}[1]{$\\displaystyle " in captured_tex[0]
+    assert "\\fractioneq{\\frac" in captured_tex[0]
     assert backend_app.nuts_calc_tex.BLANK_ANSWER_TEX in captured_tex[0]
 
 

@@ -105,7 +105,9 @@ def test_build_ope_slot_content_tex_omits_problem_number() -> None:
 
     content_tex = tex_module.build_ope_slot_content_tex(problem, show_answer=True)
 
-    assert content_tex == "$3 + 4 = 7$"
+    assert content_tex == (
+        "\\horizontaleq{3 \\opspace + \\opspace 4 \\opspace = \\opspace 7}"
+    )
     assert "5)" not in content_tex
 
 
@@ -121,7 +123,10 @@ def test_build_fraction_slot_content_tex_omits_problem_number_and_preserves_disp
 
     content_tex = tex_module.build_fraction_slot_content_tex(problem, show_answer=True)
 
-    assert content_tex == "$\\displaystyle \\frac{3}{4} + \\frac{1}{2} = \\frac{5}{4}$"
+    assert content_tex == (
+        "\\fractioneq{\\frac{3}{4} \\opspace + \\opspace \\frac{1}{2} "
+        "\\opspace = \\opspace \\frac{5}{4}}"
+    )
     assert "5)" not in content_tex
 
 
@@ -139,8 +144,11 @@ def test_build_fraction_slot_content_tex_matches_block_body_and_blank_output() -
     blank_content = tex_module.build_fraction_slot_content_tex(problem, show_answer=False)
 
     assert tex_module.build_fraction_block_tex(problem, True) == f"{problem.index}) {filled_content}"
-    assert filled_content == "$\\displaystyle 1\\frac{2}{5} - \\frac{1}{5} = 1\\frac{1}{5}$"
-    assert blank_content.endswith(f"= {tex_module.BLANK_ANSWER_TEX}$")
+    assert filled_content == (
+        "\\fractioneq{1\\frac{2}{5} \\opspace - \\opspace \\frac{1}{5} "
+        "\\opspace = \\opspace 1\\frac{1}{5}}"
+    )
+    assert blank_content.endswith(f"\\opspace = \\opspace {tex_module.BLANK_ANSWER_TEX}}}")
 
 
 def test_build_simplify_slot_content_tex_omits_number_and_renders_answers() -> None:
@@ -342,7 +350,9 @@ def test_build_kuku_slot_content_tex_omits_problem_number() -> None:
 
     content_tex = tex_module.build_kuku_slot_content_tex(problem, show_answer=True)
 
-    assert content_tex == "$3 \\times 4 = 12$"
+    assert content_tex == (
+        "\\horizontaleq{3 \\opspace \\times \\opspace 4 \\opspace = \\opspace 12}"
+    )
     assert "5)" not in content_tex
 
 
@@ -369,7 +379,9 @@ def test_build_pi_slot_content_tex_omits_problem_number() -> None:
 
     content_tex = tex_module.build_pi_slot_content_tex(problem, show_answer=True)
 
-    assert content_tex == "$3 \\times 3.14 = 9.42$"
+    assert content_tex == (
+        "\\horizontaleq{3 \\opspace \\times \\opspace 3.14 \\opspace = \\opspace 9.42}"
+    )
     assert "5)" not in content_tex
 
 
@@ -412,7 +424,10 @@ def test_build_tree_ope_slot_content_tex_omits_problem_number() -> None:
 
     content_tex = tex_module.build_tree_ope_slot_content_tex(problem, show_answer=True)
 
-    assert content_tex == "$(3 + 4) \\times 2 = 14$"
+    assert content_tex == (
+        "\\horizontaleq{(3 \\opspace + \\opspace 4) \\opspace \\times \\opspace 2 "
+        "\\opspace = \\opspace 14}"
+    )
     assert "5)" not in content_tex
 
 
@@ -441,7 +456,10 @@ def test_build_multi_term_ope_slot_content_tex_omits_problem_number() -> None:
 
     content_tex = tex_module.build_multi_term_ope_slot_content_tex(problem, show_answer=True)
 
-    assert content_tex == "$3 + 4 \\times 2 = 14$"
+    assert content_tex == (
+        "\\horizontaleq{3 \\opspace + \\opspace 4 \\opspace \\times \\opspace 2 "
+        "\\opspace = \\opspace 14}"
+    )
     assert "5)" not in content_tex
 
 
@@ -522,7 +540,10 @@ def test_build_mixed_slot_content_tex_omits_problem_number_and_preserves_body() 
 
     content_tex = tex_module.build_mixed_slot_content_tex(problem, show_answer=True)
 
-    assert content_tex == "$\\displaystyle 3 \\times 0.5 + \\frac{2}{3} = \\frac{13}{6}$"
+    assert content_tex == (
+        "\\fractioneq{3 \\opspace \\times \\opspace 0.5 \\opspace + \\opspace "
+        "\\frac{2}{3} \\opspace = \\opspace \\frac{13}{6}}"
+    )
     assert "5)" not in content_tex
 
 
@@ -543,7 +564,7 @@ def test_build_mixed_slot_content_tex_renders_blank_answer() -> None:
 
     content_tex = tex_module.build_mixed_slot_content_tex(problem, show_answer=False)
 
-    assert content_tex.endswith(f"= {tex_module.BLANK_ANSWER_TEX}$")
+    assert content_tex.endswith(f"\\opspace = \\opspace {tex_module.BLANK_ANSWER_TEX}}}")
 
 
 def test_build_divfrac_slot_content_tex_omits_number_and_preserves_unreduced_answer() -> None:
@@ -551,7 +572,9 @@ def test_build_divfrac_slot_content_tex_omits_number_and_preserves_unreduced_ans
 
     content_tex = tex_module.build_divfrac_slot_content_tex(problem, show_answer=True)
 
-    assert content_tex == "$4 \\div 6 = \\frac{4}{6}$"
+    assert content_tex == (
+        "\\fractioneq{4 \\opspace \\div \\opspace 6 \\opspace = \\opspace \\frac{4}{6}}"
+    )
     assert "5)" not in content_tex
 
 
@@ -572,7 +595,10 @@ def test_build_divfrac_slot_content_tex_renders_blank_answer() -> None:
 
     content_tex = tex_module.build_divfrac_slot_content_tex(problem, show_answer=False)
 
-    assert content_tex == f"$4 \\div 6 = {tex_module.BLANK_ANSWER_TEX}$"
+    assert content_tex == (
+        "\\fractioneq{4 \\opspace \\div \\opspace 6 \\opspace = \\opspace "
+        f"{tex_module.BLANK_ANSWER_TEX}}}"
+    )
 
 
 def test_build_lcm_slot_content_tex_omits_problem_number() -> None:
@@ -580,7 +606,9 @@ def test_build_lcm_slot_content_tex_omits_problem_number() -> None:
 
     content_tex = tex_module.build_lcm_slot_content_tex(problem, show_answer=True)
 
-    assert content_tex == "$\\mathrm{LCM}(4, 6) = 12$"
+    assert content_tex == (
+        "\\horizontaleq{\\mathrm{LCM}(4, 6) \\opspace = \\opspace 12}"
+    )
     assert "5)" not in content_tex
 
 
@@ -607,7 +635,9 @@ def test_build_gcd_slot_content_tex_omits_problem_number() -> None:
 
     content_tex = tex_module.build_gcd_slot_content_tex(problem, show_answer=True)
 
-    assert content_tex == "$\\mathrm{GCD}(18, 24) = 6$"
+    assert content_tex == (
+        "\\horizontaleq{\\mathrm{GCD}(18, 24) \\opspace = \\opspace 6}"
+    )
     assert "5)" not in content_tex
 
 
@@ -660,7 +690,9 @@ def test_build_squ_slot_content_tex_omits_problem_number() -> None:
 
     content_tex = tex_module.build_squ_slot_content_tex(problem, show_answer=True)
 
-    assert content_tex == "$3 \\times 3 = 9$"
+    assert content_tex == (
+        "\\horizontaleq{3 \\opspace \\times \\opspace 3 \\opspace = \\opspace 9}"
+    )
     assert "5)" not in content_tex
 
 

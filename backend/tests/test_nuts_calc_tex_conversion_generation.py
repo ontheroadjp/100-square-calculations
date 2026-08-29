@@ -203,8 +203,12 @@ def test_build_divfrac_block_tex_does_not_reduce_answer() -> None:
     blank_tex = tex_module.build_divfrac_block_tex(problem, show_answer=False)
     filled_tex = tex_module.build_divfrac_block_tex(problem, show_answer=True)
     assert '\\frac{2}{4}' not in blank_tex
-    assert '2 \\div 4 = \\hspace{1.5em}$' in blank_tex
-    assert '2 \\div 4 = \\frac{2}{4}$' in filled_tex
+    assert blank_tex == (
+        '1) \\fractioneq{2 \\opspace \\div \\opspace 4 \\opspace = \\opspace \\hspace{1.5em}}'
+    )
+    assert filled_tex == (
+        '1) \\fractioneq{2 \\opspace \\div \\opspace 4 \\opspace = \\opspace \\frac{2}{4}}'
+    )
     assert '\\frac{1}{2}' not in filled_tex
 
 

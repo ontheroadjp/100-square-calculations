@@ -82,6 +82,10 @@ MIN_FRACTION_DIGITS = 1
 MAX_FRACTION_DIGITS = 3
 BLANK_ANSWER_TEX = '\\hspace{1.5em}'
 BOXED_BLANK_TEX = '\\vcenter{\\hbox{\\fbox{\\rule{0pt}{1em}\\hspace{1em}}}}'
+# Single tuning point for the pattern-1a/1b equation operator gap (issue #264;
+# guidelines items 5, 6, 20). Consumed only by build_content_format_macros_tex's
+# \opspacewidth \newlength.
+CONTENT_FORMAT_OPSPACE_WIDTH_TEX = '0.16em'
 MIN_DECIMAL_PLACES = 0
 MAX_DECIMAL_PLACES = 2
 DEC2FRAC_MIN_DECIMAL_PLACES = 1
@@ -1145,6 +1149,77 @@ def build_preamble_tex(paper_size: str, engine_adapter: LatexEngineAdapter | Non
     return build_page_shell_preamble_tex(DEFAULT_PAGE_SHELL, paper_size, engine_adapter)
 
 
+def build_content_format_macros_tex() -> str:
+    """
+    Emit the shared Layer-3 TeX components for the "equation" content-format
+    family (``docs/latex/tex_content_format_taxonomy.md`` patterns 1a/1b,
+    issue #264): the centralized operator-spacing length + ``\\opspace``
+    macro (guidelines items 5, 6, 20) and the horizontal-equation vs
+    fraction-equation wrappers (guidelines items 15, 17).
+
+    Both document builders (``build_document_tex`` for the legacy CLI path
+    and ``build_presentation_document_tex`` for the internal presentation
+    API) splice this block between the page-shell preamble and
+    ``\\begin{document}``, so pattern-1a/1b equations render identically on
+    both paths. It is deliberately kept out of
+    ``build_page_shell_preamble_tex`` so Layer 1's contract is untouched.
+    ``\\opspace`` is defined here (not per pattern) so pattern 2 (#265) can
+    build its boxed-operand component on top without redefining it.
+
+    - ``\\horizontaleq{<body>}`` -> ``$<body>$`` for pattern 1a.
+    - ``\\fractioneq{<body>}`` -> ``$\\displaystyle <body>\\vphantom{...}$``
+      for pattern 1b: adds ``\\displaystyle`` and a fixed display-fraction
+      height strut so fraction rows keep a uniform vertical rhythm whether
+      the answer renders as a fraction, a mixed number, an integer, or the
+      blank marker.
+    """
+    return (
+        "\\newlength{\\opspacewidth}\n"
+        f"\\setlength{{\\opspacewidth}}{{{CONTENT_FORMAT_OPSPACE_WIDTH_TEX}}}\n"
+        "\\newcommand{\\opspace}{\\hspace{\\opspacewidth}}\n"
+        "\\newcommand{\\horizontaleq}[1]{$#1$}\n"
+        # \vphantom is measured in the surrounding \displaystyle, so \frac{0}{0}
+        # here is display-fraction height without needing amsmath's \dfrac (the
+        # preamble does not load amsmath).
+        "\\newcommand{\\fractioneq}[1]{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}\n"
+    )
+
+
+def build_equation_lhs_tex(operands: list[str], symbols: list[str]) -> str:
+    """
+    Interleave equation operands with their infix operators, inserting the
+    shared ``\\opspace`` gap on both sides of every operator (issue #264;
+    guidelines item 5). ``symbols`` must have exactly ``len(operands) - 1``
+    entries; a single-operand list (e.g. ``[\\mathrm{LCM}(a, b)]``) is
+    returned unchanged.
+    """
+    parts = [operands[0]]
+    for operand, symbol in zip(operands[1:], symbols):
+        parts.append(f"\\opspace {symbol} \\opspace")
+        parts.append(operand)
+    return " ".join(parts)
+
+
+def build_horizontal_equation_tex(lhs_tex: str, rhs_tex: str, *, suffix_tex: str = "") -> str:
+    """
+    Wrap one pattern-1a (integer/decimal) single-line equation body via the
+    shared ``\\horizontaleq``/``\\opspace`` components instead of a raw
+    ``$...$`` f-string (issue #264). ``suffix_tex`` carries the optional
+    ``ope`` division ``\\cdots <remainder>`` tail (already including its
+    leading space).
+    """
+    return f"\\horizontaleq{{{lhs_tex} \\opspace = \\opspace {rhs_tex}{suffix_tex}}}"
+
+
+def build_fraction_equation_tex(lhs_tex: str, rhs_tex: str) -> str:
+    """
+    Wrap one pattern-1b (fraction-bearing) single-line equation body via the
+    shared ``\\fractioneq``/``\\opspace`` components instead of a raw
+    ``$\\displaystyle ...$`` f-string (issue #264; guidelines item 17).
+    """
+    return f"\\fractioneq{{{lhs_tex} \\opspace = \\opspace {rhs_tex}}}"
+
+
 def build_page_header_tex(with_name_field: bool = False) -> str:
     return build_page_shell_header_tex(DEFAULT_PAGE_SHELL, with_name_field)
 
@@ -1273,6 +1348,7 @@ def build_document_tex(
     )
     return (
         build_preamble_tex(paper_size, engine_adapter)
+        + build_content_format_macros_tex()
         + "\\begin{document}\n"
         + document_body
         + "\n\\end{document}\n"
@@ -1362,6 +1438,7 @@ def build_presentation_document_tex(
 
     return (
         build_page_shell_preamble_tex(page_shell, paper_size, engine_adapter)
+        + build_content_format_macros_tex()
         + "\\begin{document}\n"
         + "\n\\newpage\n".join(pages_tex)
         + "\n\\end{document}\n"
@@ -1757,18 +1834,12 @@ def build_horizontal_block_tex(problem: OpeProblem, show_answer: bool) -> str:
     this file compiles with plain pdflatex (no CJK/Japanese font package),
     which cannot render Japanese text (see docs/L3_implementation/
     nuts_calc_tex.py.md).
+
+    The number-free body is built by build_ope_slot_content_tex (pattern-1a
+    shared equation components, issue #264); this wrapper only prepends the
+    legacy `n)` prefix.
     """
-    symbol = OPERATOR_TEX_SYMBOLS[problem.operator]
-    a_tex = format_decimal_value(problem.a, problem.a_decimal_places)
-    b_tex = format_decimal_value(problem.b, problem.b_decimal_places)
-    if show_answer:
-        c_places = ope_result_decimal_places(problem.operator, problem.a_decimal_places, problem.b_decimal_places)
-        result_tex = format_decimal_value(problem.c, c_places)
-        remainder_tex = f" \\cdots {problem.remainder}" if problem.remainder else ""
-    else:
-        result_tex = BLANK_ANSWER_TEX
-        remainder_tex = f" \\cdots {BLANK_ANSWER_TEX}" if problem.remainder else ""
-    return f"{problem.index}) ${a_tex} {symbol} {b_tex} = {result_tex}{remainder_tex}$"
+    return f"{problem.index}) {build_ope_slot_content_tex(problem, show_answer)}"
 
 
 def build_ope_slot_content_tex(problem: OpeProblem, show_answer: bool) -> str:
@@ -1778,6 +1849,9 @@ def build_ope_slot_content_tex(problem: OpeProblem, show_answer: bool) -> str:
     but without the embedded `problem.index)` prefix, for use with
     build_content_area_slot_tex, which owns the number box instead. Mirrors
     build_com_slot_content_tex's relationship to build_com_block_tex (#184).
+
+    Emits via the shared \\horizontaleq/\\opspace equation components
+    (issue #264) instead of a raw `$...$` f-string.
     """
     symbol = OPERATOR_TEX_SYMBOLS[problem.operator]
     a_tex = format_decimal_value(problem.a, problem.a_decimal_places)
@@ -1789,7 +1863,8 @@ def build_ope_slot_content_tex(problem: OpeProblem, show_answer: bool) -> str:
     else:
         result_tex = BLANK_ANSWER_TEX
         remainder_tex = f" \\cdots {BLANK_ANSWER_TEX}" if problem.remainder else ""
-    return f"${a_tex} {symbol} {b_tex} = {result_tex}{remainder_tex}$"
+    lhs_tex = build_equation_lhs_tex([a_tex, b_tex], [symbol])
+    return build_horizontal_equation_tex(lhs_tex, result_tex, suffix_tex=remainder_tex)
 
 
 def build_intermediate_memo(a: int, b: int) -> str:
@@ -2204,7 +2279,15 @@ def render_expr_tree(node: ExprTreeNode, symbol_for_operator: Callable[[str], st
 
 
 def build_tree_ope_expression_tex(tree: ExprTreeNode) -> str:
-    return render_expr_tree(tree, lambda operator: OPERATOR_TEX_SYMBOLS[operator])
+    """
+    Render the parenthesized left-hand expression for `ope --use-parentheses`,
+    with the shared \\opspace gap on both sides of every infix operator
+    (issue #264). build_tree_ope_structure_text keeps the un-spaced,
+    word-operator form for CSV.
+    """
+    return render_expr_tree(
+        tree, lambda operator: f"\\opspace {OPERATOR_TEX_SYMBOLS[operator]} \\opspace"
+    )
 
 
 def build_tree_ope_structure_text(tree: ExprTreeNode) -> str:
@@ -2213,9 +2296,13 @@ def build_tree_ope_structure_text(tree: ExprTreeNode) -> str:
 
 
 def build_tree_ope_block_tex(problem: TreeOpeProblem, show_answer: bool) -> str:
-    """Render one `ope --use-parentheses` problem: `n) $<expression> = result$`."""
-    result_tex = str(problem.result) if show_answer else BLANK_ANSWER_TEX
-    return f"{problem.index}) ${build_tree_ope_expression_tex(problem.tree)} = {result_tex}$"
+    """Render one `ope --use-parentheses` problem: `n) $<expression> = result$`.
+
+    Number-free body built by build_tree_ope_slot_content_tex (pattern-1a
+    shared equation components, issue #264); this wrapper only prepends the
+    legacy `n)` prefix.
+    """
+    return f"{problem.index}) {build_tree_ope_slot_content_tex(problem, show_answer)}"
 
 
 def build_tree_ope_slot_content_tex(problem: TreeOpeProblem, show_answer: bool) -> str:
@@ -2226,9 +2313,14 @@ def build_tree_ope_slot_content_tex(problem: TreeOpeProblem, show_answer: bool) 
     prefix, for use with build_content_area_slot_tex, which owns the number
     box instead. Mirrors build_ope_slot_content_tex's relationship to
     build_horizontal_block_tex (#205).
+
+    Emits via the shared \\horizontaleq/\\opspace equation components
+    (issue #264) instead of a raw `$...$` f-string.
     """
     result_tex = str(problem.result) if show_answer else BLANK_ANSWER_TEX
-    return f"${build_tree_ope_expression_tex(problem.tree)} = {result_tex}$"
+    return build_horizontal_equation_tex(
+        build_tree_ope_expression_tex(problem.tree), result_tex
+    )
 
 
 def build_tree_ope_page_pair(problems: list[TreeOpeProblem], columns: int) -> tuple[Page, Page]:
@@ -2426,12 +2518,13 @@ def build_multi_term_ope_expression_text(problem: MultiTermOpeProblem) -> str:
 
 
 def build_multi_term_ope_block_tex(problem: MultiTermOpeProblem, show_answer: bool) -> str:
-    """Render one flat multi-term `ope` problem: `n) $a op1 b op2 c ... = result$` (no parentheses)."""
-    parts = [str(problem.operands[0])]
-    for operand, operator in zip(problem.operands[1:], problem.operators):
-        parts += [OPERATOR_TEX_SYMBOLS[operator], str(operand)]
-    result_tex = str(problem.result) if show_answer else BLANK_ANSWER_TEX
-    return f"{problem.index}) ${' '.join(parts)} = {result_tex}$"
+    """Render one flat multi-term `ope` problem: `n) $a op1 b op2 c ... = result$` (no parentheses).
+
+    Number-free body built by build_multi_term_ope_slot_content_tex
+    (pattern-1a shared equation components, issue #264); this wrapper only
+    prepends the legacy `n)` prefix.
+    """
+    return f"{problem.index}) {build_multi_term_ope_slot_content_tex(problem, show_answer)}"
 
 
 def build_multi_term_ope_slot_content_tex(problem: MultiTermOpeProblem, show_answer: bool) -> str:
@@ -2442,12 +2535,14 @@ def build_multi_term_ope_slot_content_tex(problem: MultiTermOpeProblem, show_ans
     `problem.index)` prefix, for use with build_content_area_slot_tex,
     which owns the number box instead. Mirrors build_tree_ope_slot_content_tex's
     relationship to build_tree_ope_block_tex (#206).
+
+    Emits via the shared \\horizontaleq/\\opspace equation components
+    (issue #264) instead of a raw `$...$` f-string.
     """
-    parts = [str(problem.operands[0])]
-    for operand, operator in zip(problem.operands[1:], problem.operators):
-        parts += [OPERATOR_TEX_SYMBOLS[operator], str(operand)]
+    operands = [str(operand) for operand in problem.operands]
+    symbols = [OPERATOR_TEX_SYMBOLS[operator] for operator in problem.operators]
     result_tex = str(problem.result) if show_answer else BLANK_ANSWER_TEX
-    return f"${' '.join(parts)} = {result_tex}$"
+    return build_horizontal_equation_tex(build_equation_lhs_tex(operands, symbols), result_tex)
 
 
 def build_multi_term_ope_page_pair(problems: list[MultiTermOpeProblem], columns: int) -> tuple[Page, Page]:
@@ -2895,11 +2990,16 @@ def build_kuku_block_tex(problem: KukuProblem, show_answer: bool, reverse: bool)
     inferred from nuts_calc.py's `is_reverse` branch reordering `vals_c`
     ahead of `vals_a`/`vals_b` (`nuts_calc.py:543-545`); the blanked value is
     always `c` regardless of which side it renders on.
+
+    Emits via the shared \\horizontaleq/\\opspace equation components
+    (issue #264); the non-reverse form additionally shares
+    build_kuku_slot_content_tex's body.
     """
     result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
+    product_tex = build_equation_lhs_tex([str(problem.a), str(problem.b)], ['\\times'])
     if reverse:
-        return f"{problem.index}) ${result_tex} = {problem.a} \\times {problem.b}$"
-    return f"{problem.index}) ${problem.a} \\times {problem.b} = {result_tex}$"
+        return f"{problem.index}) {build_horizontal_equation_tex(result_tex, product_tex)}"
+    return f"{problem.index}) {build_kuku_slot_content_tex(problem, show_answer)}"
 
 
 def build_kuku_slot_content_tex(problem: KukuProblem, show_answer: bool) -> str:
@@ -2911,9 +3011,13 @@ def build_kuku_slot_content_tex(problem: KukuProblem, show_answer: bool) -> str:
     instead. Always the non-reverse ($a \\times b = c$) form -- the internal
     presentation API's basic-case scope (backend/app.py's _generate_kuku_pdf)
     does not support --reverse.
+
+    Emits via the shared \\horizontaleq/\\opspace equation components
+    (issue #264) instead of a raw `$...$` f-string.
     """
     result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
-    return f"${problem.a} \\times {problem.b} = {result_tex}$"
+    lhs_tex = build_equation_lhs_tex([str(problem.a), str(problem.b)], ['\\times'])
+    return build_horizontal_equation_tex(lhs_tex, result_tex)
 
 
 def build_kuku_page_pair(problems: list[KukuProblem], columns: int, reverse: bool) -> tuple[Page, Page]:
@@ -3113,11 +3217,16 @@ def build_squ_block_tex(problem: SquProblem, show_answer: bool, reverse: bool) -
     mirroring `build_kuku_block_tex`'s handling of nuts_calc.py's
     `is_reverse` branch (`nuts_calc.py:543-545`); the blanked value is
     always `c` regardless of which side it renders on.
+
+    Emits via the shared \\horizontaleq/\\opspace equation components
+    (issue #264); the non-reverse form additionally shares
+    build_squ_slot_content_tex's body.
     """
     result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
+    square_tex = build_equation_lhs_tex([str(problem.a), str(problem.a)], ['\\times'])
     if reverse:
-        return f"{problem.index}) ${result_tex} = {problem.a} \\times {problem.a}$"
-    return f"{problem.index}) ${problem.a} \\times {problem.a} = {result_tex}$"
+        return f"{problem.index}) {build_horizontal_equation_tex(result_tex, square_tex)}"
+    return f"{problem.index}) {build_squ_slot_content_tex(problem, show_answer)}"
 
 
 def build_squ_slot_content_tex(problem: SquProblem, show_answer: bool) -> str:
@@ -3129,9 +3238,13 @@ def build_squ_slot_content_tex(problem: SquProblem, show_answer: bool) -> str:
     instead. Mirrors build_com_slot_content_tex's relationship to
     build_com_block_tex (#184); `reverse` is not covered here (basic-case
     scope only, matching #199's `com` precedent).
+
+    Emits via the shared \\horizontaleq/\\opspace equation components
+    (issue #264) instead of a raw `$...$` f-string.
     """
     result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
-    return f"${problem.a} \\times {problem.a} = {result_tex}$"
+    lhs_tex = build_equation_lhs_tex([str(problem.a), str(problem.a)], ['\\times'])
+    return build_horizontal_equation_tex(lhs_tex, result_tex)
 
 
 def build_squ_page_pair(problems: list[SquProblem], columns: int, reverse: bool) -> tuple[Page, Page]:
@@ -3291,11 +3404,16 @@ def build_pi_block_tex(problem: PiProblem, show_answer: bool, reverse: bool) -> 
     mirroring `build_squ_block_tex`'s handling of nuts_calc.py's
     `is_reverse` branch (`nuts_calc.py:543-545`); the blanked value is
     always `c` regardless of which side it renders on.
+
+    Emits via the shared \\horizontaleq/\\opspace equation components
+    (issue #264); the non-reverse form additionally shares
+    build_pi_slot_content_tex's body.
     """
     result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
+    product_tex = build_equation_lhs_tex([str(problem.a), str(PI_MULTIPLIER)], ['\\times'])
     if reverse:
-        return f"{problem.index}) ${result_tex} = {problem.a} \\times {PI_MULTIPLIER}$"
-    return f"{problem.index}) ${problem.a} \\times {PI_MULTIPLIER} = {result_tex}$"
+        return f"{problem.index}) {build_horizontal_equation_tex(result_tex, product_tex)}"
+    return f"{problem.index}) {build_pi_slot_content_tex(problem, show_answer)}"
 
 
 def build_pi_slot_content_tex(problem: PiProblem, show_answer: bool) -> str:
@@ -3308,9 +3426,13 @@ def build_pi_slot_content_tex(problem: PiProblem, show_answer: bool) -> str:
     Basic-case only, matching #199's scope: `reverse` is not wired here
     (always the non-reverse `a \\times 3.14 = c` form), mirroring
     backend/app.py's `_generate_pi_pdf`, which does not expose `reverse`.
+
+    Emits via the shared \\horizontaleq/\\opspace equation components
+    (issue #264) instead of a raw `$...$` f-string.
     """
     result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
-    return f"${problem.a} \\times {PI_MULTIPLIER} = {result_tex}$"
+    lhs_tex = build_equation_lhs_tex([str(problem.a), str(PI_MULTIPLIER)], ['\\times'])
+    return build_horizontal_equation_tex(lhs_tex, result_tex)
 
 
 def build_pi_page_pair(problems: list[PiProblem], columns: int, reverse: bool) -> tuple[Page, Page]:
@@ -3837,14 +3959,17 @@ def build_fraction_block_tex(problem: FractionProblem, show_answer: bool) -> str
 
 
 def build_fraction_slot_content_tex(problem: FractionProblem, show_answer: bool) -> str:
-    """Render the number-free body for one fraction-arithmetic slot."""
+    """Render the number-free body for one fraction-arithmetic slot.
+
+    Pattern-1b: emitted via the shared \\fractioneq/\\opspace components
+    (issue #264), which supply \\displaystyle and a fixed display-fraction
+    height strut instead of a raw `$\\displaystyle ...$` f-string.
+    """
     symbol = OPERATOR_TEX_SYMBOLS[problem.operator]
     render = fraction_to_mixed_number_tex if problem.mixed_number_display else fraction_to_tex
     result_tex = render(problem.c) if show_answer else BLANK_ANSWER_TEX
-    return (
-        f"$\\displaystyle {render(problem.a)} {symbol} "
-        f"{render(problem.b)} = {result_tex}$"
-    )
+    lhs_tex = build_equation_lhs_tex([render(problem.a), render(problem.b)], [symbol])
+    return build_fraction_equation_tex(lhs_tex, result_tex)
 
 
 def build_fraction_page_pair(problems: list[FractionProblem], columns: int) -> tuple[Page, Page]:
@@ -4259,12 +4384,12 @@ def build_mixed_block_tex(problem: MixedProblem, show_answer: bool) -> str:
     fraction (fraction_to_tex(Fraction)), never decimal notation -- see
     MIXED_STAGE_FUNCTIONS's div and this file's decimal-arithmetic design
     note (no infinite/repeating decimals anywhere in generated output).
+
+    Number-free body built by build_mixed_slot_content_tex (pattern-1b
+    shared equation components, issue #264); this wrapper only prepends the
+    legacy `n)` prefix.
     """
-    parts = [problem.operands[0].display]
-    for operand, operator in zip(problem.operands[1:], problem.operators):
-        parts += [OPERATOR_TEX_SYMBOLS[operator], operand.display]
-    result_tex = fraction_to_tex(problem.result) if show_answer else BLANK_ANSWER_TEX
-    return f"{problem.index}) $\\displaystyle {' '.join(parts)} = {result_tex}$"
+    return f"{problem.index}) {build_mixed_slot_content_tex(problem, show_answer)}"
 
 
 def build_mixed_slot_content_tex(problem: MixedProblem, show_answer: bool) -> str:
@@ -4272,13 +4397,13 @@ def build_mixed_slot_content_tex(problem: MixedProblem, show_answer: bool) -> st
 
     The presentation API's Layer 2 owns the problem number. This Layer-3
     formatter otherwise preserves build_mixed_block_tex's pattern-1b body,
-    including exact fraction answers, displaystyle, and the blank answer.
+    including exact fraction answers, displaystyle, and the blank answer,
+    emitted via the shared \\fractioneq/\\opspace components (issue #264).
     """
-    parts = [problem.operands[0].display]
-    for operand, operator in zip(problem.operands[1:], problem.operators):
-        parts += [OPERATOR_TEX_SYMBOLS[operator], operand.display]
+    operands = [operand.display for operand in problem.operands]
+    symbols = [OPERATOR_TEX_SYMBOLS[operator] for operator in problem.operators]
     result_tex = fraction_to_tex(problem.result) if show_answer else BLANK_ANSWER_TEX
-    return f"$\\displaystyle {' '.join(parts)} = {result_tex}$"
+    return build_fraction_equation_tex(build_equation_lhs_tex(operands, symbols), result_tex)
 
 
 def build_mixed_page_pair(problems: list[MixedProblem], columns: int) -> tuple[Page, Page]:
@@ -4360,10 +4485,27 @@ def generate_number_pair_problems(
     return problems
 
 
-def build_number_pair_block_tex(problem: NumberPairProblem, show_answer: bool, label: str) -> str:
-    """Render one lcm/gcd problem as `n) $LABEL(a, b) = c$` (blank version hides `c`)."""
+def build_number_pair_equation_tex(problem: NumberPairProblem, show_answer: bool, label: str) -> str:
+    """
+    Number-free body for one lcm/gcd problem: `$\\mathrm{LABEL}(a, b) = c$`
+    (blank hides `c`), emitted via the shared \\horizontaleq/\\opspace
+    equation components (issue #264). The left-hand side is a single
+    function-call token, so build_equation_lhs_tex is passed a one-element
+    operand list (no infix operator).
+    """
     result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
-    return f"{problem.index}) $\\mathrm{{{label}}}({problem.a}, {problem.b}) = {result_tex}$"
+    lhs_tex = build_equation_lhs_tex([f"\\mathrm{{{label}}}({problem.a}, {problem.b})"], [])
+    return build_horizontal_equation_tex(lhs_tex, result_tex)
+
+
+def build_number_pair_block_tex(problem: NumberPairProblem, show_answer: bool, label: str) -> str:
+    """Render one lcm/gcd problem as `n) $LABEL(a, b) = c$` (blank version hides `c`).
+
+    Number-free body built by build_number_pair_equation_tex (pattern-1a
+    shared equation components, issue #264); this wrapper only prepends the
+    legacy `n)` prefix.
+    """
+    return f"{problem.index}) {build_number_pair_equation_tex(problem, show_answer, label)}"
 
 
 def build_lcm_slot_content_tex(problem: NumberPairProblem, show_answer: bool) -> str:
@@ -4375,8 +4517,7 @@ def build_lcm_slot_content_tex(problem: NumberPairProblem, show_answer: bool) ->
     relationship to build_com_block_tex (#184); build_gcd_slot_content_tex is
     the corresponding GCD variant.
     """
-    result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
-    return f"$\\mathrm{{LCM}}({problem.a}, {problem.b}) = {result_tex}$"
+    return build_number_pair_equation_tex(problem, show_answer, 'LCM')
 
 
 def build_gcd_slot_content_tex(problem: NumberPairProblem, show_answer: bool) -> str:
@@ -4387,8 +4528,7 @@ def build_gcd_slot_content_tex(problem: NumberPairProblem, show_answer: bool) ->
     which owns the number box instead. Mirrors build_lcm_slot_content_tex's
     relationship to the shared number-pair block renderer.
     """
-    result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
-    return f"$\\mathrm{{GCD}}({problem.a}, {problem.b}) = {result_tex}$"
+    return build_number_pair_equation_tex(problem, show_answer, 'GCD')
 
 
 def build_number_pair_page_pair(problems: list[NumberPairProblem], columns: int, label: str) -> tuple[Page, Page]:
@@ -4930,9 +5070,12 @@ def build_divfrac_block_tex(problem: DivFracProblem, show_answer: bool) -> str:
     fraction_to_tex(Fraction(a, b)): Python's Fraction always auto-reduces
     on construction, which would silently simplify the answer, but this
     drill's answer must stay the literal, unreduced a/b.
+
+    Number-free body built by build_divfrac_slot_content_tex (pattern-1b
+    shared equation components, issue #264); this wrapper only prepends the
+    legacy `n)` prefix.
     """
-    result_tex = fraction_to_tex(problem.operand) if show_answer else BLANK_ANSWER_TEX
-    return f"{problem.index}) ${problem.a} \\div {problem.b} = {result_tex}$"
+    return f"{problem.index}) {build_divfrac_slot_content_tex(problem, show_answer)}"
 
 
 def build_divfrac_slot_content_tex(problem: DivFracProblem, show_answer: bool) -> str:
@@ -4940,10 +5083,15 @@ def build_divfrac_slot_content_tex(problem: DivFracProblem, show_answer: bool) -
 
     ContentAreaLayout owns the problem number. The remaining pattern-1b body
     matches build_divfrac_block_tex, including its unreduced FractionOperand
-    answer and blank-answer marker.
+    answer and blank-answer marker. Emitted via the shared
+    \\fractioneq/\\opspace components (issue #264): this brings the
+    `\\displaystyle` + fixed-height treatment the taxonomy specifies for
+    pattern 1b (previously only build_divfrac_bottom_answer_tex used
+    `\\displaystyle` for the answer key; the problem body did not).
     """
     result_tex = fraction_to_tex(problem.operand) if show_answer else BLANK_ANSWER_TEX
-    return f"${problem.a} \\div {problem.b} = {result_tex}$"
+    lhs_tex = build_equation_lhs_tex([str(problem.a), str(problem.b)], ['\\div'])
+    return build_fraction_equation_tex(lhs_tex, result_tex)
 
 
 def build_divfrac_page_pair(problems: list[DivFracProblem], columns: int) -> tuple[Page, Page]:
