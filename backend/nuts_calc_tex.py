@@ -116,6 +116,35 @@ CONTENT_FORMAT_STAGE_CHAIN_ARROW_GAP_TEX = '0.2em'
 # the memo's digits. Consumed only by build_content_format_macros_tex's
 # \stagechainmemowidth \newlength.
 CONTENT_FORMAT_STAGE_CHAIN_MEMO_WIDTH_TEX = '3em'
+# Single tuning point for the pattern-6 written-calculation (hissan) per-digit
+# column width (issue #269; guidelines items 3, 4, 6, 11). This is the xlop
+# `columnwidth` value the vertical add/sub/mul layout has always used; naming it
+# makes the "digits right-align into fixed-width columns, operator sits one
+# column to the left" behaviour a single tuning point instead of a magic literal
+# in an inline option string. Consumed only by build_content_format_macros_tex's
+# \verticalcolumnwidth \newlength (kept byte-identical to xlop's default so
+# compiled PDFs are unchanged).
+CONTENT_FORMAT_VERTICAL_COLUMN_WIDTH_TEX = '2ex'
+# Single tuning point for the pattern-6 written-calculation rule thickness
+# (issue #269; guidelines item 12). Maps to xlop's `hrulewidth`/`vrulewidth`
+# (the sum/product underline). Equals xlop's default (0.4pt) so compiled PDFs
+# are unchanged; `longdivision`'s own rule thickness is a private LaTeX3 dim
+# with no package key, so its div bracket is not centralized here (triaged).
+# Consumed only by build_content_format_macros_tex's \verticalrulewidth
+# \newlength.
+CONTENT_FORMAT_VERTICAL_RULE_WIDTH_TEX = '0.4pt'
+# Single tuning point for the pattern-6 written-calculation inter-row spacing
+# (issue #269; guidelines item 6). Maps to xlop's `lineheight`; equals xlop's
+# default (\baselineskip) so compiled PDFs are unchanged. Consumed only by
+# build_content_format_macros_tex's \verticalrowheight \newlength.
+CONTENT_FORMAT_VERTICAL_ROW_HEIGHT_TEX = '\\baselineskip'
+# Single tuning point for the pattern-6 written-calculation decimal-separator
+# column offset (issue #269; guidelines item 16). xlop already aligns operands
+# on their decimal separator natively; this maps to its `decimalsepoffset` knob
+# so the alignment has one named home. Equals xlop's default (0pt) so compiled
+# PDFs are unchanged. Consumed only by build_content_format_macros_tex's
+# \verticaldecimalsepoffset \newlength.
+CONTENT_FORMAT_VERTICAL_DECIMAL_SEP_OFFSET_TEX = '0pt'
 MIN_DECIMAL_PLACES = 0
 MAX_DECIMAL_PLACES = 2
 DEC2FRAC_MIN_DECIMAL_PLACES = 1
@@ -137,7 +166,6 @@ LUALATEX_CJK_FONT_NAME = 'Noto Sans CJK JP'
 OPERATOR_TEX_SYMBOLS = {'add': '+', 'sub': '-', 'mul': '\\times', 'div': '\\div'}
 MIX_OPERATORS = ['add', 'sub', 'mul', 'div']
 XLOP_VERTICAL_COMMANDS = {'add': 'opadd', 'sub': 'opsub', 'mul': 'opmul'}
-XLOP_VERTICAL_LAYOUT_OPTIONS = 'voperator=bottom,columnwidth=2ex'
 
 PAPER_SIZE_TO_GEOMETRY_OPTION = {
     'a3': 'a3paper',
@@ -1250,6 +1278,25 @@ def build_content_format_macros_tex() -> str:
       integer-only, no ``\\displaystyle``) plus ``\\vphantom{0}`` so a blank
       trailing result (a zero-height ``\\hspace``) keeps the same row height as
       an answer-key digit.
+    - ``\\verticalcalcsetup`` / ``\\verticalcalc{<call>}`` /
+      ``\\verticalcalcblank{<call>}`` / ``\\longdivisioncalc{<a>}{<b>}`` /
+      ``\\longdivisioncalcblank{<a>}{<b>}`` for pattern 6 (taxonomy "written
+      calculation / hissan": ``ope --vertical``, issue #269). The column grid is
+      still drawn by ``xlop`` (add/sub/mul) and ``longdivision`` (div); this
+      block does not re-implement it. ``\\verticalcalcsetup`` is the one
+      centralized ``\\opset`` group -- ``voperator`` puts the sign one column
+      left of the digits (items 3, 4), ``columnwidth=\\verticalcolumnwidth``
+      right-aligns 2-4 digit operands into a fixed per-digit column (items 6,
+      11), ``h/vrulewidth=\\verticalrulewidth`` fixes the sum/product rule (item
+      12), ``lineheight=\\verticalrowheight`` fixes row spacing (item 6), and
+      ``decimalsepoffset=\\verticaldecimalsepoffset`` names the decimal-separator
+      column xlop aligns operands on natively (item 16). ``\\verticalcalc`` vs
+      ``\\verticalcalcblank`` differ only by the per-digit ``\\phantom`` style
+      hooks, so blank vs answer-key is one edit; the div wrappers are thin
+      (``longdivision`` exposes no layout keys) and keep its ``stage=0``
+      blanking. Named apart from ``\\horizontaleq`` because the vertical layout
+      is its own component (item 15). Every length equals the value already in
+      effect so compiled PDFs are byte-for-byte unchanged.
     """
     return (
         "\\newlength{\\opspacewidth}\n"
@@ -1302,6 +1349,49 @@ def build_content_format_macros_tex() -> str:
         # Integer-only wrapper: like \horizontaleq ($#1$, no \displaystyle) plus
         # \vphantom{0} so a blank trailing result keeps the answer-key row height.
         "\\newcommand{\\stagedchaineq}[1]{$#1\\vphantom{0}$}\n"
+        # Pattern 6 (written calculation / hissan, issue #269): the vertical
+        # add/sub/mul layout still delegates to xlop and div still delegates to
+        # longdivision, so this block does NOT re-implement the column grid --
+        # it names the xlop tuning points that were an inline magic option
+        # string (\verticalcolumnwidth etc.) and wraps the package calls in a
+        # single centralized component so blank vs answer-key stays one edit
+        # (guidelines items 3, 4, 6, 11, 12, 16). Appended after the
+        # #264/#265/#266/#267/#268 definitions, which are left untouched. Every
+        # length equals the value already in effect, so compiled PDFs are byte-
+        # for-byte unchanged.
+        "\\newlength{\\verticalcolumnwidth}\n"
+        f"\\setlength{{\\verticalcolumnwidth}}{{{CONTENT_FORMAT_VERTICAL_COLUMN_WIDTH_TEX}}}\n"
+        "\\newlength{\\verticalrulewidth}\n"
+        f"\\setlength{{\\verticalrulewidth}}{{{CONTENT_FORMAT_VERTICAL_RULE_WIDTH_TEX}}}\n"
+        "\\newlength{\\verticalrowheight}\n"
+        f"\\setlength{{\\verticalrowheight}}{{{CONTENT_FORMAT_VERTICAL_ROW_HEIGHT_TEX}}}\n"
+        "\\newlength{\\verticaldecimalsepoffset}\n"
+        f"\\setlength{{\\verticaldecimalsepoffset}}{{{CONTENT_FORMAT_VERTICAL_DECIMAL_SEP_OFFSET_TEX}}}\n"
+        # The single centralized xlop option group for the hissan number/operator
+        # column model: operator one column left of the digits (voperator), a
+        # fixed per-digit column so 2-4 digit operands right-align (columnwidth,
+        # items 3/4/11), a fixed sum/product rule (h/vrulewidth, item 12), fixed
+        # row spacing (lineheight, item 6) and the decimal-separator column xlop
+        # aligns operands on natively (decimalsepoffset, item 16).
+        "\\newcommand{\\verticalcalcsetup}{\\opset{voperator=bottom,"
+        "columnwidth=\\verticalcolumnwidth,lineheight=\\verticalrowheight,"
+        "hrulewidth=\\verticalrulewidth,vrulewidth=\\verticalrulewidth,"
+        "decimalsepoffset=\\verticaldecimalsepoffset}}\n"
+        # Answer-key vs blank wrappers for the xlop add/sub/mul call (#1 is the
+        # \[\opadd{a}{b}\] display-math). Named separately from \horizontaleq so
+        # the vertical layout is its own component (guidelines item 15). The
+        # blank variant keeps the existing per-digit \phantom style-hook blanking
+        # mechanism (only the digits vanish; the column/rule geometry stays).
+        "\\newcommand{\\verticalcalc}[1]{\\begingroup\\verticalcalcsetup #1\\endgroup}\n"
+        "\\newcommand{\\verticalcalcblank}[1]{\\begingroup\\verticalcalcsetup"
+        "\\opset{resultstyle=\\phantom,carrystyle=\\phantom,intermediarystyle=\\phantom}"
+        "#1\\endgroup}\n"
+        # Named div wrappers (guidelines item 15 parity). longdivision exposes no
+        # columnwidth/rule keys, so these are thin; the blank variant keeps
+        # longdivision's built-in stage=0 blanking (bracket/divisor/dividend
+        # only).
+        "\\newcommand{\\longdivisioncalc}[2]{\\intlongdivision{#1}{#2}}\n"
+        "\\newcommand{\\longdivisioncalcblank}[2]{\\intlongdivision[stage=0]{#1}{#2}}\n"
     )
 
 
@@ -2099,51 +2189,61 @@ def build_horizontal_intermediate_block_tex(problem: OpeProblem, show_answer: bo
     return f"{problem.index}) {build_staged_chain_equation_tex(expr_tex, memo, result_tex)}"
 
 
-def build_vertical_block_tex(problem: OpeProblem, show_answer: bool) -> str:
+def build_vertical_calc_tex(problem: OpeProblem, show_answer: bool) -> str:
     """
-    Render one `ope --vertical` (hissan) problem as a tabular-cell block:
-    index label, then the LaTeX-rendered written-calculation layout.
+    Render the number-free written-calculation (hissan) body for one
+    `ope --vertical` problem -- everything except the leading `n)\\newline `
+    prefix that build_vertical_block_tex adds (taxonomy pattern 6, issue #269).
 
-    add/sub/mul use the `xlop` package (auto-rendering carries and, for a
-    multi-digit multiplier, one partial-product row per digit); it accepts
-    decimal-formatted operands directly, so a_decimal_places/b_decimal_places
-    (0 by default) are applied via format_decimal_value the same way
-    build_horizontal_block_tex does. div uses `longdivision` the same way --
-    NOTE: `\\intlongdivision` requires an *integer* divisor, so this raises a
-    LaTeX error for b_decimal_places > 0 (decimal-by-decimal division) until
-    that case is resolved (see nuts_calc_tex.py.md for the open question).
-    For the blank (practice) variant, xlop's per-digit style hooks
-    (resultstyle/carrystyle/intermediarystyle) are overridden to
-    `\\phantom`, which reserves the digits' layout space without printing
-    them; longdivision has an equivalent built-in via its `stage=0` option
-    (only the bracket/divisor/dividend are shown).
+    Emitted through the shared `\\verticalcalc` / `\\verticalcalcblank`
+    (xlop add/sub/mul) and `\\longdivisioncalc` / `\\longdivisioncalcblank`
+    (longdivision div) components from build_content_format_macros_tex()
+    instead of an inline `\\opset` option string. The column grid itself is
+    still drawn by xlop / longdivision; the shared macros only centralize the
+    tuning points (`\\verticalcolumnwidth` etc., guidelines items 3, 4, 6, 11,
+    12, 16) and fold the blank vs answer-key switch into one place.
+
+    add/sub/mul accept decimal-formatted operands directly, so
+    a_decimal_places/b_decimal_places (0 by default) are applied via
+    format_decimal_value the same way build_horizontal_block_tex does. div uses
+    `\\intlongdivision`, which requires an *integer* divisor, so a LaTeX error
+    is raised for b_decimal_places > 0 (decimal-by-decimal division) until that
+    case is resolved (see nuts_calc_tex.py.md for the open question); `_init()`
+    rejects that combination before reaching here.
+
+    For the blank (practice) variant, the `\\verticalcalcblank` macro layers
+    xlop's per-digit style hooks (resultstyle/carrystyle/intermediarystyle ->
+    `\\phantom`) on top of `\\verticalcalcsetup`, reserving the digits' layout
+    space without printing them; `\\longdivisioncalcblank` uses longdivision's
+    equivalent built-in `stage=0` (only the bracket/divisor/dividend shown).
     """
-    index_line = f"{problem.index})\\newline "
     if problem.operator == 'div':
         dividend_tex = format_decimal_value(problem.a, problem.a_decimal_places)
         divisor_tex = format_decimal_value(problem.b, problem.b_decimal_places)
-        stage_option = '' if show_answer else '[stage=0]'
-        return f"{index_line}\\[\\intlongdivision{stage_option}{{{dividend_tex}}}{{{divisor_tex}}}\\]"
+        macro = '\\longdivisioncalc' if show_answer else '\\longdivisioncalcblank'
+        return f"\\[{macro}{{{dividend_tex}}}{{{divisor_tex}}}\\]"
 
     a_tex = format_decimal_value(problem.a, problem.a_decimal_places)
     b_tex = format_decimal_value(problem.b, problem.b_decimal_places)
     command = XLOP_VERTICAL_COMMANDS[problem.operator]
     op_call_tex = f"\\[\\{command}{{{a_tex}}}{{{b_tex}}}\\]"
-    if show_answer:
-        return (
-            index_line
-            + f"\\begingroup\\opset{{{XLOP_VERTICAL_LAYOUT_OPTIONS}}}"
-            + op_call_tex
-            + "\\endgroup"
-        )
-    return (
-        index_line
-        + "\\begingroup\\opset{"
-        + XLOP_VERTICAL_LAYOUT_OPTIONS
-        + ",resultstyle=\\phantom,carrystyle=\\phantom,intermediarystyle=\\phantom}"
-        + op_call_tex
-        + "\\endgroup"
-    )
+    macro = '\\verticalcalc' if show_answer else '\\verticalcalcblank'
+    return f"{macro}{{{op_call_tex}}}"
+
+
+def build_vertical_block_tex(problem: OpeProblem, show_answer: bool) -> str:
+    """
+    Render one `ope --vertical` (hissan) problem as a tabular-cell block:
+    index label, then the LaTeX-rendered written-calculation layout.
+
+    The number-free body is built by build_vertical_calc_tex (pattern-6 shared
+    written-calculation components, issue #269); this wrapper only prepends the
+    legacy `n)\\newline ` prefix. `ope --vertical` is not on the internal
+    presentation API (build_ope_page_pair routes it straight to the CLI tabular
+    grid, and app.py rejects `vertical`), so -- like `ope --intermediate`
+    (#268) -- no number-free `build_vertical_slot_content_tex` is added.
+    """
+    return f"{problem.index})\\newline {build_vertical_calc_tex(problem, show_answer)}"
 
 
 def build_ope_page_pair(problems: list[OpeProblem], columns: int, vertical: bool, intermediate: bool) -> tuple[Page, Page]:
