@@ -57,7 +57,7 @@ issue #122 の成果物。`docs/latex/tex_calculation_drill_layout_guidelines.md
 
 ### 4a. 単純矢印変換
 
-`n) $A \Rightarrow B$` の形。ブランク時は1a同様、末尾(この場合はB側全体)が無枠ブランクになる。
+`n) $A \Rightarrow B$` の形。ブランク時は1a同様、末尾(この場合はB側全体)が無枠ブランク(`BLANK_ANSWER_TEX`)になる。issue #267 以降は共有 wrapper `\arroweq` 経由で出力し、`\Rightarrow` の両側に `\opspace` が入る(それ以前は生の `$...$` f-string で単一スペース)。
 
 | 関数 | コマンド | 備考 |
 |---|---|---|
@@ -68,7 +68,7 @@ issue #122 の成果物。`docs/latex/tex_calculation_drill_layout_guidelines.md
 
 ### 4b. 分数を含む矢印変換
 
-4aと文字列の型は同じだが、片側または両側に `\frac` を含む。1a→1bと同じ理由で専用の高さ調整が必要。
+4aと文字列の型は同じだが、片側または両側に `\frac` を含む。1a→1bと同じ理由で専用の高さ調整が必要。issue #267 以降は共有 wrapper `\fractionarroweq`(`\fractioneq` と同一形の `$\displaystyle #1\vphantom{\frac{0}{0}}$`)経由で出力し、`\Rightarrow` の両側に `\opspace` が入る。
 
 | 関数 | コマンド | 備考 |
 |---|---|---|
@@ -78,7 +78,7 @@ issue #122 の成果物。`docs/latex/tex_calculation_drill_layout_guidelines.md
 
 ### 4c. 2要素ペア矢印変換
 
-`A, B \Rightarrow A', B'` の形。4a/4bと矢印を使う点は共通だが、両辺がそれぞれ2つの分数のコンマ区切りリストである点が異なり、単項の4a/4bへ単純に一般化できない(要素数が構造として固定2)。
+`A, B \Rightarrow A', B'` の形。4a/4bと矢印を使う点は共通だが、両辺がそれぞれ2つの分数のコンマ区切りリストである点が異なり、単項の4a/4bへ単純に一般化できない(要素数が構造として固定2)。issue #267 以降は 4b と同じ共有 wrapper `\fractionarroweq` を使う(縦メトリクスは同一で、違いはオペランド個数のみ)。左辺2要素の結合は `build_fraction_pair_conversion_tex` が行い、内部で `build_fraction_arrow_conversion_tex` へ委譲する。
 
 | 関数 | コマンド | 備考 |
 |---|---|---|
@@ -154,4 +154,5 @@ issue #122 本文にあった予備仮説は「分数を含む式(frac/mixed/sim
 - **パターン1a・1b(issue #264、#185 の子)**: 表内の全 `build_*_block_tex` / `build_*_slot_content_tex`(1a: `ope` 横式 plain/tree/multi-term、`99`、`squ`、`pi`、`lcm`/`gcd`。1b: `frac`、`mixed`、`divfrac`)が、生の f-string ではなく共有 TeX マクロ経由で出力するようになった。`backend/nuts_calc_tex.py` の `build_content_format_macros_tex()` が `\newlength{\opspacewidth}`(定数 `CONTENT_FORMAT_OPSPACE_WIDTH_TEX`)・`\opspace`(guidelines 項目5/6/20)・`\horizontaleq`(1a wrapper)・`\fractioneq`(1b wrapper: `\displaystyle` + `\vphantom` 高さ strut、guidelines 項目17)を emit し、`build_document_tex`(レガシー CLI)と `build_presentation_document_tex`(内部 API)の両方が preamble 直後にこのブロックを差し込む。各 `build_*_block_tex` は `n) ` prefix + 対応する番号なし slot formatter の合成へ統一された。`divfrac` の problem 本文は本 retrofit で `\displaystyle` を得た(従来は答えキーのみ)。パターン2以降・Layer 1/2 の契約は対象外。
 - **パターン2(issue #265、#185 の子)**: `build_com_block_tex` / `build_com_slot_content_tex`(`com`)と `build_missing_value_block_tex` / `build_missing_value_slot_content_tex`(`ope --missing-value`)が、`BOXED_BLANK_TEX` を直接埋め込む生の f-string ではなく共有 TeX マクロ経由で出力するようになった。`build_content_format_macros_tex()` に `\newlength{\boxedblankwidth}`(定数 `CONTENT_FORMAT_BOXED_BLANK_WIDTH_TEX = '1em'`、guidelines 項目6。隠したオペランドの桁数に応じてサイズを変えない**意図的な固定幅**)・`\boxedblank`(`\vcenter` をやめた baseline-anchored な `\fbox` + strut、guidelines 項目20)・`\boxedblankeq`(`$...$` wrapper + `\vphantom{\boxedblank}` で blank/filled 行の高さを一致、guidelines 項目17 相当)を追記した(#264 の `\opspace`/`\horizontaleq`/`\fractioneq` 定義は無変更)。演算子・`=` の間隔は #264 の `build_equation_lhs_tex` + `\opspace` を再利用する(パターン1a と同じ、項目5/20)。各 `build_*_block_tex` は `n) ` prefix + 対応する番号なし slot formatter の合成へ統一。Python 側はオペランドマーカー用に新定数 `BOXED_BLANK_OPERAND_TEX`(= `\boxedblank`)を使う。
 - **パターン3(issue #266、#185 の子)**: `build_fraction_comparison_block_tex` / `build_fraction_comparison_slot_content_tex`(`compare`)が、生の `$\displaystyle ...$` f-string ではなく共有 `build_comparison_equation_tex`(`\compareeq{<a> \opspace <rel> \opspace <b>}`)経由で出力するようになった。`build_content_format_macros_tex()` に `\compareeq`(`\fractioneq` と同一形の `$\displaystyle #1\vphantom{\frac{0}{0}}$`、別名定義で縦位置処理を独立させる)を追記(#264/#265 の定義行は無変更)。ブランクの関係記号は #265 の `\boxedblank` を再利用し(`COMPARE_REL_BLANK_TEX` = `BOXED_BLANK_OPERAND_TEX`)、`\boxedblankwidth` を共有する。関係記号の両側に #264 の `\opspace`(項目5/20)、int/decimal オペランドは `\vcenter{\hbox{$...$}}` で `\frac` と数式軸中央を揃える(項目17)。小数点揃え(項目16)は単一行インライン比較には縦の小数カラムが無いため N/A。パターン3が最後の利用者だった生の `\vcenter` 定数 `BOXED_BLANK_TEX` は本 issue で削除された。
-- パターン4以降(`build_abc_block_tex`・`build_simplify_block_tex`・`build_commondenom_block_tex`・`build_horizontal_intermediate_block_tex`・`build_vertical_block_tex`・`build_hundred_square_block_tex` ほか)は未 retrofit。
+- **パターン4a・4b・4c(issue #267、#185 の子)**: 矢印変換ファミリーの全 `build_*_block_tex` / `build_*_slot_content_tex`(4a: `aBc`、`evenodd`、`multiples`、`divisors`。4b: `simplify`、`frac2dec`、`dec2frac`。4c: `commondenom`)計8 slot 関数が、生の `$...$` / `$\displaystyle ...$` f-string ではなく共有 TeX 部品経由で出力するようになった。`build_content_format_macros_tex()` に `\arroweq`(`\newcommand{\arroweq}[1]{$#1$}`、4a wrapper。`\horizontaleq` と同一形だが 4a の横位置処理が独立して変えられるよう別名で定義)と `\fractionarroweq`(`\newcommand{\fractionarroweq}[1]{$\displaystyle #1\vphantom{\frac{0}{0}}$}`、4b/4c wrapper。`\fractioneq`/`\compareeq` と同一形。4b と 4c はオペランドの個数だけが違う単一サブファミリーのため wrapper を共有)を `\compareeq` 行の直後に追記した(#264/#265/#266 の定義行は無変更)。共有ヘルパー `build_arrow_conversion_tex`(4a)・`build_fraction_arrow_conversion_tex`(4b)・`build_fraction_pair_conversion_tex`(4c、左辺2要素を結合して 4b ヘルパーへ委譲)が `\<wrapper>{<lhs> \opspace \Rightarrow \opspace <rhs>}` を返し、`\Rightarrow` の両側に #264 の `\opspace` を挿入する(guidelines 項目5)。RHS のブランクは共有の**無枠**マーカー `BLANK_ANSWER_TEX` のまま(パターン1a/1b の末尾ブランクと一貫、パターン2/3 の枠と対照)。本文を複製していた4a の `build_abc_block_tex`/`build_evenodd_block_tex`/`build_multiples_block_tex`/`build_divisors_block_tex` は `n) ` prefix + slot formatter の合成へ統一(残り4関数は #224/#225 で既に委譲済み)。個別欠陥のうち `multiples`/`divisors` の長い RHS コンマリストの折り返し・整列は、スロット幅を所有する Layer 2 グリッド(項目1/18/19)の範疇のため triage(将来の Layer 2 パスに残す)。tabular figures / 桁揃え・`\problembox`・演算子カラム / 筆算下線 / 小数点揃えは #264/#265/#266 と同じ理由で見送り。Layer 1/2 の契約・パターン5以降は対象外。
+- パターン5以降(`build_horizontal_intermediate_block_tex`・`build_vertical_block_tex`・`build_hundred_square_block_tex`)は未 retrofit。

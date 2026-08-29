@@ -471,7 +471,8 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴（git log より自動生成）
 
-- da41461 feat(#266): render the comparison content format via a shared TeX component
+- b1dbbb7 feat(#267): render arrow-conversion content formats via shared TeX components
+- f794743 feat(#266): render the comparison content format via a shared TeX component (#277)
 - 64a8412 feat(#265): render the boxed-blank equation format via a shared TeX component (#276)
 - 4088bf0 feat(#264): render equation content formats via shared TeX components (#275)
 - 2d4c435 feat(#225): migrate commondenom to the internal presentation API (#274)
@@ -480,5 +481,3 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - 7585ce7 feat(#229): migrate the 100 hundred-square command to the internal presentation API (#271)
 - ce8f8b6 feat(#222): migrate dec2frac to the internal presentation API (#261)
 - 4cb1c11 feat(#221): migrate frac2dec to presentation API
-- 156c2d2 Merge remote-tracking branch 'origin/main' into feat/220-migrate-simplify-presentation-api
-- ab8daf7 feat(#220): migrate simplify PDF generation
