@@ -247,6 +247,40 @@ def test_build_dec2frac_slot_content_tex_reconstructs_legacy_block_body() -> Non
     )
 
 
+def test_build_fraction_comparison_slot_content_tex_omits_number_and_renders_answers() -> None:
+    problem = tex_module.FractionComparisonProblem(
+        index=5,
+        a=tex_module.FractionComparisonOperand(1, 2),
+        b=tex_module.FractionComparisonOperand(2, 3),
+    )
+
+    filled_content = tex_module.build_fraction_comparison_slot_content_tex(problem, show_answer=True)
+    blank_content = tex_module.build_fraction_comparison_slot_content_tex(problem, show_answer=False)
+
+    assert filled_content == "$\\displaystyle \\frac{1}{2} < \\frac{2}{3}$"
+    assert "5)" not in filled_content
+    assert blank_content == (
+        f"$\\displaystyle \\frac{{1}}{{2}} {tex_module.BOXED_BLANK_TEX} \\frac{{2}}{{3}}$"
+    )
+
+
+def test_build_fraction_comparison_slot_content_tex_reconstructs_legacy_block_body() -> None:
+    problem = tex_module.FractionComparisonProblem(
+        index=5,
+        a=tex_module.FractionComparisonOperand(1, 2),
+        b=tex_module.FractionComparisonOperand(2, 3),
+    )
+    layout = tex_module.ContentAreaLayout(rows=1, columns=1, number_box_width_mm=0)
+
+    slot_content_tex = tex_module.build_fraction_comparison_slot_content_tex(problem, show_answer=True)
+    composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
+
+    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert tex_module.build_fraction_comparison_block_tex(problem, True) == (
+        f"{problem.index}) {slot_content_tex}"
+    )
+
+
 def test_build_ope_slot_content_tex_matches_block_tex_body_when_composed() -> None:
     """Composing the Layer-2 slot with the number-free Layer-3 content must
     reproduce the existing build_horizontal_block_tex() output byte-for-byte
