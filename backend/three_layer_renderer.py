@@ -13,9 +13,12 @@ creation): input is the request ``dict`` (``renderers.RendererRequest``), output
 is a ``(filepath, filename)`` pair. This keeps it reusable by the CLI
 (``nuts_calc_tex.py``), which is also planned to move onto the 3-layer model.
 
-``renderers.py``'s subprocess path stays as a temporary fallback for any
-``command_type`` not covered by ``render_worksheet_pdf`` (see #174 for the
-planned removal of that fallback).
+Since issue #291 every ``/generate-pdf`` request is served here;
+``render_worksheet_pdf`` raises ``ValueError`` for a request no builder handles
+instead of signalling a subprocess fallthrough. ``renderers.py``'s subprocess
+path is still built but is reachable only by flipping
+``app._USE_LEGACY_PDF_PIPELINE`` (a temporary source-level switch; see #174 for
+its planned removal).
 """
 
 import contextlib
@@ -2154,18 +2157,43 @@ def _generate_hundred_square_pdf(data: renderers.RendererRequest, output_dir: st
     return output_filepath, output_filename
 
 
+# Raised by render_worksheet_pdf when a `mixed` request combines reducible_mode
+# with a multi-term / mixed_operators option: both `_is_*_mixed_pdf_request`
+# predicates reject it, and nuts_calc_tex.py's _init() (nuts_calc_tex.py:843-848)
+# rejects the same combination -- there is no valid worksheet for it.
+_MIXED_REDUCIBLE_MULTI_TERM_ERROR = (
+    "reducible_mode cannot be combined with terms/terms_min/terms_max/"
+    "mixed_operators for the 'mixed' command."
+)
+
+# Raised by render_worksheet_pdf for any other request no builder handles
+# (in practice only an unknown command_type, since every known one is covered).
+_UNSUPPORTED_REQUEST_ERROR = (
+    "No presentation-layer builder handles this /generate-pdf request "
+    "(command_type={command_type!r})."
+)
+
+
 def render_worksheet_pdf(
     data: renderers.RendererRequest, output_dir: str
-) -> tuple[str, str] | None:
-    """Render a worksheet PDF through the internal presentation API for every
-    ``command_type`` / variant migrated off ``renderers.py``'s subprocess path.
+) -> tuple[str, str]:
+    """Render a worksheet PDF through the internal presentation API.
 
     Returns ``(filepath, filename)`` when ``data`` selects one of the covered
-    builders, or ``None`` when it does not -- the caller then falls through to
-    the ``renderers.run(...)`` subprocess path. The branch order here mirrors
-    the dispatch ladder that lived in ``app.py``'s ``generate_pdf()`` before
-    issue #290 exactly, so which requests take the internal-API path vs the
-    subprocess path is unchanged.
+    builders. Raises ``ValueError`` when no builder matches -- since issue #291
+    every ``/generate-pdf`` request goes through this function (the legacy
+    ``renderers.run(...)`` subprocess path is reachable only via
+    ``app._USE_LEGACY_PDF_PIPELINE``), so an unmatched request is an explicit
+    error rather than a silent subprocess fallthrough. The branch order here
+    mirrors the dispatch ladder that lived in ``app.py``'s ``generate_pdf()``
+    before issue #290 exactly, so which requests are served vs rejected is
+    unchanged.
+
+    The only recognized-``command_type`` request that reaches the terminal
+    ``raise`` is ``mixed`` combined with ``reducible_mode`` and a
+    multi-term / ``mixed_operators`` option -- an invalid combination
+    ``nuts_calc_tex.py``'s ``_init()`` (nuts_calc_tex.py:843-848) also rejects
+    outright. Every other unmatched request has an unknown ``command_type``.
     """
     if data.get('command_type') == 'com':
         return _generate_com_pdf(data, output_dir)
@@ -2219,4 +2247,8 @@ def render_worksheet_pdf(
         return _generate_compare_pdf(data, output_dir)
     if data.get('command_type') == 'commondenom':
         return _generate_commondenom_pdf(data, output_dir)
-    return None
+    if data.get('command_type') == 'mixed':
+        raise ValueError(_MIXED_REDUCIBLE_MULTI_TERM_ERROR)
+    raise ValueError(
+        _UNSUPPORTED_REQUEST_ERROR.format(command_type=data.get('command_type'))
+    )
