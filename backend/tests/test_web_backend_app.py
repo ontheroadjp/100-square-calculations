@@ -17,6 +17,7 @@ sys.path.insert(0, str(BACKEND_DIR))
 import pytest
 
 import renderers  # noqa: E402
+import three_layer_renderer  # noqa: E402
 
 
 @pytest.fixture
@@ -140,7 +141,7 @@ def test_generate_pdf_com_rejects_a_value_below_minimum(client) -> None:
     backend_app = sys.modules["app"]
     response = client.post(
         "/generate-pdf",
-        json={"paper_size": "A4", "command_type": "com", "a_value": backend_app.nuts_calc_tex.MIN_COMPLEMENT_TARGET - 1},
+        json={"paper_size": "A4", "command_type": "com", "a_value": three_layer_renderer.nuts_calc_tex.MIN_COMPLEMENT_TARGET - 1},
     )
     assert response.status_code == 500
     assert "must be at least" in response.get_json()["error"]
@@ -160,17 +161,17 @@ def test_generate_pdf_com_uses_presentation_api_not_subprocess(client, monkeypat
         raise AssertionError("renderers.run must not be called for command_type 'com'")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -191,12 +192,12 @@ def test_generate_pdf_com_wires_page_bottom_answer_and_name_field(
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -245,16 +246,16 @@ def test_generate_pdf_com_maps_compile_failure_to_500(client, monkeypatch) -> No
     of letting the request thread die (issue #199 integration finding).
     """
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
-        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+        three_layer_renderer.nuts_calc_tex.failure("lualatex failed while building the worksheet")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
     )
 
     response = client.post(
@@ -283,17 +284,17 @@ def test_generate_pdf_kuku_uses_presentation_api_not_subprocess(client, monkeypa
         raise AssertionError("renderers.run must not be called for command_type '99'")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -310,7 +311,7 @@ def test_generate_pdf_abc_uses_presentation_api_not_subprocess(client, monkeypat
         raise AssertionError("renderers.run must not be called for command_type 'aBc'")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
         assert "\\Rightarrow" in tex_source
@@ -318,10 +319,10 @@ def test_generate_pdf_abc_uses_presentation_api_not_subprocess(client, monkeypat
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -333,16 +334,16 @@ def test_generate_pdf_abc_uses_presentation_api_not_subprocess(client, monkeypat
 
 def test_generate_pdf_abc_maps_compile_failure_to_500(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
-        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+        three_layer_renderer.nuts_calc_tex.failure("lualatex failed while building the worksheet")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
     )
 
     response = client.post(
@@ -360,27 +361,27 @@ def test_generate_pdf_kuku_forwards_descend_and_shuffle(client, monkeypatch) -> 
     back to ascending/non-shuffled order.
     """
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     captured = {}
-    original_generate_kuku_problems = backend_app.nuts_calc_tex.generate_kuku_problems
+    original_generate_kuku_problems = three_layer_renderer.nuts_calc_tex.generate_kuku_problems
 
     def spy_generate_kuku_problems(a_value, order, start_index, descend, shuffle):
         captured["descend"] = descend
         captured["shuffle"] = shuffle
         return original_generate_kuku_problems(a_value, order, start_index, descend, shuffle)
 
-    monkeypatch.setattr(backend_app.nuts_calc_tex, "generate_kuku_problems", spy_generate_kuku_problems)
+    monkeypatch.setattr(three_layer_renderer.nuts_calc_tex, "generate_kuku_problems", spy_generate_kuku_problems)
 
     def fake_compile(self, tex_source, out_pdf_path):
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -400,16 +401,16 @@ def test_generate_pdf_kuku_maps_compile_failure_to_500(client, monkeypatch) -> N
     for 'com').
     """
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
-        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+        three_layer_renderer.nuts_calc_tex.failure("lualatex failed while building the worksheet")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
     )
 
     response = client.post(
@@ -438,17 +439,17 @@ def test_generate_pdf_pi_uses_presentation_api_not_subprocess(client, monkeypatc
         raise AssertionError("renderers.run must not be called for command_type 'pi'")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -468,16 +469,16 @@ def test_generate_pdf_pi_maps_compile_failure_to_500(client, monkeypatch) -> Non
     path).
     """
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
-        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+        three_layer_renderer.nuts_calc_tex.failure("lualatex failed while building the worksheet")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
     )
 
     response = client.post(
@@ -506,17 +507,17 @@ def test_generate_pdf_squ_uses_presentation_api_not_subprocess(client, monkeypat
         raise AssertionError("renderers.run must not be called for command_type 'squ'")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -528,16 +529,16 @@ def test_generate_pdf_squ_uses_presentation_api_not_subprocess(client, monkeypat
 
 def test_generate_pdf_squ_maps_compile_failure_to_500(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
-        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+        three_layer_renderer.nuts_calc_tex.failure("lualatex failed while building the worksheet")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
     )
 
     response = client.post(
@@ -561,17 +562,17 @@ def test_generate_pdf_lcm_uses_presentation_api_not_subprocess(client, monkeypat
         raise AssertionError("renderers.run must not be called for command_type 'lcm'")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -589,16 +590,16 @@ def test_generate_pdf_lcm_maps_compile_failure_to_500(client, monkeypatch) -> No
     of letting the request thread die (mirrors the 'com' finding from #199).
     """
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
-        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+        three_layer_renderer.nuts_calc_tex.failure("lualatex failed while building the worksheet")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
     )
 
     response = client.post(
@@ -615,19 +616,19 @@ def test_generate_pdf_divfrac_uses_presentation_api_not_subprocess(client, monke
         raise AssertionError("renderers.run must not be called for command_type 'divfrac'")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
         assert "\\div" in tex_source
-        assert backend_app.nuts_calc_tex.BLANK_ANSWER_TEX in tex_source
+        assert three_layer_renderer.nuts_calc_tex.BLANK_ANSWER_TEX in tex_source
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -641,26 +642,26 @@ def test_generate_pdf_divfrac_uses_presentation_api_not_subprocess(client, monke
 def test_generate_pdf_divfrac_resolves_digit_and_explicit_ranges(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
     captured = {}
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def spy_generate_divfrac_problems(nums_a, nums_b, order, start_index):
         captured.update(
             nums_a=nums_a, nums_b=nums_b, order=order, start_index=start_index
         )
-        return [backend_app.nuts_calc_tex.DivFracProblem(index=1, a=10, b=3)]
+        return [three_layer_renderer.nuts_calc_tex.DivFracProblem(index=1, a=10, b=3)]
 
     def fake_compile(self, tex_source, out_pdf_path):
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex, "generate_divfrac_problems", spy_generate_divfrac_problems
+        three_layer_renderer.nuts_calc_tex, "generate_divfrac_problems", spy_generate_divfrac_problems
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -701,16 +702,16 @@ def test_generate_pdf_divfrac_rejects_invalid_layout_or_denominator_range(
 
 def test_generate_pdf_divfrac_maps_compile_failure_to_500(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
-        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+        three_layer_renderer.nuts_calc_tex.failure("lualatex failed while building the worksheet")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
     )
 
     response = client.post(
@@ -732,7 +733,7 @@ def test_generate_pdf_gcd_uses_presentation_api_not_subprocess(client, monkeypat
         raise AssertionError("renderers.run must not be called for command_type 'gcd'")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
         assert "\\mathrm{GCD}" in tex_source
@@ -740,10 +741,10 @@ def test_generate_pdf_gcd_uses_presentation_api_not_subprocess(client, monkeypat
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -755,16 +756,16 @@ def test_generate_pdf_gcd_uses_presentation_api_not_subprocess(client, monkeypat
 
 def test_generate_pdf_gcd_maps_compile_failure_to_500(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
-        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+        three_layer_renderer.nuts_calc_tex.failure("lualatex failed while building the worksheet")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
     )
 
     response = client.post(
@@ -781,7 +782,7 @@ def test_generate_pdf_evenodd_uses_presentation_api_not_subprocess(client, monke
         raise AssertionError("renderers.run must not be called for command_type 'evenodd'")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
         assert "\\Rightarrow" in tex_source
@@ -789,10 +790,10 @@ def test_generate_pdf_evenodd_uses_presentation_api_not_subprocess(client, monke
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -804,16 +805,16 @@ def test_generate_pdf_evenodd_uses_presentation_api_not_subprocess(client, monke
 
 def test_generate_pdf_evenodd_maps_compile_failure_to_500(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
-        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+        three_layer_renderer.nuts_calc_tex.failure("lualatex failed while building the worksheet")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
     )
 
     response = client.post(
@@ -830,16 +831,16 @@ def test_generate_pdf_multiples_uses_presentation_api_not_subprocess(client, mon
         raise AssertionError("renderers.run must not be called for command_type 'multiples'")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     captured = {}
-    original_generate = backend_app.nuts_calc_tex.generate_multiples_problems
+    original_generate = three_layer_renderer.nuts_calc_tex.generate_multiples_problems
 
     def spy_generate(nums_a, order, start_index, count):
         captured["count"] = count
         return original_generate(nums_a, order, start_index, count)
 
-    monkeypatch.setattr(backend_app.nuts_calc_tex, "generate_multiples_problems", spy_generate)
+    monkeypatch.setattr(three_layer_renderer.nuts_calc_tex, "generate_multiples_problems", spy_generate)
 
     def fake_compile(self, tex_source, out_pdf_path):
         assert "\\Rightarrow" in tex_source
@@ -847,10 +848,10 @@ def test_generate_pdf_multiples_uses_presentation_api_not_subprocess(client, mon
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -883,16 +884,16 @@ def test_generate_pdf_multiples_rejects_invalid_basic_input(
 
 def test_generate_pdf_multiples_maps_compile_failure_to_500(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
-        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+        three_layer_renderer.nuts_calc_tex.failure("lualatex failed while building the worksheet")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
     )
 
     response = client.post(
@@ -909,29 +910,29 @@ def test_generate_pdf_divisors_uses_presentation_api_not_subprocess(client, monk
         raise AssertionError("renderers.run must not be called for command_type 'divisors'")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     captured = {}
-    original_generate = backend_app.nuts_calc_tex.generate_divisors_problems
+    original_generate = three_layer_renderer.nuts_calc_tex.generate_divisors_problems
 
     def spy_generate(nums_a, order, start_index):
         captured["nums_a"] = nums_a
         captured["order"] = order
         return original_generate(nums_a, order, start_index)
 
-    monkeypatch.setattr(backend_app.nuts_calc_tex, "generate_divisors_problems", spy_generate)
+    monkeypatch.setattr(three_layer_renderer.nuts_calc_tex, "generate_divisors_problems", spy_generate)
 
     def fake_compile(self, tex_source, out_pdf_path):
         assert "\\Rightarrow" in tex_source
-        assert backend_app.nuts_calc_tex.BLANK_ANSWER_TEX in tex_source
+        assert three_layer_renderer.nuts_calc_tex.BLANK_ANSWER_TEX in tex_source
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -971,16 +972,16 @@ def test_generate_pdf_divisors_rejects_invalid_basic_input(
 
 def test_generate_pdf_divisors_maps_compile_failure_to_500(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
-        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+        three_layer_renderer.nuts_calc_tex.failure("lualatex failed while building the worksheet")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
     )
 
     response = client.post(
@@ -1021,12 +1022,12 @@ def test_generate_pdf_frac_uses_presentation_api_not_subprocess(client, monkeypa
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -1040,7 +1041,7 @@ def test_generate_pdf_frac_uses_presentation_api_not_subprocess(client, monkeypa
     # #264), which supplies \displaystyle in its \newcommand definition.
     assert "\\newcommand{\\fractioneq}[1]{$\\displaystyle " in captured_tex[0]
     assert "\\fractioneq{\\frac" in captured_tex[0]
-    assert backend_app.nuts_calc_tex.BLANK_ANSWER_TEX in captured_tex[0]
+    assert three_layer_renderer.nuts_calc_tex.BLANK_ANSWER_TEX in captured_tex[0]
 
 
 @pytest.mark.parametrize(
@@ -1055,7 +1056,7 @@ def test_generate_pdf_frac_rejects_invalid_basic_input(
     client, monkeypatch, request_fields, error_text
 ) -> None:
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     response = client.post(
         "/generate-pdf",
@@ -1067,16 +1068,16 @@ def test_generate_pdf_frac_rejects_invalid_basic_input(
 
 def test_generate_pdf_frac_maps_compile_failure_to_500(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
-        backend_app.nuts_calc_tex.failure("lualatex failed while building the fraction worksheet")
+        three_layer_renderer.nuts_calc_tex.failure("lualatex failed while building the fraction worksheet")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
     )
 
     response = client.post(
@@ -1100,12 +1101,12 @@ def test_generate_pdf_simplify_uses_presentation_api_not_subprocess(client, monk
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -1121,7 +1122,7 @@ def test_generate_pdf_simplify_uses_presentation_api_not_subprocess(client, monk
     # \newcommand definition, not inline in the problem body).
     assert "\\fractionarroweq{" in captured_tex[0]
     assert "\\Rightarrow" in captured_tex[0]
-    assert backend_app.nuts_calc_tex.BLANK_ANSWER_TEX in captured_tex[0]
+    assert three_layer_renderer.nuts_calc_tex.BLANK_ANSWER_TEX in captured_tex[0]
 
 
 @pytest.mark.parametrize(
@@ -1147,16 +1148,16 @@ def test_generate_pdf_simplify_rejects_invalid_basic_input(
 
 def test_generate_pdf_simplify_maps_compile_failure_to_500(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
-        backend_app.nuts_calc_tex.failure("lualatex failed while building the simplify worksheet")
+        three_layer_renderer.nuts_calc_tex.failure("lualatex failed while building the simplify worksheet")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
     )
 
     response = client.post(
@@ -1181,12 +1182,12 @@ def test_generate_pdf_frac2dec_uses_presentation_api_not_subprocess(client, monk
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -1202,7 +1203,7 @@ def test_generate_pdf_frac2dec_uses_presentation_api_not_subprocess(client, monk
     # \newcommand definition, not inline in the problem body).
     assert "\\fractionarroweq{" in captured_tex[0]
     assert "\\Rightarrow" in captured_tex[0]
-    assert backend_app.nuts_calc_tex.BLANK_ANSWER_TEX in captured_tex[0]
+    assert three_layer_renderer.nuts_calc_tex.BLANK_ANSWER_TEX in captured_tex[0]
 
 
 @pytest.mark.parametrize(
@@ -1228,16 +1229,16 @@ def test_generate_pdf_frac2dec_rejects_invalid_basic_input(
 
 def test_generate_pdf_frac2dec_maps_compile_failure_to_500(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
-        backend_app.nuts_calc_tex.failure("lualatex failed while building the frac2dec worksheet")
+        three_layer_renderer.nuts_calc_tex.failure("lualatex failed while building the frac2dec worksheet")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
     )
 
     response = client.post(
@@ -1262,12 +1263,12 @@ def test_generate_pdf_dec2frac_uses_presentation_api_not_subprocess(client, monk
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -1282,7 +1283,7 @@ def test_generate_pdf_dec2frac_uses_presentation_api_not_subprocess(client, monk
     # issue #267: pattern 4b emits via the shared \fractionarroweq wrapper.
     assert "\\fractionarroweq{" in captured_tex[0]
     assert "\\displaystyle" in captured_tex[0]
-    assert backend_app.nuts_calc_tex.BLANK_ANSWER_TEX in captured_tex[0]
+    assert three_layer_renderer.nuts_calc_tex.BLANK_ANSWER_TEX in captured_tex[0]
 
 
 @pytest.mark.parametrize(
@@ -1306,16 +1307,16 @@ def test_generate_pdf_dec2frac_rejects_invalid_basic_input(
 
 def test_generate_pdf_dec2frac_maps_compile_failure_to_500(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
-        backend_app.nuts_calc_tex.failure("lualatex failed while building the dec2frac worksheet")
+        three_layer_renderer.nuts_calc_tex.failure("lualatex failed while building the dec2frac worksheet")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
     )
 
     response = client.post(
@@ -1340,12 +1341,12 @@ def test_generate_pdf_compare_uses_presentation_api_not_subprocess(client, monke
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -1360,7 +1361,7 @@ def test_generate_pdf_compare_uses_presentation_api_not_subprocess(client, monke
     # issue #266: pattern 3 now emits via the shared \compareeq wrapper and
     # reuses pattern 2's \boxedblank marker for the blanked relation symbol.
     assert "\\compareeq{" in captured_tex[0]
-    assert backend_app.nuts_calc_tex.COMPARE_REL_BLANK_TEX in captured_tex[0]
+    assert three_layer_renderer.nuts_calc_tex.COMPARE_REL_BLANK_TEX in captured_tex[0]
 
 
 @pytest.mark.parametrize(
@@ -1386,16 +1387,16 @@ def test_generate_pdf_compare_rejects_invalid_basic_input(
 
 def test_generate_pdf_compare_maps_compile_failure_to_500(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
-        backend_app.nuts_calc_tex.failure("lualatex failed while building the compare worksheet")
+        three_layer_renderer.nuts_calc_tex.failure("lualatex failed while building the compare worksheet")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
     )
 
     response = client.post(
@@ -1420,12 +1421,12 @@ def test_generate_pdf_commondenom_uses_presentation_api_not_subprocess(client, m
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -1441,7 +1442,7 @@ def test_generate_pdf_commondenom_uses_presentation_api_not_subprocess(client, m
     # (two-element-pair left side joined by build_fraction_pair_conversion_tex).
     assert "\\fractionarroweq{" in captured_tex[0]
     assert "\\displaystyle" in captured_tex[0]
-    assert backend_app.nuts_calc_tex.BLANK_ANSWER_TEX in captured_tex[0]
+    assert three_layer_renderer.nuts_calc_tex.BLANK_ANSWER_TEX in captured_tex[0]
 
 
 @pytest.mark.parametrize(
@@ -1465,16 +1466,16 @@ def test_generate_pdf_commondenom_rejects_invalid_basic_input(
 
 def test_generate_pdf_commondenom_maps_compile_failure_to_500(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
-        backend_app.nuts_calc_tex.failure("lualatex failed while building the commondenom worksheet")
+        three_layer_renderer.nuts_calc_tex.failure("lualatex failed while building the commondenom worksheet")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
     )
 
     response = client.post(
@@ -1493,19 +1494,19 @@ def test_generate_pdf_mixed_uses_presentation_api_not_subprocess(client, monkeyp
         raise AssertionError("renderers.run must not be called for a basic mixed request")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
         assert "\\displaystyle" in tex_source
-        assert backend_app.nuts_calc_tex.BLANK_ANSWER_TEX in tex_source
+        assert three_layer_renderer.nuts_calc_tex.BLANK_ANSWER_TEX in tex_source
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -1533,9 +1534,9 @@ def test_generate_pdf_multi_term_mixed_uses_presentation_api_not_subprocess(
         raise AssertionError("renderers.run must not be called for multi-term mixed requests")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: binary_name)
 
-    real_generate_mixed_problems = backend_app.nuts_calc_tex.generate_mixed_problems
+    real_generate_mixed_problems = three_layer_renderer.nuts_calc_tex.generate_mixed_problems
 
     def capture_generate_mixed_problems(*args, **kwargs):
         generation_args["mixed_operators"] = args[3]
@@ -1543,20 +1544,20 @@ def test_generate_pdf_multi_term_mixed_uses_presentation_api_not_subprocess(
         return real_generate_mixed_problems(*args, **kwargs)
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex, "generate_mixed_problems", capture_generate_mixed_problems
+        three_layer_renderer.nuts_calc_tex, "generate_mixed_problems", capture_generate_mixed_problems
     )
 
     def fake_compile(self, tex_source, out_pdf_path):
         assert "\\displaystyle" in tex_source
-        assert backend_app.nuts_calc_tex.BLANK_ANSWER_TEX in tex_source
+        assert three_layer_renderer.nuts_calc_tex.BLANK_ANSWER_TEX in tex_source
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -1582,22 +1583,22 @@ def test_generate_pdf_mixed_reducible_variants_use_presentation_api_not_subproce
         raise AssertionError("renderers.run must not be called for mixed reducibility requests")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: binary_name)
 
     def fake_generate_mixed_problems(*args, **kwargs):
         generation_args["reducible_mode"] = args[11]
-        operand = backend_app.nuts_calc_tex.MixedOperand(
+        operand = three_layer_renderer.nuts_calc_tex.MixedOperand(
             kind="fraction",
             display=r"\frac{2}{4}",
             value=Fraction(1, 2),
             raw_numerator=2,
             raw_denominator=4,
         )
-        integer = backend_app.nuts_calc_tex.MixedOperand(
+        integer = three_layer_renderer.nuts_calc_tex.MixedOperand(
             kind="int", display="2", value=Fraction(2), raw_numerator=2, raw_denominator=1
         )
         return [
-            backend_app.nuts_calc_tex.MixedProblem(
+            three_layer_renderer.nuts_calc_tex.MixedProblem(
                 index=1,
                 operands=[operand, integer],
                 operators=["mul"],
@@ -1607,20 +1608,20 @@ def test_generate_pdf_mixed_reducible_variants_use_presentation_api_not_subproce
         ]
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex, "generate_mixed_problems", fake_generate_mixed_problems
+        three_layer_renderer.nuts_calc_tex, "generate_mixed_problems", fake_generate_mixed_problems
     )
 
     def fake_compile(self, tex_source, out_pdf_path):
         assert r"\frac{2}{4}" in tex_source
-        assert backend_app.nuts_calc_tex.BLANK_ANSWER_TEX in tex_source
+        assert three_layer_renderer.nuts_calc_tex.BLANK_ANSWER_TEX in tex_source
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -1709,16 +1710,16 @@ def test_generate_pdf_mixed_rejects_invalid_basic_input(
 
 def test_generate_pdf_mixed_maps_compile_failure_to_500(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
-        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+        three_layer_renderer.nuts_calc_tex.failure("lualatex failed while building the worksheet")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
     )
 
     response = client.post(
@@ -1785,17 +1786,17 @@ def test_generate_pdf_ope_uses_presentation_api_not_subprocess(client, monkeypat
         raise AssertionError("renderers.run must not be called for a plain 2-term 'ope' request")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -1808,16 +1809,16 @@ def test_generate_pdf_ope_uses_presentation_api_not_subprocess(client, monkeypat
 
 def test_generate_pdf_ope_maps_compile_failure_to_500(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
-        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+        three_layer_renderer.nuts_calc_tex.failure("lualatex failed while building the worksheet")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
     )
 
     response = client.post(
@@ -1840,17 +1841,17 @@ def test_generate_pdf_ope_tree_uses_presentation_api_not_subprocess(client, monk
         raise AssertionError("renderers.run must not be called for an ope --use-parentheses request")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -1877,17 +1878,17 @@ def test_generate_pdf_ope_tree_supports_terms_family_via_presentation_api(client
         raise AssertionError("renderers.run must not be called for an ope --use-parentheses + terms request")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -1903,16 +1904,16 @@ def test_generate_pdf_ope_tree_supports_terms_family_via_presentation_api(client
 
 def test_generate_pdf_ope_tree_maps_compile_failure_to_500(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
-        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+        three_layer_renderer.nuts_calc_tex.failure("lualatex failed while building the worksheet")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
     )
 
     response = client.post(
@@ -1947,17 +1948,17 @@ def test_generate_pdf_ope_multi_term_uses_presentation_api_not_subprocess(client
         raise AssertionError("renderers.run must not be called for a multi-term ope request")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -1974,16 +1975,16 @@ def test_generate_pdf_ope_multi_term_uses_presentation_api_not_subprocess(client
 
 def test_generate_pdf_ope_multi_term_maps_compile_failure_to_500(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
-        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+        three_layer_renderer.nuts_calc_tex.failure("lualatex failed while building the worksheet")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
     )
 
     response = client.post(
@@ -2010,17 +2011,17 @@ def test_generate_pdf_ope_missing_value_uses_presentation_api_not_subprocess(cli
         raise AssertionError("renderers.run must not be called for an 'ope --missing-value' request")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -2036,16 +2037,16 @@ def test_generate_pdf_ope_missing_value_uses_presentation_api_not_subprocess(cli
 
 def test_generate_pdf_ope_missing_value_maps_compile_failure_to_500(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
-        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+        three_layer_renderer.nuts_calc_tex.failure("lualatex failed while building the worksheet")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
     )
 
     response = client.post(
@@ -2077,7 +2078,7 @@ def test_generate_pdf_ope_vertical_uses_presentation_api_not_subprocess(client, 
         raise AssertionError("renderers.run must not be called for an 'ope --vertical' request")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
         captured_tex.append(tex_source)
@@ -2085,10 +2086,10 @@ def test_generate_pdf_ope_vertical_uses_presentation_api_not_subprocess(client, 
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -2108,16 +2109,16 @@ def test_generate_pdf_ope_vertical_uses_presentation_api_not_subprocess(client, 
 
 def test_generate_pdf_ope_vertical_maps_compile_failure_to_500(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
-        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+        three_layer_renderer.nuts_calc_tex.failure("lualatex failed while building the worksheet")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
     )
 
     response = client.post(
@@ -2145,7 +2146,7 @@ def test_generate_pdf_ope_vertical_rejects_decimal_divisor(client, monkeypatch) 
         raise AssertionError("renderers.run must not be called for a rejected 'ope --vertical' request")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     response = client.post(
         "/generate-pdf",
@@ -2172,17 +2173,17 @@ def test_generate_pdf_ope_intermediate_uses_presentation_api_not_subprocess(clie
         raise AssertionError("renderers.run must not be called for an 'ope --intermediate' request")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -2198,16 +2199,16 @@ def test_generate_pdf_ope_intermediate_uses_presentation_api_not_subprocess(clie
 
 def test_generate_pdf_ope_intermediate_maps_compile_failure_to_500(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
-        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+        three_layer_renderer.nuts_calc_tex.failure("lualatex failed while building the worksheet")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
     )
 
     response = client.post(
@@ -2226,7 +2227,7 @@ def test_generate_pdf_ope_intermediate_rejects_non_mul_operator(client, monkeypa
     operator must fail the same way nuts_calc_tex.py's _init() would rather
     than silently producing a different worksheet (issue #226)."""
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fail_if_called(*args, **kwargs):
         raise AssertionError("renderers.run must not be called for an 'ope --intermediate' request")
@@ -2260,12 +2261,12 @@ def test_generate_pdf_hundred_square_uses_presentation_api_not_subprocess(client
             f.write(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
     )
 
     response = client.post(
@@ -2280,7 +2281,7 @@ def test_generate_pdf_hundred_square_uses_presentation_api_not_subprocess(client
     # \hundredsquareheadercolor name, defined from HUNDRED_SQUARE_HEADER_COLOR.
     assert "\\rowcolor{\\hundredsquareheadercolor}" in captured_tex[0]
     assert (
-        f"\\newcommand{{\\hundredsquareheadercolor}}{{{backend_app.nuts_calc_tex.HUNDRED_SQUARE_HEADER_COLOR}}}"
+        f"\\newcommand{{\\hundredsquareheadercolor}}{{{three_layer_renderer.nuts_calc_tex.HUNDRED_SQUARE_HEADER_COLOR}}}"
         in captured_tex[0]
     )
     assert "\\makebox[" not in captured_tex[0]
@@ -2291,7 +2292,7 @@ def test_generate_pdf_hundred_square_matches_legacy_document_output(client, monk
     The presentation-API TeX for one blank table must be byte-identical to
     the legacy build_document_tex path for the same table."""
     backend_app = sys.modules["app"]
-    tex_module = backend_app.nuts_calc_tex
+    tex_module = three_layer_renderer.nuts_calc_tex
     captured_tex = []
 
     table = tex_module.HundredSquareTable(
@@ -2306,9 +2307,9 @@ def test_generate_pdf_hundred_square_matches_legacy_document_output(client, monk
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex, "generate_hundred_square", fake_generate_hundred_square
+        three_layer_renderer.nuts_calc_tex, "generate_hundred_square", fake_generate_hundred_square
     )
     monkeypatch.setattr(
         tex_module.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
@@ -2342,16 +2343,16 @@ def test_generate_pdf_hundred_square_matches_legacy_document_output(client, monk
 
 def test_generate_pdf_hundred_square_maps_compile_failure_to_500(client, monkeypatch) -> None:
     backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
-        backend_app.nuts_calc_tex.failure("lualatex failed while building the worksheet")
+        three_layer_renderer.nuts_calc_tex.failure("lualatex failed while building the worksheet")
 
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", failing_compile, raising=False
     )
     monkeypatch.setattr(
-        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", failing_compile, raising=False
     )
 
     response = client.post(

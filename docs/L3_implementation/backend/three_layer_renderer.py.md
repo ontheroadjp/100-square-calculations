@@ -1,0 +1,81 @@
+# `backend/three_layer_renderer.py`
+
+## 目的・役割
+
+`POST /generate-pdf` の「内部プレゼンテーション API(3層モデル、issue #183 の `build_presentation_document_tex` / `PresentationPage`)」経路の PDF 生成グルーを一手に担う Flask 非依存モジュール。issue #290 で `backend/app.py` から約2100行(26個の `_generate_*_pdf` ビルダー、8個の `_is_*_request` ルーティング述語、共通の `_resolve_page_count` / `_build_presentation_pages`、`command_type` → ビルダーのディスパッチ)を **バイト等価** で抜き出したもの(#174 の strangler-fig ステップ)。これにより `app.py` は HTTP ルーティング + 薄いレンダラーディスパッチャに縮小された。
+
+`flask` を import せず、import 時副作用(ディレクトリ生成など)を持たない。入力はリクエスト `dict`(`renderers.RendererRequest`)、出力は `(filepath, filename)` タプル。これは 3層モデルへ移行予定の CLI(`nuts_calc_tex.py`)からの再利用を可能にするための制約である。`renderers.py` の subprocess 経路は、`render_worksheet_pdf` が扱わない `command_type` 用の一時フォールバックとして残る(その廃止は #174 で計画)。
+
+## 動作の概要と主要な判定ロジック・フロー
+
+### 公開エントリポイント `render_worksheet_pdf(data, output_dir) -> tuple[str, str] | None`
+
+`app.py` の `generate_pdf()` に存在していたディスパッチラダーと **同じ分岐順** で `command_type` / variant を判定する:
+
+1. `command_type` 完全一致: `com` / `lcm` / `divfrac` / `gcd` / `evenodd` / `99` / `aBc` / `pi` / `100`
+2. `_is_plain_mixed_pdf_request` → `_is_multi_term_mixed_pdf_request`
+3. `_is_plain_ope_pdf_request` → `_is_tree_ope_pdf_request` → `_is_multi_term_ope_pdf_request` → `_is_missing_value_ope_pdf_request` → `_is_vertical_ope_pdf_request` → `_is_intermediate_ope_pdf_request`
+4. `command_type` 完全一致: `squ` / `multiples` / `divisors` / `frac` / `simplify` / `frac2dec` / `dec2frac` / `compare` / `commondenom`
+
+いずれかに一致すれば対応する `_generate_*_pdf(data, output_dir)` の戻り値 `(filepath, filename)` を返す。**どれにも一致しなければ `None` を返す** — 呼び出し元(`app.py` の `generate_pdf()`)はこれを見て `renderers.run(...)` の subprocess 経路へフォールバックする。内部 API 経路 vs subprocess 経路の振り分けは #290 以前と完全に不変。
+
+### 共通ヘルパー
+
+- `_resolve_page_count(data)` / `_build_presentation_pages(data, order, generate_page, bottom_answer_builder)`(issue #286): 移行済み各 helper に共通するページ生成を集約する。`page` は既定1かつ1以上とし、各ページを既存 CLI と同じ `start_index = (page_number - 1) * (rows * columns) + 1` で個別生成する。`with_bottom_answer` が真で command 固有 builder が存在する場合は各 `PresentationPage.bottom_answer_tex` を設定し、全 helper が `with_name_field` を document builder へ渡す。`100` はページごとに表を1つ生成し、`compare` と `100` の bottom-answer strip は既存 subprocess 経路にも存在しないため指定を無視する。`merge` は引き続き対象外。
+- `_IndexedProblem`(Protocol、`index: int`)/ `_IndexedProblemT`(TypeVar): `_build_presentation_pages` のジェネリック境界。
+
+### コンパイル失敗の変換
+
+`engine_adapter.compile()` はコンパイル失敗時に例外を raise せず `nuts_calc_tex.failure()`(`print()` + `exit(1)` = `SystemExit`)を呼ぶ設計で、これは元々 CLI の subprocess 隔離を前提にしている(`LatexEngineAdapter.compile` の docstring 参照)。各 `_generate_*_pdf` helper は `compile()` を `contextlib.redirect_stdout` で囲み、`failure()` の出力を捕捉して `SystemExit` を `RuntimeError(f'PDF generation failed: {captured}')` に変換する。`app.py` の `except RuntimeError` 節がこれを HTTP 500 に変換する。
+
+### ビルダー / 述語ごとの詳細
+
+- `_generate_com_pdf`(issue #199): `com` 専用のベーシックケースのみ。`a_value` の検証(必須、`nuts_calc_tex.MIN_COMPLEMENT_TARGET` 以上)は `problem_generation.validate_com_target` へ委譲(issue #237)。`rows`/`columns`(既定 10/2)を検証し `generate_com_problems` → `PresentationPage` → `build_presentation_document_tex(content_format=build_com_slot_content_tex, page_shell=DEFAULT_PAGE_SHELL, content_area_layout=ContentAreaLayout(rows, columns), show_answer=False)` を呼ぶ。`com` は `nuts_calc_tex.DIGIT_COUNT_SHORTHAND_COMMANDS` に含まれないため `a_value` を値そのものとして直接読む(issue #230 後も無変更で正しい)。
+- `_generate_lcm_pdf`(issue #211)/ `_generate_gcd_pdf`(issue #212): `lcm`/`gcd` は `DIGIT_COUNT_SHORTHAND_COMMANDS` に含まれるため `a`/`b` レンジは `problem_generation.resolve_digit_count_range` で解決する。variant フラグを持たないためルーティング述語は不要で `command_type` 完全一致でディスパッチする。`generate_number_pair_problems(math.lcm / math.gcd, ...)` → `build_presentation_document_tex(content_format=build_lcm_slot_content_tex / build_gcd_slot_content_tex)`。
+- `_generate_divfrac_pdf`(issue #219): `a_digits`/`b_digits` または明示 range を `resolve_digit_count_range` で解決し、0除算回避のため `b_min >= 1` を検証。`generate_divfrac_problems` → `build_divfrac_slot_content_tex`、未約分 `a/b` 表示を保つ1ページ blank。
+- `_generate_evenodd_pdf`(issue #214): `a_min`/`a_max`(既定 `problem_generation.DEFAULT_A_MIN`/`DEFAULT_A_MAX`)から `generate_evenodd_problems` で `rows * columns` 問を生成し `build_evenodd_slot_content_tex` を合成。
+- `_generate_kuku_pdf`(issue #208): `99`(九九)専用。`a_value` 検証は `problem_generation.validate_kuku_a_value` へ委譲。`_generate_com_pdf` と異なり `descend`/`shuffle` も `data` から読み `generate_kuku_problems` へ渡す — `frontend/web` の `g2-kuku` プリセット(出題順序設定)が実際に送信する生きた経路のため。`reverse` は未対応。
+- `_generate_abc_pdf`(issue #213): `aBc` は入力値なし。`rows`/`columns` の既定・検証のみで `generate_abc_problems` → `build_abc_slot_content_tex`。
+- `_generate_pi_pdf`(issue #210): `pi` 専用。`a_value`(起点整数)を `problem_generation.validate_pi_start` へ委譲。`pi` は `DIGIT_COUNT_SHORTHAND_COMMANDS` 外のため `a_value` を直接読む。`descend`/`shuffle` は配線済み、`reverse` は未対応。
+- `_generate_squ_pdf`(issue #209): `squ` 専用。`a_value` 検証(必須のみ、下限なし)は `problem_generation.validate_squ_start` へ委譲。`squ` は `DIGIT_COUNT_SHORTHAND_COMMANDS` 外。`generate_squ_problems(start_num, rows*columns, 1, False, False)`(`descend`/`shuffle` 常に `False`)。
+- `_generate_multiples_pdf`(issue #215): `a_min >= 1`、`multiples_count >= nuts_calc_tex.MIN_MULTIPLES_COUNT`、rows/columns 下限を検証。`generate_multiples_problems` + `build_multiples_slot_content_tex`、指定 `multiples_count` を維持。
+- `_generate_divisors_pdf`(issue #216): `a_min`/`a_max` と rows/columns を検証。`generate_divisors_problems` + 番号なし `build_divisors_slot_content_tex`。可変長の約数リストと `BLANK_ANSWER_TEX` は既存 block formatter と同一。
+- `_generate_frac_pdf`(issue #217): 分子・分母桁数、分母条件、真分数条件、operator、帯分数 form、`reducible_mode`、rows/columns をプロセス内で検証し `generate_fraction_problems` + `build_fraction_slot_content_tex`。既存の `\displaystyle`・厳密分数・帯分数表示を維持。
+- `_generate_simplify_pdf`(issue #220)/ `_generate_frac2dec_pdf`(issue #221)/ `_generate_commondenom_pdf`(issue #225): `numerator_digits`/`denominator_digits` を `nuts_calc_tex.MIN_FRACTION_DIGITS`〜`MAX_FRACTION_DIGITS` に制限し rows/columns を検証。それぞれ `generate_simplify_problems` / `generate_frac2dec_problems` / `generate_commondenom_problems` と pattern-4b/4c の番号なし slot formatter を合成し、既存の `\Rightarrow` 本文を保った1ページ blank。
+- `_generate_dec2frac_pdf`(issue #222): `frac2dec` と対になる小数→分数変換。`generate_dec2frac_problems(order, start_index)` は digit 引数を取らない(小数桁数は `nuts_calc_tex.py` 側の固定レンジからランダム)ため検証は `rows`/`columns` の下限のみ。pattern-4b の `build_dec2frac_slot_content_tex`。
+- `_generate_compare_pdf`(issue #224、#266 で共通部品化、コンテンツフォーマットパターン3): 分数比較。`compare` は `DIGIT_COUNT_SHORTHAND_COMMANDS` 外のため `numerator_digits`/`denominator_digits` を `data` から直接読む。比較 pattern・分数 form・operand kind は CLI 既定(`different-denominators` / `proper` / `proper` / 分数vs分数)固定で `generate_fraction_comparison_problems('different-denominators', 'proper', 'proper', ...)` を呼び、番号なし `build_fraction_comparison_slot_content_tex` を合成。blank 版は関係記号位置を共有マクロ `\boxedblank`(`nuts_calc_tex.COMPARE_REL_BLANK_TEX`)で隠す。`comparison_pattern`/`a_fraction_form`/`b_fraction_form`/`a_kind`/`b_kind` などの非既定オプションは basic-case scope 外のため転送しない。
+- `_generate_hundred_square_pdf`(issue #229): `100`(100マス加算表)。他の全 `_generate_*_pdf` と異なり1ページ1表・問題番号なしのため Layer 2 の第2 variant `ContentAreaLayout(rows=1, columns=1, numbered=False)` + `grid_layout='block'` を使い、legacy の `build_hundred_square_pages()` の `Page(columns=1, layout='block')` と等価にする。Layer-3 は `nuts_calc_tex.build_hundred_square_slot_content_tex`。a/b 軸レンジ解決と最小値(5)チェックは `problem_generation.resolve_hundred_square_axes` へ委譲し `POST /generate-problems` の `100` 経路(issue #228)と同一ロジックを共有する。生成 TeX が legacy `build_document_tex` 経路とバイト等価になることを `backend/tests/test_web_backend_app.py` の `test_generate_pdf_hundred_square_matches_legacy_document_output` で担保。
+- `_is_plain_mixed_pdf_request` / `_is_multi_term_mixed_pdf_request` / `_generate_mixed_pdf` / `_generate_multi_term_mixed_pdf`(issues #218/#284/#285): 基本2項(`reducible_mode` variants を含む)と multi-term / mixed-operator `mixed` を別々の述語で振り分け、fraction digit、decimal places、operand kind、operator、rows/columns を共通検証する。`reducible_mode` は `required`/`none`/`mixed` のみを許し、CLI と同じく二項の `mul`/`div` かつ fraction operand と integer operand が1つずつの組合せに限定して `generate_mixed_problems` へ渡す。multi-term helper は `terms` があれば範囲を固定し、なければ `terms_min`/`terms_max` を `nuts_calc_tex.resolve_term_range(..., use_parentheses=False)` で解決して `mixed_operators` とともに共通 builder へ渡す。pattern-1b の `build_mixed_slot_content_tex` を合成し1ページ blank。
+- `_is_plain_ope_pdf_request` / `_generate_ope_pdf`(issue #205): plain 2-term `ope`。述語は `command_type == 'ope'` かつ `vertical`/`intermediate`/`use_parentheses`/`missing_value`/`terms`系/`mixed_operators` のいずれも指定されていない場合のみ真。`ope` は `DIGIT_COUNT_SHORTHAND_COMMANDS` に含まれるため `a`/`b` は `resolve_digit_count_range` で解決。`operator`(既定 `problem_generation.DEFAULT_OPERATOR` = `['add']`)・`a_decimal_places`/`b_decimal_places`・`carry_mode`/`remainder_mode`/`result_max` を `generate_ope_problems` へ渡し `content_format=build_ope_slot_content_tex`。
+- `_is_tree_ope_pdf_request` / `_generate_tree_ope_pdf`(issue #206): `ope --use-parentheses`(tree variant)。述語は `command_type == 'ope'` かつ `use_parentheses` が真で `vertical`/`intermediate`/`missing_value` のいずれも非併用の場合のみ真(いずれも `nuts_calc_tex.py` の `_init()` で `--use-parentheses` と併用不可)。`terms`系/`mixed_operators` は `--use-parentheses` 自身の N項一般化(issue #71)のため許容する。`terms_min`/`terms_max` は `_determine_ope_variant` の tree 分岐相当のロジックを関数内で再実装し `resolve_term_range(..., use_parentheses=True)`(フロア3)でクランプ。`generate_tree_ope_problems` → `build_tree_ope_slot_content_tex`。
+- `_is_multi_term_ope_pdf_request` / `_generate_multi_term_ope_pdf`(issue #207): かっこなし flat multi-term `ope`。述語は `command_type == 'ope'` かつ `vertical`/`intermediate`/`use_parentheses`/`missing_value` のいずれも非指定で、`mixed_operators` が真または `terms`/`terms_min`/`terms_max` のいずれか指定の場合に真(`nuts_calc_tex._ope_uses_multi_term` と同条件)。`resolve_term_range(..., use_parentheses=False)`(フロア2)。`generate_multi_term_ope_problems` → `build_multi_term_ope_slot_content_tex`。
+- `_is_missing_value_ope_pdf_request` / `_generate_missing_value_ope_pdf`(issue #223、コンテンツフォーマットパターン2): `ope --missing-value`(虫食い算)。述語は `command_type == 'ope'` かつ `missing_value` が真で `vertical`/`intermediate`/`use_parentheses`/`mixed_operators`/`terms`系のいずれも非併用の場合のみ真。`generate_missing_value_problems` は carry/remainder/decimal 引数を取らない(虫食い算は整数限定)ため `a`/`b` レンジ・`operator`・`result_max` のみ渡す。`build_missing_value_slot_content_tex`。
+- `_is_vertical_ope_pdf_request` / `_generate_vertical_ope_pdf`(issue #227、コンテンツフォーマットパターン6): `ope --vertical`(筆算 / hissan)。述語は `_is_plain_ope_pdf_request` と同型で `vertical` を「必須」にしただけ。多行の xlop(add/sub/mul)/longdivision(div)出力のため `build_presentation_document_tex(..., grid_layout='tabular')` を指定する。`div` かつ除数が小数(`b_decimal_places > nuts_calc_tex.MIN_DECIMAL_PLACES`)の場合は `nuts_calc_tex.py` の `_init()` と同一メッセージの `ValueError` を送出(app.py は `_init()` を経由しないため再実装)。`plain 2-term ope` と同じく `decimal`/`carry`/`remainder`/`result_max` も渡す。`build_vertical_ope_slot_content_tex`。
+- `_is_intermediate_ope_pdf_request` / `_generate_intermediate_ope_pdf`(issue #226、コンテンツフォーマットパターン5): `ope --intermediate`(段階的暗算チェーン)。述語は `command_type == 'ope'` かつ `intermediate` が真で `vertical`/`use_parentheses`/`missing_value`/`mixed_operators`/`terms`系のいずれも非併用の場合のみ真。`--intermediate` は単一 `mul` 演算子・単一桁の第2オペランドのみ許すため、`operator != ['mul']` の場合と `b_max > nuts_calc_tex.INTERMEDIATE_SINGLE_DIGIT_MAX`(9)の場合は subprocess 経路と同じ文言の `ValueError` を送出する。`carry`/`remainder`/`decimal` は `mul` 限定 variant では無意味なため渡さない。`build_intermediate_ope_slot_content_tex`。
+
+## 重要な設計判断とその理由
+
+- **Flask 非依存・dict 駆動(import 副作用なし)**: 3層モデルへ移行予定の CLI(`nuts_calc_tex.py`)からの再利用を可能にするため。`generated_pdfs` ディレクトリ生成は `app.py` に残す。
+- **バイト等価な抽出(#290)**: `app.py:25-2145` を無改変で移設した(`class _IndexedProblem` から `_generate_hundred_square_pdf` まで)。挙動変更なし・byte-identical PDF 出力が完了条件。
+- **`render_worksheet_pdf` の戻り型を `tuple[str, str] | None` にした理由**: 単一の公開エントリポイントを保ちつつ、subprocess フォールバックの判定を別述語で二重実装しないため。`None` = 「この `command_type` は内部 API 経路の対象外」の合図で、`app.py` の `generate_pdf()` がそれを見て `renderers.run(...)` へ分岐する。分岐順は `generate_pdf()` の旧ラダーと完全一致させている。
+- **`RendererRequest` は `renderers.py` に据え置き**、本モジュールは import して型注釈に使う(issue #290 スコープ)。
+
+## 統合ポイント
+
+- 呼び出し元: `backend/app.py` の `generate_pdf()`(`POST /generate-pdf`)のみ。`rendered = three_layer_renderer.render_worksheet_pdf(data, PDF_OUTPUT_DIR)` を呼び、`None` でなければその `(filepath, filename)` を `send_file` し、`None` なら `renderers.run(...)` の subprocess 経路へフォールバックする。
+- 呼び出し先:
+  - `backend/nuts_calc_tex.py`: 内部プレゼンテーション API(`build_presentation_document_tex` / `PresentationPage` / `ContentAreaLayout` / `DEFAULT_PAGE_SHELL` / `get_latex_engine_adapter`)、各 command の `generate_*_problems` / `build_*_slot_content_tex` / `build_*_bottom_answer_tex`、定数(`DEFAULT_ROWS` / `MIN_ROWS_OR_COLUMNS` / `MIN_FRACTION_DIGITS` / `MAX_FRACTION_DIGITS` / `MIN_DECIMAL_PLACES` / `MAX_DECIMAL_PLACES` / `TERM_COUNT_FLOOR_DEFAULT` / `INTERMEDIATE_SINGLE_DIGIT_MAX` / `MIN_COMPLEMENT_TARGET` / `MIN_MULTIPLES_COUNT` / `DEFAULT_MULTIPLES_COUNT` / `MIXED_OPERAND_KINDS` / `MIX_OPERATORS` / `COMPARE_REL_BLANK_TEX` / `BLANK_ANSWER_TEX` 等)、`resolve_term_range`、`failure`。
+  - `backend/problem_generation.py`: `validate_com_target` / `validate_kuku_a_value` / `validate_pi_start` / `validate_squ_start`、`resolve_digit_count_range`、`resolve_hundred_square_axes`、`DEFAULT_A_MIN` / `DEFAULT_A_MAX` / `DEFAULT_B_MIN` / `DEFAULT_B_MAX` / `DEFAULT_OPERATOR`。
+  - `backend/renderers.py`: `RendererRequest`(型注釈のみ)。
+  - 標準ライブラリ: `math.lcm` / `math.gcd`、`shutil.which`、`contextlib.redirect_stdout`、`io.StringIO`、`os.path.join`、`uuid.uuid4`。
+
+## 注意事項・既知の制限
+
+- 各 `_generate_*_pdf` はベーシックケース限定である: 常に `page` 数の blank(練習用)ページを返し、`with_name_field` と、command 固有 bottom-answer builder がある場合の `with_bottom_answer` を反映する。`compare`/`100` は subprocess 経路にも bottom-answer strip がないため `with_bottom_answer` を無視する。`merge` と filled answer page は未配線。`99`/`pi` は `descend`/`shuffle` も配線済みだが `reverse` は未配線。
+- 内部 API 経路は `nuts_calc_tex.get_latex_engine_adapter()` を各 `_generate_*_pdf` から直接呼ぶため、`NUTS_CALC_TEX_ENGINE` 環境変数が不正な場合の失敗経路が subprocess command と異なる(素の `ValueError` が `app.py` のルートで HTTP 500 に変換される)。
+- `lcm`/`gcd`/`divfrac`/`evenodd`/`99`/`aBc`/`pi`/`squ`/`multiples`/`divisors`/`frac`/`simplify`/`frac2dec`/`dec2frac`/`compare`/`commondenom` は専用述語を介さず `command_type` の単純一致でディスパッチする(`ope` と異なり別コンテンツフォーマットパターンを要求する移行済みバリアントがないため)。`compare` は option flag を持つが issue #224 の scope が既定オプション限定で generator も非既定値を許容するため bare exact-match 分岐にしている。
+- `ope` は plain / tree / flat multi-term / `--missing-value` / `--vertical` / `--intermediate` の各 variant を個別述語で振り分ける。いずれの述語にも当たらない `ope`(無効な variant 併用など)は `render_worksheet_pdf` が `None` を返し subprocess 経路へフォールバックする。CLI の `100`(`build_hundred_square_pages` / `--csv`)は無変更で残存する。
+
+## 変更履歴（git log より自動生成）
+
+- 9502f20 refactor(#290): extract 3-layer-model PDF glue from app.py into three_layer_renderer.py

@@ -14,10 +14,12 @@ issue #286 の回帰として、`com` の migrated helper に `page=2`、`with_b
 
 LaTeX binary の有無や実コンパイル時間に依存せず routing を検証するため、`shutil.which` と両 engine adapter の `compile` を monkeypatch する。subprocess 非使用の証明は戻り値の観察だけでなく、`renderers.run` が呼ばれた時点でテストを失敗させる。
 
+内部プレゼンテーション API 経路のグルーは issue #290 で `backend/app.py` から `backend/three_layer_renderer.py` へ移設されたため、内部 API 経路にかかる monkeypatch の対象は `three_layer_renderer.shutil` / `three_layer_renderer.nuts_calc_tex`(モジュール先頭で `import three_layer_renderer`)である。`shutil` / `nuts_calc_tex` は `sys.modules` の共有シングルトンなのでこの付け替えに挙動変更はなく、`app.py` がこれらを import しなくなったための追随にすぎない。subprocess フォールバック経路のテストは従来どおり `backend_app.renderers.run` を、`POST /generate-problems` 経路のテストは `backend_app.problem_generation` を monkeypatch する。
+
 ## 統合ポイント
 
-- 対象: `backend/app.py` の Flask routes と各 `_generate_*_pdf` helper。
-- 呼び出し先: `backend/nuts_calc_tex.py`、`backend/problem_generation.py`、`backend/renderers.py`。いずれもテストごとに必要な境界だけを monkeypatch する。
+- 対象: `backend/app.py` の Flask routes と、`backend/three_layer_renderer.py` の `render_worksheet_pdf` 経由で到達する各 `_generate_*_pdf` helper(routing / 検証 / TeX 内容 / compile failure 変換)。
+- 呼び出し先: `backend/three_layer_renderer.py`、`backend/nuts_calc_tex.py`、`backend/problem_generation.py`、`backend/renderers.py`。いずれもテストごとに必要な境界だけを monkeypatch する。
 
 ## 注意事項・既知の制限
 
@@ -25,8 +27,9 @@ Flask test client の単体・結合テストであり、実 HTTP server や実 
 
 ## 変更履歴（git log より自動生成）
 
-- 1e2fc00 feat(#286): wire presentation page options
-- 30ccca5 feat(#285): migrate mixed reducibility PDF generation
+- 9502f20 refactor(#290): extract 3-layer-model PDF glue from app.py into three_layer_renderer.py
+- 32162b8 feat(#286): wire presentation page options (#288)
+- ea4c269 feat(#285): migrate mixed reducibility PDF generation (#289)
 - 1bdac41 feat(#284): migrate multi-term mixed PDF generation (#287)
 - 230261c feat(#227): migrate ope --vertical to the internal presentation API
 - 3c55ae3 feat(#226): migrate ope --intermediate to the internal presentation API
@@ -34,5 +37,3 @@ Flask test client の単体・結合テストであり、実 HTTP server や実 
 - 299eab0 feat(#267): render arrow-conversion content formats via shared TeX components (#279)
 - f794743 feat(#266): render the comparison content format via a shared TeX component (#277)
 - 4088bf0 feat(#264): render equation content formats via shared TeX components (#275)
-- 2d4c435 feat(#225): migrate commondenom to the internal presentation API (#274)
-- 84c789b feat(#224): migrate compare to the internal presentation API (#273)
