@@ -4,11 +4,11 @@
 
 `POST /generate-pdf` の「内部プレゼンテーション API(3層モデル、issue #183 の `build_presentation_document_tex` / `PresentationPage`)」経路の PDF 生成グルーを一手に担う Flask 非依存モジュール。issue #290 で `backend/app.py` から約2100行(26個の `_generate_*_pdf` ビルダー、8個の `_is_*_request` ルーティング述語、共通の `_resolve_page_count` / `_build_presentation_pages`、`command_type` → ビルダーのディスパッチ)を **バイト等価** で抜き出したもの(#174 の strangler-fig ステップ)。これにより `app.py` は HTTP ルーティング + 薄いレンダラーディスパッチャに縮小された。
 
-`flask` を import せず、import 時副作用(ディレクトリ生成など)を持たない。入力はリクエスト `dict`(`renderers.RendererRequest`)、出力は `(filepath, filename)` タプル。これは 3層モデルへ移行予定の CLI(`nuts_calc_tex.py`)からの再利用を可能にするための制約である。`renderers.py` の subprocess 経路は、`render_worksheet_pdf` が扱わない `command_type` 用の一時フォールバックとして残る(その廃止は #174 で計画)。
+`flask` を import せず、import 時副作用(ディレクトリ生成など)を持たない。入力はリクエスト `dict`(`renderers.RendererRequest`)、出力は `(filepath, filename)` タプル。これは 3層モデルへ移行予定の CLI(`nuts_calc_tex.py`)からの再利用を可能にするための制約である。issue #291 以降、`POST /generate-pdf` の全リクエストがこのモジュールを通り、`render_worksheet_pdf` はどのビルダーにもマッチしないリクエストに対して `ValueError` を送出する(旧: subprocess フォールスルーを合図する `None` を返す)。`renderers.py` の subprocess 経路は残っているが、`backend/app.py` の `_USE_LEGACY_PDF_PIPELINE` を `True` にした場合にのみ到達可能な一時的なソースレベル切替であり、その一括削除は #174 の 段3 で計画されている。
 
 ## 動作の概要と主要な判定ロジック・フロー
 
-### 公開エントリポイント `render_worksheet_pdf(data, output_dir) -> tuple[str, str] | None`
+### 公開エントリポイント `render_worksheet_pdf(data, output_dir) -> tuple[str, str]`
 
 `app.py` の `generate_pdf()` に存在していたディスパッチラダーと **同じ分岐順** で `command_type` / variant を判定する:
 
@@ -17,7 +17,7 @@
 3. `_is_plain_ope_pdf_request` → `_is_tree_ope_pdf_request` → `_is_multi_term_ope_pdf_request` → `_is_missing_value_ope_pdf_request` → `_is_vertical_ope_pdf_request` → `_is_intermediate_ope_pdf_request`
 4. `command_type` 完全一致: `squ` / `multiples` / `divisors` / `frac` / `simplify` / `frac2dec` / `dec2frac` / `compare` / `commondenom`
 
-いずれかに一致すれば対応する `_generate_*_pdf(data, output_dir)` の戻り値 `(filepath, filename)` を返す。**どれにも一致しなければ `None` を返す** — 呼び出し元(`app.py` の `generate_pdf()`)はこれを見て `renderers.run(...)` の subprocess 経路へフォールバックする。内部 API 経路 vs subprocess 経路の振り分けは #290 以前と完全に不変。
+いずれかに一致すれば対応する `_generate_*_pdf(data, output_dir)` の戻り値 `(filepath, filename)` を返す。**どれにも一致しなければ `ValueError` を送出する**(issue #291)— `command_type == 'mixed'` なら `_MIXED_REDUCIBLE_MULTI_TERM_ERROR`(`reducible_mode` と `terms`/`terms_min`/`terms_max`/`mixed_operators` の併用は不可。`nuts_calc_tex.py` の `_init()`(nuts_calc_tex.py:843-848)も同じ組合せを拒否する)、それ以外(未知の `command_type`)なら `_UNSUPPORTED_REQUEST_ERROR`。`app.py` の `generate_pdf()` の `except ValueError` 節が HTTP 500 に変換する。マッチした場合の内部 API 経路の振り分けは #290 以前と完全に不変で、変わったのは「マッチなし」の挙動が silent な subprocess フォールスルーから明示エラーになった点のみ。<br>この終端 `raise` に到達しうる `mixed` リクエストは、両 `_is_*_mixed_pdf_request` 述語の条件から必ず `reducible_mode is not None` かつ(`mixed_operators` または `terms`系キーあり)になる — つまり上記の無効な組合せに限られる。
 
 ### 共通ヘルパー
 
@@ -57,12 +57,12 @@
 
 - **Flask 非依存・dict 駆動(import 副作用なし)**: 3層モデルへ移行予定の CLI(`nuts_calc_tex.py`)からの再利用を可能にするため。`generated_pdfs` ディレクトリ生成は `app.py` に残す。
 - **バイト等価な抽出(#290)**: `app.py:25-2145` を無改変で移設した(`class _IndexedProblem` から `_generate_hundred_square_pdf` まで)。挙動変更なし・byte-identical PDF 出力が完了条件。
-- **`render_worksheet_pdf` の戻り型を `tuple[str, str] | None` にした理由**: 単一の公開エントリポイントを保ちつつ、subprocess フォールバックの判定を別述語で二重実装しないため。`None` = 「この `command_type` は内部 API 経路の対象外」の合図で、`app.py` の `generate_pdf()` がそれを見て `renderers.run(...)` へ分岐する。分岐順は `generate_pdf()` の旧ラダーと完全一致させている。
+- **マッチなしを `None` 返しではなく `ValueError` 送出にした理由(#291)**: #290 では戻り型 `tuple[str, str] | None` の `None` を「この `command_type` は内部 API 経路の対象外」の合図とし、`app.py` が `renderers.run(...)` へフォールバックしていた。#291 で `_USE_LEGACY_PDF_PIPELINE`(既定 `False`)が全リクエストをこのモジュールへ固定したため、マッチなしは「一時的に未実装」ではなく「無効なリクエスト」を意味する。そこで戻り型を `tuple[str, str]` に絞り、終端で明示的に `ValueError` を送出する — silent な subprocess フォールスルーを排除し、`except ValueError` 節で HTTP 500 にする。分岐順は `generate_pdf()` の旧ラダーと完全一致のまま。
 - **`RendererRequest` は `renderers.py` に据え置き**、本モジュールは import して型注釈に使う(issue #290 スコープ)。
 
 ## 統合ポイント
 
-- 呼び出し元: `backend/app.py` の `generate_pdf()`(`POST /generate-pdf`)のみ。`rendered = three_layer_renderer.render_worksheet_pdf(data, PDF_OUTPUT_DIR)` を呼び、`None` でなければその `(filepath, filename)` を `send_file` し、`None` なら `renderers.run(...)` の subprocess 経路へフォールバックする。
+- 呼び出し元: `backend/app.py` の `generate_pdf()`(`POST /generate-pdf`)のみ。`_USE_LEGACY_PDF_PIPELINE = False`(既定)のとき `output_filepath, output_filename = three_layer_renderer.render_worksheet_pdf(data, PDF_OUTPUT_DIR)` を呼び、その `(filepath, filename)` を `send_file` する。マッチなしの `ValueError`・ビルダーの `RuntimeError` はそれぞれ `generate_pdf()` の `except` 節が HTTP 500 に変換する。
 - 呼び出し先:
   - `backend/nuts_calc_tex.py`: 内部プレゼンテーション API(`build_presentation_document_tex` / `PresentationPage` / `ContentAreaLayout` / `DEFAULT_PAGE_SHELL` / `get_latex_engine_adapter`)、各 command の `generate_*_problems` / `build_*_slot_content_tex` / `build_*_bottom_answer_tex`、定数(`DEFAULT_ROWS` / `MIN_ROWS_OR_COLUMNS` / `MIN_FRACTION_DIGITS` / `MAX_FRACTION_DIGITS` / `MIN_DECIMAL_PLACES` / `MAX_DECIMAL_PLACES` / `TERM_COUNT_FLOOR_DEFAULT` / `INTERMEDIATE_SINGLE_DIGIT_MAX` / `MIN_COMPLEMENT_TARGET` / `MIN_MULTIPLES_COUNT` / `DEFAULT_MULTIPLES_COUNT` / `MIXED_OPERAND_KINDS` / `MIX_OPERATORS` / `COMPARE_REL_BLANK_TEX` / `BLANK_ANSWER_TEX` 等)、`resolve_term_range`、`failure`。
   - `backend/problem_generation.py`: `validate_com_target` / `validate_kuku_a_value` / `validate_pi_start` / `validate_squ_start`、`resolve_digit_count_range`、`resolve_hundred_square_axes`、`DEFAULT_A_MIN` / `DEFAULT_A_MAX` / `DEFAULT_B_MIN` / `DEFAULT_B_MAX` / `DEFAULT_OPERATOR`。
@@ -74,7 +74,7 @@
 - 各 `_generate_*_pdf` はベーシックケース限定である: 常に `page` 数の blank(練習用)ページを返し、`with_name_field` と、command 固有 bottom-answer builder がある場合の `with_bottom_answer` を反映する。`compare`/`100` は subprocess 経路にも bottom-answer strip がないため `with_bottom_answer` を無視する。`merge` と filled answer page は未配線。`99`/`pi` は `descend`/`shuffle` も配線済みだが `reverse` は未配線。
 - 内部 API 経路は `nuts_calc_tex.get_latex_engine_adapter()` を各 `_generate_*_pdf` から直接呼ぶため、`NUTS_CALC_TEX_ENGINE` 環境変数が不正な場合の失敗経路が subprocess command と異なる(素の `ValueError` が `app.py` のルートで HTTP 500 に変換される)。
 - `lcm`/`gcd`/`divfrac`/`evenodd`/`99`/`aBc`/`pi`/`squ`/`multiples`/`divisors`/`frac`/`simplify`/`frac2dec`/`dec2frac`/`compare`/`commondenom` は専用述語を介さず `command_type` の単純一致でディスパッチする(`ope` と異なり別コンテンツフォーマットパターンを要求する移行済みバリアントがないため)。`compare` は option flag を持つが issue #224 の scope が既定オプション限定で generator も非既定値を許容するため bare exact-match 分岐にしている。
-- `ope` は plain / tree / flat multi-term / `--missing-value` / `--vertical` / `--intermediate` の各 variant を個別述語で振り分ける。いずれの述語にも当たらない `ope`(無効な variant 併用など)は `render_worksheet_pdf` が `None` を返し subprocess 経路へフォールバックする。CLI の `100`(`build_hundred_square_pages` / `--csv`)は無変更で残存する。
+- `ope` は plain / tree / flat multi-term / `--missing-value` / `--vertical` / `--intermediate` の各 variant を個別述語で振り分ける。いずれの述語にも当たらない `ope`(無効な variant 併用など。例: `use_parentheses` + `vertical`)は終端の `_UNSUPPORTED_REQUEST_ERROR` で `ValueError` → HTTP 500 になる(#291 以前は `None` 返しで subprocess 経路へフォールバックし、そこで CLI が拒否していた)。CLI の `100`(`build_hundred_square_pages` / `--csv`)は無変更で残存する。
 
 ## 変更履歴（git log より自動生成）
 

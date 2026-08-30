@@ -991,8 +991,72 @@ def test_generate_pdf_divisors_maps_compile_failure_to_500(client, monkeypatch) 
     assert "lualatex failed while building the worksheet" in response.get_json()["error"]
 
 
-def test_generate_pdf_other_command_types_still_use_subprocess_renderer(client, monkeypatch) -> None:
+def test_generate_pdf_defaults_to_the_three_layer_pipeline(client) -> None:
     backend_app = sys.modules["app"]
+
+    assert backend_app._USE_LEGACY_PDF_PIPELINE is False
+
+
+def test_generate_pdf_unmatched_request_returns_500_without_subprocess_fallback(
+    client, monkeypatch
+) -> None:
+    """With the default (3-layer) pipeline, a request that matches no builder
+    is an explicit error -- it must NOT silently fall through to the legacy
+    subprocess path. The only recognized-command_type request that reaches
+    render_worksheet_pdf's terminal raise is `mixed` + reducible_mode + a
+    multi-term option, which nuts_calc_tex.py's _init() also rejects."""
+    backend_app = sys.modules["app"]
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("renderers.run must not be called on the 3-layer path")
+
+    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
+
+    response = client.post(
+        "/generate-pdf",
+        json={
+            "paper_size": "A4",
+            "command_type": "mixed",
+            "terms": 3,
+            "reducible_mode": "required",
+        },
+    )
+    assert response.status_code == 500
+    assert "reducible_mode cannot be combined with" in response.get_json()["error"]
+
+
+def test_generate_pdf_unknown_command_type_returns_500_without_subprocess_fallback(
+    client, monkeypatch
+) -> None:
+    backend_app = sys.modules["app"]
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("renderers.run must not be called on the 3-layer path")
+
+    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
+
+    response = client.post(
+        "/generate-pdf", json={"paper_size": "A4", "command_type": "not-a-command"}
+    )
+    assert response.status_code == 500
+    assert "No presentation-layer builder handles this" in response.get_json()["error"]
+
+
+def test_generate_pdf_legacy_pipeline_switch_routes_every_request_through_subprocess(
+    client, monkeypatch
+) -> None:
+    """Flipping _USE_LEGACY_PDF_PIPELINE routes even a normally-3-layer
+    command_type (`com`) through renderers.run(...), and render_worksheet_pdf
+    is not consulted at all."""
+    backend_app = sys.modules["app"]
+    monkeypatch.setattr(backend_app, "_USE_LEGACY_PDF_PIPELINE", True)
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("render_worksheet_pdf must not be called on the legacy path")
+
+    monkeypatch.setattr(
+        backend_app.three_layer_renderer, "render_worksheet_pdf", fail_if_called
+    )
 
     def fake_run(data, output_dir, renderer_name):
         pdf_path = os.path.join(output_dir, "worksheet_fake.pdf")
@@ -1003,7 +1067,7 @@ def test_generate_pdf_other_command_types_still_use_subprocess_renderer(client, 
 
     monkeypatch.setattr(backend_app.renderers, "run", fake_run)
     response = client.post(
-        "/generate-pdf", json={"paper_size": "A4", "command_type": "100"}
+        "/generate-pdf", json={"paper_size": "A4", "command_type": "com", "a_value": 10}
     )
     assert response.status_code == 200
     assert response.data.startswith(b"%PDF")
@@ -1732,45 +1796,32 @@ def test_generate_pdf_mixed_maps_compile_failure_to_500(client, monkeypatch) -> 
 @pytest.mark.parametrize(
     "variant_fields",
     [
-        # use_parentheses combined with a mutually-exclusive flag (invalid
-        # per nuts_calc_tex.py's _init() validation, nuts_calc_tex.py:
-        # 676-692) must NOT be picked up by _is_tree_ope_pdf_request either;
-        # it falls back to the subprocess path like every other rejected
-        # combination.
+        # use_parentheses combined with a mutually-exclusive flag is invalid
+        # per nuts_calc_tex.py's _init() validation; no _is_*_ope_pdf_request
+        # predicate picks it up. Before issue #291 this silently fell through
+        # to the subprocess path (where the CLI rejected it); since #291 the
+        # 3-layer pipeline is the only path, so render_worksheet_pdf raises an
+        # explicit error -> HTTP 500, and renderers.run is never reached.
         {"use_parentheses": True, "vertical": True},
         {"use_parentheses": True, "intermediate": True},
         {"use_parentheses": True, "missing_value": True},
     ],
 )
-def test_generate_pdf_ope_variants_still_use_subprocess_renderer(client, monkeypatch, variant_fields) -> None:
-    """
-    Only the plain 2-term 'ope' shape (build_horizontal_block_tex, content-
-    format pattern 1a) is migrated by #205; an invalid use_parentheses
-    combination must keep using the subprocess path. Plain use_parentheses
-    (no other variant flag) is covered separately below (#206), the terms
-    family (terms/terms_min/terms_max/mixed_operators without use_parentheses)
-    below (#207), missing_value below (#223), vertical (content-format
-    pattern 6) below (#227), and intermediate (content-format pattern 5)
-    below (#226): each now uses the presentation API. Only an invalid
-    use_parentheses + (vertical|intermediate|missing_value) combination stays
-    on the subprocess path here.
-    """
+def test_generate_pdf_invalid_ope_variant_combo_returns_500_without_subprocess(
+    client, monkeypatch, variant_fields
+) -> None:
     backend_app = sys.modules["app"]
 
-    def fake_run(data, output_dir, renderer_name):
-        pdf_path = os.path.join(output_dir, "worksheet_fake.pdf")
-        with open(pdf_path, "wb") as f:
-            f.write(b"%PDF-1.4 fake")
-        completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
-        return pdf_path, "worksheet_fake.pdf", completed
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("renderers.run must not be called on the 3-layer path")
 
-    monkeypatch.setattr(backend_app.renderers, "run", fake_run)
+    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     response = client.post(
         "/generate-pdf",
         json={"paper_size": "A4", "command_type": "ope", "a_min": 1, "a_max": 9, **variant_fields},
     )
-    assert response.status_code == 200
-    assert response.data.startswith(b"%PDF")
+    assert response.status_code == 500
+    assert "No presentation-layer builder handles this" in response.get_json()["error"]
 
 
 def test_generate_pdf_ope_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:

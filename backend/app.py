@@ -14,6 +14,28 @@ CORS(app) # Enable CORS for frontend communication
 PDF_OUTPUT_DIR = './generated_pdfs'
 os.makedirs(PDF_OUTPUT_DIR, exist_ok=True)
 
+# Hardcoded source-level switch for the whole /generate-pdf rendering path
+# (no env var, no request field). False (default) routes every request through
+# three_layer_renderer.render_worksheet_pdf (the internal presentation API);
+# True routes every request through renderers.run (the legacy CLI/subprocess
+# path). The default already matches today's effective behavior -- after the
+# B-5 migrations (#199, #205-#227, #284-#286) all 20 command_types are served
+# by the presentation API and the subprocess branch is unreachable for every
+# standard request. The legacy path is kept only as an emergency rollback /
+# A-B fallback, flipped with a one-line source change + restart.
+#
+# TODO(#174 段3): the 2026-08-30 /mtg on #174 keeps the legacy path only until
+# 段3 deletes it wholesale (its trigger is decided at #174's next /mtg). That
+# deletion removes, as one set:
+#   - renderers.build_command / renderers.run  (backend/renderers.py subprocess path)
+#   - the `if _USE_LEGACY_PDF_PIPELINE:` branch in generate_pdf() below
+#   - this constant
+#   - backend/tests/test_web_backend_renderers.py
+# The `reverse` / `merge` / `csv` / `debug` fields stay in
+# renderers.RendererRequest as reserved fields (recognized on the request but
+# NOT honored by three_layer_renderer; see docs/L3_implementation/api.md).
+_USE_LEGACY_PDF_PIPELINE = False
+
 @app.route('/generate-pdf', methods=['POST'])
 def generate_pdf():
     data = request.json
@@ -24,10 +46,7 @@ def generate_pdf():
         return jsonify({'error': 'Missing required parameters: paper_size or command_type'}), 400
 
     try:
-        rendered = three_layer_renderer.render_worksheet_pdf(data, PDF_OUTPUT_DIR)
-        if rendered is not None:
-            output_filepath, output_filename = rendered
-        else:
+        if _USE_LEGACY_PDF_PIPELINE:
             renderer_name = renderers.get_renderer_name()
             output_filepath, output_filename, result = renderers.run(
                 data, PDF_OUTPUT_DIR, renderer_name
@@ -35,6 +54,10 @@ def generate_pdf():
             app.logger.info(f"{renderer_name} stdout: {result.stdout}")
             if result.stderr:
                 app.logger.warning(f"{renderer_name} stderr: {result.stderr}")
+        else:
+            output_filepath, output_filename = three_layer_renderer.render_worksheet_pdf(
+                data, PDF_OUTPUT_DIR
+            )
 
         # Return the generated PDF
         return send_file(output_filepath, as_attachment=True, download_name=output_filename)
