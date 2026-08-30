@@ -14,10 +14,12 @@ issue #286 の回帰として、`com` の migrated helper に `page=2`、`with_b
 
 LaTeX binary の有無や実コンパイル時間に依存せず routing を検証するため、`shutil.which` と両 engine adapter の `compile` を monkeypatch する。subprocess 非使用の証明は戻り値の観察だけでなく、`renderers.run` が呼ばれた時点でテストを失敗させる。
 
+内部プレゼンテーション API 経路のグルーは issue #290 で `backend/app.py` から `backend/three_layer_renderer.py` へ移設されたため、内部 API 経路にかかる monkeypatch の対象は `three_layer_renderer.shutil` / `three_layer_renderer.nuts_calc_tex`(モジュール先頭で `import three_layer_renderer`)である。`shutil` / `nuts_calc_tex` は `sys.modules` の共有シングルトンなのでこの付け替えに挙動変更はなく、`app.py` がこれらを import しなくなったための追随にすぎない。subprocess フォールバック経路のテストは従来どおり `backend_app.renderers.run` を、`POST /generate-problems` 経路のテストは `backend_app.problem_generation` を monkeypatch する。
+
 ## 統合ポイント
 
-- 対象: `backend/app.py` の Flask routes と各 `_generate_*_pdf` helper。
-- 呼び出し先: `backend/nuts_calc_tex.py`、`backend/problem_generation.py`、`backend/renderers.py`。いずれもテストごとに必要な境界だけを monkeypatch する。
+- 対象: `backend/app.py` の Flask routes と、`backend/three_layer_renderer.py` の `render_worksheet_pdf` 経由で到達する各 `_generate_*_pdf` helper(routing / 検証 / TeX 内容 / compile failure 変換)。
+- 呼び出し先: `backend/three_layer_renderer.py`、`backend/nuts_calc_tex.py`、`backend/problem_generation.py`、`backend/renderers.py`。いずれもテストごとに必要な境界だけを monkeypatch する。
 
 ## 注意事項・既知の制限
 
