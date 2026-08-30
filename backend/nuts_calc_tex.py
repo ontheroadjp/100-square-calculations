@@ -3425,32 +3425,35 @@ def build_kuku_block_tex(problem: KukuProblem, show_answer: bool, reverse: bool)
     ahead of `vals_a`/`vals_b` (`nuts_calc.py:543-545`); the blanked value is
     always `c` regardless of which side it renders on.
 
-    Emits via the shared \\horizontaleq/\\opspace equation components
-    (issue #264); the non-reverse form additionally shares
-    build_kuku_slot_content_tex's body.
+    Both forms are `f"{index}) " + build_kuku_slot_content_tex(...)` (the
+    #264 unification, extended to the reverse branch in issue #292), so the
+    legacy CLI and the 3-layer renderer emit byte-identical equation bodies
+    via the shared \\horizontaleq/\\opspace components (issue #264).
     """
-    result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
-    product_tex = build_equation_lhs_tex([str(problem.a), str(problem.b)], ['\\times'])
-    if reverse:
-        return f"{problem.index}) {build_horizontal_equation_tex(result_tex, product_tex)}"
-    return f"{problem.index}) {build_kuku_slot_content_tex(problem, show_answer)}"
+    return f"{problem.index}) {build_kuku_slot_content_tex(problem, show_answer, reverse)}"
 
 
-def build_kuku_slot_content_tex(problem: KukuProblem, show_answer: bool) -> str:
+def build_kuku_slot_content_tex(problem: KukuProblem, show_answer: bool, reverse: bool = False) -> str:
     """
     Number-free Layer-3 content for one `99` problem (#208, following
     build_com_slot_content_tex's #184 pattern): the same body as
     build_kuku_block_tex but without the embedded `problem.index)` prefix,
     for use with build_content_area_slot_tex, which owns the number box
-    instead. Always the non-reverse ($a \\times b = c$) form -- the internal
-    presentation API's basic-case scope (backend/app.py's _generate_kuku_pdf)
-    does not support --reverse.
+    instead.
+
+    `reverse` swaps the equation side order to `$c = a \\times b$` (issue
+    #292), matching build_kuku_block_tex's `is_reverse` branch; the blanked
+    value is always `c` regardless of which side it renders on. The 3-layer
+    renderer (backend/three_layer_renderer.py's _generate_kuku_pdf) binds it
+    from the request's `reverse` field via functools.partial.
 
     Emits via the shared \\horizontaleq/\\opspace equation components
     (issue #264) instead of a raw `$...$` f-string.
     """
     result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
     lhs_tex = build_equation_lhs_tex([str(problem.a), str(problem.b)], ['\\times'])
+    if reverse:
+        return build_horizontal_equation_tex(result_tex, lhs_tex)
     return build_horizontal_equation_tex(lhs_tex, result_tex)
 
 
@@ -3661,32 +3664,36 @@ def build_squ_block_tex(problem: SquProblem, show_answer: bool, reverse: bool) -
     `is_reverse` branch (`nuts_calc.py:543-545`); the blanked value is
     always `c` regardless of which side it renders on.
 
-    Emits via the shared \\horizontaleq/\\opspace equation components
-    (issue #264); the non-reverse form additionally shares
-    build_squ_slot_content_tex's body.
+    Both forms are `f"{index}) " + build_squ_slot_content_tex(...)` (the
+    #264 unification, extended to the reverse branch in issue #292), so the
+    legacy CLI and the 3-layer renderer emit byte-identical equation bodies
+    via the shared \\horizontaleq/\\opspace components (issue #264).
     """
-    result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
-    square_tex = build_equation_lhs_tex([str(problem.a), str(problem.a)], ['\\times'])
-    if reverse:
-        return f"{problem.index}) {build_horizontal_equation_tex(result_tex, square_tex)}"
-    return f"{problem.index}) {build_squ_slot_content_tex(problem, show_answer)}"
+    return f"{problem.index}) {build_squ_slot_content_tex(problem, show_answer, reverse)}"
 
 
-def build_squ_slot_content_tex(problem: SquProblem, show_answer: bool) -> str:
+def build_squ_slot_content_tex(problem: SquProblem, show_answer: bool, reverse: bool = False) -> str:
     """
     Number-free Layer-3 content for one `squ` problem (content-format
     pattern 1a, issue #209): the same body as build_squ_block_tex's
     non-reversed form, but without the embedded `problem.index)` prefix,
     for use with build_content_area_slot_tex, which owns the number box
     instead. Mirrors build_com_slot_content_tex's relationship to
-    build_com_block_tex (#184); `reverse` is not covered here (basic-case
-    scope only, matching #199's `com` precedent).
+    build_com_block_tex (#184).
+
+    `reverse` swaps the equation side order to `$c = a \\times a$` (issue
+    #292), matching build_squ_block_tex's `is_reverse` branch; the blanked
+    value is always `c` regardless of which side it renders on. The 3-layer
+    renderer (backend/three_layer_renderer.py's _generate_squ_pdf) binds it
+    from the request's `reverse` field via functools.partial.
 
     Emits via the shared \\horizontaleq/\\opspace equation components
     (issue #264) instead of a raw `$...$` f-string.
     """
     result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
     lhs_tex = build_equation_lhs_tex([str(problem.a), str(problem.a)], ['\\times'])
+    if reverse:
+        return build_horizontal_equation_tex(result_tex, lhs_tex)
     return build_horizontal_equation_tex(lhs_tex, result_tex)
 
 
@@ -3848,33 +3855,34 @@ def build_pi_block_tex(problem: PiProblem, show_answer: bool, reverse: bool) -> 
     `is_reverse` branch (`nuts_calc.py:543-545`); the blanked value is
     always `c` regardless of which side it renders on.
 
-    Emits via the shared \\horizontaleq/\\opspace equation components
-    (issue #264); the non-reverse form additionally shares
-    build_pi_slot_content_tex's body.
+    Both forms are `f"{index}) " + build_pi_slot_content_tex(...)` (the
+    #264 unification, extended to the reverse branch in issue #292), so the
+    legacy CLI and the 3-layer renderer emit byte-identical equation bodies
+    via the shared \\horizontaleq/\\opspace components (issue #264).
     """
-    result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
-    product_tex = build_equation_lhs_tex([str(problem.a), str(PI_MULTIPLIER)], ['\\times'])
-    if reverse:
-        return f"{problem.index}) {build_horizontal_equation_tex(result_tex, product_tex)}"
-    return f"{problem.index}) {build_pi_slot_content_tex(problem, show_answer)}"
+    return f"{problem.index}) {build_pi_slot_content_tex(problem, show_answer, reverse)}"
 
 
-def build_pi_slot_content_tex(problem: PiProblem, show_answer: bool) -> str:
+def build_pi_slot_content_tex(problem: PiProblem, show_answer: bool, reverse: bool = False) -> str:
     """
     Number-free Layer-3 content for one `pi` problem (#184, issue #210):
-    the same body as build_pi_block_tex's non-reverse rendering but without
-    the embedded `problem.index)` prefix, for use with
-    build_content_area_slot_tex, which owns the number box instead.
+    the same body as build_pi_block_tex but without the embedded
+    `problem.index)` prefix, for use with build_content_area_slot_tex,
+    which owns the number box instead.
 
-    Basic-case only, matching #199's scope: `reverse` is not wired here
-    (always the non-reverse `a \\times 3.14 = c` form), mirroring
-    backend/app.py's `_generate_pi_pdf`, which does not expose `reverse`.
+    `reverse` swaps the equation side order to `$c = a \\times 3.14$` (issue
+    #292), matching build_pi_block_tex's `is_reverse` branch; the blanked
+    value is always `c` regardless of which side it renders on. The 3-layer
+    renderer (backend/three_layer_renderer.py's _generate_pi_pdf) binds it
+    from the request's `reverse` field via functools.partial.
 
     Emits via the shared \\horizontaleq/\\opspace equation components
     (issue #264) instead of a raw `$...$` f-string.
     """
     result_tex = str(problem.c) if show_answer else BLANK_ANSWER_TEX
     lhs_tex = build_equation_lhs_tex([str(problem.a), str(PI_MULTIPLIER)], ['\\times'])
+    if reverse:
+        return build_horizontal_equation_tex(result_tex, lhs_tex)
     return build_horizontal_equation_tex(lhs_tex, result_tex)
 
 

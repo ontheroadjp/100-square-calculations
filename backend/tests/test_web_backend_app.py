@@ -548,6 +548,78 @@ def test_generate_pdf_squ_maps_compile_failure_to_500(client, monkeypatch) -> No
     assert "lualatex failed while building the worksheet" in response.get_json()["error"]
 
 
+# --- issue #292: the 3-layer renderer must honor the `reverse` side-swap ----
+# for `99`/`squ`/`pi` (was silently ignored -- the slot builders had no
+# `reverse` param and the helpers never read `data['reverse']`).
+
+_REVERSE_COMMANDS = {
+    "99": ("build_kuku_slot_content_tex", {"a_value": 7}),
+    "squ": ("build_squ_slot_content_tex", {"a_value": 3}),
+    "pi": ("build_pi_slot_content_tex", {"a_value": 5}),
+}
+
+
+@pytest.mark.parametrize("command_type", sorted(_REVERSE_COMMANDS))
+@pytest.mark.parametrize("reverse", [False, True])
+def test_generate_pdf_forwards_reverse_to_slot_builder(
+    client, monkeypatch, command_type: str, reverse: bool
+) -> None:
+    """
+    `POST /generate-pdf` with `reverse` must bind it into the 3-layer
+    content_format for `99`/`squ`/`pi`, so the emitted equation body is the
+    swapped `c = a x b` form (issue #292). Previously the field was dropped.
+    """
+    slot_builder_name, extra = _REVERSE_COMMANDS[command_type]
+    monkeypatch.setattr(
+        three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name
+    )
+
+    original_slot_builder = getattr(three_layer_renderer.nuts_calc_tex, slot_builder_name)
+    seen_reverse: list[bool] = []
+
+    def spy_slot_builder(problem, show_answer, reverse=False):
+        seen_reverse.append(reverse)
+        return original_slot_builder(problem, show_answer, reverse=reverse)
+
+    monkeypatch.setattr(
+        three_layer_renderer.nuts_calc_tex, slot_builder_name, spy_slot_builder
+    )
+
+    captured: dict[str, str] = {}
+
+    def fake_compile(self, tex_source, out_pdf_path):
+        captured["tex"] = tex_source
+        with open(out_pdf_path, "wb") as f:
+            f.write(b"%PDF-1.4 fake")
+
+    monkeypatch.setattr(
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter,
+        "compile",
+        fake_compile,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter,
+        "compile",
+        fake_compile,
+        raising=False,
+    )
+
+    response = client.post(
+        "/generate-pdf",
+        json={"paper_size": "A4", "command_type": command_type, "reverse": reverse, **extra},
+    )
+    assert response.status_code == 200
+    assert seen_reverse and all(value is reverse for value in seen_reverse)
+
+    blank_marker = three_layer_renderer.nuts_calc_tex.BLANK_ANSWER_TEX
+    reversed_lhs = f"\\horizontaleq{{{blank_marker} \\opspace = \\opspace "
+    if reverse:
+        assert reversed_lhs in captured["tex"]
+    else:
+        assert reversed_lhs not in captured["tex"]
+
+
 def test_generate_pdf_lcm_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
     """
     The 'lcm' command_type must build its PDF via
