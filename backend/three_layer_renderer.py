@@ -22,6 +22,7 @@ its planned removal).
 """
 
 import contextlib
+import functools
 import io
 import math
 import os
@@ -580,14 +581,17 @@ def _generate_kuku_pdf(data: renderers.RendererRequest, output_dir: str) -> tupl
     internal presentation API (build_presentation_document_tex, issue #183),
     mirroring _generate_com_pdf's pattern (issue #199) for this pattern-1a
     migration (#208). Basic-case only: a_value plus optional rows/columns/
-    descend/shuffle, always a single blank (practice) page, non-reverse order
-    (reverse/with_bottom_answer/with_name_field/multi-page/merge are not
-    wired here, matching _generate_com_pdf's scope). descend/shuffle are
+    descend/shuffle/reverse, always a single blank (practice) page
+    (with_bottom_answer/with_name_field/multi-page/merge are not wired here,
+    matching _generate_com_pdf's scope). descend/shuffle are
     supported (unlike the other omitted flags) because frontend/web's
     g2-kuku preset (drillPresets.js) sends them for its descending/random
     question-order settings; silently ignoring them here would regress that
     live feature once this command_type stops reaching renderers.py's
-    subprocess path.
+    subprocess path. `reverse` (issue #292) is the presentation-layer
+    equation side-swap (`c = a x b`), bound into the content_format via
+    functools.partial; it is distinct from the descend/shuffle data-layer
+    ordering flags.
 
     '99' reads a_value directly like 'com' (it's always a literal value
     there, never a digit count -- issue #230); see
@@ -597,6 +601,7 @@ def _generate_kuku_pdf(data: renderers.RendererRequest, output_dir: str) -> tupl
     a_value = problem_generation.validate_kuku_a_value(data.get('a_value'))
     descend = bool(data.get('descend', False))
     shuffle = bool(data.get('shuffle', False))
+    reverse = bool(data.get('reverse', False))
 
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
@@ -623,7 +628,9 @@ def _generate_kuku_pdf(data: renderers.RendererRequest, output_dir: str) -> tupl
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
         pages=pages,
-        content_format=nuts_calc_tex.build_kuku_slot_content_tex,
+        content_format=functools.partial(
+            nuts_calc_tex.build_kuku_slot_content_tex, reverse=reverse
+        ),
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
@@ -711,10 +718,12 @@ def _generate_pi_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[
     API (build_presentation_document_tex, issue #183), mirroring
     _generate_com_pdf's pattern (issue #199) for the pattern-1a
     `99`/`squ`/`pi`/`lcm`/`gcd` migration group (issue #210). Basic-case
-    only: a_value plus optional rows/columns/descend/shuffle, always a
-    single blank (practice) page -- with_bottom_answer/with_name_field/
-    multi-page/merge/reverse are not wired for 'pi' yet (explicitly out of
-    scope for #210, matching _generate_com_pdf's scope).
+    only: a_value plus optional rows/columns/descend/shuffle/reverse, always
+    a single blank (practice) page -- with_bottom_answer/with_name_field/
+    multi-page/merge are not wired for 'pi' yet (explicitly out of scope for
+    #210, matching _generate_com_pdf's scope). `reverse` (issue #292) is the
+    presentation-layer equation side-swap (`c = a x 3.14`), bound into the
+    content_format via functools.partial.
 
     'pi' reads a_value directly (like 'com', not a digit-count shorthand --
     see _generate_com_pdf's docstring).
@@ -722,6 +731,7 @@ def _generate_pi_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[
     start_num = problem_generation.validate_pi_start(data.get('a_value'))
     descend = bool(data.get('descend', False))
     shuffle = bool(data.get('shuffle', False))
+    reverse = bool(data.get('reverse', False))
 
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
@@ -748,7 +758,9 @@ def _generate_pi_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
         pages=pages,
-        content_format=nuts_calc_tex.build_pi_slot_content_tex,
+        content_format=functools.partial(
+            nuts_calc_tex.build_pi_slot_content_tex, reverse=reverse
+        ),
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
@@ -1488,16 +1500,19 @@ def _generate_squ_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple
     API (build_presentation_document_tex, issue #183), following #199's
     'com' precedent (issue #209, tracked under #174/B-5's remaining
     pattern-1a migrations #208/#209/#210/#211/#212). Basic-case only:
-    a_value plus optional rows/columns, always a single blank (practice)
-    page -- descend/shuffle/reverse/with_bottom_answer/with_name_field/
+    a_value plus optional rows/columns/reverse, always a single blank
+    (practice) page -- descend/shuffle/with_bottom_answer/with_name_field/
     multi-page/merge are not wired for 'squ' yet (explicitly out of scope
-    for #209, matching #199's scope).
+    for #209, matching #199's scope). `reverse` (issue #292) is the
+    presentation-layer equation side-swap (`c = a x a`), bound into the
+    content_format via functools.partial.
 
     'squ' reads a_value directly (it's always a literal starting square
     number, never a digit count -- like 'com', unlike
     nuts_calc_tex.DIGIT_COUNT_SHORTHAND_COMMANDS).
     """
     start_num = problem_generation.validate_squ_start(data.get('a_value'))
+    reverse = bool(data.get('reverse', False))
 
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
@@ -1524,7 +1539,9 @@ def _generate_squ_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
         pages=pages,
-        content_format=nuts_calc_tex.build_squ_slot_content_tex,
+        content_format=functools.partial(
+            nuts_calc_tex.build_squ_slot_content_tex, reverse=reverse
+        ),
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,

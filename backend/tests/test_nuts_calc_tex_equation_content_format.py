@@ -416,6 +416,75 @@ def test_legacy_block_tex_is_number_prefix_plus_number_free_slot_body(name: str)
     assert build_block() == f"7) {build_slot()}"
 
 
+# --- issue #292: `reverse` side-swap through the number-free slot builders ---
+# The 3-layer renderer (backend/three_layer_renderer.py) binds `reverse` into
+# the content_format for `99`/`squ`/`pi`; the slot builder must produce the
+# same swapped `c = a x b` body the legacy block builder does, minus the
+# `"n) "` prefix.
+
+REVERSE_SLOT_CASES = {
+    "kuku": (
+        lambda sa, rev: tex_module.build_kuku_block_tex(
+            tex_module.KukuProblem(index=7, a=3, b=4, c=12), sa, reverse=rev
+        ),
+        lambda sa, rev: tex_module.build_kuku_slot_content_tex(
+            tex_module.KukuProblem(index=7, a=3, b=4, c=12), sa, reverse=rev
+        ),
+    ),
+    "squ": (
+        lambda sa, rev: tex_module.build_squ_block_tex(
+            tex_module.SquProblem(index=7, a=5, c=25), sa, reverse=rev
+        ),
+        lambda sa, rev: tex_module.build_squ_slot_content_tex(
+            tex_module.SquProblem(index=7, a=5, c=25), sa, reverse=rev
+        ),
+    ),
+    "pi": (
+        lambda sa, rev: tex_module.build_pi_block_tex(
+            tex_module.PiProblem(index=7, a=2, c=6.28), sa, reverse=rev
+        ),
+        lambda sa, rev: tex_module.build_pi_slot_content_tex(
+            tex_module.PiProblem(index=7, a=2, c=6.28), sa, reverse=rev
+        ),
+    ),
+}
+
+
+@pytest.mark.parametrize("name", sorted(REVERSE_SLOT_CASES))
+@pytest.mark.parametrize("show_answer", [False, True])
+def test_reverse_slot_body_matches_legacy_reverse_block_minus_prefix(
+    name: str, show_answer: bool
+) -> None:
+    build_block, build_slot = REVERSE_SLOT_CASES[name]
+    assert build_block(show_answer, True) == f"7) {build_slot(show_answer, True)}"
+
+
+@pytest.mark.parametrize("name", sorted(REVERSE_SLOT_CASES))
+@pytest.mark.parametrize("show_answer", [False, True])
+def test_reverse_slot_body_swaps_sides_relative_to_default(
+    name: str, show_answer: bool
+) -> None:
+    _, build_slot = REVERSE_SLOT_CASES[name]
+    default_body = build_slot(show_answer, False)
+    reversed_body = build_slot(show_answer, True)
+    # both are the same shared \horizontaleq wrapper with the two operands of
+    # `\opspace = \opspace` transposed -- so the reversed body is neither
+    # equal to the default nor a different wrapper.
+    assert reversed_body != default_body
+    assert reversed_body.startswith("\\horizontaleq{")
+    lhs, rhs = default_body[len("\\horizontaleq{") : -1].split(" \\opspace = \\opspace ")
+    assert reversed_body == f"\\horizontaleq{{{rhs} \\opspace = \\opspace {lhs}}}"
+
+
+def test_reverse_slot_body_defaults_to_non_reversed() -> None:
+    # `reverse` is keyword-optional; omitting it keeps the legacy non-reversed
+    # order so existing 2-arg call sites are unaffected.
+    problem = tex_module.KukuProblem(index=7, a=3, b=4, c=12)
+    assert tex_module.build_kuku_slot_content_tex(
+        problem, True
+    ) == tex_module.build_kuku_slot_content_tex(problem, True, reverse=False)
+
+
 # --- real-PDF spot checks (one per representative case, both engines) -------
 
 _ENGINES = {
