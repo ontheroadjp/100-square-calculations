@@ -78,4 +78,5 @@
 
 ## 変更履歴（git log より自動生成）
 
+- 365f188 refactor(#291): add hardcoded 3-layer-vs-legacy renderer switch
 - 9502f20 refactor(#290): extract 3-layer-model PDF glue from app.py into three_layer_renderer.py
