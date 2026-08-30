@@ -69,8 +69,9 @@
 
 ## 変更履歴（git log より自動生成）
 
-- c9e6de7 feat(#227): migrate ope --vertical to the internal presentation API
-- 8c28b2e feat(#226): migrate ope --intermediate to the internal presentation API
+- e462247 feat(#284): migrate multi-term mixed PDF generation
+- 230261c feat(#227): migrate ope --vertical to the internal presentation API
+- 3c55ae3 feat(#226): migrate ope --intermediate to the internal presentation API
 - 2d4c435 feat(#225): migrate commondenom to the internal presentation API (#274)
 - 84c789b feat(#224): migrate compare to the internal presentation API (#273)
 - 7943190 feat(#223): migrate ope --missing-value to the internal presentation API (#272)
@@ -78,5 +79,3 @@
 - c952709 feat(#228): expose the 100 hundred-square table via the /generate-problems JSON contract (#262)
 - ce8f8b6 feat(#222): migrate dec2frac to the internal presentation API (#261)
 - 4cb1c11 feat(#221): migrate frac2dec to presentation API
-- 156c2d2 Merge remote-tracking branch 'origin/main' into feat/220-migrate-simplify-presentation-api
-- ab8daf7 feat(#220): migrate simplify PDF generation

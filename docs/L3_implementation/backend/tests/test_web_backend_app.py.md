@@ -23,13 +23,13 @@ Flask test client の単体・結合テストであり、実 HTTP server や実 
 
 ## 変更履歴（git log より自動生成）
 
-- a43a730 feat(#270): render the hundred-square grid table via shared TeX components
+- e462247 feat(#284): migrate multi-term mixed PDF generation
+- 230261c feat(#227): migrate ope --vertical to the internal presentation API
+- 3c55ae3 feat(#226): migrate ope --intermediate to the internal presentation API
+- 9b643c3 feat(#270): render the hundred-square grid table via shared TeX components (#280)
 - 299eab0 feat(#267): render arrow-conversion content formats via shared TeX components (#279)
 - f794743 feat(#266): render the comparison content format via a shared TeX component (#277)
 - 4088bf0 feat(#264): render equation content formats via shared TeX components (#275)
 - 2d4c435 feat(#225): migrate commondenom to the internal presentation API (#274)
 - 84c789b feat(#224): migrate compare to the internal presentation API (#273)
 - 7943190 feat(#223): migrate ope --missing-value to the internal presentation API (#272)
-- 7585ce7 feat(#229): migrate the 100 hundred-square command to the internal presentation API (#271)
-- c952709 feat(#228): expose the 100 hundred-square table via the /generate-problems JSON contract (#262)
-- ce8f8b6 feat(#222): migrate dec2frac to the internal presentation API (#261)
