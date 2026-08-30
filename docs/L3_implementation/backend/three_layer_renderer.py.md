@@ -79,6 +79,7 @@
 
 ## 変更履歴（git log より自動生成）
 
-- 1c5bc1c feat(#292): honor reverse equation side-swap in the 3-layer renderer for 99/squ/pi
-- 365f188 refactor(#291): add hardcoded 3-layer-vs-legacy renderer switch
-- 9502f20 refactor(#290): extract 3-layer-model PDF glue from app.py into three_layer_renderer.py
+- bfd4b9c fix(#298): honor descend / shuffle in _generate_squ_pdf (3-layer renderer)
+- eb3afe8 feat(#292): honor the reverse equation side-swap in the 3-layer renderer for 99/squ/pi (#295)
+- 6417a2f refactor(#291): add a hardcoded 3-layer-vs-legacy renderer switch and drop the per-command subprocess fallthrough (#294)
+- 0b35732 refactor(#290): extract the 3-layer-model PDF glue from app.py into three_layer_renderer.py (#293)
