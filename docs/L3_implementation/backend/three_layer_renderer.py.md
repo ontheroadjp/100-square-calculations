@@ -37,7 +37,7 @@
 - `_generate_kuku_pdf`(issue #208、`reverse` は issue #292): `99`(九九)専用。`a_value` 検証は `problem_generation.validate_kuku_a_value` へ委譲。`_generate_com_pdf` と異なり `descend`/`shuffle` も `data` から読み `generate_kuku_problems` へ渡す — `frontend/web` の `g2-kuku` プリセット(出題順序設定)が実際に送信する生きた経路のため。`reverse`(`data.get('reverse', False)`、プレゼンテーション層の等式 side-swap `c = a x b`。データ層の `descend`/`shuffle` とは別物)を `functools.partial(nuts_calc_tex.build_kuku_slot_content_tex, reverse=reverse)` で `content_format` に束縛する。
 - `_generate_abc_pdf`(issue #213): `aBc` は入力値なし。`rows`/`columns` の既定・検証のみで `generate_abc_problems` → `build_abc_slot_content_tex`。
 - `_generate_pi_pdf`(issue #210、`reverse` は issue #292): `pi` 専用。`a_value`(起点整数)を `problem_generation.validate_pi_start` へ委譲。`pi` は `DIGIT_COUNT_SHORTHAND_COMMANDS` 外のため `a_value` を直接読む。`descend`/`shuffle` は配線済み。`reverse` を `functools.partial(nuts_calc_tex.build_pi_slot_content_tex, reverse=reverse)` で `content_format` に束縛する(等式 side-swap `c = a x 3.14`)。
-- `_generate_squ_pdf`(issue #209、`reverse` は issue #292): `squ` 専用。`a_value` 検証(必須のみ、下限なし)は `problem_generation.validate_squ_start` へ委譲。`squ` は `DIGIT_COUNT_SHORTHAND_COMMANDS` 外。`generate_squ_problems(start_num, rows*columns, 1, False, False)`(`descend`/`shuffle` 常に `False` — #292 の scope 外、`99`/`pi` と非対称)。`reverse` は `functools.partial(nuts_calc_tex.build_squ_slot_content_tex, reverse=reverse)` で `content_format` に束縛する(等式 side-swap `c = a x a`)。
+- `_generate_squ_pdf`(issue #209、`reverse` は issue #292、`descend`/`shuffle` は issue #298): `squ` 専用。`a_value` 検証(必須のみ、下限なし)は `problem_generation.validate_squ_start` へ委譲。`squ` は `DIGIT_COUNT_SHORTHAND_COMMANDS` 外。`descend`/`shuffle` を `data` から読み `generate_squ_problems(start_num, rows*columns, start_index, descend, shuffle)` へ渡す(issue #298 で `99`/`pi` と対称化。`frontend/web` の `ungraded-squ` プリセットは送らないため既定 `False` で従来挙動は不変)。`reverse` は `functools.partial(nuts_calc_tex.build_squ_slot_content_tex, reverse=reverse)` で `content_format` に束縛する(データ層の `descend`/`shuffle` とは別軸の等式 side-swap `c = a x a`)。
 - `_generate_multiples_pdf`(issue #215): `a_min >= 1`、`multiples_count >= nuts_calc_tex.MIN_MULTIPLES_COUNT`、rows/columns 下限を検証。`generate_multiples_problems` + `build_multiples_slot_content_tex`、指定 `multiples_count` を維持。
 - `_generate_divisors_pdf`(issue #216): `a_min`/`a_max` と rows/columns を検証。`generate_divisors_problems` + 番号なし `build_divisors_slot_content_tex`。可変長の約数リストと `BLANK_ANSWER_TEX` は既存 block formatter と同一。
 - `_generate_frac_pdf`(issue #217): 分子・分母桁数、分母条件、真分数条件、operator、帯分数 form、`reducible_mode`、rows/columns をプロセス内で検証し `generate_fraction_problems` + `build_fraction_slot_content_tex`。既存の `\displaystyle`・厳密分数・帯分数表示を維持。
@@ -72,13 +72,14 @@
 
 ## 注意事項・既知の制限
 
-- 各 `_generate_*_pdf` はベーシックケース限定である: 常に `page` 数の blank(練習用)ページを返し、`with_name_field` と、command 固有 bottom-answer builder がある場合の `with_bottom_answer` を反映する。`compare`/`100` は subprocess 経路にも bottom-answer strip がないため `with_bottom_answer` を無視する。`merge` と filled answer page は未配線。`99`/`pi` は `descend`/`shuffle` も配線済み。`99`/`squ`/`pi` は `reverse`(等式 side-swap)を issue #292 で `functools.partial` 経由で配線した(他 command の `reverse` は依然として3層レンダラー非対応)。`squ` の `descend`/`shuffle` は #292 の scope 外で依然ハードコード `False`。
+- 各 `_generate_*_pdf` はベーシックケース限定である: 常に `page` 数の blank(練習用)ページを返し、`with_name_field` と、command 固有 bottom-answer builder がある場合の `with_bottom_answer` を反映する。`compare`/`100` は subprocess 経路にも bottom-answer strip がないため `with_bottom_answer` を無視する。`merge` と filled answer page は未配線。`99`/`squ`/`pi` は `descend`/`shuffle` も配線済み(`squ` は issue #298 で `99`/`pi` に合わせて対称化)。`99`/`squ`/`pi` は `reverse`(等式 side-swap)を issue #292 で `functools.partial` 経由で配線した(他 command の `reverse` は依然として3層レンダラー非対応)。
 - 内部 API 経路は `nuts_calc_tex.get_latex_engine_adapter()` を各 `_generate_*_pdf` から直接呼ぶため、`NUTS_CALC_TEX_ENGINE` 環境変数が不正な場合の失敗経路が subprocess command と異なる(素の `ValueError` が `app.py` のルートで HTTP 500 に変換される)。
 - `lcm`/`gcd`/`divfrac`/`evenodd`/`99`/`aBc`/`pi`/`squ`/`multiples`/`divisors`/`frac`/`simplify`/`frac2dec`/`dec2frac`/`compare`/`commondenom` は専用述語を介さず `command_type` の単純一致でディスパッチする(`ope` と異なり別コンテンツフォーマットパターンを要求する移行済みバリアントがないため)。`compare` は option flag を持つが issue #224 の scope が既定オプション限定で generator も非既定値を許容するため bare exact-match 分岐にしている。
 - `ope` は plain / tree / flat multi-term / `--missing-value` / `--vertical` / `--intermediate` の各 variant を個別述語で振り分ける。いずれの述語にも当たらない `ope`(無効な variant 併用など。例: `use_parentheses` + `vertical`)は終端の `_UNSUPPORTED_REQUEST_ERROR` で `ValueError` → HTTP 500 になる(#291 以前は `None` 返しで subprocess 経路へフォールバックし、そこで CLI が拒否していた)。CLI の `100`(`build_hundred_square_pages` / `--csv`)は無変更で残存する。
 
 ## 変更履歴（git log より自動生成）
 
-- 1c5bc1c feat(#292): honor reverse equation side-swap in the 3-layer renderer for 99/squ/pi
-- 365f188 refactor(#291): add hardcoded 3-layer-vs-legacy renderer switch
-- 9502f20 refactor(#290): extract 3-layer-model PDF glue from app.py into three_layer_renderer.py
+- bfd4b9c fix(#298): honor descend / shuffle in _generate_squ_pdf (3-layer renderer)
+- eb3afe8 feat(#292): honor the reverse equation side-swap in the 3-layer renderer for 99/squ/pi (#295)
+- 6417a2f refactor(#291): add a hardcoded 3-layer-vs-legacy renderer switch and drop the per-command subprocess fallthrough (#294)
+- 0b35732 refactor(#290): extract the 3-layer-model PDF glue from app.py into three_layer_renderer.py (#293)

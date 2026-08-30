@@ -392,6 +392,46 @@ def test_generate_pdf_kuku_forwards_descend_and_shuffle(client, monkeypatch) -> 
     assert captured == {"descend": True, "shuffle": True}
 
 
+def test_generate_pdf_squ_forwards_descend_and_shuffle(client, monkeypatch) -> None:
+    """
+    _generate_squ_pdf must forward descend/shuffle from the request to
+    generate_squ_problems (issue #298), matching the _generate_kuku_pdf /
+    _generate_pi_pdf helpers, instead of hardcoding ascending/non-shuffled
+    order. frontend/web does not send these for 'squ' today, but a direct
+    POST /generate-pdf {"command_type": "squ", "descend": true} must be
+    honored rather than silently ignored.
+    """
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+
+    captured = {}
+    original_generate_squ_problems = three_layer_renderer.nuts_calc_tex.generate_squ_problems
+
+    def spy_generate_squ_problems(start_num, order, start_index, descend, shuffle):
+        captured["descend"] = descend
+        captured["shuffle"] = shuffle
+        return original_generate_squ_problems(start_num, order, start_index, descend, shuffle)
+
+    monkeypatch.setattr(three_layer_renderer.nuts_calc_tex, "generate_squ_problems", spy_generate_squ_problems)
+
+    def fake_compile(self, tex_source, out_pdf_path):
+        with open(out_pdf_path, "wb") as f:
+            f.write(b"%PDF-1.4 fake")
+
+    monkeypatch.setattr(
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+    monkeypatch.setattr(
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf",
+        json={"paper_size": "A4", "command_type": "squ", "a_value": 3, "descend": True, "shuffle": True},
+    )
+    assert response.status_code == 200
+    assert captured == {"descend": True, "shuffle": True}
+
+
 def test_generate_pdf_kuku_maps_compile_failure_to_500(client, monkeypatch) -> None:
     """
     engine_adapter.compile() calls nuts_calc_tex.failure() (print + exit(1),
