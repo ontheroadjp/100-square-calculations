@@ -1500,18 +1500,23 @@ def _generate_squ_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple
     API (build_presentation_document_tex, issue #183), following #199's
     'com' precedent (issue #209, tracked under #174/B-5's remaining
     pattern-1a migrations #208/#209/#210/#211/#212). Basic-case only:
-    a_value plus optional rows/columns/reverse, always a single blank
-    (practice) page -- descend/shuffle/with_bottom_answer/with_name_field/
+    a_value plus optional rows/columns/descend/shuffle/reverse, always a
+    single blank (practice) page -- with_bottom_answer/with_name_field/
     multi-page/merge are not wired for 'squ' yet (explicitly out of scope
-    for #209, matching #199's scope). `reverse` (issue #292) is the
-    presentation-layer equation side-swap (`c = a x a`), bound into the
-    content_format via functools.partial.
+    for #209, matching #199's scope). descend/shuffle are read from `data`
+    and forwarded to generate_squ_problems (issue #298), matching the
+    _generate_kuku_pdf / _generate_pi_pdf helpers; they are the data-layer
+    ordering flags, distinct from the presentation-layer `reverse` flag.
+    `reverse` (issue #292) is the presentation-layer equation side-swap
+    (`c = a x a`), bound into the content_format via functools.partial.
 
     'squ' reads a_value directly (it's always a literal starting square
     number, never a digit count -- like 'com', unlike
     nuts_calc_tex.DIGIT_COUNT_SHORTHAND_COMMANDS).
     """
     start_num = problem_generation.validate_squ_start(data.get('a_value'))
+    descend = bool(data.get('descend', False))
+    shuffle = bool(data.get('shuffle', False))
     reverse = bool(data.get('reverse', False))
 
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
@@ -1532,7 +1537,7 @@ def _generate_squ_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple
         data,
         rows * columns,
         lambda start_index: nuts_calc_tex.generate_squ_problems(
-            start_num, rows * columns, start_index, False, False
+            start_num, rows * columns, start_index, descend, shuffle
         ),
         nuts_calc_tex.build_squ_bottom_answer_tex,
     )
