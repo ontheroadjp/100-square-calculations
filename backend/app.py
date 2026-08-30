@@ -96,12 +96,28 @@ def _is_plain_mixed_pdf_request(data: renderers.RendererRequest) -> bool:
     return not any(key in data for key in ('terms', 'terms_min', 'terms_max'))
 
 
-def _generate_mixed_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
-    """Build a basic two-term mixed PDF through the presentation API.
+def _is_multi_term_mixed_pdf_request(data: renderers.RendererRequest) -> bool:
+    """Return whether data selects a multi-term or mixed-operator worksheet."""
+    if data.get('command_type') != 'mixed' or data.get('reducible_mode') is not None:
+        return False
+    return bool(data.get('mixed_operators')) or any(
+        key in data for key in ('terms', 'terms_min', 'terms_max')
+    )
+
+
+def _generate_mixed_pdf(
+    data: renderers.RendererRequest,
+    output_dir: str,
+    *,
+    terms_min: int = nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT,
+    terms_max: int = nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT,
+    mixed_operators: bool = False,
+) -> tuple[str, str]:
+    """Build a mixed PDF through the presentation API.
 
     Operand kinds, operator, fraction digit counts, and decimal places retain
-    the CLI defaults when omitted. Multi-term, mixed-operator, and reducibility
-    variants remain on the subprocess path and are excluded by the caller.
+    the CLI defaults when omitted. Reducibility variants remain on the
+    subprocess path and are excluded by the caller.
     """
     numerator_digits = data.get('numerator_digits', 1)
     denominator_digits = data.get('denominator_digits', 1)
@@ -150,13 +166,8 @@ def _generate_mixed_pdf(data: renderers.RendererRequest, output_dir: str) -> tup
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    terms_min, terms_max = nuts_calc_tex.resolve_term_range(
-        nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT,
-        nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT,
-        False,
-    )
     problems = nuts_calc_tex.generate_mixed_problems(
-        a_kinds, b_kinds, operators, False,
+        a_kinds, b_kinds, operators, mixed_operators,
         numerator_digits, denominator_digits, decimal_places,
         terms_min, terms_max, rows * columns, 1,
     )
@@ -184,6 +195,28 @@ def _generate_mixed_pdf(data: renderers.RendererRequest, output_dir: str) -> tup
         raise RuntimeError(f'PDF generation failed: {error_reason}') from e
 
     return output_filepath, output_filename
+
+
+def _generate_multi_term_mixed_pdf(
+    data: renderers.RendererRequest, output_dir: str
+) -> tuple[str, str]:
+    """Build a multi-term or mixed-operator mixed PDF via the presentation API."""
+    terms = data.get('terms')
+    terms_min = data.get('terms_min', nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT)
+    terms_max = data.get('terms_max', nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT)
+    if terms is not None:
+        terms_min = terms_max = terms
+    if terms_min > terms_max:
+        raise ValueError("terms_min must be less than or equal to terms_max.")
+
+    terms_min, terms_max = nuts_calc_tex.resolve_term_range(terms_min, terms_max, False)
+    return _generate_mixed_pdf(
+        data,
+        output_dir,
+        terms_min=terms_min,
+        terms_max=terms_max,
+        mixed_operators=bool(data.get('mixed_operators', False)),
+    )
 
 
 def _generate_lcm_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
@@ -1984,6 +2017,10 @@ def generate_pdf():
             output_filepath, output_filename = _generate_hundred_square_pdf(data, PDF_OUTPUT_DIR)
         elif _is_plain_mixed_pdf_request(data):
             output_filepath, output_filename = _generate_mixed_pdf(data, PDF_OUTPUT_DIR)
+        elif _is_multi_term_mixed_pdf_request(data):
+            output_filepath, output_filename = _generate_multi_term_mixed_pdf(
+                data, PDF_OUTPUT_DIR
+            )
         elif _is_plain_ope_pdf_request(data):
             output_filepath, output_filename = _generate_ope_pdf(data, PDF_OUTPUT_DIR)
         elif _is_tree_ope_pdf_request(data):
