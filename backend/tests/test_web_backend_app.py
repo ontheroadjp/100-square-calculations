@@ -180,6 +180,63 @@ def test_generate_pdf_com_uses_presentation_api_not_subprocess(client, monkeypat
     assert response.data.startswith(b"%PDF")
 
 
+def test_generate_pdf_com_wires_page_bottom_answer_and_name_field(
+    client, monkeypatch
+) -> None:
+    backend_app = sys.modules["app"]
+    captured_tex = []
+
+    def fake_compile(self, tex_source, out_pdf_path):
+        captured_tex.append(tex_source)
+        with open(out_pdf_path, "wb") as f:
+            f.write(b"%PDF-1.4 fake")
+
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf",
+        json={
+            "paper_size": "A4",
+            "command_type": "com",
+            "a_value": 10,
+            "rows": 1,
+            "columns": 2,
+            "page": 2,
+            "with_bottom_answer": True,
+            "with_name_field": True,
+        },
+    )
+
+    assert response.status_code == 200
+    assert len(captured_tex) == 1
+    tex_source = captured_tex[0]
+    assert tex_source.count("\\newpage") == 1
+    assert tex_source.count("Name:") == 2
+    assert "(1)" in tex_source
+    assert "(4)" in tex_source
+
+
+@pytest.mark.parametrize("page", [0, -1])
+def test_generate_pdf_migrated_helper_rejects_invalid_page(client, page) -> None:
+    response = client.post(
+        "/generate-pdf",
+        json={
+            "paper_size": "A4",
+            "command_type": "com",
+            "a_value": 10,
+            "page": page,
+        },
+    )
+    assert response.status_code == 500
+    assert "page must be at least 1" in response.get_json()["error"]
+
+
 def test_generate_pdf_com_maps_compile_failure_to_500(client, monkeypatch) -> None:
     """
     engine_adapter.compile() calls nuts_calc_tex.failure() (print + exit(1),
