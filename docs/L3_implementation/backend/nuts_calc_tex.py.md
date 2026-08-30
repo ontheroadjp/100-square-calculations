@@ -525,8 +525,9 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴（git log より自動生成）
 
-- c9e6de7 feat(#227): migrate ope --vertical to the internal presentation API
-- 8c28b2e feat(#226): migrate ope --intermediate to the internal presentation API
+- 1c5bc1c feat(#292): honor reverse equation side-swap in the 3-layer renderer for 99/squ/pi
+- 230261c feat(#227): migrate ope --vertical to the internal presentation API
+- 3c55ae3 feat(#226): migrate ope --intermediate to the internal presentation API
 - 9b643c3 feat(#270): render the hundred-square grid table via shared TeX components (#280)
 - a704907 feat(#269): render the written-calculation (hissan) content format via shared TeX components (#281)
 - 8cce41a feat(#268): render the staged arrow-chain content format via a shared TeX component (#278)
@@ -534,5 +535,3 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - f794743 feat(#266): render the comparison content format via a shared TeX component (#277)
 - 64a8412 feat(#265): render the boxed-blank equation format via a shared TeX component (#276)
 - 4088bf0 feat(#264): render equation content formats via shared TeX components (#275)
-- 2d4c435 feat(#225): migrate commondenom to the internal presentation API (#274)
-- 84c789b feat(#224): migrate compare to the internal presentation API (#273)
