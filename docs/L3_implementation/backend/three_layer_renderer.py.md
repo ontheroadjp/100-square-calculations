@@ -78,4 +78,4 @@
 
 ## 変更履歴（git log より自動生成）
 
-- (pending) refactor(#290): extract the 3-layer-model PDF glue from app.py into three_layer_renderer.py
+- 9502f20 refactor(#290): extract 3-layer-model PDF glue from app.py into three_layer_renderer.py

@@ -1,14 +1,14 @@
 # Web API
 
-Flask backend は worksheet 生成(PDF)・問題データのみ生成(JSON、issue #138)・renderer 能力確認の3エンドポイントを提供する。DB は使わない。`POST /generate-pdf` は移行済み command/variant(`divfrac`/`simplify`/`commondenom`/`frac2dec`/`dec2frac`/`compare`/`100`/`ope --missing-value`/`ope --intermediate` を含む)を `nuts_calc_tex.py` の内部 presentation API で生成し、未移行 command/variant(`ope` の `--vertical`、`mixed` の terms/mixed-operator/reducible variant)だけを `backend/renderers.py` の CLI/subprocess 経路へフォールバックする hybrid routing である(`backend/app.py:90-187,265-327,975-1658,1717-1801`)。`POST /generate-problems`(`command_type` は `'ope'`/`'com'`/`'99'`/`'aBc'`/`'squ'`/`'pi'`/`'frac'`/`'mixed'`/`'compare'`/`'evenodd'`/`'multiples'`/`'divisors'`/`'lcm'`/`'gcd'`/`'simplify'`/`'commondenom'`/`'frac2dec'`/`'dec2frac'`/`'divfrac'` に対応。`'100'` は issue #228 で対応したが、他コマンドの `{"problems": [...]}` とは別の単一テーブル用 envelope `{"table": {...}}` を返す)も CLI を subprocess 起動せず、`backend/problem_generation.py` が既存データ生成関数を直接呼び出す。
+Flask backend は worksheet 生成(PDF)・問題データのみ生成(JSON、issue #138)・renderer 能力確認の3エンドポイントを提供する。DB は使わない。`POST /generate-pdf` は移行済み command/variant(`com`/`lcm`/`gcd`/`divfrac`/`evenodd`/`99`/`aBc`/`pi`/`squ`/`multiples`/`divisors`/`frac`/`simplify`/`commondenom`/`frac2dec`/`dec2frac`/`compare`/`100`、基本2項および multi-term/mixed-operator/`reducible_mode` の `mixed`、plain/tree/flat-multi-term および `--missing-value`/`--vertical`/`--intermediate` の `ope`)を `nuts_calc_tex.py` の内部 presentation API で生成し、それ以外の command/variant だけを `backend/renderers.py` の CLI/subprocess 経路へフォールバックする hybrid routing である。内部 API 経路のグルー(`_generate_*_pdf` builder 群・`_is_*_request` routing 述語・`command_type` → builder dispatch)は issue #290 で `backend/three_layer_renderer.py` の `render_worksheet_pdf(data, output_dir)` へ抽出され、`backend/app.py` の `generate_pdf()` はそれを呼んで戻り値が `None` の場合のみ subprocess 経路へフォールバックする薄い dispatcher に縮小された。`POST /generate-problems`(`command_type` は `'ope'`/`'com'`/`'99'`/`'aBc'`/`'squ'`/`'pi'`/`'frac'`/`'mixed'`/`'compare'`/`'evenodd'`/`'multiples'`/`'divisors'`/`'lcm'`/`'gcd'`/`'simplify'`/`'commondenom'`/`'frac2dec'`/`'dec2frac'`/`'divfrac'` に対応。`'100'` は issue #228 で対応したが、他コマンドの `{"problems": [...]}` とは別の単一テーブル用 envelope `{"table": {...}}` を返す)も CLI を subprocess 起動せず、`backend/problem_generation.py` が既存データ生成関数を直接呼び出す。
 
 ## `POST /generate-pdf`
 
 ### Request
 
-`Content-Type: application/json`。`paper_size` と `command_type` が必須で、欠落時は HTTP 400 を返す(`backend/app.py:17-22`)。
+`Content-Type: application/json`。`paper_size` と `command_type` が必須で、欠落時は HTTP 400 を返す(`backend/app.py` の `generate_pdf()`)。
 
-任意フィールドは原則として `RendererRequest` に列挙される(`backend/renderers.py:9-58`)。`multiples_count` は既存の `multiples` data/CLI contract として、内部 API 経路の `_generate_multiples_pdf` が追加で直接読む。
+任意フィールドは原則として `RendererRequest` に列挙される(`backend/renderers.py:9-58`)。`multiples_count` は既存の `multiples` data/CLI contract として、内部 API 経路の `_generate_multiples_pdf`(`backend/three_layer_renderer.py`、issue #290)が追加で直接読む。
 
 - 数値/範囲: `a_value`, `b_value`, `a_digits`, `b_digits`, `a_min`, `a_max`, `b_min`, `b_max`, `result_max`, `numerator_digits`, `denominator_digits`, `a_decimal_places`, `b_decimal_places`, `decimal_places`, `terms`, `terms_min`, `terms_max`, `rows`, `columns`, `page`。`multiples` 内部 API 経路はさらに `multiples_count` を受け付ける。
 - 演算: `operator`, `a_kind`, `b_kind`(いずれも文字列配列)、`carry_mode`/`remainder_mode`(`required`|`none`|`mixed`)
@@ -18,7 +18,7 @@ backend は renderer 互換性を事前検証せず、値を CLI option へ変�
 
 ### Processing and response
 
-`com`/`lcm`/`divfrac`/`gcd`/`evenodd`/`99`/`aBc`/`pi`/`100`/移行済み `ope` variants/`squ`/`multiples`/`divisors`/`frac`/`simplify`/`frac2dec`/`dec2frac`/`compare` と基本2項 `mixed` は対応する `_generate_*_pdf` helper から `build_presentation_document_tex` と選択済み `LatexEngineAdapter` をプロセス内で直接呼ぶ。それ以外は `NUTS_CALC_RENDERER` から `latex` を選び、実行中の Python interpreter と CLI script を subprocess 起動する。`mixed` の terms系・`mixed_operators`・`reducible_mode` variants は明示的に subprocess を維持する。内部 API 経路は既定の1ページ blank basic-caseで、出力名は両経路とも `worksheet_<uuid>.pdf`、`PDF_OUTPUT_DIR` に生成後 `send_file(..., as_attachment=True)` で返す(`backend/app.py:90-187,265-327,1037-1480,1482-1562`)。`dec2frac` は `frac2dec` と同じ pattern-4b slot formatter を使うが、digit 系オプションを取らず `rows`/`columns` のみ検証する(issue #222)。`compare`(issue #224、`_generate_compare_pdf`、content-format パターン3)は `frac`/`simplify`/`frac2dec` と同じ `numerator_digits`/`denominator_digits`(範囲1〜3)と `rows`/`columns` を検証し、比較 pattern・分数 form・operand kind は CLI 既定(different-denominators / proper / proper / 分数vs分数)固定で `generate_fraction_comparison_problems` を呼ぶ。番号なし Layer-3 content は既存 `build_fraction_comparison_block_tex` から番号を分離した `build_fraction_comparison_slot_content_tex`。`100`(issue #229、`_generate_hundred_square_pdf`)は1ページ1表・問題番号なしのため Layer 2 の第2 variant `ContentAreaLayout(numbered=False)` + `grid_layout='block'` を使い(Layer-3 は既存 `build_hundred_square_block_tex` をそのまま移植した `build_hundred_square_slot_content_tex`)、a/b 軸レンジは `problem_generation.resolve_hundred_square_axes`(`/generate-problems` の `100` 経路と共有、`a_digits`/`b_digits` または明示 `a_min`/`a_max` / `b_min`/`b_max`、既定1〜9)で解決し、いずれかの軸が5未満の distinct 値しか張らない場合は HTTP 500 を返す。生成 TeX は legacy `build_document_tex` の `100` blank 経路とバイト等価。`show_answer`/merge/複数ページは他の内部 API command 同様に未対応。
+`com`/`lcm`/`divfrac`/`gcd`/`evenodd`/`99`/`aBc`/`pi`/`100`/移行済み `ope` variants/`squ`/`multiples`/`divisors`/`frac`/`simplify`/`frac2dec`/`dec2frac`/`compare` と基本2項 `mixed` は対応する `_generate_*_pdf` helper から `build_presentation_document_tex` と選択済み `LatexEngineAdapter` をプロセス内で直接呼ぶ。それ以外は `NUTS_CALC_RENDERER` から `latex` を選び、実行中の Python interpreter と CLI script を subprocess 起動する。`mixed` の terms系・`mixed_operators`・`reducible_mode` variants は明示的に subprocess を維持する。内部 API 経路は既定の1ページ blank basic-caseで、出力名は両経路とも `worksheet_<uuid>.pdf`、`PDF_OUTPUT_DIR` に生成後 `send_file(..., as_attachment=True)` で返す(`backend/three_layer_renderer.py` の `render_worksheet_pdf`、issue #290)。`dec2frac` は `frac2dec` と同じ pattern-4b slot formatter を使うが、digit 系オプションを取らず `rows`/`columns` のみ検証する(issue #222)。`compare`(issue #224、`_generate_compare_pdf`、content-format パターン3)は `frac`/`simplify`/`frac2dec` と同じ `numerator_digits`/`denominator_digits`(範囲1〜3)と `rows`/`columns` を検証し、比較 pattern・分数 form・operand kind は CLI 既定(different-denominators / proper / proper / 分数vs分数)固定で `generate_fraction_comparison_problems` を呼ぶ。番号なし Layer-3 content は既存 `build_fraction_comparison_block_tex` から番号を分離した `build_fraction_comparison_slot_content_tex`。`100`(issue #229、`_generate_hundred_square_pdf`)は1ページ1表・問題番号なしのため Layer 2 の第2 variant `ContentAreaLayout(numbered=False)` + `grid_layout='block'` を使い(Layer-3 は既存 `build_hundred_square_block_tex` をそのまま移植した `build_hundred_square_slot_content_tex`)、a/b 軸レンジは `problem_generation.resolve_hundred_square_axes`(`/generate-problems` の `100` 経路と共有、`a_digits`/`b_digits` または明示 `a_min`/`a_max` / `b_min`/`b_max`、既定1〜9)で解決し、いずれかの軸が5未満の distinct 値しか張らない場合は HTTP 500 を返す。生成 TeX は legacy `build_document_tex` の `100` blank 経路とバイト等価。`show_answer`/merge/複数ページは他の内部 API command 同様に未対応。
 
 | 条件 | Status | Body |
 |---|---:|---|
@@ -26,7 +26,7 @@ backend は renderer 互換性を事前検証せず、値を CLI option へ変�
 | JSON なし / 必須値欠落 | 400 | `{ "error": "..." }` |
 | renderer 設定/CLI 実行/ファイル/予期しない例外 | 500 | `{ "error": "..." }` |
 
-CLI は validation error を stdout に出すため、`CalledProcessError` 時は stdout を stderr より優先してエラー本文へ使う(`backend/app.py:39-44`)。
+CLI は validation error を stdout に出すため、`CalledProcessError` 時は stdout を stderr より優先してエラー本文へ使う(`backend/app.py:45-53`)。
 
 ## `POST /generate-problems`(issue #138)
 
@@ -55,10 +55,10 @@ item の形状はコマンド・亜種ごとに異なる(issue #167 で決定し
 
 ## `GET /renderer-info`
 
-入力なし。有効な renderer を `{ "renderer": "latex" }` として返す(`backend/app.py:78-84`)。`NUTS_CALC_RENDERER` が未設定なら `latex`(issue #186 で `reportlab` から変更)、`latex` 以外の値(`reportlab` を含む。`nuts_calc.py`/reportlab は issue #232 でコード自体が削除された)なら HTTP 500 と error JSON になる(`backend/renderers.py:87-104`)。
+入力なし。有効な renderer を `{ "renderer": "latex" }` として返す(`backend/app.py:95-101`)。`NUTS_CALC_RENDERER` が未設定なら `latex`(issue #186 で `reportlab` から変更)、`latex` 以外の値(`reportlab` を含む。`nuts_calc.py`/reportlab は issue #232 でコード自体が削除された)なら HTTP 500 と error JSON になる(`backend/renderers.py:87-104`)。
 
 ## 永続化と未確認事項
 
-- DB、認証、rate limit は実装されていない。CORS は引数なしの `CORS(app)` で有効化される(`backend/app.py:8-13`)。
+- DB、認証、rate limit は実装されていない。CORS は引数なしの `CORS(app)` で有効化される(`backend/app.py:10-11`)。
 - 生成 PDF の削除処理は確認できない。`generated_pdfs/` の保持/清掃方針を確定するには repo 外の運用設定が必要である。
 - Flask を実プロセス起動して frontend と接続する E2E はない。現行テストは Flask test client と renderer 純粋関数を対象とする(`backend/tests/test_web_backend_app.py`、`backend/tests/test_web_backend_renderers.py`)。

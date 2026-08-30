@@ -27,8 +27,9 @@ Flask test client の単体・結合テストであり、実 HTTP server や実 
 
 ## 変更履歴（git log より自動生成）
 
-- 1e2fc00 feat(#286): wire presentation page options
-- 30ccca5 feat(#285): migrate mixed reducibility PDF generation
+- 9502f20 refactor(#290): extract 3-layer-model PDF glue from app.py into three_layer_renderer.py
+- 32162b8 feat(#286): wire presentation page options (#288)
+- ea4c269 feat(#285): migrate mixed reducibility PDF generation (#289)
 - 1bdac41 feat(#284): migrate multi-term mixed PDF generation (#287)
 - 230261c feat(#227): migrate ope --vertical to the internal presentation API
 - 3c55ae3 feat(#226): migrate ope --intermediate to the internal presentation API
@@ -36,5 +37,3 @@ Flask test client の単体・結合テストであり、実 HTTP server や実 
 - 299eab0 feat(#267): render arrow-conversion content formats via shared TeX components (#279)
 - f794743 feat(#266): render the comparison content format via a shared TeX component (#277)
 - 4088bf0 feat(#264): render equation content formats via shared TeX components (#275)
-- 2d4c435 feat(#225): migrate commondenom to the internal presentation API (#274)
-- 84c789b feat(#224): migrate compare to the internal presentation API (#273)

@@ -33,8 +33,9 @@
 
 ## 変更履歴（git log より自動生成）
 
-- 1e2fc00 feat(#286): wire presentation page options
- - 30ccca5 feat(#285): migrate mixed reducibility PDF generation
+- 9502f20 refactor(#290): extract 3-layer-model PDF glue from app.py into three_layer_renderer.py
+- 32162b8 feat(#286): wire presentation page options (#288)
+- ea4c269 feat(#285): migrate mixed reducibility PDF generation (#289)
 - 1bdac41 feat(#284): migrate multi-term mixed PDF generation (#287)
 - 230261c feat(#227): migrate ope --vertical to the internal presentation API
 - 3c55ae3 feat(#226): migrate ope --intermediate to the internal presentation API
@@ -42,5 +43,3 @@
 - 84c789b feat(#224): migrate compare to the internal presentation API (#273)
 - 7943190 feat(#223): migrate ope --missing-value to the internal presentation API (#272)
 - 7585ce7 feat(#229): migrate the 100 hundred-square command to the internal presentation API (#271)
-- c952709 feat(#228): expose the 100 hundred-square table via the /generate-problems JSON contract (#262)
-- ce8f8b6 feat(#222): migrate dec2frac to the internal presentation API (#261)
