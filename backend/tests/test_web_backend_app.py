@@ -1458,16 +1458,63 @@ def test_generate_pdf_mixed_uses_presentation_api_not_subprocess(client, monkeyp
 
 
 @pytest.mark.parametrize(
-    "variant_fields",
+    ("variant_fields", "expected_terms", "expected_mixed_operators"),
     [
-        {"terms": 3},
-        {"terms_min": 2, "terms_max": 4},
-        {"mixed_operators": True},
-        {"reducible_mode": "required"},
+        ({"terms": 3}, (3, 3), False),
+        ({"terms_min": 2, "terms_max": 4}, (2, 4), False),
+        ({"mixed_operators": True}, (2, 2), True),
     ],
 )
-def test_generate_pdf_mixed_variants_still_use_subprocess_renderer(
-    client, monkeypatch, variant_fields
+def test_generate_pdf_multi_term_mixed_uses_presentation_api_not_subprocess(
+    client, monkeypatch, variant_fields, expected_terms, expected_mixed_operators
+) -> None:
+    backend_app = sys.modules["app"]
+    generation_args = {}
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("renderers.run must not be called for multi-term mixed requests")
+
+    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: binary_name)
+
+    real_generate_mixed_problems = backend_app.nuts_calc_tex.generate_mixed_problems
+
+    def capture_generate_mixed_problems(*args, **kwargs):
+        generation_args["mixed_operators"] = args[3]
+        generation_args["terms"] = (args[7], args[8])
+        return real_generate_mixed_problems(*args, **kwargs)
+
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex, "generate_mixed_problems", capture_generate_mixed_problems
+    )
+
+    def fake_compile(self, tex_source, out_pdf_path):
+        assert "\\displaystyle" in tex_source
+        assert backend_app.nuts_calc_tex.BLANK_ANSWER_TEX in tex_source
+        with open(out_pdf_path, "wb") as f:
+            f.write(b"%PDF-1.4 fake")
+
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf",
+        json={"paper_size": "A4", "command_type": "mixed", **variant_fields},
+    )
+    assert response.status_code == 200
+    assert response.data.startswith(b"%PDF")
+    assert generation_args == {
+        "mixed_operators": expected_mixed_operators,
+        "terms": expected_terms,
+    }
+
+
+def test_generate_pdf_mixed_reducible_variant_still_uses_subprocess_renderer(
+    client, monkeypatch
 ) -> None:
     backend_app = sys.modules["app"]
 
@@ -1481,10 +1528,28 @@ def test_generate_pdf_mixed_variants_still_use_subprocess_renderer(
     monkeypatch.setattr(backend_app.renderers, "run", fake_run)
     response = client.post(
         "/generate-pdf",
-        json={"paper_size": "A4", "command_type": "mixed", **variant_fields},
+        json={
+            "paper_size": "A4",
+            "command_type": "mixed",
+            "reducible_mode": "required",
+        },
     )
     assert response.status_code == 200
     assert response.data.startswith(b"%PDF")
+
+
+def test_generate_pdf_multi_term_mixed_rejects_inverted_term_range(client) -> None:
+    response = client.post(
+        "/generate-pdf",
+        json={
+            "paper_size": "A4",
+            "command_type": "mixed",
+            "terms_min": 4,
+            "terms_max": 3,
+        },
+    )
+    assert response.status_code == 500
+    assert "terms_min must be less than or equal to terms_max" in response.get_json()["error"]
 
 
 @pytest.mark.parametrize(
