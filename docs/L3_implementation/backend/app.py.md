@@ -69,7 +69,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- e462247 feat(#284): migrate multi-term mixed PDF generation
+- 30ccca5 feat(#285): migrate mixed reducibility PDF generation
+- 1bdac41 feat(#284): migrate multi-term mixed PDF generation (#287)
 - 230261c feat(#227): migrate ope --vertical to the internal presentation API
 - 3c55ae3 feat(#226): migrate ope --intermediate to the internal presentation API
 - 2d4c435 feat(#225): migrate commondenom to the internal presentation API (#274)
@@ -78,4 +79,3 @@
 - 7585ce7 feat(#229): migrate the 100 hundred-square command to the internal presentation API (#271)
 - c952709 feat(#228): expose the 100 hundred-square table via the /generate-problems JSON contract (#262)
 - ce8f8b6 feat(#222): migrate dec2frac to the internal presentation API (#261)
-- 4cb1c11 feat(#221): migrate frac2dec to presentation API
