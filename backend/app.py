@@ -7,6 +7,8 @@ import shutil
 import subprocess
 import os
 import uuid
+from collections.abc import Callable
+from typing import Protocol, TypeVar
 
 import nuts_calc_tex
 import problem_generation
@@ -18,6 +20,46 @@ CORS(app) # Enable CORS for frontend communication
 # Directory to store generated PDFs temporarily
 PDF_OUTPUT_DIR = './generated_pdfs'
 os.makedirs(PDF_OUTPUT_DIR, exist_ok=True)
+
+
+class _IndexedProblem(Protocol):
+    index: int
+
+
+_IndexedProblemT = TypeVar('_IndexedProblemT', bound=_IndexedProblem)
+
+
+def _resolve_page_count(data: renderers.RendererRequest) -> int:
+    page_count = int(data.get('page', 1))
+    if page_count < 1:
+        raise ValueError("page must be at least 1.")
+    return page_count
+
+
+def _build_presentation_pages(
+    data: renderers.RendererRequest,
+    order: int,
+    generate_page: Callable[[int], list[_IndexedProblemT]],
+    bottom_answer_builder: Callable[[list[_IndexedProblemT]], str] | None,
+) -> list[nuts_calc_tex.PresentationPage[_IndexedProblemT]]:
+    """Generate and decorate every requested worksheet page."""
+    pages = []
+    for page_number in range(1, _resolve_page_count(data) + 1):
+        start_index = (page_number - 1) * order + 1
+        problems = generate_page(start_index)
+        bottom_answer_tex = (
+            bottom_answer_builder(problems)
+            if data.get('with_bottom_answer', False) and bottom_answer_builder is not None
+            else None
+        )
+        pages.append(
+            nuts_calc_tex.PresentationPage(
+                problems=problems,
+                indices=[problem.index for problem in problems],
+                bottom_answer_tex=bottom_answer_tex,
+            )
+        )
+    return pages
 
 
 def _generate_com_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
@@ -53,18 +95,23 @@ def _generate_com_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    problems = nuts_calc_tex.generate_com_problems(target, rows * columns, 1)
-    page = nuts_calc_tex.PresentationPage(
-        problems=problems, indices=[problem.index for problem in problems]
+    pages = _build_presentation_pages(
+        data,
+        rows * columns,
+        lambda start_index: nuts_calc_tex.generate_com_problems(
+            target, rows * columns, start_index
+        ),
+        nuts_calc_tex.build_com_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
-        pages=[page],
+        pages=pages,
         content_format=nuts_calc_tex.build_com_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
         show_answer=False,
+        with_name_field=bool(data.get('with_name_field', False)),
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
@@ -166,22 +213,25 @@ def _generate_mixed_pdf(
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    problems = nuts_calc_tex.generate_mixed_problems(
-        a_kinds, b_kinds, operators, mixed_operators,
-        numerator_digits, denominator_digits, decimal_places,
-        terms_min, terms_max, rows * columns, 1,
-    )
-    page = nuts_calc_tex.PresentationPage(
-        problems=problems, indices=[problem.index for problem in problems]
+    pages = _build_presentation_pages(
+        data,
+        rows * columns,
+        lambda start_index: nuts_calc_tex.generate_mixed_problems(
+            a_kinds, b_kinds, operators, mixed_operators,
+            numerator_digits, denominator_digits, decimal_places,
+            terms_min, terms_max, rows * columns, start_index,
+        ),
+        nuts_calc_tex.build_mixed_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
-        pages=[page],
+        pages=pages,
         content_format=nuts_calc_tex.build_mixed_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
         show_answer=False,
+        with_name_field=bool(data.get('with_name_field', False)),
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
@@ -263,18 +313,23 @@ def _generate_lcm_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple
 
     nums_a = list(range(a_min, a_max + 1))
     nums_b = list(range(b_min, b_max + 1))
-    problems = nuts_calc_tex.generate_number_pair_problems(math.lcm, nums_a, nums_b, rows * columns, 1)
-    page = nuts_calc_tex.PresentationPage(
-        problems=problems, indices=[problem.index for problem in problems]
+    pages = _build_presentation_pages(
+        data,
+        rows * columns,
+        lambda start_index: nuts_calc_tex.generate_number_pair_problems(
+            math.lcm, nums_a, nums_b, rows * columns, start_index
+        ),
+        nuts_calc_tex.build_number_pair_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
-        pages=[page],
+        pages=pages,
         content_format=nuts_calc_tex.build_lcm_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
         show_answer=False,
+        with_name_field=bool(data.get('with_name_field', False)),
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
@@ -329,20 +384,23 @@ def _generate_divfrac_pdf(data: renderers.RendererRequest, output_dir: str) -> t
 
     nums_a = list(range(a_min, a_max + 1))
     nums_b = list(range(b_min, b_max + 1))
-    problems = nuts_calc_tex.generate_divfrac_problems(
-        nums_a, nums_b, rows * columns, 1
-    )
-    page = nuts_calc_tex.PresentationPage(
-        problems=problems, indices=[problem.index for problem in problems]
+    pages = _build_presentation_pages(
+        data,
+        rows * columns,
+        lambda start_index: nuts_calc_tex.generate_divfrac_problems(
+            nums_a, nums_b, rows * columns, start_index
+        ),
+        nuts_calc_tex.build_divfrac_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
-        pages=[page],
+        pages=pages,
         content_format=nuts_calc_tex.build_divfrac_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
         show_answer=False,
+        with_name_field=bool(data.get('with_name_field', False)),
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
@@ -396,18 +454,23 @@ def _generate_gcd_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple
 
     nums_a = list(range(a_min, a_max + 1))
     nums_b = list(range(b_min, b_max + 1))
-    problems = nuts_calc_tex.generate_number_pair_problems(math.gcd, nums_a, nums_b, rows * columns, 1)
-    page = nuts_calc_tex.PresentationPage(
-        problems=problems, indices=[problem.index for problem in problems]
+    pages = _build_presentation_pages(
+        data,
+        rows * columns,
+        lambda start_index: nuts_calc_tex.generate_number_pair_problems(
+            math.gcd, nums_a, nums_b, rows * columns, start_index
+        ),
+        nuts_calc_tex.build_number_pair_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
-        pages=[page],
+        pages=pages,
         content_format=nuts_calc_tex.build_gcd_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
         show_answer=False,
+        with_name_field=bool(data.get('with_name_field', False)),
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
@@ -449,18 +512,23 @@ def _generate_evenodd_pdf(data: renderers.RendererRequest, output_dir: str) -> t
         )
 
     nums_a = list(range(a_min, a_max + 1))
-    problems = nuts_calc_tex.generate_evenodd_problems(nums_a, rows * columns, 1)
-    page = nuts_calc_tex.PresentationPage(
-        problems=problems, indices=[problem.index for problem in problems]
+    pages = _build_presentation_pages(
+        data,
+        rows * columns,
+        lambda start_index: nuts_calc_tex.generate_evenodd_problems(
+            nums_a, rows * columns, start_index
+        ),
+        nuts_calc_tex.build_evenodd_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
-        pages=[page],
+        pages=pages,
         content_format=nuts_calc_tex.build_evenodd_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
         show_answer=False,
+        with_name_field=bool(data.get('with_name_field', False)),
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
@@ -515,18 +583,23 @@ def _generate_kuku_pdf(data: renderers.RendererRequest, output_dir: str) -> tupl
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    problems = nuts_calc_tex.generate_kuku_problems(a_value, rows * columns, 1, descend, shuffle)
-    page = nuts_calc_tex.PresentationPage(
-        problems=problems, indices=[problem.index for problem in problems]
+    pages = _build_presentation_pages(
+        data,
+        rows * columns,
+        lambda start_index: nuts_calc_tex.generate_kuku_problems(
+            a_value, rows * columns, start_index, descend, shuffle
+        ),
+        nuts_calc_tex.build_kuku_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
-        pages=[page],
+        pages=pages,
         content_format=nuts_calc_tex.build_kuku_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
         show_answer=False,
+        with_name_field=bool(data.get('with_name_field', False)),
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
@@ -570,18 +643,23 @@ def _generate_abc_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    problems = nuts_calc_tex.generate_abc_problems(rows * columns, 1)
-    page = nuts_calc_tex.PresentationPage(
-        problems=problems, indices=[problem.index for problem in problems]
+    pages = _build_presentation_pages(
+        data,
+        rows * columns,
+        lambda start_index: nuts_calc_tex.generate_abc_problems(
+            rows * columns, start_index
+        ),
+        nuts_calc_tex.build_abc_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
-        pages=[page],
+        pages=pages,
         content_format=nuts_calc_tex.build_abc_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
         show_answer=False,
+        with_name_field=bool(data.get('with_name_field', False)),
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
@@ -630,18 +708,23 @@ def _generate_pi_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    problems = nuts_calc_tex.generate_pi_problems(start_num, rows * columns, 1, descend, shuffle)
-    page = nuts_calc_tex.PresentationPage(
-        problems=problems, indices=[problem.index for problem in problems]
+    pages = _build_presentation_pages(
+        data,
+        rows * columns,
+        lambda start_index: nuts_calc_tex.generate_pi_problems(
+            start_num, rows * columns, start_index, descend, shuffle
+        ),
+        nuts_calc_tex.build_pi_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
-        pages=[page],
+        pages=pages,
         content_format=nuts_calc_tex.build_pi_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
         show_answer=False,
+        with_name_field=bool(data.get('with_name_field', False)),
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
@@ -735,22 +818,25 @@ def _generate_ope_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple
 
     nums_a = list(range(a_min, a_max + 1))
     nums_b = list(range(b_min, b_max + 1))
-    problems = nuts_calc_tex.generate_ope_problems(
-        nums_a, nums_b, operator, rows * columns, 1,
-        a_decimal_places, b_decimal_places,
-        data.get('carry_mode'), data.get('remainder_mode'), data.get('result_max'),
-    )
-    page = nuts_calc_tex.PresentationPage(
-        problems=problems, indices=[problem.index for problem in problems]
+    pages = _build_presentation_pages(
+        data,
+        rows * columns,
+        lambda start_index: nuts_calc_tex.generate_ope_problems(
+            nums_a, nums_b, operator, rows * columns, start_index,
+            a_decimal_places, b_decimal_places,
+            data.get('carry_mode'), data.get('remainder_mode'), data.get('result_max'),
+        ),
+        nuts_calc_tex.build_ope_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
-        pages=[page],
+        pages=pages,
         content_format=nuts_calc_tex.build_ope_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
         show_answer=False,
+        with_name_field=bool(data.get('with_name_field', False)),
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
@@ -850,21 +936,24 @@ def _generate_tree_ope_pdf(data: renderers.RendererRequest, output_dir: str) -> 
 
     nums_a = list(range(a_min, a_max + 1))
     nums_b = list(range(b_min, b_max + 1))
-    problems = nuts_calc_tex.generate_tree_ope_problems(
-        nums_a, nums_b, operator, mixed_operators, terms_min, terms_max,
-        rows * columns, 1, data.get('result_max'),
-    )
-    page = nuts_calc_tex.PresentationPage(
-        problems=problems, indices=[problem.index for problem in problems]
+    pages = _build_presentation_pages(
+        data,
+        rows * columns,
+        lambda start_index: nuts_calc_tex.generate_tree_ope_problems(
+            nums_a, nums_b, operator, mixed_operators, terms_min, terms_max,
+            rows * columns, start_index, data.get('result_max'),
+        ),
+        nuts_calc_tex.build_tree_ope_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
-        pages=[page],
+        pages=pages,
         content_format=nuts_calc_tex.build_tree_ope_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
         show_answer=False,
+        with_name_field=bool(data.get('with_name_field', False)),
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
@@ -970,21 +1059,24 @@ def _generate_multi_term_ope_pdf(data: renderers.RendererRequest, output_dir: st
 
     nums_a = list(range(a_min, a_max + 1))
     nums_b = list(range(b_min, b_max + 1))
-    problems = nuts_calc_tex.generate_multi_term_ope_problems(
-        nums_a, nums_b, operator, mixed_operators, terms_min, terms_max,
-        rows * columns, 1, data.get('result_max'),
-    )
-    page = nuts_calc_tex.PresentationPage(
-        problems=problems, indices=[problem.index for problem in problems]
+    pages = _build_presentation_pages(
+        data,
+        rows * columns,
+        lambda start_index: nuts_calc_tex.generate_multi_term_ope_problems(
+            nums_a, nums_b, operator, mixed_operators, terms_min, terms_max,
+            rows * columns, start_index, data.get('result_max'),
+        ),
+        nuts_calc_tex.build_multi_term_ope_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
-        pages=[page],
+        pages=pages,
         content_format=nuts_calc_tex.build_multi_term_ope_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
         show_answer=False,
+        with_name_field=bool(data.get('with_name_field', False)),
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
@@ -1076,20 +1168,23 @@ def _generate_missing_value_ope_pdf(data: renderers.RendererRequest, output_dir:
 
     nums_a = list(range(a_min, a_max + 1))
     nums_b = list(range(b_min, b_max + 1))
-    problems = nuts_calc_tex.generate_missing_value_problems(
-        nums_a, nums_b, operator, rows * columns, 1, data.get('result_max'),
-    )
-    page = nuts_calc_tex.PresentationPage(
-        problems=problems, indices=[problem.index for problem in problems]
+    pages = _build_presentation_pages(
+        data,
+        rows * columns,
+        lambda start_index: nuts_calc_tex.generate_missing_value_problems(
+            nums_a, nums_b, operator, rows * columns, start_index, data.get('result_max'),
+        ),
+        nuts_calc_tex.build_missing_value_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
-        pages=[page],
+        pages=pages,
         content_format=nuts_calc_tex.build_missing_value_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
         show_answer=False,
+        with_name_field=bool(data.get('with_name_field', False)),
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
@@ -1200,23 +1295,26 @@ def _generate_vertical_ope_pdf(data: renderers.RendererRequest, output_dir: str)
 
     nums_a = list(range(a_min, a_max + 1))
     nums_b = list(range(b_min, b_max + 1))
-    problems = nuts_calc_tex.generate_ope_problems(
-        nums_a, nums_b, operator, rows * columns, 1,
-        a_decimal_places, b_decimal_places,
-        data.get('carry_mode'), data.get('remainder_mode'), data.get('result_max'),
-    )
-    page = nuts_calc_tex.PresentationPage(
-        problems=problems, indices=[problem.index for problem in problems]
+    pages = _build_presentation_pages(
+        data,
+        rows * columns,
+        lambda start_index: nuts_calc_tex.generate_ope_problems(
+            nums_a, nums_b, operator, rows * columns, start_index,
+            a_decimal_places, b_decimal_places,
+            data.get('carry_mode'), data.get('remainder_mode'), data.get('result_max'),
+        ),
+        nuts_calc_tex.build_ope_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
-        pages=[page],
+        pages=pages,
         content_format=nuts_calc_tex.build_vertical_ope_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
         show_answer=False,
         grid_layout='tabular',
+        with_name_field=bool(data.get('with_name_field', False)),
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
@@ -1317,20 +1415,24 @@ def _generate_intermediate_ope_pdf(data: renderers.RendererRequest, output_dir: 
 
     nums_a = list(range(a_min, a_max + 1))
     nums_b = list(range(b_min, b_max + 1))
-    problems = nuts_calc_tex.generate_ope_problems(
-        nums_a, nums_b, operator, rows * columns, 1, result_max=data.get('result_max'),
-    )
-    page = nuts_calc_tex.PresentationPage(
-        problems=problems, indices=[problem.index for problem in problems]
+    pages = _build_presentation_pages(
+        data,
+        rows * columns,
+        lambda start_index: nuts_calc_tex.generate_ope_problems(
+            nums_a, nums_b, operator, rows * columns, start_index,
+            result_max=data.get('result_max'),
+        ),
+        nuts_calc_tex.build_ope_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
-        pages=[page],
+        pages=pages,
         content_format=nuts_calc_tex.build_intermediate_ope_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
         show_answer=False,
+        with_name_field=bool(data.get('with_name_field', False)),
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
@@ -1382,18 +1484,23 @@ def _generate_squ_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    problems = nuts_calc_tex.generate_squ_problems(start_num, rows * columns, 1, False, False)
-    page = nuts_calc_tex.PresentationPage(
-        problems=problems, indices=[problem.index for problem in problems]
+    pages = _build_presentation_pages(
+        data,
+        rows * columns,
+        lambda start_index: nuts_calc_tex.generate_squ_problems(
+            start_num, rows * columns, start_index, False, False
+        ),
+        nuts_calc_tex.build_squ_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
-        pages=[page],
+        pages=pages,
         content_format=nuts_calc_tex.build_squ_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
         show_answer=False,
+        with_name_field=bool(data.get('with_name_field', False)),
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
@@ -1448,20 +1555,23 @@ def _generate_multiples_pdf(data: renderers.RendererRequest, output_dir: str) ->
         )
 
     nums_a = list(range(a_min, a_max + 1))
-    problems = nuts_calc_tex.generate_multiples_problems(
-        nums_a, rows * columns, 1, multiples_count
-    )
-    page = nuts_calc_tex.PresentationPage(
-        problems=problems, indices=[problem.index for problem in problems]
+    pages = _build_presentation_pages(
+        data,
+        rows * columns,
+        lambda start_index: nuts_calc_tex.generate_multiples_problems(
+            nums_a, rows * columns, start_index, multiples_count
+        ),
+        nuts_calc_tex.build_multiples_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
-        pages=[page],
+        pages=pages,
         content_format=nuts_calc_tex.build_multiples_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
         show_answer=False,
+        with_name_field=bool(data.get('with_name_field', False)),
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
@@ -1505,18 +1615,23 @@ def _generate_divisors_pdf(data: renderers.RendererRequest, output_dir: str) -> 
         )
 
     nums_a = list(range(a_min, a_max + 1))
-    problems = nuts_calc_tex.generate_divisors_problems(nums_a, rows * columns, 1)
-    page = nuts_calc_tex.PresentationPage(
-        problems=problems, indices=[problem.index for problem in problems]
+    pages = _build_presentation_pages(
+        data,
+        rows * columns,
+        lambda start_index: nuts_calc_tex.generate_divisors_problems(
+            nums_a, rows * columns, start_index
+        ),
+        nuts_calc_tex.build_divisors_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
-        pages=[page],
+        pages=pages,
         content_format=nuts_calc_tex.build_divisors_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
         show_answer=False,
+        with_name_field=bool(data.get('with_name_field', False)),
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
@@ -1602,31 +1717,34 @@ def _generate_frac_pdf(data: renderers.RendererRequest, output_dir: str) -> tupl
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    problems = nuts_calc_tex.generate_fraction_problems(
-        numerator_digits,
-        denominator_digits,
-        operators,
+    pages = _build_presentation_pages(
+        data,
         rows * columns,
-        1,
-        same_denominator,
-        proper_operands,
-        proper_result,
-        different_denominators,
-        a_fraction_form,
-        b_fraction_form,
-        reducible_mode,
-    )
-    page = nuts_calc_tex.PresentationPage(
-        problems=problems, indices=[problem.index for problem in problems]
+        lambda start_index: nuts_calc_tex.generate_fraction_problems(
+            numerator_digits,
+            denominator_digits,
+            operators,
+            rows * columns,
+            start_index,
+            same_denominator,
+            proper_operands,
+            proper_result,
+            different_denominators,
+            a_fraction_form,
+            b_fraction_form,
+            reducible_mode,
+        ),
+        nuts_calc_tex.build_fraction_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
-        pages=[page],
+        pages=pages,
         content_format=nuts_calc_tex.build_fraction_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
         show_answer=False,
+        with_name_field=bool(data.get('with_name_field', False)),
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
@@ -1670,20 +1788,23 @@ def _generate_simplify_pdf(data: renderers.RendererRequest, output_dir: str) -> 
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    problems = nuts_calc_tex.generate_simplify_problems(
-        numerator_digits, denominator_digits, rows * columns, 1
-    )
-    page = nuts_calc_tex.PresentationPage(
-        problems=problems, indices=[problem.index for problem in problems]
+    pages = _build_presentation_pages(
+        data,
+        rows * columns,
+        lambda start_index: nuts_calc_tex.generate_simplify_problems(
+            numerator_digits, denominator_digits, rows * columns, start_index
+        ),
+        nuts_calc_tex.build_simplify_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
-        pages=[page],
+        pages=pages,
         content_format=nuts_calc_tex.build_simplify_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
         show_answer=False,
+        with_name_field=bool(data.get('with_name_field', False)),
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
@@ -1727,20 +1848,23 @@ def _generate_frac2dec_pdf(data: renderers.RendererRequest, output_dir: str) -> 
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    problems = nuts_calc_tex.generate_frac2dec_problems(
-        numerator_digits, denominator_digits, rows * columns, 1
-    )
-    page = nuts_calc_tex.PresentationPage(
-        problems=problems, indices=[problem.index for problem in problems]
+    pages = _build_presentation_pages(
+        data,
+        rows * columns,
+        lambda start_index: nuts_calc_tex.generate_frac2dec_problems(
+            numerator_digits, denominator_digits, rows * columns, start_index
+        ),
+        nuts_calc_tex.build_frac2dec_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
-        pages=[page],
+        pages=pages,
         content_format=nuts_calc_tex.build_frac2dec_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
         show_answer=False,
+        with_name_field=bool(data.get('with_name_field', False)),
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
@@ -1777,18 +1901,23 @@ def _generate_dec2frac_pdf(data: renderers.RendererRequest, output_dir: str) -> 
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    problems = nuts_calc_tex.generate_dec2frac_problems(rows * columns, 1)
-    page = nuts_calc_tex.PresentationPage(
-        problems=problems, indices=[problem.index for problem in problems]
+    pages = _build_presentation_pages(
+        data,
+        rows * columns,
+        lambda start_index: nuts_calc_tex.generate_dec2frac_problems(
+            rows * columns, start_index
+        ),
+        nuts_calc_tex.build_dec2frac_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
-        pages=[page],
+        pages=pages,
         content_format=nuts_calc_tex.build_dec2frac_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
         show_answer=False,
+        with_name_field=bool(data.get('with_name_field', False)),
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
@@ -1844,21 +1973,24 @@ def _generate_compare_pdf(data: renderers.RendererRequest, output_dir: str) -> t
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    problems = nuts_calc_tex.generate_fraction_comparison_problems(
-        'different-denominators', 'proper', 'proper',
-        numerator_digits, denominator_digits, rows * columns, 1,
-    )
-    page = nuts_calc_tex.PresentationPage(
-        problems=problems, indices=[problem.index for problem in problems]
+    pages = _build_presentation_pages(
+        data,
+        rows * columns,
+        lambda start_index: nuts_calc_tex.generate_fraction_comparison_problems(
+            'different-denominators', 'proper', 'proper',
+            numerator_digits, denominator_digits, rows * columns, start_index,
+        ),
+        None,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
-        pages=[page],
+        pages=pages,
         content_format=nuts_calc_tex.build_fraction_comparison_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
         show_answer=False,
+        with_name_field=bool(data.get('with_name_field', False)),
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
@@ -1902,20 +2034,23 @@ def _generate_commondenom_pdf(data: renderers.RendererRequest, output_dir: str) 
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    problems = nuts_calc_tex.generate_commondenom_problems(
-        numerator_digits, denominator_digits, rows * columns, 1
-    )
-    page = nuts_calc_tex.PresentationPage(
-        problems=problems, indices=[problem.index for problem in problems]
+    pages = _build_presentation_pages(
+        data,
+        rows * columns,
+        lambda start_index: nuts_calc_tex.generate_commondenom_problems(
+            numerator_digits, denominator_digits, rows * columns, start_index
+        ),
+        nuts_calc_tex.build_commondenom_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
-        pages=[page],
+        pages=pages,
         content_format=nuts_calc_tex.build_commondenom_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
         engine_adapter=engine_adapter,
         show_answer=False,
+        with_name_field=bool(data.get('with_name_field', False)),
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
@@ -1961,17 +2096,23 @@ def _generate_hundred_square_pdf(data: renderers.RendererRequest, output_dir: st
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    table = nuts_calc_tex.generate_hundred_square(nums_left, nums_top)
-    page = nuts_calc_tex.PresentationPage(problems=[table], indices=[1])
+    pages = [
+        nuts_calc_tex.PresentationPage(
+            problems=[nuts_calc_tex.generate_hundred_square(nums_left, nums_top)],
+            indices=[page_number],
+        )
+        for page_number in range(1, _resolve_page_count(data) + 1)
+    ]
     tex_source = nuts_calc_tex.build_presentation_document_tex(
         data['paper_size'],
-        pages=[page],
+        pages=pages,
         content_format=nuts_calc_tex.build_hundred_square_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
         content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=1, columns=1, numbered=False),
         engine_adapter=engine_adapter,
         show_answer=False,
         grid_layout='block',
+        with_name_field=bool(data.get('with_name_field', False)),
     )
 
     output_filename = f"worksheet_{uuid.uuid4()}.pdf"
