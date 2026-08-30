@@ -8,6 +8,7 @@ import importlib
 import os
 import subprocess
 import sys
+from fractions import Fraction
 from pathlib import Path
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -1570,29 +1571,104 @@ def test_generate_pdf_multi_term_mixed_uses_presentation_api_not_subprocess(
     }
 
 
-def test_generate_pdf_mixed_reducible_variant_still_uses_subprocess_renderer(
-    client, monkeypatch
+@pytest.mark.parametrize("reducible_mode", ["required", "none", "mixed"])
+def test_generate_pdf_mixed_reducible_variants_use_presentation_api_not_subprocess(
+    client, monkeypatch, reducible_mode
 ) -> None:
     backend_app = sys.modules["app"]
+    generation_args = {}
 
-    def fake_run(data, output_dir, renderer_name):
-        pdf_path = os.path.join(output_dir, "worksheet_fake.pdf")
-        with open(pdf_path, "wb") as f:
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("renderers.run must not be called for mixed reducibility requests")
+
+    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
+    monkeypatch.setattr(backend_app.shutil, "which", lambda binary_name: binary_name)
+
+    def fake_generate_mixed_problems(*args, **kwargs):
+        generation_args["reducible_mode"] = args[11]
+        operand = backend_app.nuts_calc_tex.MixedOperand(
+            kind="fraction",
+            display=r"\frac{2}{4}",
+            value=Fraction(1, 2),
+            raw_numerator=2,
+            raw_denominator=4,
+        )
+        integer = backend_app.nuts_calc_tex.MixedOperand(
+            kind="int", display="2", value=Fraction(2), raw_numerator=2, raw_denominator=1
+        )
+        return [
+            backend_app.nuts_calc_tex.MixedProblem(
+                index=1,
+                operands=[operand, integer],
+                operators=["mul"],
+                mixed=False,
+                result=Fraction(1),
+            )
+        ]
+
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex, "generate_mixed_problems", fake_generate_mixed_problems
+    )
+
+    def fake_compile(self, tex_source, out_pdf_path):
+        assert r"\frac{2}{4}" in tex_source
+        assert backend_app.nuts_calc_tex.BLANK_ANSWER_TEX in tex_source
+        with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
-        completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
-        return pdf_path, "worksheet_fake.pdf", completed
 
-    monkeypatch.setattr(backend_app.renderers, "run", fake_run)
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+    monkeypatch.setattr(
+        backend_app.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+
     response = client.post(
         "/generate-pdf",
         json={
             "paper_size": "A4",
             "command_type": "mixed",
-            "reducible_mode": "required",
+            "a_kind": ["fraction"],
+            "b_kind": ["int"],
+            "operator": ["mul"],
+            "reducible_mode": reducible_mode,
+            "rows": 1,
+            "columns": 1,
         },
     )
     assert response.status_code == 200
     assert response.data.startswith(b"%PDF")
+    assert generation_args == {"reducible_mode": reducible_mode}
+
+
+@pytest.mark.parametrize(
+    ("request_fields", "error_text"),
+    [
+        ({"reducible_mode": "unknown"}, "reducible_mode must be one of"),
+        (
+            {"reducible_mode": "required", "operator": ["add"]},
+            "reducible_mode only supports 'mul'/'div' operators",
+        ),
+        (
+            {
+                "reducible_mode": "required",
+                "operator": ["mul"],
+                "a_kind": ["fraction"],
+                "b_kind": ["fraction"],
+            },
+            "reducible_mode requires exactly one",
+        ),
+    ],
+)
+def test_generate_pdf_mixed_reducible_variants_reject_invalid_input(
+    client, request_fields, error_text
+) -> None:
+    response = client.post(
+        "/generate-pdf",
+        json={"paper_size": "A4", "command_type": "mixed", **request_fields},
+    )
+    assert response.status_code == 500
+    assert error_text in response.get_json()["error"]
 
 
 def test_generate_pdf_multi_term_mixed_rejects_inverted_term_range(client) -> None:

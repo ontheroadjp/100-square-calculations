@@ -138,7 +138,7 @@ def _is_plain_mixed_pdf_request(data: renderers.RendererRequest) -> bool:
     """Return whether data selects the basic two-term mixed worksheet."""
     if data.get('command_type') != 'mixed':
         return False
-    if data.get('mixed_operators') or data.get('reducible_mode') is not None:
+    if data.get('mixed_operators'):
         return False
     return not any(key in data for key in ('terms', 'terms_min', 'terms_max'))
 
@@ -163,8 +163,8 @@ def _generate_mixed_pdf(
     """Build a mixed PDF through the presentation API.
 
     Operand kinds, operator, fraction digit counts, and decimal places retain
-    the CLI defaults when omitted. Reducibility variants remain on the
-    subprocess path and are excluded by the caller.
+    the CLI defaults when omitted. Reducibility variants require the same
+    two-term fraction/integer and mul/div shape as the CLI.
     """
     numerator_digits = data.get('numerator_digits', 1)
     denominator_digits = data.get('denominator_digits', 1)
@@ -199,6 +199,22 @@ def _generate_mixed_pdf(
             f"operator must contain only: {', '.join(sorted(valid_operators))}."
         )
 
+    reducible_mode = data.get('reducible_mode')
+    if reducible_mode is not None:
+        if reducible_mode not in {'required', 'none', 'mixed'}:
+            raise ValueError(
+                "reducible_mode must be one of: mixed, none, required."
+            )
+        if not operators or not set(operators) <= {'mul', 'div'}:
+            raise ValueError(
+                "reducible_mode only supports 'mul'/'div' operators for the 'mixed' command."
+            )
+        if {tuple(a_kinds), tuple(b_kinds)} != {('fraction',), ('int',)}:
+            raise ValueError(
+                "reducible_mode requires exactly one a_kind=['fraction']/b_kind=['int'] pairing "
+                "(in either order) for the 'mixed' command."
+            )
+
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
     if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
@@ -220,6 +236,7 @@ def _generate_mixed_pdf(
             a_kinds, b_kinds, operators, mixed_operators,
             numerator_digits, denominator_digits, decimal_places,
             terms_min, terms_max, rows * columns, start_index,
+            reducible_mode,
         ),
         nuts_calc_tex.build_mixed_bottom_answer_tex,
     )
