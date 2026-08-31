@@ -6,7 +6,7 @@
 
 ## 動作の概要
 
-`.preset-detail` を画面ルートにして、例題、設定ブロック、セグメント選択、開閉領域、トグル、作成ボタン、完了表示、プレビューを各親要素の下にネストして定義する。セグメント選択の `:disabled` は muted text と `not-allowed` cursor、選択中かつ無効な項目は disabled color の背景で、選択状態を維持しつつ非活性であることを表す(`frontend/web/src/styles/_presetDetail.scss:91-127`)。
+`.preset-detail` を画面ルートにして、例題、設定ブロック、セグメント選択、開閉領域、トグル、作成ボタン、完了表示、プレビューを各親要素の下にネストして定義する。セグメント選択の `:disabled` は muted text と `not-allowed` cursor、選択中かつ無効な項目は disabled color の背景で、選択状態を維持しつつ非活性であることを表す。`.segmented-control.is-disabled` はトラック全体に `cursor: not-allowed` を敷き、固定設定(`type: 'fixed'`、issue #303)を全ボタン `disabled` の非活性セグメントとして描画する場合の見た目を補う。issue #303 で、旧 `.setting-block .setting-fixed-value`(固定設定の素テキスト1行用の pill スタイル)は `presetDetail.js`/`pcMakeFlow.js` の双方が emit しなくなったため削除した。
 
 `.example-chip-written`(issue #134)は「出題形式:筆算」選択時の例題チップに付与される修飾クラスで、`.example-chip`(横書き、1行前提の `white-space: nowrap`)に上書きしてパディングを広げる。KaTeX の複数行 `array`(足し算/引き算/掛け算)または長除法モックアップ(割り算、[[../presetDetail.js]] 参照)は横書き式より縦に高さを要するため。
 
@@ -30,7 +30,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- aca0f4f feat(#134): add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages
+- abd63f8 feat(#303): render fixed drill settings as an inactive segmented control
+- 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
 - d38fa0d fix: prevent mid-problem line wrap in preset example chips
 - 06870bb #148 Add multiplication-table question-order options (#150)
 - 2d9ee47 #132 frontend/web: dynamic grade accent, KaTeX fraction examples, generalized setting hints, and move problem count into common settings on preset detail page (#136)

@@ -74,6 +74,26 @@ export function isSettingDisabled(setting, settingsState) {
   return setting.disabledWhen?.(settingsState) ?? false;
 }
 
+// Synthetic option value for a fixed setting that carries no sibling option
+// list -- it renders as a single disabled pill (issue #303).
+const FIXED_ONLY_VALUE = '__fixed__';
+
+// Builds the display model for a `type: 'fixed'` setting so it can render as
+// a disabled segmented control identical in shape to a `choice` setting:
+// - with `options` (a sibling choice's option list): every option is shown
+//   and the one whose labelKey matches valueLabelKey is pre-selected.
+// - without `options`: a single synthetic pill showing valueLabelKey.
+export function fixedSettingView(setting) {
+  if (setting.options) {
+    const selected = setting.options.find((option) => option.labelKey === setting.valueLabelKey);
+    return { options: setting.options, selectedValue: selected?.value ?? null };
+  }
+  return {
+    options: [{ value: FIXED_ONLY_VALUE, labelKey: setting.valueLabelKey }],
+    selectedValue: FIXED_ONLY_VALUE,
+  };
+}
+
 // Matches, in priority order, the arithmetic tokens worth typesetting as
 // LaTeX: a mixed number ("1 2/3"), a plain fraction ("2/3"), a decimal
 // ("3.6"), a bare integer, or an operator/paren. Anything not matched here
@@ -295,10 +315,15 @@ export function mountPresetDetail(container, { grade, item, onBack }) {
 
   function renderSettingControl(setting) {
     if (setting.type === 'fixed') {
+      const { options, selectedValue } = fixedSettingView(setting);
       return `
         <div class="setting-block">
           <span class="setting-label">${t(setting.labelKey)}</span>
-          <span class="setting-fixed-value">${t(setting.valueLabelKey)}</span>
+          <div class="segmented-control is-disabled" aria-disabled="true">
+            ${options.map((option) => `
+              <button type="button" class="segmented-option ${option.value === selectedValue ? 'is-selected' : ''}" disabled>${t(option.labelKey)}</button>
+            `).join('')}
+          </div>
         </div>
       `;
     }

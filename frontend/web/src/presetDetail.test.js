@@ -7,6 +7,7 @@ import {
   buildExampleSegments,
   exampleWithEquals,
   isSettingDisabled,
+  fixedSettingView,
   selectedSettingValue,
   selectExamples,
   isLivePreviewSupported,
@@ -91,6 +92,38 @@ test('dependent choice settings can be disabled and resolve a forced display val
   assert.equal(selectedSettingValue(setting, { dan: 'mixed', questionOrder: 'ascending' }), 'random');
   assert.equal(isSettingDisabled(setting, { dan: '1', questionOrder: 'ascending' }), false);
   assert.equal(selectedSettingValue(setting, { dan: '1', questionOrder: 'ascending' }), 'ascending');
+});
+
+test('fixedSettingView returns the full sibling option list with the fixed value selected', () => {
+  const setting = {
+    id: 'carryMode', labelKey: 'setting_carry_label', type: 'fixed',
+    valueLabelKey: 'setting_option_required',
+    options: [
+      { value: 'none', labelKey: 'setting_option_none' },
+      { value: 'required', labelKey: 'setting_option_required' },
+      { value: 'mixed', labelKey: 'setting_option_mixed' },
+    ],
+  };
+  const view = fixedSettingView(setting);
+  assert.equal(view.selectedValue, 'required');
+  assert.deepEqual(view.options.map((option) => option.value), ['none', 'required', 'mixed']);
+});
+
+test('fixedSettingView returns a single synthetic selected pill when the setting has no option list', () => {
+  const setting = { id: 'parentheses', labelKey: 'setting_parentheses_label', type: 'fixed', valueLabelKey: 'setting_option_present' };
+  const view = fixedSettingView(setting);
+  assert.equal(view.options.length, 1);
+  assert.equal(view.options[0].labelKey, 'setting_option_present');
+  assert.equal(view.selectedValue, view.options[0].value);
+});
+
+test('fixedSettingView selectedValue is null when no sibling option matches valueLabelKey (defensive)', () => {
+  const setting = {
+    id: 'carryMode', labelKey: 'setting_carry_label', type: 'fixed',
+    valueLabelKey: 'setting_option_unknown',
+    options: [{ value: 'none', labelKey: 'setting_option_none' }],
+  };
+  assert.equal(fixedSettingView(setting).selectedValue, null);
 });
 
 test('buildExampleSegments merges a plain fraction expression into one math segment', () => {

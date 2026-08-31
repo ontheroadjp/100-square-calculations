@@ -1,6 +1,6 @@
 import { t } from './strings.js';
 import { GRADES, presetsByGrade } from './drillPresets.js';
-import { PROBLEM_COUNT_OPTIONS, layoutForProblemCount } from './presetDetail.js';
+import { PROBLEM_COUNT_OPTIONS, layoutForProblemCount, fixedSettingView } from './presetDetail.js';
 import { getVerticalRows, isVerticalOperation, VERTICAL_COLUMNS } from './verticalLayout.js';
 import { ICONS } from './icons.js';
 
@@ -149,10 +149,15 @@ export function mountPcMakeFlow(container) {
 
   function renderSettingControl(setting) {
     if (setting.type === 'fixed') {
+      const { options, selectedValue } = fixedSettingView(setting);
       return `
         <div class="setting-block">
           <span class="setting-label">${t(setting.labelKey)}</span>
-          <span class="setting-fixed-value">${t(setting.valueLabelKey)}</span>
+          <div class="segmented-control is-disabled" aria-disabled="true">
+            ${options.map((option) => `
+              <button type="button" class="segmented-option ${option.value === selectedValue ? 'is-selected' : ''}" disabled>${t(option.labelKey)}</button>
+            `).join('')}
+          </div>
         </div>
       `;
     }

@@ -100,15 +100,6 @@
     font-weight: bold;
   }
 
-  .setting-fixed-value {
-    align-self: flex-start;
-    padding: 6px 12px;
-    border-radius: $radius-sm;
-    background: #f1f5f9;
-    color: $color-text-muted;
-    font-size: $font-size-sm;
-  }
-
   .setting-hint {
     margin: 0;
     color: $color-text-muted;
@@ -123,6 +114,12 @@
   padding: $space-xs;
   border-radius: $radius-sm;
   background: #f1f5f9;
+
+  // A fixed (non-selectable) setting renders this control with every option
+  // disabled; the whole track reads as inactive (issue #303).
+  &.is-disabled {
+    cursor: not-allowed;
+  }
 
   .segmented-option {
     flex: 1 1 auto;
