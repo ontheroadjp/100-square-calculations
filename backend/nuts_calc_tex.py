@@ -56,14 +56,45 @@ PAGE_SIDE_MARGIN_MM = 15
 PAGE_TOP_MARGIN_MM = 20
 PAGE_BOTTOM_MARGIN_MM = 40
 FOOTER_TEXT_LOWERING_MM = 20
+# The problem number sits right-aligned in a fixed-width box (so every ``N)``
+# ends at the same x, 1- or 3-digit), then a small fixed gap, then the
+# left-aligned equation. Keeps the number and the equation as two visually
+# separate fields with a tight, constant gutter between them (issue #301).
 CONTENT_AREA_NUMBER_BOX_WIDTH_MM = 8
+CONTENT_AREA_NUMBER_GAP_MM = 3
+
+# Worksheet type scale (issue #301). The drill sheet is composed like a
+# presentation slide: the equation is the primary content and must lead, the
+# problem number is a quiet index, and the running chrome (subtitle, footer)
+# recedes. All sizes are LaTeX size steps in the 12pt document class; the
+# colours are xcolor tint expressions (no hue -- just greys off the ink),
+# applied via the already-loaded `xcolor` package. The equation font itself is
+# left as the engine default (Computer Modern under both pdflatex and the
+# default lualatex): matching the maths glyphs to the Noto Sans body was tried
+# and rejected -- CM's figures read as more refined at display size, and the
+# size scale below already fixes the number-vs-equation imbalance on its own.
+PROBLEM_NUMBER_FONT_SIZE_TEX = '\\small'
+# Two size tracks. A single-line equation and a display fraction set at the
+# same nominal size don't balance: the stacked \frac is ~2.5x the height and
+# crowds its row, so the fraction track sits one-to-two steps below the plain
+# track. Both are density-aware -- build_presentation_document_tex renews them
+# to the sparse step when a page holds few enough slots that the larger size
+# still fits comfortably (verified against real A4/A3/B5 renders), and leaves
+# the dense default otherwise.
+PROBLEM_CONTENT_FONT_SIZE_DENSE_TEX = '\\large'
+PROBLEM_CONTENT_FONT_SIZE_SPARSE_TEX = '\\Large'
+PROBLEM_FRACTION_FONT_SIZE_DENSE_TEX = '\\normalsize'
+PROBLEM_FRACTION_FONT_SIZE_SPARSE_TEX = '\\large'
+CONTENT_DENSITY_SPARSE_MAX_SLOTS = 20
+PROBLEM_NUMBER_TEXT_COLOR_TEX = 'black!50'
+SUBTITLE_TEXT_COLOR_TEX = 'black!55'
+CHROME_TEXT_COLOR_TEX = 'black!45'
 VERTICAL_DEFAULT_ROWS_BY_PAPER_SIZE = {
     'a3': 4,
     'a4': 4,
     'b5': 2,
     'a4l': 2,
 }
-ROW_VSPACE_EM = 2.0
 MAX_OPERAND_RETRY_ATTEMPTS = 1000
 TERM_COUNT_FLOOR_DEFAULT = 2
 TERM_COUNT_FLOOR_PARENTHESES = 3
@@ -145,6 +176,10 @@ CONTENT_FORMAT_VERTICAL_ROW_HEIGHT_TEX = '\\baselineskip'
 # PDFs are unchanged. Consumed only by build_content_format_macros_tex's
 # \verticaldecimalsepoffset \newlength.
 CONTENT_FORMAT_VERTICAL_DECIMAL_SEP_OFFSET_TEX = '0pt'
+# Gap between the problem number and the written-calculation block below it in
+# the presentation slot (issue #301). The number sits on its own line; this is
+# the extra leading before the hissan grid drops in.
+CONTENT_FORMAT_HISSAN_SLOT_GAP_TEX = '3pt'
 # Single tuning point for the pattern-7 hundred-square grid's data/header cell
 # width (issue #270; guidelines items 6, 11, 20). Every cell (headers and
 # data alike) is a fixed-width centered box so a 1- or 2-digit entry occupies
@@ -184,6 +219,15 @@ ReducibleMode = Literal['required', 'none', 'mixed']
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 VENDOR_TEXMF_DIR = os.path.join(SCRIPT_DIR, 'vendor', 'texmf')
 LUALATEX_CJK_FONT_NAME = 'Noto Sans CJK JP'
+# Written-calculation (hissan) digit font (issue #301). xlop typesets its
+# digits in text mode, so under lualatex `\opadd`/`\opsub`/`\opmul` pick up
+# Noto Sans while `longdivision`'s `\intlongdivision` (math mode) stays
+# Computer Modern -- add/sub/mul and div on the same sheet in two different
+# fonts. The LuaLaTeX adapter defines `\hissandigitfont` as this serif face so
+# both xlop and longdivision render in one consistent, CM-matching style; the
+# pdflatex adapter needs nothing (it is all Computer Modern already) and
+# build_content_format_macros_tex provides an empty fallback.
+HISSAN_DIGIT_FONT_NAME = 'Latin Modern Roman'
 
 OPERATOR_TEX_SYMBOLS = {'add': '+', 'sub': '-', 'mul': '\\times', 'div': '\\div'}
 MIX_OPERATORS = ['add', 'sub', 'mul', 'div']
@@ -1042,6 +1086,12 @@ class LuaLatexEngineAdapter(_SubprocessLatexEngineAdapter):
     the Noto Sans CJK JP font on the system (see
     docs/L3_implementation/backend/nuts_calc_tex.py.md for rationale and
     known limitations).
+
+    Math mode is deliberately left on Computer Modern: ``\\setmainfont`` only
+    restyles text, and matching the maths glyphs to Noto Sans (issue #301,
+    tried via unicode-math) was rejected -- CM's figures read as more refined
+    at the enlarged display size, and the #301 type scale fixes the
+    number-vs-equation size imbalance without touching the maths font.
     """
 
     binary_name = 'lualatex'
@@ -1050,6 +1100,10 @@ class LuaLatexEngineAdapter(_SubprocessLatexEngineAdapter):
         return (
             "\\usepackage{fontspec}\n"
             f"\\setmainfont{{{LUALATEX_CJK_FONT_NAME}}}\n"
+            # Serif face for the hissan (written-calculation) digits so xlop
+            # (text mode -> otherwise Noto Sans) matches longdivision (math
+            # mode -> Computer Modern). See HISSAN_DIGIT_FONT_NAME.
+            f"\\newfontfamily\\hissandigitfont{{{HISSAN_DIGIT_FONT_NAME}}}\n"
         )
 
 
@@ -1124,8 +1178,11 @@ def build_page_shell_preamble_tex(
         + engine_adapter.build_preamble_additions()
         + "\\pagestyle{fancy}\n"
         "\\fancyhf{}\n"
-        f"\\fancyfoot[L]{{{page_shell.copyright_str}}}\n"
-        "\\fancyfoot[R]{Page \\#\\thepage}\n"
+        # Running chrome recedes to a small grey (issue #301 type scale): the
+        # copyright line and page number are legal/navigation furniture, not
+        # content, and were competing at full \normalsize black.
+        f"\\fancyfoot[L]{{\\footnotesize\\color{{{CHROME_TEXT_COLOR_TEX}}}{page_shell.copyright_str}}}\n"
+        f"\\fancyfoot[R]{{\\footnotesize\\color{{{CHROME_TEXT_COLOR_TEX}}}Page \\#\\thepage}}\n"
         "\\renewcommand{\\headrulewidth}{0pt}\n"
         "\\renewcommand{\\footrulewidth}{0pt}\n"
         f"\\addtolength{{\\footskip}}{{{page_shell.footer_text_lowering_mm}mm}}\n"
@@ -1134,7 +1191,14 @@ def build_page_shell_preamble_tex(
 
 
 def build_page_shell_header_tex(page_shell: PageShell, with_name_field: bool = False) -> str:
-    """Layer-1 header block: title/subtitle/date/time/(optional) name field."""
+    """Layer-1 header block: title/subtitle/date/time/(optional) name field.
+
+    Type scale (issue #301): the title stays the level-1 display line and the
+    subtitle drops to a small grey caption. The Date/Time/Name write-in
+    fields are left at plain \\normalsize black -- they already read as quiet
+    level-3 furniture next to the enlarged problems, and greying the labels
+    is not worth the extra visual fuss.
+    """
     date_time_line = "Date: \\underline{\\hspace{4cm}} \\hfill Time: \\underline{\\hspace{4cm}}"
     name_field_tex = (
         "\\\\\nName: \\underline{\\hspace{8cm}}" if with_name_field else ""
@@ -1142,7 +1206,7 @@ def build_page_shell_header_tex(page_shell: PageShell, with_name_field: bool = F
     return (
         f"{{\\bfseries {page_shell.header_str}}}\\\\\n"
         f"{{\\Large\\bfseries {page_shell.title_str}}}\\\\\n"
-        f"{{\\small {page_shell.sub_title_str}}}\\\\[1em]\n"
+        f"{{\\small\\color{{{SUBTITLE_TEXT_COLOR_TEX}}} {page_shell.sub_title_str}}}\\\\[1em]\n"
         f"{date_time_line}{name_field_tex}\n"
         "\\vspace{1.5em}\n\n"
     )
@@ -1192,6 +1256,9 @@ class ContentAreaLayout:
     numbered: bool = True
 
 
+GridLayout = Literal['inline', 'tabular', 'block']
+
+
 # Mirrors frontend/web/src/presetDetail.js's LAYOUT_BY_PROBLEM_COUNT rows/columns values.
 CONTENT_AREA_LAYOUT_PRESETS: dict[int, ContentAreaLayout] = {
     10: ContentAreaLayout(rows=5, columns=2),
@@ -1200,27 +1267,79 @@ CONTENT_AREA_LAYOUT_PRESETS: dict[int, ContentAreaLayout] = {
 }
 
 
-def build_content_area_slot_tex(index: int, content_tex: str, layout: ContentAreaLayout) -> str:
+def build_content_area_slot_tex(
+    index: int, content_tex: str, layout: ContentAreaLayout, grid_layout: GridLayout = 'inline'
+) -> str:
     """
-    Layer-2 slot composition: prepend a fixed-width number box to one
-    slot's already-rendered, number-free Layer-3 content_tex. This is the
-    only place a problem's number is emitted, so callers must pass
-    number-free content (see e.g. build_com_slot_content_tex) rather than
-    the existing build_*_block_tex() output, which embeds the number itself.
+    Layer-2 slot composition: attach a problem number to one slot's
+    already-rendered, number-free Layer-3 content_tex. This is the only place
+    a problem's number is emitted, so callers must pass number-free content
+    (see e.g. build_com_slot_content_tex) rather than the existing
+    build_*_block_tex() output, which embeds the number itself.
+
+    Since issue #301 the two halves carry the worksheet type scale: the
+    number goes through ``\\problemnumberstyle`` (small grey index) and the
+    content through ``\\problemcontentstyle`` (the primary, enlarged line;
+    build_presentation_document_tex renews it to the sparse step on
+    low-density pages). Both macros come from build_content_format_macros_tex.
+    This deliberately makes the composed slot diverge from the legacy
+    ``"N) " + body`` prefix -- the presentation path is now typographically
+    richer than the frozen CLI path, not byte-identical to it.
+
+    Two shapes, by ``grid_layout``:
+
+    - ``inline`` (single-line equations / arrows / fractions): the number is
+      **right-aligned** in a fixed-width ``\\makebox`` (so every ``N)`` ends at
+      the same x whether it is 1 or 3 digits), then a small fixed ``\\hspace``
+      gutter, then the content **left-aligned** in a ``\\parbox`` filling the
+      rest of the column. The three pieces span exactly ``\\linewidth`` so the
+      grid columns' ``\\centering`` has no slack -- the number gutter and the
+      equation start each stay at a constant x across every row, even when
+      content width varies (grade-3 parenthesised expressions).
+
+    - ``tabular`` (``ope --vertical`` hissan blocks): the number sits on its
+      own line above the multi-row block inside a natural-width inner
+      ``tabular``, which the grid column's ``\\centering`` then centres in the
+      column. A fixed-width full-column ``\\parbox`` would pin the narrow
+      hissan block to the column's left edge with a large dead gap on the
+      right; centring the natural-width unit uses the column evenly. The
+      hissan wrappers already own the block's font and size, so no
+      ``\\problemcontentstyle`` wrap here.
     """
-    return f"\\makebox[{layout.number_box_width_mm}mm][l]{{{index})}}{content_tex}"
+    if grid_layout == 'tabular':
+        return (
+            "\\begin{tabular}{@{}l@{}}"
+            f"\\problemnumberstyle{{{index})}}"
+            f"\\\\[{CONTENT_FORMAT_HISSAN_SLOT_GAP_TEX}]"
+            f"{content_tex}"
+            "\\end{tabular}"
+        )
+    box_mm = layout.number_box_width_mm
+    content_width_tex = (
+        f"\\dimexpr\\linewidth-{box_mm}mm-{CONTENT_AREA_NUMBER_GAP_MM}mm\\relax"
+    )
+    return (
+        f"\\makebox[{box_mm}mm][r]{{\\problemnumberstyle{{{index})}}}}"
+        f"\\hspace{{{CONTENT_AREA_NUMBER_GAP_MM}mm}}"
+        f"\\parbox[t]{{{content_width_tex}}}"
+        f"{{\\raggedright\\problemcontentstyle{{{content_tex}}}\\par}}"
+    )
 
 
 def build_content_area_tex(
-    indices: list[int], slot_bodies: list[str], layout: ContentAreaLayout
+    indices: list[int],
+    slot_bodies: list[str],
+    layout: ContentAreaLayout,
+    grid_layout: GridLayout = 'inline',
 ) -> list[str]:
     """
-    Compose each slot's number box + Layer-3 content into one block per
-    slot, ready to hand to the existing page grid builders
+    Compose each slot's number + Layer-3 content into one block per slot,
+    ready to hand to the existing page grid builders
     (build_inline_grid_tex/build_tabular_grid_tex/build_block_grid_tex).
+    ``grid_layout`` selects the slot shape (see build_content_area_slot_tex).
     """
     return [
-        build_content_area_slot_tex(index, content_tex, layout)
+        build_content_area_slot_tex(index, content_tex, layout, grid_layout)
         for index, content_tex in zip(indices, slot_bodies)
     ]
 
@@ -1338,11 +1457,33 @@ def build_content_format_macros_tex() -> str:
         "\\newlength{\\opspacewidth}\n"
         f"\\setlength{{\\opspacewidth}}{{{CONTENT_FORMAT_OPSPACE_WIDTH_TEX}}}\n"
         "\\newcommand{\\opspace}{\\hspace{\\opspacewidth}}\n"
+        # Worksheet type scale (issue #301). Defined first so the equation
+        # wrappers below can reference \problemcontentstyle / \problemfractionstyle.
+        # \problemnumberstyle: the small grey problem-number index (consumed by
+        # build_content_area_slot_tex, the only place a number is emitted).
+        # \problemcontentstyle: the primary, enlarged content line -- applied by
+        # build_content_area_slot_tex around every slot body. \problemfractionstyle:
+        # the smaller step for display fractions (a stacked \frac at the plain
+        # size crowds its row), applied *inside* the \fractioneq/\compareeq/
+        # \fractionarroweq wrappers so it overrides the slot's \problemcontentstyle
+        # (LaTeX size commands are absolute, innermost wins). All three are the
+        # DENSE default; build_presentation_document_tex \renewcommand's the two
+        # content styles to the sparse step on low-slot-count pages.
+        f"\\newcommand{{\\problemnumberstyle}}[1]{{{{{PROBLEM_NUMBER_FONT_SIZE_TEX}"
+        f"\\color{{{PROBLEM_NUMBER_TEXT_COLOR_TEX}}}#1}}}}\n"
+        f"\\newcommand{{\\problemcontentstyle}}[1]{{{{{PROBLEM_CONTENT_FONT_SIZE_DENSE_TEX} #1}}}}\n"
+        f"\\newcommand{{\\problemfractionstyle}}[1]{{{{{PROBLEM_FRACTION_FONT_SIZE_DENSE_TEX} #1}}}}\n"
+        # Serif hissan digit font (issue #301): the LuaLaTeX adapter defines
+        # this via \newfontfamily; provide an empty fallback for pdflatex
+        # (already all Computer Modern). \providecommand -> only defines it if
+        # the adapter has not.
+        "\\providecommand{\\hissandigitfont}{}\n"
         "\\newcommand{\\horizontaleq}[1]{$#1$}\n"
         # \vphantom is measured in the surrounding \displaystyle, so \frac{0}{0}
         # here is display-fraction height without needing amsmath's \dfrac (the
-        # preamble does not load amsmath).
-        "\\newcommand{\\fractioneq}[1]{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}\n"
+        # preamble does not load amsmath). \problemfractionstyle drops the step
+        # so the stacked fraction does not crowd its row (issue #301).
+        "\\newcommand{\\fractioneq}[1]{\\problemfractionstyle{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}}\n"
         "\\newlength{\\boxedblankwidth}\n"
         f"\\setlength{{\\boxedblankwidth}}{{{CONTENT_FORMAT_BOXED_BLANK_WIDTH_TEX}}}\n"
         # Baseline-anchored: no \vcenter, so the \fbox sits on the surrounding
@@ -1354,9 +1495,10 @@ def build_content_format_macros_tex() -> str:
         # height/depth as the blank row even though only the blank row has a box.
         "\\newcommand{\\boxedblankeq}[1]{$#1\\vphantom{\\boxedblank}$}\n"
         # Pattern 3 (comparison): same display-math + height-strut shape as
-        # \fractioneq (comparisons freely mix int/decimal/\frac operands), kept
-        # a separate name so its vertical handling can diverge later.
-        "\\newcommand{\\compareeq}[1]{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}\n"
+        # \fractioneq (comparisons freely mix int/decimal/\frac operands), and
+        # the same \problemfractionstyle step so a sheet of comparisons keeps a
+        # uniform row rhythm whether or not a given row has a fraction.
+        "\\newcommand{\\compareeq}[1]{\\problemfractionstyle{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}}\n"
         # Pattern 4a (arrow conversion, issue #267): plain $...$ wrapper for
         # aBc/evenodd/multiples/divisors (integer/label/comma-list operands),
         # same shape as \horizontaleq, separate name so 4a can diverge later.
@@ -1366,7 +1508,7 @@ def build_content_format_macros_tex() -> str:
         # blank and answer-key rows stay the same height across \frac/int/
         # decimal/blank sides (guidelines item 17). One wrapper for both: they
         # differ only in operand arity, not vertical metrics.
-        "\\newcommand{\\fractionarroweq}[1]{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}\n"
+        "\\newcommand{\\fractionarroweq}[1]{\\problemfractionstyle{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}}\n"
         # Pattern 5 (staged arrow-chain, issue #268): centralized stage
         # separator + fixed-width memo box + integer-only wrapper. Appended
         # after the #264/#265/#266 definitions, which are left untouched.
@@ -1414,20 +1556,32 @@ def build_content_format_macros_tex() -> str:
         "hrulewidth=\\verticalrulewidth,vrulewidth=\\verticalrulewidth,"
         "decimalsepoffset=\\verticaldecimalsepoffset}}\n"
         # Answer-key vs blank wrappers for the xlop add/sub/mul call (#1 is the
-        # \[\opadd{a}{b}\] display-math). Named separately from \horizontaleq so
-        # the vertical layout is its own component (guidelines item 15). The
-        # blank variant keeps the existing per-digit \phantom style-hook blanking
-        # mechanism (only the digits vanish; the column/rule geometry stays).
-        "\\newcommand{\\verticalcalc}[1]{\\begingroup\\verticalcalcsetup #1\\endgroup}\n"
-        "\\newcommand{\\verticalcalcblank}[1]{\\begingroup\\verticalcalcsetup"
-        "\\opset{resultstyle=\\phantom,carrystyle=\\phantom,intermediarystyle=\\phantom}"
-        "#1\\endgroup}\n"
+        # bare \opadd{a}{b} -- no display math since #301; the number sits on its
+        # own line above via build_vertical_ope_slot_content_tex). Named
+        # separately from \horizontaleq so the vertical layout is its own
+        # component (guidelines item 15). \hissandigitfont gives xlop the same
+        # serif digits as longdivision (issue #301); \problemfractionstyle puts
+        # the tall hissan block on the smaller "display" size track, like \frac.
+        # The blank variant \phantom's the result and carries; for mul it also
+        # sets displayintermediary=None so the partial-product rows are dropped
+        # entirely (they were phantom-reserved before, leaving a large empty gap)
+        # -- a "for Mental Arithmetic" sheet needs only the answer line.
+        "\\newcommand{\\verticalcalc}[1]{\\problemfractionstyle{\\hissandigitfont"
+        "\\begingroup\\verticalcalcsetup #1\\endgroup}}\n"
+        "\\newcommand{\\verticalcalcblank}[1]{\\problemfractionstyle{\\hissandigitfont"
+        "\\begingroup\\verticalcalcsetup"
+        "\\opset{resultstyle=\\phantom,carrystyle=\\phantom,displayintermediary=None}"
+        "#1\\endgroup}}\n"
         # Named div wrappers (guidelines item 15 parity). longdivision exposes no
-        # columnwidth/rule keys, so these are thin; the blank variant keeps
-        # longdivision's built-in stage=0 blanking (bracket/divisor/dividend
-        # only).
-        "\\newcommand{\\longdivisioncalc}[2]{\\intlongdivision{#1}{#2}}\n"
-        "\\newcommand{\\longdivisioncalcblank}[2]{\\intlongdivision[stage=0]{#1}{#2}}\n"
+        # columnwidth/rule keys, so these are thin; they add the $...$ math mode
+        # \intlongdivision needs (the \[...\] wrapper was dropped in #301) plus
+        # the shared \hissandigitfont / \problemfractionstyle treatment. The
+        # blank variant keeps longdivision's built-in stage=0 blanking
+        # (bracket/divisor/dividend only).
+        "\\newcommand{\\longdivisioncalc}[2]{\\problemfractionstyle{\\hissandigitfont"
+        "$\\intlongdivision{#1}{#2}$}}\n"
+        "\\newcommand{\\longdivisioncalcblank}[2]{\\problemfractionstyle{\\hissandigitfont"
+        "$\\intlongdivision[stage=0]{#1}{#2}$}}\n"
         # Pattern 7 (hundred-square grid table, issue #270): one place for the
         # `100` addition table's cell width, inter-column padding, rule width
         # and header colour, replacing the inline tabular metrics in
@@ -1621,13 +1775,13 @@ def build_tabular_grid_tex(blocks: list[str], columns: int) -> str:
     page's paper size and column count, with \\tabcolsep padding
     subtracted to avoid an overfull row.
 
-    Each row is emitted as its own single-row tabular, joined by the same
-    \\par\\vspace break build_inline_grid_tex uses between rows, rather
-    than one tabular spanning every row: a plain `tabular` cannot break
-    across a page boundary, so a tall multi-row grid (e.g. the default
-    10 rows) would otherwise be pushed as one unbreakable block, leaving
-    the current page blank and overflowing past the next page's bottom
-    margin instead of just flowing onto it row by row.
+    Each row is emitted as its own single-row tabular with a leading
+    ``\\vfill``, exactly like build_inline_grid_tex: a plain `tabular` cannot
+    break across a page boundary, so one tabular spanning every row would be
+    pushed as one unbreakable block; and the ``\\vfill`` glue both gives TeX a
+    legal page-break point between rows and distributes the leftover printable
+    height so the grid fills the page instead of clustering at the top
+    (issue #301 -- it previously used a fixed ``\\par\\vspace`` between rows).
     """
     column_width_tex = (
         f"\\dimexpr(\\textwidth-{TABCOLSEP_COUNT_PER_COLUMN * columns}\\tabcolsep)/{columns}\\relax"
@@ -1637,8 +1791,10 @@ def build_tabular_grid_tex(blocks: list[str], columns: int) -> str:
     for row_blocks in build_column_major_rows(blocks, columns):
         row_blocks += [''] * (columns - len(row_blocks))
         row_tex = ' & '.join(row_blocks)
-        row_tabulars.append(f"\\begin{{tabular}}{{{column_spec}}}\n{row_tex}\n\\end{{tabular}}")
-    return f"\\par\\vspace{{{ROW_VSPACE_EM}em}}\n".join(row_tabulars)
+        row_tabulars.append(
+            f"\\vfill\n\\begin{{tabular}}{{{column_spec}}}\n{row_tex}\n\\end{{tabular}}"
+        )
+    return '\n'.join(row_tabulars)
 
 
 def build_block_grid_tex(blocks: list[str]) -> str:
@@ -1721,8 +1877,6 @@ ProblemT = TypeVar('ProblemT')
 # independent of content" split ContentAreaLayout (Layer 2) already relies on.
 ContentFormat = Callable[[ProblemT, bool], str]
 
-GridLayout = Literal['inline', 'tabular', 'block']
-
 
 @dataclass(frozen=True)
 class PresentationPage(Generic[ProblemT]):
@@ -1751,6 +1905,30 @@ def _build_presentation_grid_tex(blocks: list[str], columns: int, grid_layout: G
     return build_inline_grid_tex(blocks, columns)
 
 
+def build_problem_content_style_override_tex(content_area_layout: ContentAreaLayout) -> str:
+    """Density-aware content size for the issue #301 type scale.
+
+    ``\\problemcontentstyle`` / ``\\problemfractionstyle`` are defined at the
+    dense step in build_content_format_macros_tex. When a page holds few enough
+    slots that the larger step still fits with comfortable margins (verified
+    against real A4/A3/B5 renders), renew both to their sparse step. An
+    unnumbered layout has no per-problem content line to size, and a layout
+    with no fixed row count (rows is None) is treated as dense; both return an
+    empty string.
+    """
+    if not content_area_layout.numbered or content_area_layout.rows is None:
+        return ""
+    slots_per_page = content_area_layout.rows * content_area_layout.columns
+    if slots_per_page > CONTENT_DENSITY_SPARSE_MAX_SLOTS:
+        return ""
+    return (
+        f"\\renewcommand{{\\problemcontentstyle}}[1]"
+        f"{{{{{PROBLEM_CONTENT_FONT_SIZE_SPARSE_TEX} #1}}}}\n"
+        f"\\renewcommand{{\\problemfractionstyle}}[1]"
+        f"{{{{{PROBLEM_FRACTION_FONT_SIZE_SPARSE_TEX} #1}}}}\n"
+    )
+
+
 def build_presentation_document_tex(
     paper_size: str,
     pages: list[PresentationPage[ProblemT]],
@@ -1772,7 +1950,9 @@ def build_presentation_document_tex(
     for page in pages:
         slot_bodies = [content_format(problem, show_answer) for problem in page.problems]
         if content_area_layout.numbered:
-            blocks = build_content_area_tex(page.indices, slot_bodies, content_area_layout)
+            blocks = build_content_area_tex(
+                page.indices, slot_bodies, content_area_layout, grid_layout
+            )
         else:
             # Layer-2 single unnumbered full-area variant (#229): the content
             # format is one self-contained block per page (the `100` grid) with
@@ -1787,6 +1967,7 @@ def build_presentation_document_tex(
     return (
         build_page_shell_preamble_tex(page_shell, paper_size, engine_adapter)
         + build_content_format_macros_tex()
+        + build_problem_content_style_override_tex(content_area_layout)
         + "\\begin{document}\n"
         + "\n\\newpage\n".join(pages_tex)
         + "\n\\end{document}\n"
@@ -2286,21 +2467,26 @@ def build_vertical_calc_tex(problem: OpeProblem, show_answer: bool) -> str:
     rejects that combination before reaching here.
 
     For the blank (practice) variant, the `\\verticalcalcblank` macro layers
-    xlop's per-digit style hooks (resultstyle/carrystyle/intermediarystyle ->
-    `\\phantom`) on top of `\\verticalcalcsetup`, reserving the digits' layout
-    space without printing them; `\\longdivisioncalcblank` uses longdivision's
+    xlop's per-digit style hooks (resultstyle/carrystyle -> `\\phantom`, and
+    displayintermediary=None to drop mul's partial-product rows) on top of
+    `\\verticalcalcsetup`; `\\longdivisioncalcblank` uses longdivision's
     equivalent built-in `stage=0` (only the bracket/divisor/dividend shown).
+
+    Since issue #301 the body is emitted without the `\\[...\\]` display-math
+    wrapper (`\\verticalcalc` etc. now own the serif hissan font, the size
+    track and, for div, the `$...$` math mode); the number sits on its own line
+    above the block via build_vertical_ope_slot_content_tex's leading break.
     """
     if problem.operator == 'div':
         dividend_tex = format_decimal_value(problem.a, problem.a_decimal_places)
         divisor_tex = format_decimal_value(problem.b, problem.b_decimal_places)
         macro = '\\longdivisioncalc' if show_answer else '\\longdivisioncalcblank'
-        return f"\\[{macro}{{{dividend_tex}}}{{{divisor_tex}}}\\]"
+        return f"{macro}{{{dividend_tex}}}{{{divisor_tex}}}"
 
     a_tex = format_decimal_value(problem.a, problem.a_decimal_places)
     b_tex = format_decimal_value(problem.b, problem.b_decimal_places)
     command = XLOP_VERTICAL_COMMANDS[problem.operator]
-    op_call_tex = f"\\[\\{command}{{{a_tex}}}{{{b_tex}}}\\]"
+    op_call_tex = f"\\{command}{{{a_tex}}}{{{b_tex}}}"
     macro = '\\verticalcalc' if show_answer else '\\verticalcalcblank'
     return f"{macro}{{{op_call_tex}}}"
 
@@ -2334,6 +2520,10 @@ def build_vertical_ope_slot_content_tex(problem: OpeProblem, show_answer: bool) 
     `build_*_slot_content_tex` contract the presentation API and app.py's
     per-command routing expect, without duplicating the xlop / longdivision
     wrapping logic.
+
+    Since issue #301 build_content_area_slot_tex's ``grid_layout='tabular'``
+    branch owns putting the number on its own line above the block (in a
+    centred natural-width inner tabular), so this stays a plain delegation.
     """
     return build_vertical_calc_tex(problem, show_answer)
 

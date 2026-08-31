@@ -55,7 +55,7 @@ def test_content_format_macros_define_the_comparison_wrapper() -> None:
     # $\displaystyle ...$ + a display-fraction height strut for a uniform row
     # height across int/decimal/\frac operand mixes.
     assert (
-        "\\newcommand{\\compareeq}[1]{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}"
+        "\\newcommand{\\compareeq}[1]{\\problemfractionstyle{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}}"
         in macros
     )
 
@@ -65,7 +65,7 @@ def test_content_format_macros_leave_the_pattern_1_and_2_definitions_intact() ->
 
     assert "\\newcommand{\\opspace}{\\hspace{\\opspacewidth}}" in macros
     assert "\\newcommand{\\horizontaleq}[1]{$#1$}" in macros
-    assert "\\newcommand{\\fractioneq}[1]{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}" in macros
+    assert "\\newcommand{\\fractioneq}[1]{\\problemfractionstyle{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}}" in macros
     assert "\\newcommand{\\boxedblank}{\\fbox{\\rule[-0.2em]{0pt}{0.9em}\\hspace{\\boxedblankwidth}}}" in macros
     assert "\\newcommand{\\boxedblankeq}[1]{$#1\\vphantom{\\boxedblank}$}" in macros
 
@@ -198,7 +198,15 @@ def test_fraction_comparison_block_slot_equivalence_via_content_area_slot() -> N
     slot = tex_module.build_fraction_comparison_slot_content_tex(problem, show_answer=True)
     composed = tex_module.build_content_area_slot_tex(problem.index, slot, layout)
 
-    assert composed == f"\\makebox[0mm][l]{{{problem.index})}}{slot}"
+    # Since the issue #301 type scale the composed slot wraps the number and
+    # content in the \problemnumberstyle / \problemcontentstyle macros, so it
+    # deliberately diverges from the legacy "N) " + body prefix (asserted next).
+    assert composed == (
+        f"\\makebox[0mm][r]{{\\problemnumberstyle{{{problem.index})}}}}"
+        f"\\hspace{{{tex_module.CONTENT_AREA_NUMBER_GAP_MM}mm}}"
+        f"\\parbox[t]{{\\dimexpr\\linewidth-0mm-{tex_module.CONTENT_AREA_NUMBER_GAP_MM}mm\\relax}}"
+        f"{{\\raggedright\\problemcontentstyle{{{slot}}}\\par}}"
+    )
     assert tex_module.build_fraction_comparison_block_tex(problem, True) == f"{problem.index}) {slot}"
 
 

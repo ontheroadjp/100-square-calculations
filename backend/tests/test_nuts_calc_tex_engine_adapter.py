@@ -87,6 +87,27 @@ def test_lualatex_adapter_preamble_loads_fontspec_and_cjk_font() -> None:
     assert f"\\setmainfont{{{tex_module.LUALATEX_CJK_FONT_NAME}}}" in additions
 
 
+def test_lualatex_adapter_preamble_defines_a_serif_hissan_digit_font() -> None:
+    # issue #301: xlop typesets in text mode (-> Noto Sans) while longdivision
+    # is math mode (-> Computer Modern); \hissandigitfont gives both a shared
+    # serif face so add/sub/mul and div match on one sheet.
+    additions = tex_module.LuaLatexEngineAdapter().build_preamble_additions()
+    assert (
+        f"\\newfontfamily\\hissandigitfont{{{tex_module.HISSAN_DIGIT_FONT_NAME}}}"
+        in additions
+    )
+
+
+def test_lualatex_adapter_leaves_math_mode_on_the_engine_default() -> None:
+    # issue #301: matching the maths glyphs to Noto Sans (unicode-math) was
+    # tried and rejected -- Computer Modern reads as more refined at display
+    # size, and the type scale fixes the size imbalance on its own.
+    additions = tex_module.LuaLatexEngineAdapter().build_preamble_additions()
+    assert "unicode-math" not in additions
+    assert "\\setmathfont" not in additions
+
+
 def test_build_preamble_tex_splices_in_lualatex_adapter_preamble() -> None:
     tex = tex_module.build_preamble_tex("A4", tex_module.LuaLatexEngineAdapter())
-    assert "\\usepackage{fontspec}\n\\setmainfont{Noto Sans CJK JP}\n\\pagestyle{fancy}" in tex
+    assert "\\usepackage{fontspec}\n\\setmainfont{Noto Sans CJK JP}\n" in tex
+    assert tex.index("\\newfontfamily\\hissandigitfont") < tex.index("\\pagestyle{fancy}")

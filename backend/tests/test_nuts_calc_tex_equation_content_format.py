@@ -40,7 +40,7 @@ def test_content_format_macros_define_opspace_and_both_equation_wrappers() -> No
     )
     assert "\\newcommand{\\opspace}{\\hspace{\\opspacewidth}}" in macros
     assert "\\newcommand{\\horizontaleq}[1]{$#1$}" in macros
-    assert "\\newcommand{\\fractioneq}[1]{$\\displaystyle #1" in macros
+    assert "\\newcommand{\\fractioneq}[1]{\\problemfractionstyle{$\\displaystyle #1" in macros
 
 
 def test_content_format_macros_are_spliced_into_the_legacy_document_builder() -> None:

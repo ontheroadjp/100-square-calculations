@@ -91,18 +91,27 @@ def test_content_format_macros_define_the_written_calculation_components() -> No
         "hrulewidth=\\verticalrulewidth,vrulewidth=\\verticalrulewidth,"
         "decimalsepoffset=\\verticaldecimalsepoffset}}"
     ) in macros
+    # Since issue #301 the wrappers own the serif hissan font + size track, and
+    # the blank mul drops (not phantom-reserves) its partial-product rows.
     assert (
-        "\\newcommand{\\verticalcalc}[1]{\\begingroup\\verticalcalcsetup #1\\endgroup}"
+        "\\newcommand{\\verticalcalc}[1]{\\problemfractionstyle{\\hissandigitfont"
+        "\\begingroup\\verticalcalcsetup #1\\endgroup}}"
         in macros
     )
     assert (
-        "\\newcommand{\\verticalcalcblank}[1]{\\begingroup\\verticalcalcsetup"
-        "\\opset{resultstyle=\\phantom,carrystyle=\\phantom,intermediarystyle=\\phantom}"
-        "#1\\endgroup}"
+        "\\newcommand{\\verticalcalcblank}[1]{\\problemfractionstyle{\\hissandigitfont"
+        "\\begingroup\\verticalcalcsetup"
+        "\\opset{resultstyle=\\phantom,carrystyle=\\phantom,displayintermediary=None}"
+        "#1\\endgroup}}"
     ) in macros
-    assert "\\newcommand{\\longdivisioncalc}[2]{\\intlongdivision{#1}{#2}}" in macros
     assert (
-        "\\newcommand{\\longdivisioncalcblank}[2]{\\intlongdivision[stage=0]{#1}{#2}}"
+        "\\newcommand{\\longdivisioncalc}[2]{\\problemfractionstyle{\\hissandigitfont"
+        "$\\intlongdivision{#1}{#2}$}}"
+        in macros
+    )
+    assert (
+        "\\newcommand{\\longdivisioncalcblank}[2]{\\problemfractionstyle{\\hissandigitfont"
+        "$\\intlongdivision[stage=0]{#1}{#2}$}}"
         in macros
     )
 
@@ -124,12 +133,12 @@ def test_content_format_macros_leave_the_pattern_1_to_5_definitions_intact() -> 
 
     assert "\\newcommand{\\opspace}{\\hspace{\\opspacewidth}}" in macros
     assert "\\newcommand{\\horizontaleq}[1]{$#1$}" in macros
-    assert "\\newcommand{\\fractioneq}[1]{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}" in macros
+    assert "\\newcommand{\\fractioneq}[1]{\\problemfractionstyle{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}}" in macros
     assert "\\newcommand{\\boxedblank}{\\fbox{\\rule[-0.2em]{0pt}{0.9em}\\hspace{\\boxedblankwidth}}}" in macros
     assert "\\newcommand{\\boxedblankeq}[1]{$#1\\vphantom{\\boxedblank}$}" in macros
-    assert "\\newcommand{\\compareeq}[1]{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}" in macros
+    assert "\\newcommand{\\compareeq}[1]{\\problemfractionstyle{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}}" in macros
     assert "\\newcommand{\\arroweq}[1]{$#1$}" in macros
-    assert "\\newcommand{\\fractionarroweq}[1]{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}" in macros
+    assert "\\newcommand{\\fractionarroweq}[1]{\\problemfractionstyle{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}}" in macros
     assert "\\newcommand{\\stagedchaineq}[1]{$#1\\vphantom{0}$}" in macros
 
 
@@ -155,8 +164,8 @@ def test_build_vertical_calc_tex_add_sub_mul_wrap_the_xlop_call(operator: str, x
     filled = tex_module.build_vertical_calc_tex(problem, show_answer=True)
     blank = tex_module.build_vertical_calc_tex(problem, show_answer=False)
 
-    assert filled == f"\\verticalcalc{{\\[\\{xlop_cmd}{{123}}{{45}}\\]}}"
-    assert blank == f"\\verticalcalcblank{{\\[\\{xlop_cmd}{{123}}{{45}}\\]}}"
+    assert filled == f"\\verticalcalc{{\\{xlop_cmd}{{123}}{{45}}}}"
+    assert blank == f"\\verticalcalcblank{{\\{xlop_cmd}{{123}}{{45}}}}"
 
 
 def test_build_vertical_calc_tex_div_wraps_the_longdivision_call() -> None:
@@ -165,8 +174,8 @@ def test_build_vertical_calc_tex_div_wraps_the_longdivision_call() -> None:
     filled = tex_module.build_vertical_calc_tex(problem, show_answer=True)
     blank = tex_module.build_vertical_calc_tex(problem, show_answer=False)
 
-    assert filled == "\\[\\longdivisioncalc{144}{12}\\]"
-    assert blank == "\\[\\longdivisioncalcblank{144}{12}\\]"
+    assert filled == "\\longdivisioncalc{144}{12}"
+    assert blank == "\\longdivisioncalcblank{144}{12}"
 
 
 def test_build_vertical_block_tex_is_prefix_plus_number_free_body() -> None:
@@ -191,6 +200,28 @@ def test_build_vertical_ope_slot_content_tex_is_the_number_free_body() -> None:
             assert slot == tex_module.build_vertical_calc_tex(problem, show_answer)
             assert not slot.startswith("7)")
             assert "\\newline" not in slot
+
+
+def test_content_area_slot_tex_tabular_mode_centres_a_natural_width_hissan_unit() -> None:
+    """issue #301: for grid_layout='tabular' the number sits on its own line
+    above the block inside a natural-width inner tabular, so the grid column's
+    \\centering centres it (a full-width \\parbox would pin the narrow hissan
+    block to the column's left edge)."""
+    layout = tex_module.ContentAreaLayout(rows=2, columns=2)
+    body = "\\verticalcalc{\\opadd{48}{12}}"
+
+    slot = tex_module.build_content_area_slot_tex(3, body, layout, grid_layout="tabular")
+
+    assert slot == (
+        "\\begin{tabular}{@{}l@{}}"
+        "\\problemnumberstyle{3)}"
+        f"\\\\[{tex_module.CONTENT_FORMAT_HISSAN_SLOT_GAP_TEX}]"
+        f"{body}"
+        "\\end{tabular}"
+    )
+    # no full-width parbox / makebox gutter in tabular mode
+    assert "\\parbox" not in slot
+    assert "\\makebox[" not in slot
 
 
 # --- blanking mechanism is preserved ------------------------------------
@@ -229,7 +260,7 @@ def test_decimal_operands_are_formatted_the_same_way_as_the_horizontal_builder()
 
     body = tex_module.build_vertical_calc_tex(problem, show_answer=True)
 
-    assert body == "\\verticalcalc{\\[\\opadd{12.5}{3.75}\\]}"
+    assert body == "\\verticalcalc{\\opadd{12.5}{3.75}}"
 
 
 def test_mix_operator_is_never_seen_by_the_builder() -> None:
@@ -237,7 +268,7 @@ def test_mix_operator_is_never_seen_by_the_builder() -> None:
     # the builder only ever sees add/sub/mul/div.
     problem = _problem(a=8, b=3, operator="sub", c=5)
     body = tex_module.build_vertical_calc_tex(problem, show_answer=True)
-    assert body == "\\verticalcalc{\\[\\opsub{8}{3}\\]}"
+    assert body == "\\verticalcalc{\\opsub{8}{3}}"
 
 
 # --- real-PDF spot checks (both engines, all operators, blank + filled) --
@@ -326,7 +357,10 @@ def test_vertical_presentation_document_compiles_to_pdf(
         grid_layout="tabular",
     )
     assert "\\begin{tabular}" in tex
-    assert "\\makebox[" in tex
+    # the Layer-2 numbered slot was composed: since issue #301 the tabular-mode
+    # slot uses a natural-width inner tabular with the number on its own line
+    # (not a \makebox gutter -- that shape is inline-only).
+    assert "\\begin{tabular}{@{}l@{}}\\problemnumberstyle{" in tex
     out_pdf_path = tmp_path / f"{engine_name}_{show_answer}.pdf"
     engine_adapter.compile(tex, str(out_pdf_path))
     data = out_pdf_path.read_bytes()
