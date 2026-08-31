@@ -63,6 +63,20 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 
 `examplesFor` は `examplesByChoice(['carryMode'], …)` で3モード分の例題を出し分ける(`mixed` キーは静的 `examples` と一致)。`menu_g1_add_20_desc` も「繰り上がりのある、1桁どうしの足し算」から「20までの数の足し算…繰り上がりは『なし』『あり』『まぜる』から選べます」へ改訂した([[./strings.ja.json]] 参照)。
 
+### 1年生の引き算の繰り下がり設定(issue #307)
+
+上記の足し算(issue #305)と対称に、1年生の引き算ペアにも繰り下がり設定を配線した。
+
+`g1-sub-10`(「10までの引き算」)は非活性の `fixedSetting('carryMode', 'setting_borrow_label', 'setting_option_none', NONE_REQUIRED_MIXED_OPTIONS)`(`繰り下がり：なし` を選択表示)を持たせ、下記 `g1-sub-20` の選択可能コントロールと表示を揃える。表示と実体を一致させるため `buildParams` に `carry_mode: 'none'` を明示し、繰り下がりのある問題(旧例 `10-6` 等)を生成しないようにした(例も `8-3`/`9-4`/`7-2` に差し替え)。`a_min:2, a_max:10, b_min:1, b_max:9, result_max:10`。
+
+`g1-sub-20`(「20までの引き算」)は固定設定(旧 `carry_mode: 'required'` 固定)を廃し、`carrySetting('setting_borrow_label')`(choice、なし/あり/まぜる、既定 `'mixed'`)へ変更した。`buildParams(state)` は繰り下がりモードで被減数の下限を切り替える:
+
+- `required`(あり): `carry_mode: 'required'`、`a_min:10, a_max:19, b_min:1, b_max:9, result_max:20`。初出単元の趣旨(10のまとまりから借りる)に合わせ従来どおり 10〜19 の数からの繰り下がりに限定する。
+- `none`(なし): `carry_mode: 'none'`、`a_min:2, a_max:19, b_min:1, b_max:9, result_max:20`。被減数を 2..19 に広げることで、繰り下がりなし・答え20以下の制約下で 1桁・2桁の数からの引き算が自然に混在する。減数は1桁のまま。
+- `mixed`(まぜる): `carryModeField(['sub'], state)` が単一演算子のため `carry_mode` を省略し、`none` と同じ 2..19 / 1..9 のレンジを使う。
+
+`examplesFor` は `examplesByChoice(['carryMode'], …)` で3モード分の例題を出し分ける(`mixed` キーは静的 `examples` と一致)。`menu_g1_sub_20_desc` も「繰り下がりのある、10〜19の数からの引き算」から「20までの数の引き算…繰り下がりは『なし』『あり』『まぜる』から選べます」へ改訂した([[./strings.ja.json]] 参照)。
+
 ### 選択肢ヒント(`hintKey`)の汎用化
 
 旧実装は「値が `'mixed'` の設定は `setting_mixed_hint` を表示する」というハードコードだった。issue #132 でこれを `option.hintKey` ベースの汎用機構へ置き換え、`OPT_MIXED`(`carrySetting`/`remainderSetting`/`REDUCTION_OPTIONS` が共有)および `dan`/`NUMBER_KIND_OPTIONS`/`DENOMINATOR_CHOICE_OPTIONS` それぞれの独立した `'mixed'` オプションリテラル(計4箇所)に `hintKey: 'setting_mixed_hint'` を付与した。表示文言・表示条件(該当オプションが選択されているとき)は旧実装と同一で、挙動の変更はない。
@@ -73,7 +87,7 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 
 汎用ヘルパー `examplesByChoice(settingIds, byCombo)`(`drillPresets.js:66-72`)は、`settingIds`(例: `['carryMode']`、複数設定なら `['denominator', 'numberKind']`)の現在値を `_` 結合したキーで `byCombo` を引く `examplesFor(settingsState)` を返す。全設定が既定値 `'mixed'` のときのキー(単一なら `'mixed'`、複数なら `'mixed_mixed'` 等)は `byCombo` に必ず存在させる規約とし、未知の値・未設定のフォールバック先にも使う。これにより、既定状態(`state.settingsState` が全設定のデフォルト値)での `examplesFor()` の出力は必ず元の静的 `examples` と一致する(`drillPresets.test.js` の `examplesFor(defaultState) matches the static examples array` で保証)。
 
-`carryMode`/`remainderMode`/`denominator`/`numberKind`/`reduction`/`dan` を **choice型**で持つ24項目(issue #305 で `g1-add-20` が固定→choice 化され追加)にのみ `examplesFor` を付与した(`fixed`型でしか持たない項目や、対象外の choice 設定(`operators` 等)しか持たない項目は対象外で、静的 `examples` のまま)。`supportLevel: 'partial'` な項目(小数の carry/borrow 系)は `buildParams` が実際には該当設定を無視するため、`examplesFor` が返す内容は「その設定を選ぶとどんな問題を意味するか」を示す説明用であり、実際に生成される PDF の内容と一致する保証はない(該当箇所にコメントで明記)。6年生の reduction 系(6項目)は issue #114 で `full` に引き上げ済みのため、この注記は現在対象外(`reducible_mode` が実際に backend へ渡り、選択どおりの問題が生成される)。
+`carryMode`/`remainderMode`/`denominator`/`numberKind`/`reduction`/`dan` を **choice型**で持つ25項目(issue #305 で `g1-add-20`、issue #307 で `g1-sub-20` が固定→choice 化され順次追加)にのみ `examplesFor` を付与した(`fixed`型でしか持たない項目や、対象外の choice 設定(`operators` 等)しか持たない項目は対象外で、静的 `examples` のまま)。`supportLevel: 'partial'` な項目(小数の carry/borrow 系)は `buildParams` が実際には該当設定を無視するため、`examplesFor` が返す内容は「その設定を選ぶとどんな問題を意味するか」を示す説明用であり、実際に生成される PDF の内容と一致する保証はない(該当箇所にコメントで明記)。6年生の reduction 系(6項目)は issue #114 で `full` に引き上げ済みのため、この注記は現在対象外(`reducible_mode` が実際に backend へ渡り、選択どおりの問題が生成される)。
 
 ### 出題形式(式/筆算)設定(issue #134)
 
@@ -93,7 +107,7 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 
 対称項目 `g2-sub-2digit`(「100までの引き算」)は `a_max` (最小値からの引き算)が99以下のため、答えは構造上常に100未満になり、当初の答え上限バグはなかった。ただし issue #176 の追加調査で「Nまでの」系12項目のうち `result_max` を持たない7項目を洗い出し、うち小数第1位系2項目(`g3-decimal-addsub`/`g3-decimal-sub`、「まで」が桁数を指し無関係)を除く5項目(`g1-add-10`/`g1-add-20`/`g1-sub-10`/`g1-sub-20`/`g2-sub-2digit`)は、答えの上限がオペランド範囲や `carry_mode` の組み合わせからのみ暗黙に導かれ、コードを読むだけでは上限値が読み取れない状態だった。数学的には非拘束(生成される値の実測範囲を変えない)だが、`g2-sub-result-1000`/`g3-sub-result-10000` が既に採用している「対称性のため明示する」方針を踏襲し、この5項目にも自己文書化目的で `result_max` をそれぞれのタイトル上限値(`10`/`20`/`10`/`20`/`100`)で追加した。これにより「Nまでの」12項目のうち10項目が `result_max` で答え上限を明示し、残り2項目(decimal系)は意味論的に対象外であることが明確になった。
 
-なお `g1-add-20` はその後 issue #305 で繰り上がり設定が選択可能になり、`buildParams` が繰り上がりモードで加数レンジを切り替えるようになったが、`result_max: 20` は全モードで維持している(前述「1年生の足し算の繰り上がり設定(issue #305)」参照)。
+なお `g1-add-20` はその後 issue #305 で、`g1-sub-20` は issue #307 で繰り上がり/繰り下がり設定が選択可能になり、`buildParams` がモードでオペランドレンジを切り替えるようになったが、`result_max: 20` は全モードで維持している。`g1-sub-10` も issue #307 で `carry_mode: 'none'` を明示するようになったが `result_max: 10` は不変(前述「1年生の足し算の繰り上がり設定(issue #305)」「1年生の引き算の繰り下がり設定(issue #307)」参照)。
 
 ### 2年生「1,000までの足し算」「1,000までの引き算」
 

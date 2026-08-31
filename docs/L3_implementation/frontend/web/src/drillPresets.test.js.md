@@ -12,6 +12,8 @@
 
 1年生の足し算(issue #305)について、`g1-add-10` が `type: 'fixed'` の `carryMode` 設定(`valueLabelKey: 'setting_option_none'`)を持ち `buildParams()` が従来どおり `carry_mode: 'none'`/`result_max: 10` を返すこと、`g1-add-20` が `type: 'choice'` の `carryMode`(options `none`/`required`/`mixed`)を持ち、`required` は 1桁+1桁(`a_max: 9`)、`none`/`mixed` は加数 A を 1..19 に広げた混在レンジを `result_max: 20` で返すこと(`mixed` と無引数呼び出しは `carry_mode` を省略)を検証する。
 
+1年生の引き算(issue #307)について対称に、`g1-sub-10` が `type: 'fixed'` の `carryMode` 設定(`valueLabelKey: 'setting_option_none'`)を持ち `buildParams()` が `carry_mode: 'none'`/`result_max: 10` を返すこと(旧 `10-6` 型を生成しない)、`g1-sub-20` が `type: 'choice'` の `carryMode`(options `none`/`required`/`mixed`)を持ち、`required` は 10〜19 の被減数(`a_min: 10`、`carry_mode: 'required'`)、`none`/`mixed` は被減数を 2..19 に広げた混在レンジを `result_max: 20` で返すこと(`mixed` と無引数呼び出しは `carry_mode` を省略)を検証する。
+
 6年生の分数×整数・整数×分数・分数×分数・分数÷整数・整数÷分数・分数÷分数(計6項目、issue #114)について、`supportLevel` が `'full'` であること、および `reduction` 設定の `required`/`none`/`mixed` の各値と未設定時のフォールバック(`'mixed'`)が `buildParams(state).reducible_mode` へそのまま反映されることを検証する。
 
 ## 重要な設計判断とその理由
