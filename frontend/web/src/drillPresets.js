@@ -131,7 +131,10 @@ const grade1 = {
       pointKey: 'menu_g1_add_10_point',
       difficultyKey: 'difficulty_basic',
       examples: ['3+5', '6+4', '2+6'],
-      settings: [],
+      // carry is structurally impossible here (result_max 10), so the setting
+      // is inactive -- shown as 繰り上がり：なし for consistency with the
+      // selectable なし/あり/まぜる control on 20までの足し算 below (issue #305).
+      settings: [fixedSetting('carryMode', 'setting_carry_label', 'setting_option_none', NONE_REQUIRED_MIXED_OPTIONS)],
       supportLevel: 'full',
       latexOnly: true,
       buildParams: () => ({
@@ -145,14 +148,27 @@ const grade1 = {
       descKey: 'menu_g1_add_20_desc',
       pointKey: 'menu_g1_add_20_point',
       difficultyKey: 'difficulty_standard',
-      examples: ['8+7', '9+6', '5+8'],
-      settings: [fixedSetting('carryMode', 'setting_carry_label', 'setting_option_required', NONE_REQUIRED_MIXED_OPTIONS)],
+      examples: ['8+7', '12+5', '9+6'],
+      examplesFor: examplesByChoice(['carryMode'], {
+        none: ['3+4', '12+5', '10+8'],
+        required: ['8+7', '9+6', '5+8'],
+        mixed: ['8+7', '12+5', '9+6'],
+      }),
+      settings: [carrySetting('setting_carry_label')],
       supportLevel: 'full',
       latexOnly: true,
-      buildParams: () => ({
-        command_type: 'ope', operator: ['add'], carry_mode: 'required',
-        a_min: 1, a_max: 9, b_min: 1, b_max: 9, result_max: 20,
-      }),
+      // 'あり' keeps the classic 1桁+1桁 くり上がり (a_max 9). 'なし'/'まぜる'
+      // widen addend A to 1..19 so 1桁+1桁 and 2桁+1桁 problems coexist under
+      // the sum-20 ceiling (addend B stays 1 digit); carryModeField omits
+      // carry_mode entirely for the single-operator 'まぜる' case (issue #305).
+      buildParams: (state) => {
+        const carryMode = state?.carryMode ?? 'mixed';
+        const aMax = carryMode === 'required' ? 9 : 19;
+        return {
+          command_type: 'ope', operator: ['add'], ...carryModeField(['add'], state),
+          a_min: 1, a_max: aMax, b_min: 1, b_max: 9, result_max: 20,
+        };
+      },
     },
   ],
   subtraction: [

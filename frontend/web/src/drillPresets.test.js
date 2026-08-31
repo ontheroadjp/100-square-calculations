@@ -129,6 +129,46 @@ test('grade 1 and grade 2 basic drills declare a self-documenting result_max eve
   assert.equal(g2SubTwoDigit.buildParams({ carryMode: 'mixed' }).result_max, 100);
 });
 
+test('grade 1 addition drills expose a 繰り上がり setting (issue #305)', () => {
+  const grade1 = presetsByGrade[1];
+
+  const g1AddTen = grade1.addition.find((candidate) => candidate.id === 'g1-add-10');
+  const tenCarry = g1AddTen.settings.find((setting) => setting.id === 'carryMode');
+  assert.ok(tenCarry, 'g1-add-10 must carry a carryMode setting');
+  assert.equal(tenCarry.type, 'fixed');
+  assert.equal(tenCarry.valueLabelKey, 'setting_option_none');
+  assert.deepEqual(g1AddTen.buildParams(), {
+    command_type: 'ope', operator: ['add'], carry_mode: 'none',
+    a_min: 1, a_max: 9, b_min: 1, b_max: 9, result_max: 10,
+  });
+
+  const g1AddTwenty = grade1.addition.find((candidate) => candidate.id === 'g1-add-20');
+  const twentyCarry = g1AddTwenty.settings.find((setting) => setting.id === 'carryMode');
+  assert.ok(twentyCarry, 'g1-add-20 must carry a carryMode setting');
+  assert.equal(twentyCarry.type, 'choice');
+  assert.deepEqual(twentyCarry.options.map((option) => option.value), ['none', 'required', 'mixed']);
+
+  // あり: classic 1-digit + 1-digit carrying, capped at 20.
+  assert.deepEqual(g1AddTwenty.buildParams({ carryMode: 'required' }), {
+    command_type: 'ope', operator: ['add'], carry_mode: 'required',
+    a_min: 1, a_max: 9, b_min: 1, b_max: 9, result_max: 20,
+  });
+  // なし: no carrying, addend A widened to 1..19 so 1桁+1桁 and 2桁+1桁 mix.
+  assert.deepEqual(g1AddTwenty.buildParams({ carryMode: 'none' }), {
+    command_type: 'ope', operator: ['add'], carry_mode: 'none',
+    a_min: 1, a_max: 19, b_min: 1, b_max: 9, result_max: 20,
+  });
+  // まぜる: carry unconstrained (carry_mode omitted for the single operator),
+  // same widened addend-A range.
+  assert.deepEqual(g1AddTwenty.buildParams({ carryMode: 'mixed' }), {
+    command_type: 'ope', operator: ['add'],
+    a_min: 1, a_max: 19, b_min: 1, b_max: 9, result_max: 20,
+  });
+  // no-arg call (used by the result_max self-documentation test) defaults to まぜる.
+  assert.equal(g1AddTwenty.buildParams().result_max, 20);
+  assert.equal(g1AddTwenty.buildParams().carry_mode, undefined);
+});
+
 test('grade 2 basic addition caps the answer at 100 (issue #176)', () => {
   const item = presetsByGrade[2].addition.find((candidate) => candidate.id === 'g2-add-2digit');
 
