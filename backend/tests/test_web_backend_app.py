@@ -1215,7 +1215,7 @@ def test_generate_pdf_frac_uses_presentation_api_not_subprocess(client, monkeypa
     assert len(captured_tex) == 1
     # Pattern-1b bodies now go through the shared \fractioneq wrapper (issue
     # #264), which supplies \displaystyle in its \newcommand definition.
-    assert "\\newcommand{\\fractioneq}[1]{$\\displaystyle " in captured_tex[0]
+    assert "\\newcommand{\\fractioneq}[1]{\\problemfractionstyle{$\\displaystyle " in captured_tex[0]
     assert "\\fractioneq{\\frac" in captured_tex[0]
     assert three_layer_renderer.nuts_calc_tex.BLANK_ANSWER_TEX in captured_tex[0]
 
@@ -2266,7 +2266,10 @@ def test_generate_pdf_ope_vertical_uses_presentation_api_not_subprocess(client, 
     assert response.data.startswith(b"%PDF")
     assert len(captured_tex) == 1
     assert "\\verticalcalcblank{" in captured_tex[0]
-    assert "\\makebox[" in captured_tex[0]
+    # Layer-2 numbered slot composed (issue #301: tabular-mode slot is a
+    # natural-width inner tabular with the number on its own line, not a
+    # \makebox gutter).
+    assert "\\begin{tabular}{@{}l@{}}\\problemnumberstyle{" in captured_tex[0]
     assert "\\begin{tabular}" in captured_tex[0]
 
 

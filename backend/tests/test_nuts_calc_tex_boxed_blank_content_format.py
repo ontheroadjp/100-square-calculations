@@ -57,7 +57,7 @@ def test_content_format_macros_leave_the_pattern_1_definitions_intact() -> None:
 
     assert "\\newcommand{\\opspace}{\\hspace{\\opspacewidth}}" in macros
     assert "\\newcommand{\\horizontaleq}[1]{$#1$}" in macros
-    assert "\\newcommand{\\fractioneq}[1]{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}" in macros
+    assert "\\newcommand{\\fractioneq}[1]{\\problemfractionstyle{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}}" in macros
 
 
 def test_boxed_blank_operand_marker_is_the_macro_call_not_the_raw_box() -> None:

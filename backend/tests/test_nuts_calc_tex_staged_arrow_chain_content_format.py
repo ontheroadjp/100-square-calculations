@@ -74,10 +74,10 @@ def test_content_format_macros_leave_the_pattern_1_2_3_definitions_intact() -> N
 
     assert "\\newcommand{\\opspace}{\\hspace{\\opspacewidth}}" in macros
     assert "\\newcommand{\\horizontaleq}[1]{$#1$}" in macros
-    assert "\\newcommand{\\fractioneq}[1]{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}" in macros
+    assert "\\newcommand{\\fractioneq}[1]{\\problemfractionstyle{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}}" in macros
     assert "\\newcommand{\\boxedblank}{\\fbox{\\rule[-0.2em]{0pt}{0.9em}\\hspace{\\boxedblankwidth}}}" in macros
     assert "\\newcommand{\\boxedblankeq}[1]{$#1\\vphantom{\\boxedblank}$}" in macros
-    assert "\\newcommand{\\compareeq}[1]{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}" in macros
+    assert "\\newcommand{\\compareeq}[1]{\\problemfractionstyle{$\\displaystyle #1\\vphantom{\\frac{0}{0}}$}}" in macros
 
 
 def test_macros_are_spliced_into_the_legacy_document_builder() -> None:

@@ -537,8 +537,14 @@ def test_build_vertical_block_tex_div_uses_stage_zero_for_blank() -> None:
     assert '\\longdivisioncalcblank' not in filled_tex
     assert '\\longdivisioncalc{100}{10}' in filled_tex
     macros = tex_module.build_content_format_macros_tex()
-    assert '\\newcommand{\\longdivisioncalcblank}[2]{\\intlongdivision[stage=0]{#1}{#2}}' in macros
-    assert '\\newcommand{\\longdivisioncalc}[2]{\\intlongdivision{#1}{#2}}' in macros
+    assert (
+        '\\newcommand{\\longdivisioncalcblank}[2]{\\problemfractionstyle{\\hissandigitfont'
+        '$\\intlongdivision[stage=0]{#1}{#2}$}}' in macros
+    )
+    assert (
+        '\\newcommand{\\longdivisioncalc}[2]{\\problemfractionstyle{\\hissandigitfont'
+        '$\\intlongdivision{#1}{#2}$}}' in macros
+    )
 
 
 def test_build_vertical_block_tex_positions_operator_one_digit_left_of_numbers() -> None:
@@ -551,8 +557,8 @@ def test_build_vertical_block_tex_positions_operator_one_digit_left_of_numbers()
     # \opset group (voperator=bottom + columnwidth=\verticalcolumnwidth) instead
     # of an inline magic option string. The blank wrapper layers the per-digit
     # \phantom style hooks; the filled one does not.
-    assert filled_tex == '1)\\newline \\verticalcalc{\\[\\opadd{23}{4}\\]}'
-    assert blank_tex == '1)\\newline \\verticalcalcblank{\\[\\opadd{23}{4}\\]}'
+    assert filled_tex == '1)\\newline \\verticalcalc{\\opadd{23}{4}}'
+    assert blank_tex == '1)\\newline \\verticalcalcblank{\\opadd{23}{4}}'
     assert 'resultstyle=\\phantom' not in filled_tex
 
 

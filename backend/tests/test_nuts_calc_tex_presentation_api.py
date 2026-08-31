@@ -75,7 +75,7 @@ def test_build_presentation_document_tex_places_number_box_via_content_area_layo
     expected_slot = tex_module.build_content_area_slot_tex(
         problems[0].index, tex_module.build_com_slot_content_tex(problems[0], show_answer=True), layout
     )
-    assert "\\makebox[12mm][l]{5)}" in tex
+    assert "\\makebox[12mm][r]{\\problemnumberstyle{5)}}" in tex
     assert expected_slot in tex
 
 
@@ -250,7 +250,10 @@ def test_build_presentation_document_tex_numbered_layout_still_emits_number_box(
         show_answer=False,
     )
 
-    assert "\\makebox[8mm][l]{1)}" in tex
+    assert (
+        f"\\makebox[{tex_module.CONTENT_AREA_NUMBER_BOX_WIDTH_MM}mm][r]"
+        "{\\problemnumberstyle{1)}}" in tex
+    )
 
 
 @pytest.mark.skipif(

@@ -21,6 +21,22 @@ sys.path.insert(0, str(BACKEND_DIR))
 import nuts_calc_tex as tex_module  # noqa: E402
 
 
+def _expected_slot(index, body, *, width_mm=tex_module.CONTENT_AREA_NUMBER_BOX_WIDTH_MM):
+    """Composed Layer-2 slot form since the issue #301 type scale: the small
+    grey problem-number index right-aligned in a fixed-width box (so every
+    ``N)`` ends at the same x), a fixed gap, then the enlarged content
+    left-aligned in a \\parbox filling the rest of the column. The three add up
+    to \\linewidth so the grid's \\centering cannot shift them. Deliberately
+    diverges from the legacy ``"N) " + body`` prefix."""
+    gap_mm = tex_module.CONTENT_AREA_NUMBER_GAP_MM
+    return (
+        f"\\makebox[{width_mm}mm][r]{{\\problemnumberstyle{{{index})}}}}"
+        f"\\hspace{{{gap_mm}mm}}"
+        f"\\parbox[t]{{\\dimexpr\\linewidth-{width_mm}mm-{gap_mm}mm\\relax}}"
+        f"{{\\raggedright\\problemcontentstyle{{{body}}}\\par}}"
+    )
+
+
 def test_content_area_layout_presets_match_frontend_layout_by_problem_count() -> None:
     # Mirrors frontend/web/src/presetDetail.js's LAYOUT_BY_PROBLEM_COUNT.
     expected = {
@@ -48,7 +64,7 @@ def test_build_content_area_slot_tex_places_number_box_before_content() -> None:
 
     slot_tex = tex_module.build_content_area_slot_tex(3, "$1 + 2 = 3$", layout)
 
-    assert slot_tex == "\\makebox[8mm][l]{3)}$1 + 2 = 3$"
+    assert slot_tex == _expected_slot(3, "$1 + 2 = 3$")
 
 
 def test_build_content_area_slot_tex_uses_layout_number_box_width() -> None:
@@ -56,7 +72,7 @@ def test_build_content_area_slot_tex_uses_layout_number_box_width() -> None:
 
     slot_tex = tex_module.build_content_area_slot_tex(1, "$1 + 1 = 2$", layout)
 
-    assert slot_tex.startswith("\\makebox[12mm][l]{1)}")
+    assert slot_tex.startswith("\\makebox[12mm][r]{\\problemnumberstyle{1)}}")
 
 
 def test_build_content_area_tex_composes_one_block_per_slot_in_order() -> None:
@@ -69,8 +85,8 @@ def test_build_content_area_tex_composes_one_block_per_slot_in_order() -> None:
     )
 
     assert blocks == [
-        "\\makebox[8mm][l]{1)}$1 + 1 = 2$",
-        "\\makebox[8mm][l]{2)}$2 + 2 = 4$",
+        _expected_slot(1, "$1 + 1 = 2$"),
+        _expected_slot(2, "$2 + 2 = 4$"),
     ]
 
 
@@ -96,7 +112,7 @@ def test_build_com_slot_content_tex_matches_block_tex_body_when_composed() -> No
     slot_content_tex = tex_module.build_com_slot_content_tex(problem, show_answer=True)
     composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
 
-    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert composed_tex == _expected_slot(problem.index, slot_content_tex, width_mm=0)
     assert original_tex == f"{problem.index}) {slot_content_tex}"
 
 
@@ -181,7 +197,7 @@ def test_build_simplify_slot_content_tex_reconstructs_legacy_block_body() -> Non
     slot_content_tex = tex_module.build_simplify_slot_content_tex(problem, show_answer=True)
     composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
 
-    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert composed_tex == _expected_slot(problem.index, slot_content_tex, width_mm=0)
     assert tex_module.build_simplify_block_tex(problem, True) == (
         f"{problem.index}) {slot_content_tex}"
     )
@@ -219,7 +235,7 @@ def test_build_frac2dec_slot_content_tex_reconstructs_legacy_block_body() -> Non
     slot_content_tex = tex_module.build_frac2dec_slot_content_tex(problem, show_answer=True)
     composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
 
-    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert composed_tex == _expected_slot(problem.index, slot_content_tex, width_mm=0)
     assert tex_module.build_frac2dec_block_tex(problem, True) == (
         f"{problem.index}) {slot_content_tex}"
     )
@@ -257,7 +273,7 @@ def test_build_dec2frac_slot_content_tex_reconstructs_legacy_block_body() -> Non
     slot_content_tex = tex_module.build_dec2frac_slot_content_tex(problem, show_answer=True)
     composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
 
-    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert composed_tex == _expected_slot(problem.index, slot_content_tex, width_mm=0)
     assert tex_module.build_dec2frac_block_tex(problem, True) == (
         f"{problem.index}) {slot_content_tex}"
     )
@@ -293,7 +309,7 @@ def test_build_fraction_comparison_slot_content_tex_reconstructs_legacy_block_bo
     slot_content_tex = tex_module.build_fraction_comparison_slot_content_tex(problem, show_answer=True)
     composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
 
-    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert composed_tex == _expected_slot(problem.index, slot_content_tex, width_mm=0)
     assert tex_module.build_fraction_comparison_block_tex(problem, True) == (
         f"{problem.index}) {slot_content_tex}"
     )
@@ -333,7 +349,7 @@ def test_build_commondenom_slot_content_tex_reconstructs_legacy_block_body() -> 
     slot_content_tex = tex_module.build_commondenom_slot_content_tex(problem, show_answer=True)
     composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
 
-    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert composed_tex == _expected_slot(problem.index, slot_content_tex, width_mm=0)
     assert tex_module.build_commondenom_block_tex(problem, True) == (
         f"{problem.index}) {slot_content_tex}"
     )
@@ -353,7 +369,7 @@ def test_build_ope_slot_content_tex_matches_block_tex_body_when_composed() -> No
     slot_content_tex = tex_module.build_ope_slot_content_tex(problem, show_answer=True)
     composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
 
-    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert composed_tex == _expected_slot(problem.index, slot_content_tex, width_mm=0)
     assert original_tex == f"{problem.index}) {slot_content_tex}"
 
 
@@ -382,7 +398,7 @@ def test_build_kuku_slot_content_tex_matches_block_tex_body_when_composed() -> N
     slot_content_tex = tex_module.build_kuku_slot_content_tex(problem, show_answer=True)
     composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
 
-    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert composed_tex == _expected_slot(problem.index, slot_content_tex, width_mm=0)
     assert original_tex == f"{problem.index}) {slot_content_tex}"
 
 
@@ -411,7 +427,7 @@ def test_build_pi_slot_content_tex_matches_block_tex_body_when_composed() -> Non
     slot_content_tex = tex_module.build_pi_slot_content_tex(problem, show_answer=True)
     composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
 
-    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert composed_tex == _expected_slot(problem.index, slot_content_tex, width_mm=0)
     assert original_tex == f"{problem.index}) {slot_content_tex}"
 
 
@@ -457,7 +473,7 @@ def test_build_tree_ope_slot_content_tex_matches_block_tex_body_when_composed() 
     slot_content_tex = tex_module.build_tree_ope_slot_content_tex(problem, show_answer=True)
     composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
 
-    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert composed_tex == _expected_slot(problem.index, slot_content_tex, width_mm=0)
     assert original_tex == f"{problem.index}) {slot_content_tex}"
 
 
@@ -491,7 +507,7 @@ def test_build_multi_term_ope_slot_content_tex_matches_block_tex_body_when_compo
     slot_content_tex = tex_module.build_multi_term_ope_slot_content_tex(problem, show_answer=True)
     composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
 
-    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert composed_tex == _expected_slot(problem.index, slot_content_tex, width_mm=0)
     assert original_tex == f"{problem.index}) {slot_content_tex}"
 
 
@@ -532,7 +548,7 @@ def test_build_missing_value_slot_content_tex_matches_block_tex_body_when_compos
                 problem.index, slot_content_tex, layout
             )
 
-            assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+            assert composed_tex == _expected_slot(problem.index, slot_content_tex, width_mm=0)
             assert original_tex == f"{problem.index}) {slot_content_tex}"
 
 
@@ -573,7 +589,7 @@ def test_build_intermediate_ope_slot_content_tex_matches_block_tex_body_when_com
             problem.index, slot_content_tex, layout
         )
 
-        assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+        assert composed_tex == _expected_slot(problem.index, slot_content_tex, width_mm=0)
         assert original_tex == f"{problem.index}) {slot_content_tex}"
 
 
@@ -611,7 +627,7 @@ def test_build_mixed_slot_content_tex_matches_block_tex_body_when_composed() -> 
     slot_content_tex = tex_module.build_mixed_slot_content_tex(problem, show_answer=True)
     composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
 
-    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert composed_tex == _expected_slot(problem.index, slot_content_tex, width_mm=0)
     assert original_tex == f"{problem.index}) {slot_content_tex}"
 
 
@@ -642,7 +658,7 @@ def test_build_divfrac_slot_content_tex_matches_block_tex_body_when_composed() -
     slot_content_tex = tex_module.build_divfrac_slot_content_tex(problem, show_answer=True)
     composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
 
-    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert composed_tex == _expected_slot(problem.index, slot_content_tex, width_mm=0)
     assert original_tex == f"{problem.index}) {slot_content_tex}"
 
 
@@ -682,7 +698,7 @@ def test_build_lcm_slot_content_tex_matches_block_tex_body_when_composed() -> No
     slot_content_tex = tex_module.build_lcm_slot_content_tex(problem, show_answer=True)
     composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
 
-    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert composed_tex == _expected_slot(problem.index, slot_content_tex, width_mm=0)
     assert original_tex == f"{problem.index}) {slot_content_tex}"
 
 
@@ -713,7 +729,7 @@ def test_build_gcd_slot_content_tex_matches_block_tex_body_when_composed() -> No
     slot_content_tex = tex_module.build_gcd_slot_content_tex(problem, show_answer=True)
     composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
 
-    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert composed_tex == _expected_slot(problem.index, slot_content_tex, width_mm=0)
     assert original_tex == f"{problem.index}) {slot_content_tex}"
 
 
@@ -737,7 +753,7 @@ def test_build_evenodd_slot_content_tex_matches_block_tex_body_when_composed() -
     slot_content_tex = tex_module.build_evenodd_slot_content_tex(problem, show_answer=True)
     composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
 
-    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert composed_tex == _expected_slot(problem.index, slot_content_tex, width_mm=0)
     assert original_tex == f"{problem.index}) {slot_content_tex}"
 
 
@@ -767,7 +783,7 @@ def test_build_squ_slot_content_tex_matches_block_tex_body_when_composed() -> No
     slot_content_tex = tex_module.build_squ_slot_content_tex(problem, show_answer=True)
     composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
 
-    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert composed_tex == _expected_slot(problem.index, slot_content_tex, width_mm=0)
     assert original_tex == f"{problem.index}) {slot_content_tex}"
 
 
@@ -790,7 +806,7 @@ def test_build_multiples_slot_content_tex_matches_block_tex_body_when_composed()
     slot_content_tex = tex_module.build_multiples_slot_content_tex(problem, show_answer=True)
     composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
 
-    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert composed_tex == _expected_slot(problem.index, slot_content_tex, width_mm=0)
     assert original_tex == f"{problem.index}) {slot_content_tex}"
     assert tex_module.build_multiples_slot_content_tex(
         problem, show_answer=False
@@ -816,7 +832,7 @@ def test_build_divisors_slot_content_tex_matches_block_tex_body_when_composed() 
     slot_content_tex = tex_module.build_divisors_slot_content_tex(problem, show_answer=True)
     composed_tex = tex_module.build_content_area_slot_tex(problem.index, slot_content_tex, layout)
 
-    assert composed_tex == f"\\makebox[0mm][l]{{{problem.index})}}{slot_content_tex}"
+    assert composed_tex == _expected_slot(problem.index, slot_content_tex, width_mm=0)
     assert original_tex == f"{problem.index}) {slot_content_tex}"
     assert tex_module.build_divisors_slot_content_tex(
         problem, show_answer=False
