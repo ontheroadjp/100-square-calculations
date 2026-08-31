@@ -35,7 +35,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- a08546b feat(#309): add subtraction-only mode to grade 1 three-term drill
+- 2359c63 feat(#311): rename grade 2 three-term drill and add operator-mode selection
+- 3278705 feat(#309): add subtraction-only mode to grade 1 three-term drill (#310)
 - 571563e feat(#307): add borrow-mode settings to grade 1 subtraction drills (#308)
 - 2f6add1 feat(#305): add carry-mode settings to grade 1 addition drills (#306)
 - a4104ca feat(#303): render fixed drill settings as an inactive segmented control (#304)
@@ -44,4 +45,3 @@
 - 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)
 - 17070be #161 frontend/web: rebuild grade-3 addition/subtraction menu, retire fraction category, add four-operations drills (#162)
 - 9b366c1 #157 Add per-grade/per-drill header descriptions via a shared page header component (#160)
-- c9011f1 #154 Add grade-2 advanced subtraction capped at 1,000 (#159)

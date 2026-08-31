@@ -170,7 +170,8 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 
 ## 変更履歴（git log より自動生成）
 
-- a08546b feat(#309): add subtraction-only mode to grade 1 three-term drill
+- 2359c63 feat(#311): rename grade 2 three-term drill and add operator-mode selection
+- 3278705 feat(#309): add subtraction-only mode to grade 1 three-term drill (#310)
 - 571563e feat(#307): add borrow-mode settings to grade 1 subtraction drills (#308)
 - 2f6add1 feat(#305): add carry-mode settings to grade 1 addition drills (#306)
 - a4104ca feat(#303): render fixed drill settings as an inactive segmented control (#304)
@@ -179,4 +180,3 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 - d542657 #176 frontend/web: cap the answer for grade-1/2 basic ope drills at their titled bound (#178)
 - 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)
 - 5864f10 refactor: standardize drill preset problem-sample examples to 3 each
-- bc0eef5 #113 nuts_calc_tex.py: allow --carry-borrow with decimal operands (#164)
