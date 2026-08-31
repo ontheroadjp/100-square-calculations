@@ -31,7 +31,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- ab2d2fc feat(#305): add carry-mode settings to grade 1 addition drills
+- b77d1db feat(#307): add borrow-mode settings to grade 1 subtraction drills
+- 2f6add1 feat(#305): add carry-mode settings to grade 1 addition drills (#306)
 - a4104ca feat(#303): render fixed drill settings as an inactive segmented control (#304)
 - 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
 - d542657 #176 frontend/web: cap the answer for grade-1/2 basic ope drills at their titled bound (#178)
@@ -40,4 +41,3 @@
 - 9b366c1 #157 Add per-grade/per-drill header descriptions via a shared page header component (#160)
 - c9011f1 #154 Add grade-2 advanced subtraction capped at 1,000 (#159)
 - 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)
-- 06870bb #148 Add multiplication-table question-order options (#150)
