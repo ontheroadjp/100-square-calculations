@@ -539,7 +539,8 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴（git log より自動生成）
 
-- 1c5bc1c feat(#292): honor reverse equation side-swap in the 3-layer renderer for 99/squ/pi
+- b817e8d feat(#301): rebalance drill-sheet typography and rework hissan layout
+- eb3afe8 feat(#292): honor the reverse equation side-swap in the 3-layer renderer for 99/squ/pi (#295)
 - 230261c feat(#227): migrate ope --vertical to the internal presentation API
 - 3c55ae3 feat(#226): migrate ope --intermediate to the internal presentation API
 - 9b643c3 feat(#270): render the hundred-square grid table via shared TeX components (#280)
@@ -548,4 +549,3 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - 299eab0 feat(#267): render arrow-conversion content formats via shared TeX components (#279)
 - f794743 feat(#266): render the comparison content format via a shared TeX component (#277)
 - 64a8412 feat(#265): render the boxed-blank equation format via a shared TeX component (#276)
-- 4088bf0 feat(#264): render equation content formats via shared TeX components (#275)
