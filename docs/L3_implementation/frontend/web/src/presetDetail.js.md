@@ -57,7 +57,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- aca0f4f feat(#134): add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages
+- abd63f8 feat(#303): render fixed drill settings as an inactive segmented control
+- 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
 - 81e0b2d #139 frontend/web: switch preset detail example previews to live backend generation (#177)
 - 9b366c1 #157 Add per-grade/per-drill header descriptions via a shared page header component (#160)
 - 06870bb #148 Add multiplication-table question-order options (#150)
@@ -66,4 +67,3 @@
 - 1bb0f69 #126 frontend/web: add missing wireframe icons and unify page headers (#127)
 - 90864a5 refactor(frontend/web): replace hand-drawn nav/UI icons with Material Symbols
 - 9d1371e #100 frontend/web: rebuild preset detail settings/completion/preview screens (#118)
-- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

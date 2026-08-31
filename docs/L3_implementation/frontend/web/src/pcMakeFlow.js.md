@@ -43,6 +43,7 @@ wireframe の PC レイアウトはドリル設定とプレビューが同一画
 
 ## 変更履歴(git log より自動生成)
 
-- e8ce3ec feat(#146): add advanced difficulty badge
+- abd63f8 feat(#303): render fixed drill settings as an inactive segmented control
+- 85e58b1 #146 Add an advanced difficulty badge to the web UI (#147)
 - 1bb0f69 #126 frontend/web: add missing wireframe icons and unify page headers (#127)
 - 77f95b7 #101 frontend/web: add PC 4-column layout to the make flow (#119)

@@ -30,7 +30,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- aca0f4f feat(#134): add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages
+- abd63f8 feat(#303): render fixed drill settings as an inactive segmented control
+- 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
 - d38fa0d fix: prevent mid-problem line wrap in preset example chips
 - 06870bb #148 Add multiplication-table question-order options (#150)
 - 2d9ee47 #132 frontend/web: dynamic grade accent, KaTeX fraction examples, generalized setting hints, and move problem count into common settings on preset detail page (#136)
