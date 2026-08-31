@@ -29,7 +29,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- abd63f8 feat(#303): render fixed drill settings as an inactive segmented control
+- ab2d2fc feat(#305): add carry-mode settings to grade 1 addition drills
+- a4104ca feat(#303): render fixed drill settings as an inactive segmented control (#304)
 - 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
 - d542657 #176 frontend/web: cap the answer for grade-1/2 basic ope drills at their titled bound (#178)
 - 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)
@@ -38,4 +39,3 @@
 - c9011f1 #154 Add grade-2 advanced subtraction capped at 1,000 (#159)
 - 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)
 - 06870bb #148 Add multiplication-table question-order options (#150)
-- 85e58b1 #146 Add an advanced difficulty badge to the web UI (#147)

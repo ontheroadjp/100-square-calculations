@@ -140,7 +140,8 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 
 ## 変更履歴（git log より自動生成）
 
-- abd63f8 feat(#303): render fixed drill settings as an inactive segmented control
+- ab2d2fc feat(#305): add carry-mode settings to grade 1 addition drills
+- a4104ca feat(#303): render fixed drill settings as an inactive segmented control (#304)
 - 37a5a80 #230 Split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits (#236)
 - 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
 - d542657 #176 frontend/web: cap the answer for grade-1/2 basic ope drills at their titled bound (#178)
@@ -149,4 +150,3 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 - bc0eef5 #113 nuts_calc_tex.py: allow --carry-borrow with decimal operands (#164)
 - 56aa1d3 #110 Remove frontend/web's unused drillCatalog.js and dead filter-UI i18n keys (#163)
 - 17070be #161 frontend/web: rebuild grade-3 addition/subtraction menu, retire fraction category, add four-operations drills (#162)
-- 9b366c1 #157 Add per-grade/per-drill header descriptions via a shared page header component (#160)
