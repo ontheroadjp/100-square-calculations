@@ -16,6 +16,8 @@
 
 6年生の分数×整数・整数×分数・分数×分数・分数÷整数・整数÷分数・分数÷分数(計6項目、issue #114)について、`supportLevel` が `'full'` であること、および `reduction` 設定の `required`/`none`/`mixed` の各値と未設定時のフォールバック(`'mixed'`)が `buildParams(state).reducible_mode` へそのまま反映されることを検証する。
 
+1年生「3つの数の足し引き」(`g1-three-terms`、issue #309)について、`operators` choice が `add`/`sub`/`addsub` をこの順で持ち(`sub` = `setting_option_sub_only` を `add` と `addsub` の間に）既定が `addsub` であること、`buildParams({operators})` が `add`→`operator:['add']`、`sub`→`operator:['sub']`(いずれも `mixed_operators` なし)、`addsub` と無引数→`operator:['add','sub'], mixed_operators:true` を返すこと(3モードとも `terms:3, a_min:1,a_max:9,b_min:1,b_max:9`)、および `examplesFor` が `add`→加算のみ・`sub`→減算のみの例題を返し `addsub`・無引数は静的 `examples` と一致することを検証する。
+
 ## 重要な設計判断とその理由
 
 難易度は単なる文字列型ではなくUIの文言・CSS・互換分類と結び付く列挙値であるため、文字列であることだけでなく既知キーとの一致を検証する。
@@ -31,7 +33,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- b77d1db feat(#307): add borrow-mode settings to grade 1 subtraction drills
+- a08546b feat(#309): add subtraction-only mode to grade 1 three-term drill
+- 571563e feat(#307): add borrow-mode settings to grade 1 subtraction drills (#308)
 - 2f6add1 feat(#305): add carry-mode settings to grade 1 addition drills (#306)
 - a4104ca feat(#303): render fixed drill settings as an inactive segmented control (#304)
 - 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
@@ -40,4 +43,3 @@
 - 17070be #161 frontend/web: rebuild grade-3 addition/subtraction menu, retire fraction category, add four-operations drills (#162)
 - 9b366c1 #157 Add per-grade/per-drill header descriptions via a shared page header component (#160)
 - c9011f1 #154 Add grade-2 advanced subtraction capped at 1,000 (#159)
-- 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)

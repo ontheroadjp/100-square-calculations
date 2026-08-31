@@ -229,11 +229,23 @@ const grade1 = {
       pointKey: 'menu_g1_three_terms_point',
       difficultyKey: 'difficulty_advanced',
       examples: ['3+4+2', '8-3+4', '5+3-4'],
+      // operators has no 'mixed' value, so examplesByChoice (which keys its
+      // fallback on 'mixed') does not fit; spell the mapping out inline. The
+      // 'addsub' set stays identical to the static `examples` above.
+      examplesFor: (state) => {
+        const byChoice = {
+          add: ['3+4+2', '5+1+3', '2+6+1'],
+          sub: ['9-3-2', '8-1-4', '7-2-3'],
+          addsub: ['3+4+2', '8-3+4', '5+3-4'],
+        };
+        return byChoice[state?.operators ?? 'addsub'] ?? byChoice.addsub;
+      },
       settings: [
         {
           id: 'operators', labelKey: 'setting_operators_label', type: 'choice',
           options: [
             { value: 'add', labelKey: 'setting_option_add_only' },
+            { value: 'sub', labelKey: 'setting_option_sub_only' },
             { value: 'addsub', labelKey: 'setting_option_addsub_mixed' },
           ],
           default: 'addsub',
@@ -242,12 +254,15 @@ const grade1 = {
       supportLevel: 'full',
       latexOnly: true,
       buildParams: (state) => {
-        const addOnly = (state?.operators ?? 'addsub') === 'add';
+        // add / sub are single-operator (no mixed_operators flag); addsub is the
+        // two-operator chain that nuts_calc_tex.py needs --mixed-operators for.
+        const operatorByChoice = { add: ['add'], sub: ['sub'], addsub: ['add', 'sub'] };
+        const operator = operatorByChoice[state?.operators ?? 'addsub'] ?? operatorByChoice.addsub;
         return {
           command_type: 'ope',
-          operator: addOnly ? ['add'] : ['add', 'sub'],
+          operator,
           terms: 3,
-          ...(!addOnly && { mixed_operators: true }),
+          ...(operator.length > 1 && { mixed_operators: true }),
           a_min: 1, a_max: 9, b_min: 1, b_max: 9,
         };
       },

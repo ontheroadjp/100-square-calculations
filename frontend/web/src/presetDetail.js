@@ -9,15 +9,17 @@ const API_BASE = 'http://127.0.0.1:5000';
 export const PROBLEM_COUNT_OPTIONS = [10, 20, 30];
 const DEFAULT_PROBLEM_COUNT = 20;
 
-// Mirrors backend/problem_generation.py's UNSUPPORTED_OPE_VARIANT_FLAGS and its
-// `command_type != 'ope'` check (backend/problem_generation.py:28-35,58-68):
-// POST /generate-problems only supports plain two-term 'ope' arithmetic today.
-// Every other command_type (frac/mixed/gcd/... , issue #166's sub-issues) and
-// these ope variant flags raise a 500 there, so items using them keep the
-// static examples/examplesFor from #135 instead of calling the endpoint.
-const UNSUPPORTED_OPE_VARIANT_FLAGS = [
-  'use_parentheses', 'missing_value', 'terms', 'terms_min', 'terms_max', 'mixed_operators',
-];
+// Mirrors backend/problem_generation.py's `_determine_ope_variant` support and
+// its `command_type != 'ope'` check: POST /generate-problems serves plain
+// two-term 'ope' arithmetic and the flat multi-term family
+// (--terms/--terms-min/--terms-max/--mixed-operators, issue #168), both of
+// which buildLiveExampleStrings can render. `use_parentheses` (nested tree
+// shape) and `missing_value` (blank-operand shape) still return a shape the
+// chip formatter does not handle, so items using them keep the static
+// examples/examplesFor from #135 instead of calling the endpoint. Every
+// non-ope command_type (frac/mixed/gcd/..., issue #166's sub-issues) is
+// likewise out of scope.
+const UNSUPPORTED_OPE_VARIANT_FLAGS = ['use_parentheses', 'missing_value'];
 
 const LIVE_EXAMPLE_COUNT = 3; // matches the length of every static `examples` array
 const LIVE_EXAMPLE_FETCH_DEBOUNCE_MS = 300;
@@ -40,6 +42,15 @@ function formatDecimalValue(raw, places) {
 
 export function buildLiveExampleStrings(problems) {
   return problems.map((problem) => {
+    // Flat multi-term problems (--terms/--mixed-operators) carry operands[]/
+    // operators[] arrays instead of a/operator/b; their operands are always
+    // plain integers (the multi-term generator has no decimal path).
+    if (Array.isArray(problem.operands)) {
+      return problem.operands.reduce(
+        (expr, operand, i) => (i === 0 ? String(operand) : `${expr}${OPERATOR_SYMBOLS[problem.operators[i - 1]]}${operand}`),
+        '',
+      );
+    }
     const aStr = formatDecimalValue(problem.a, problem.a_decimal_places ?? 0);
     const bStr = formatDecimalValue(problem.b, problem.b_decimal_places ?? 0);
     return `${aStr}${OPERATOR_SYMBOLS[problem.operator]}${bStr}`;

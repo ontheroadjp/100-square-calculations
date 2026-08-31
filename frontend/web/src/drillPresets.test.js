@@ -210,6 +210,41 @@ test('grade 1 subtraction drills expose a 繰り下がり setting (issue #307)',
   assert.equal(g1SubTwenty.buildParams().carry_mode, undefined);
 });
 
+test('grade 1 three-term drill offers add-only / sub-only / mixed operators (issue #309)', () => {
+  const item = presetsByGrade[1]['four-operations'].find((candidate) => candidate.id === 'g1-three-terms');
+  assert.ok(item, 'g1-three-terms must exist');
+
+  const operators = item.settings.find((setting) => setting.id === 'operators');
+  assert.ok(operators, 'g1-three-terms must carry an operators setting');
+  assert.equal(operators.type, 'choice');
+  // 引き算のみ sits between 足し算のみ and 足し引き混合.
+  assert.deepEqual(operators.options.map((option) => option.value), ['add', 'sub', 'addsub']);
+  assert.deepEqual(
+    operators.options.map((option) => option.labelKey),
+    ['setting_option_add_only', 'setting_option_sub_only', 'setting_option_addsub_mixed'],
+  );
+  assert.equal(operators.default, 'addsub');
+
+  const base = { command_type: 'ope', terms: 3, a_min: 1, a_max: 9, b_min: 1, b_max: 9 };
+  // 足し算のみ: single operator, no mixed_operators.
+  assert.deepEqual(item.buildParams({ operators: 'add' }), { ...base, operator: ['add'] });
+  // 引き算のみ: single operator, no mixed_operators (mirrors the add-only branch).
+  assert.deepEqual(item.buildParams({ operators: 'sub' }), { ...base, operator: ['sub'] });
+  // 足し引き混合: two operators, mixed_operators enabled.
+  assert.deepEqual(item.buildParams({ operators: 'addsub' }), {
+    ...base, operator: ['add', 'sub'], mixed_operators: true,
+  });
+  // unset state falls back to the 足し引き混合 default.
+  assert.deepEqual(item.buildParams(), { ...base, operator: ['add', 'sub'], mixed_operators: true });
+
+  // example chips track the chosen operator mode.
+  assert.ok(typeof item.examplesFor === 'function', 'g1-three-terms must expose examplesFor');
+  assert.ok(item.examplesFor({ operators: 'add' }).every((example) => !example.includes('-')));
+  assert.ok(item.examplesFor({ operators: 'sub' }).every((example) => !example.includes('+')));
+  assert.deepEqual(item.examplesFor({ operators: 'addsub' }), item.examples);
+  assert.deepEqual(item.examplesFor(), item.examples);
+});
+
 test('grade 2 basic addition caps the answer at 100 (issue #176)', () => {
   const item = presetsByGrade[2].addition.find((candidate) => candidate.id === 'g2-add-2digit');
 
