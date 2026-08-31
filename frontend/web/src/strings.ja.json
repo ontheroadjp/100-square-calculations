@@ -139,6 +139,7 @@
   "setting_option_display_horizontal": "式",
   "setting_option_display_written": "筆算",
   "setting_option_add_only": "足し算のみ",
+  "setting_option_sub_only": "引き算のみ",
   "setting_option_addsub_mixed": "足し引き混合",
   "setting_option_addsubmul_mixed": "足し算・引き算・かけ算混合",
   "setting_option_present": "あり",

@@ -212,13 +212,19 @@ test('isLivePreviewSupported rejects every non-ope command_type', () => {
 });
 
 test('isLivePreviewSupported rejects every unsupported ope variant flag', () => {
-  for (const flag of ['use_parentheses', 'missing_value', 'terms', 'terms_min', 'terms_max', 'mixed_operators']) {
+  for (const flag of ['use_parentheses', 'missing_value']) {
     assert.equal(isLivePreviewSupported({ command_type: 'ope', [flag]: true }), false, flag);
   }
 });
 
+test('isLivePreviewSupported accepts the flat multi-term ope family (issue #309)', () => {
+  assert.equal(isLivePreviewSupported({ command_type: 'ope', terms: 3 }), true);
+  assert.equal(isLivePreviewSupported({ command_type: 'ope', operator: ['add', 'sub'], terms: 3, mixed_operators: true }), true);
+  assert.equal(isLivePreviewSupported({ command_type: 'ope', terms_min: 3, terms_max: 5 }), true);
+});
+
 test('isLivePreviewSupported ignores a falsy ope variant flag', () => {
-  assert.equal(isLivePreviewSupported({ command_type: 'ope', use_parentheses: false, terms: 0 }), true);
+  assert.equal(isLivePreviewSupported({ command_type: 'ope', use_parentheses: false, missing_value: false }), true);
 });
 
 test('isLivePreviewSupported handles a missing command_type without throwing', () => {
@@ -246,6 +252,15 @@ test('buildLiveExampleStrings inserts the decimal point from a_decimal_places/b_
 
 test('buildLiveExampleStrings treats a missing a_decimal_places/b_decimal_places as 0 (plain integer)', () => {
   assert.deepEqual(buildLiveExampleStrings([{ a: 3, operator: 'add', b: 5 }]), ['3+5']);
+});
+
+test('buildLiveExampleStrings joins flat multi-term operands/operators into one expression (issue #309)', () => {
+  const problems = [
+    { operands: [3, 4, 2], operators: ['add', 'add'], mixed: false },
+    { operands: [9, 3, 2], operators: ['sub', 'sub'], mixed: false },
+    { operands: [8, 3, 4], operators: ['sub', 'add'], mixed: true },
+  ];
+  assert.deepEqual(buildLiveExampleStrings(problems), ['3+4+2', '9-3-2', '8-3+4']);
 });
 
 test('buildWrittenAddSubMulTex builds a single right-aligned column for plain-integer operands', () => {

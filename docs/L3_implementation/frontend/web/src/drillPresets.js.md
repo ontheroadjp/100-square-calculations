@@ -10,7 +10,7 @@
 
 各 `menuItem` は以下を持つ:
 - `id`/`titleKey`/`descKey`/`pointKey`: 全データモデル中で `id` は一意。`pointKey`(issue #157)は `presetDetail.js` のページヘッダーに表示する、保護者向けの平易な指導ポイント文言(60件、[[./pageHeader.js]] 参照)。既存の `descKey` はもともと旧 `drillCatalog.js` 向けの機械的な説明文で、同ファイルが issue #110 で削除された現在は本データモデル上のフィールドとしてのみ残る(`drillPresets.test.js` が全項目に `descKey` が存在することを検証しているため、フィールド自体は残置)。`pointKey` とは用途・文体が異なる別系統のキーとして併存する。
-- `difficultyKey`: `difficulty_basic`/`difficulty_standard`/`difficulty_basic_standard`/`difficulty_advanced` のいずれか(ドキュメントの「難易度」列)。1年生の `g1-three-terms` は `difficulty_advanced` を使用する(`frontend/web/src/drillPresets.js:139-145`)。
+- `difficultyKey`: `difficulty_basic`/`difficulty_standard`/`difficulty_basic_standard`/`difficulty_advanced` のいずれか(ドキュメントの「難易度」列)。1年生の `g1-three-terms` は `difficulty_advanced` を使用する(`frontend/web/src/drillPresets.js:226-278`)。
 - `examples`: ドキュメントの「計算式の例」列をそのまま文字列配列にしたもの。
 - `settings`: ドキュメントの「固有設定」「選択可能値」「固定値・表示」を表す配列。各要素は `type: 'choice'`(セグメントコントロール、`options`/`default` を持つ)または `type: 'fixed'`(変更不可、`valueLabelKey` を持つ。`presetDetail.js`/`pcMakeFlow.js` は choice と同一形状の非活性 segmented control として描画する、issue #303)。`fixedSetting(id, labelKey, valueLabelKey, options?)` の第4引数 `options` は任意で、兄弟 choice の option リスト(carry/remainder は `NONE_REQUIRED_MIXED_OPTIONS`、denominator は `DENOMINATOR_CHOICE_OPTIONS`)を渡すと非活性 control に全 option を表示できる。省略時は単一 disabled ピル。`options` を渡す場合は `labelKey === valueLabelKey` の option が必ず1つ含まれる不変条件を `drillPresets.test.js` が検証する。`choice` の各 `option` は任意で `hintKey` を持てる(issue #132)。依存設定には任意の `disabledWhen(state)` と `resolveValue(state)` を持たせ、選択肢を表示したまま非活性化し、その間の表示・サマリ値を強制できる。`presetDetail.js` がこれらを解釈する([[./presetDetail.js]] 参照)。
 - `buildParams(state)`: `state`(`{ <settingId>: <選択値> }`、`choice` 設定のみキーを持つ)から `POST /generate-pdf` のリクエストボディを組み立てる関数。
@@ -77,6 +77,12 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 
 `examplesFor` は `examplesByChoice(['carryMode'], …)` で3モード分の例題を出し分ける(`mixed` キーは静的 `examples` と一致)。`menu_g1_sub_20_desc` も「繰り下がりのある、10〜19の数からの引き算」から「20までの数の引き算…繰り下がりは『なし』『あり』『まぜる』から選べます」へ改訂した([[./strings.ja.json]] 参照)。
 
+### 1年生「3つの数の足し引き」の演算モードに「引き算のみ」を追加(issue #309)
+
+`g1-three-terms`(`drillPresets.js:226-278`)の `operators` choice は元々 `add`(足し算のみ)/ `addsub`(足し引き混合、既定)の2値だった。両者の間に `sub`(引き算のみ、`setting_option_sub_only` = 「引き算のみ」)を追加し、既定は `addsub` のまま。`buildParams(state)` は `operatorByChoice = { add: ['add'], sub: ['sub'], addsub: ['add', 'sub'] }` で選択値を演算子配列へ写し、`operator.length > 1`(= `addsub`)のときだけ `mixed_operators: true` を付ける(単一演算子の `add`/`sub` は `mixed_operators` を出さない — [[../../../../backend/nuts_calc_tex.py]] の `--mixed-operators` は2演算子必須のため)。3モードとも `command_type: 'ope', terms: 3, a_min:1, a_max:9, b_min:1, b_max:9`。
+
+この項目は `terms: 3` を常に送るため、issue #139 の live プレビュー対象でもある(下記 [[./presetDetail.js]] の multi-term 対応、issue #309)。`examplesFor` は backend 未到達時のフォールバック用に付与し(live 対象項目でも `examplesFor` を併存させる `g1-add-20`/`g1-sub-20` と同じ方針)、`operators` を直に読むインライン関数とした — `examplesByChoice` は fallback キーを `'mixed'` 固定で組み立てるため、`'mixed'` 値を持たない `operators`(`add`/`sub`/`addsub`)には合わない(`g2-kuku` の `dan` と同じ理由でインライン化)。`addsub` の返す配列は静的 `examples` と同一。
+
 ### 選択肢ヒント(`hintKey`)の汎用化
 
 旧実装は「値が `'mixed'` の設定は `setting_mixed_hint` を表示する」というハードコードだった。issue #132 でこれを `option.hintKey` ベースの汎用機構へ置き換え、`OPT_MIXED`(`carrySetting`/`remainderSetting`/`REDUCTION_OPTIONS` が共有)および `dan`/`NUMBER_KIND_OPTIONS`/`DENOMINATOR_CHOICE_OPTIONS` それぞれの独立した `'mixed'` オプションリテラル(計4箇所)に `hintKey: 'setting_mixed_hint'` を付与した。表示文言・表示条件(該当オプションが選択されているとき)は旧実装と同一で、挙動の変更はない。
@@ -87,7 +93,7 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 
 汎用ヘルパー `examplesByChoice(settingIds, byCombo)`(`drillPresets.js:66-72`)は、`settingIds`(例: `['carryMode']`、複数設定なら `['denominator', 'numberKind']`)の現在値を `_` 結合したキーで `byCombo` を引く `examplesFor(settingsState)` を返す。全設定が既定値 `'mixed'` のときのキー(単一なら `'mixed'`、複数なら `'mixed_mixed'` 等)は `byCombo` に必ず存在させる規約とし、未知の値・未設定のフォールバック先にも使う。これにより、既定状態(`state.settingsState` が全設定のデフォルト値)での `examplesFor()` の出力は必ず元の静的 `examples` と一致する(`drillPresets.test.js` の `examplesFor(defaultState) matches the static examples array` で保証)。
 
-`carryMode`/`remainderMode`/`denominator`/`numberKind`/`reduction`/`dan` を **choice型**で持つ25項目(issue #305 で `g1-add-20`、issue #307 で `g1-sub-20` が固定→choice 化され順次追加)にのみ `examplesFor` を付与した(`fixed`型でしか持たない項目や、対象外の choice 設定(`operators` 等)しか持たない項目は対象外で、静的 `examples` のまま)。`supportLevel: 'partial'` な項目(小数の carry/borrow 系)は `buildParams` が実際には該当設定を無視するため、`examplesFor` が返す内容は「その設定を選ぶとどんな問題を意味するか」を示す説明用であり、実際に生成される PDF の内容と一致する保証はない(該当箇所にコメントで明記)。6年生の reduction 系(6項目)は issue #114 で `full` に引き上げ済みのため、この注記は現在対象外(`reducible_mode` が実際に backend へ渡り、選択どおりの問題が生成される)。
+`carryMode`/`remainderMode`/`denominator`/`numberKind`/`reduction`/`dan` を **choice型**で持つ25項目(issue #305 で `g1-add-20`、issue #307 で `g1-sub-20` が固定→choice 化され順次追加)、および issue #309 で `operators` の3値化に伴い `g1-three-terms` にのみ `examplesFor` を付与した(それ以外の `fixed`型でしか持たない項目や、`operators` を持つ他の項目は対象外で、静的 `examples` のまま)。`supportLevel: 'partial'` な項目(小数の carry/borrow 系)は `buildParams` が実際には該当設定を無視するため、`examplesFor` が返す内容は「その設定を選ぶとどんな問題を意味するか」を示す説明用であり、実際に生成される PDF の内容と一致する保証はない(該当箇所にコメントで明記)。6年生の reduction 系(6項目)は issue #114 で `full` に引き上げ済みのため、この注記は現在対象外(`reducible_mode` が実際に backend へ渡り、選択どおりの問題が生成される)。
 
 ### 出題形式(式/筆算)設定(issue #134)
 

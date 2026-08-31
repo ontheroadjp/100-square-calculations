@@ -8,6 +8,8 @@
 
 10/20/30問とrows/columnsの対応、完了サマリの構築、分数・帯分数・演算子を含む例題のKaTeX用セグメント変換、静的/動的例題の選択を検証する。依存するchoice設定については、`disabledWhen` が現在状態から非活性を判定し、`resolveValue` が非活性中の強制表示値を返すことを検証する。固定設定(`type: 'fixed'`、issue #303)については `fixedSettingView(setting)` が、兄弟 option リストありなら全 option と `labelKey === valueLabelKey` に一致する `selectedValue` を、なしなら単一合成ピルを返すこと、一致 option が無い場合は `selectedValue: null` になることを検証する。
 
+`isLivePreviewSupported()` は `command_type === 'ope'` かつ `use_parentheses`/`missing_value` を含まない場合に true を返す。issue #309 で `terms`/`terms_min`/`terms_max`/`mixed_operators` は非対応フラグから外れたため、これらを含む flat multi-term リクエストが true になること、`use_parentheses`/`missing_value` は依然 false になることを検証する。`buildLiveExampleStrings()` は 2項形式(`{a, operator, b, a_decimal_places, b_decimal_places}`)を小数点反映済みの `"a+b"` へ、flat multi-term 形式(`{operands, operators}`)を `operators` の記号で結合した `"3+4-2"` へ変換することを検証する。
+
 ## 重要な設計判断とその理由
 
 DOM環境やブラウザテスト依存を追加せず、状態依存ロジックを `selectedSettingValue`・`isSettingDisabled`・`fixedSettingView` に分離して直接テストする。HTMLの `disabled` 属性・`.segmented-control.is-disabled` の見た目はVite buildと実機確認で保証する。
