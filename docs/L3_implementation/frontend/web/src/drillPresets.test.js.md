@@ -18,6 +18,8 @@
 
 1年生「3つの数の足し引き」(`g1-three-terms`、issue #309)について、`operators` choice が `add`/`sub`/`addsub` をこの順で持ち(`sub` = `setting_option_sub_only` を `add` と `addsub` の間に）既定が `addsub` であること、`buildParams({operators})` が `add`→`operator:['add']`、`sub`→`operator:['sub']`(いずれも `mixed_operators` なし)、`addsub` と無引数→`operator:['add','sub'], mixed_operators:true` を返すこと(3モードとも `terms:3, a_min:1,a_max:9,b_min:1,b_max:9`)、および `examplesFor` が `add`→加算のみ・`sub`→減算のみの例題を返し `addsub`・無引数は静的 `examples` と一致することを検証する。
 
+2年生「3つの数の足し引き」(`g2-addsub-mixed`、issue #311)について、上記 `g1-three-terms` テストと対称の内容を検証する。`operators` choice の option 順序・labelKey・既定(`addsub`)、`buildParams` の3モード写像(`add`/`sub` は `mixed_operators` なし、`addsub` と無引数は `mixed_operators: true`。3モードとも `terms:3, a_min:1,a_max:99,b_min:1,b_max:99`、`result_max` なし)、`examplesFor` の演算子追従(`add`→`-` を含まない、`sub`→`+` を含まない、`addsub`・無引数は静的 `examples` と一致)を確認する。
+
 ## 重要な設計判断とその理由
 
 難易度は単なる文字列型ではなくUIの文言・CSS・互換分類と結び付く列挙値であるため、文字列であることだけでなく既知キーとの一致を検証する。

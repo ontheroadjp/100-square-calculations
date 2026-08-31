@@ -328,6 +328,41 @@ test('grade 3 advanced subtraction caps the answer at 10,000', () => {
   });
 });
 
+test('grade 2 three-term drill offers add-only / sub-only / mixed operators (issue #311)', () => {
+  const item = presetsByGrade[2]['four-operations'].find((candidate) => candidate.id === 'g2-addsub-mixed');
+  assert.ok(item, 'g2-addsub-mixed must exist');
+
+  const operators = item.settings.find((setting) => setting.id === 'operators');
+  assert.ok(operators, 'g2-addsub-mixed must carry an operators setting');
+  assert.equal(operators.type, 'choice');
+  // 引き算のみ sits between 足し算のみ and 足し引き混合 (mirrors g1-three-terms).
+  assert.deepEqual(operators.options.map((option) => option.value), ['add', 'sub', 'addsub']);
+  assert.deepEqual(
+    operators.options.map((option) => option.labelKey),
+    ['setting_option_add_only', 'setting_option_sub_only', 'setting_option_addsub_mixed'],
+  );
+  assert.equal(operators.default, 'addsub');
+
+  const base = { command_type: 'ope', terms: 3, a_min: 1, a_max: 99, b_min: 1, b_max: 99 };
+  // 足し算のみ: single operator, no mixed_operators.
+  assert.deepEqual(item.buildParams({ operators: 'add' }), { ...base, operator: ['add'] });
+  // 引き算のみ: single operator, no mixed_operators (mirrors the add-only branch).
+  assert.deepEqual(item.buildParams({ operators: 'sub' }), { ...base, operator: ['sub'] });
+  // 足し引き混合: two operators, mixed_operators enabled.
+  assert.deepEqual(item.buildParams({ operators: 'addsub' }), {
+    ...base, operator: ['add', 'sub'], mixed_operators: true,
+  });
+  // unset state falls back to the 足し引き混合 default.
+  assert.deepEqual(item.buildParams(), { ...base, operator: ['add', 'sub'], mixed_operators: true });
+
+  // example chips track the chosen operator mode.
+  assert.ok(typeof item.examplesFor === 'function', 'g2-addsub-mixed must expose examplesFor');
+  assert.ok(item.examplesFor({ operators: 'add' }).every((example) => !example.includes('-')));
+  assert.ok(item.examplesFor({ operators: 'sub' }).every((example) => !example.includes('+')));
+  assert.deepEqual(item.examplesFor({ operators: 'addsub' }), item.examples);
+  assert.deepEqual(item.examplesFor(), item.examples);
+});
+
 test('grade 3 four-operations mix caps the answer at 1,000 without multiplication', () => {
   const item = presetsByGrade[3]['four-operations'].find((candidate) => candidate.id === 'g3-addsub-mixed-result-1000');
 
