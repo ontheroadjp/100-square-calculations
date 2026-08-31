@@ -6,11 +6,11 @@
 
 ## 動作の概要
 
-10/20/30問とrows/columnsの対応、完了サマリの構築、分数・帯分数・演算子を含む例題のKaTeX用セグメント変換、静的/動的例題の選択を検証する。依存するchoice設定については、`disabledWhen` が現在状態から非活性を判定し、`resolveValue` が非活性中の強制表示値を返すことを検証する(`frontend/web/src/presetDetail.test.js:78-89`)。
+10/20/30問とrows/columnsの対応、完了サマリの構築、分数・帯分数・演算子を含む例題のKaTeX用セグメント変換、静的/動的例題の選択を検証する。依存するchoice設定については、`disabledWhen` が現在状態から非活性を判定し、`resolveValue` が非活性中の強制表示値を返すことを検証する。固定設定(`type: 'fixed'`、issue #303)については `fixedSettingView(setting)` が、兄弟 option リストありなら全 option と `labelKey === valueLabelKey` に一致する `selectedValue` を、なしなら単一合成ピルを返すこと、一致 option が無い場合は `selectedValue: null` になることを検証する。
 
 ## 重要な設計判断とその理由
 
-DOM環境やブラウザテスト依存を追加せず、状態依存ロジックを `selectedSettingValue` と `isSettingDisabled` に分離して直接テストする。HTMLの `disabled` 属性自体の描画はVite buildと実機確認で保証する。
+DOM環境やブラウザテスト依存を追加せず、状態依存ロジックを `selectedSettingValue`・`isSettingDisabled`・`fixedSettingView` に分離して直接テストする。HTMLの `disabled` 属性・`.segmented-control.is-disabled` の見た目はVite buildと実機確認で保証する。
 
 ## 統合ポイント
 

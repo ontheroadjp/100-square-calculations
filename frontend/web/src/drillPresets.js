@@ -31,16 +31,35 @@ const OPT_NONE = { value: 'none', labelKey: 'setting_option_none' };
 const OPT_REQUIRED = { value: 'required', labelKey: 'setting_option_required' };
 const OPT_MIXED = { value: 'mixed', labelKey: 'setting_option_mixed', hintKey: 'setting_mixed_hint' };
 
+// The なし/あり/まぜる option set, shared by carrySetting/remainderSetting
+// (choice) and their fixed counterparts so a fixed carry/remainder setting
+// can render the same segmented control in a disabled state (issue #303).
+const NONE_REQUIRED_MIXED_OPTIONS = [OPT_NONE, OPT_REQUIRED, OPT_MIXED];
+
+// Declared here (rather than next to denominatorParams below) so the fixed
+// denominator call sites in grade 3+ can reference it without a temporal
+// dead zone (issue #303).
+const DENOMINATOR_CHOICE_OPTIONS = [
+  { value: 'same', labelKey: 'setting_option_same_denominator' },
+  { value: 'different', labelKey: 'setting_option_different_denominator' },
+  { value: 'mixed', labelKey: 'setting_option_mixed', hintKey: 'setting_mixed_hint' },
+];
+
 function carrySetting(labelKey) {
-  return { id: 'carryMode', labelKey, type: 'choice', options: [OPT_NONE, OPT_REQUIRED, OPT_MIXED], default: 'mixed' };
+  return { id: 'carryMode', labelKey, type: 'choice', options: NONE_REQUIRED_MIXED_OPTIONS, default: 'mixed' };
 }
 
 function remainderSetting(labelKey) {
-  return { id: 'remainderMode', labelKey, type: 'choice', options: [OPT_NONE, OPT_REQUIRED, OPT_MIXED], default: 'mixed' };
+  return { id: 'remainderMode', labelKey, type: 'choice', options: NONE_REQUIRED_MIXED_OPTIONS, default: 'mixed' };
 }
 
-function fixedSetting(id, labelKey, valueLabelKey) {
-  return { id, labelKey, type: 'fixed', valueLabelKey };
+// options: optional sibling option list (same shape as a choice setting's
+// `options`). When present, the fixed setting renders as a full segmented
+// control with every option disabled and the one whose labelKey matches
+// valueLabelKey pre-selected; when absent, it renders as a single disabled
+// selected pill showing valueLabelKey (issue #303).
+function fixedSetting(id, labelKey, valueLabelKey, options = null) {
+  return { id, labelKey, type: 'fixed', valueLabelKey, ...(options && { options }) };
 }
 
 // nuts_calc_tex.py rejects --mixed-carry-borrow unless -o includes both
@@ -127,7 +146,7 @@ const grade1 = {
       pointKey: 'menu_g1_add_20_point',
       difficultyKey: 'difficulty_standard',
       examples: ['8+7', '9+6', '5+8'],
-      settings: [fixedSetting('carryMode', 'setting_carry_label', 'setting_option_required')],
+      settings: [fixedSetting('carryMode', 'setting_carry_label', 'setting_option_required', NONE_REQUIRED_MIXED_OPTIONS)],
       supportLevel: 'full',
       latexOnly: true,
       buildParams: () => ({
@@ -159,7 +178,7 @@ const grade1 = {
       pointKey: 'menu_g1_sub_20_point',
       difficultyKey: 'difficulty_standard',
       examples: ['13-7', '16-9', '15-8'],
-      settings: [fixedSetting('carryMode', 'setting_borrow_label', 'setting_option_required')],
+      settings: [fixedSetting('carryMode', 'setting_borrow_label', 'setting_option_required', NONE_REQUIRED_MIXED_OPTIONS)],
       supportLevel: 'full',
       latexOnly: true,
       buildParams: () => ({
@@ -446,7 +465,7 @@ const grade3 = {
       pointKey: 'menu_g3_fraction_add_point',
       difficultyKey: 'difficulty_basic',
       examples: ['2/7+3/7', '1/9+4/9', '3/8+2/8'],
-      settings: [fixedSetting('denominator', 'setting_denominator_label', 'setting_option_same_denominator')],
+      settings: [fixedSetting('denominator', 'setting_denominator_label', 'setting_option_same_denominator', DENOMINATOR_CHOICE_OPTIONS)],
       supportLevel: 'full',
       latexOnly: true,
       buildParams: () => ({
@@ -505,7 +524,7 @@ const grade3 = {
       pointKey: 'menu_g3_fraction_sub_point',
       difficultyKey: 'difficulty_basic',
       examples: ['6/7-2/7', '5/8-3/8', '7/9-4/9'],
-      settings: [fixedSetting('denominator', 'setting_denominator_label', 'setting_option_same_denominator')],
+      settings: [fixedSetting('denominator', 'setting_denominator_label', 'setting_option_same_denominator', DENOMINATOR_CHOICE_OPTIONS)],
       supportLevel: 'full',
       latexOnly: true,
       buildParams: () => ({
@@ -569,7 +588,7 @@ const grade3 = {
       pointKey: 'menu_g3_div_kuku_point',
       difficultyKey: 'difficulty_basic',
       examples: ['42÷7', '56÷8', '63÷9'],
-      settings: [fixedSetting('remainderMode', 'setting_remainder_label', 'setting_option_none')],
+      settings: [fixedSetting('remainderMode', 'setting_remainder_label', 'setting_option_none', NONE_REQUIRED_MIXED_OPTIONS)],
       supportLevel: 'full',
       latexOnly: true,
       buildParams: () => ({
@@ -584,7 +603,7 @@ const grade3 = {
       pointKey: 'menu_g3_div_remainder_point',
       difficultyKey: 'difficulty_standard',
       examples: ['47÷6', '29÷4', '53÷8'],
-      settings: [fixedSetting('remainderMode', 'setting_remainder_label', 'setting_option_required')],
+      settings: [fixedSetting('remainderMode', 'setting_remainder_label', 'setting_option_required', NONE_REQUIRED_MIXED_OPTIONS)],
       supportLevel: 'full',
       latexOnly: true,
       buildParams: () => ({
@@ -788,7 +807,7 @@ const grade4 = {
         mixed: ['3/8+2/8', '1 2/5+2 4/5', '2/9+5/9'],
       }),
       settings: [
-        fixedSetting('denominator', 'setting_denominator_label', 'setting_option_same_denominator'),
+        fixedSetting('denominator', 'setting_denominator_label', 'setting_option_same_denominator', DENOMINATOR_CHOICE_OPTIONS),
         { id: 'numberKind', labelKey: 'setting_number_kind_label', type: 'choice', options: NUMBER_KIND_OPTIONS, default: 'mixed' },
       ],
       supportLevel: 'full',
@@ -811,7 +830,7 @@ const grade4 = {
         mixed: ['7/9-4/9', '3 2/5-1 4/5', '6/8-3/8'],
       }),
       settings: [
-        fixedSetting('denominator', 'setting_denominator_label', 'setting_option_same_denominator'),
+        fixedSetting('denominator', 'setting_denominator_label', 'setting_option_same_denominator', DENOMINATOR_CHOICE_OPTIONS),
         { id: 'numberKind', labelKey: 'setting_number_kind_label', type: 'choice', options: NUMBER_KIND_OPTIONS, default: 'mixed' },
       ],
       supportLevel: 'full',
@@ -860,11 +879,8 @@ const grade4 = {
   ],
 };
 
-const DENOMINATOR_CHOICE_OPTIONS = [
-  { value: 'same', labelKey: 'setting_option_same_denominator' },
-  { value: 'different', labelKey: 'setting_option_different_denominator' },
-  { value: 'mixed', labelKey: 'setting_option_mixed', hintKey: 'setting_mixed_hint' },
-];
+// DENOMINATOR_CHOICE_OPTIONS is declared near the top of this file (issue
+// #303) so the fixed denominator call sites above can reference it.
 
 function denominatorParams(state) {
   const denominator = state?.denominator ?? 'mixed';

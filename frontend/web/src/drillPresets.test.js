@@ -83,6 +83,17 @@ test('every settings entry is a valid choice or fixed setting', () => {
         if (setting.resolveValue) assert.equal(typeof setting.resolveValue, 'function', `${context}: resolveValue must be a function`);
       } else if (setting.type === 'fixed') {
         assert.equal(typeof setting.valueLabelKey, 'string', `${context}: fixed setting must have valueLabelKey`);
+        if (setting.options !== undefined) {
+          assert.ok(Array.isArray(setting.options) && setting.options.length > 0, `${context}: fixed options must be a non-empty array when present`);
+          for (const option of setting.options) {
+            assert.equal(typeof option.value, 'string', `${context}: option value must be a string`);
+            assert.equal(typeof option.labelKey, 'string', `${context}: option labelKey must be a string`);
+          }
+          assert.ok(
+            setting.options.some((option) => option.labelKey === setting.valueLabelKey),
+            `${context}: valueLabelKey "${setting.valueLabelKey}" must match one of the sibling options`,
+          );
+        }
       } else {
         assert.fail(`${context}: unknown setting type "${setting.type}"`);
       }
