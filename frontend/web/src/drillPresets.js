@@ -433,13 +433,44 @@ const grade2 = {
       pointKey: 'menu_g2_addsub_mixed_point',
       difficultyKey: 'difficulty_standard',
       examples: ['35+24-18', '46-15+22', '18+37-9'],
-      settings: [fixedSetting('operators', 'setting_operators_label', 'setting_option_addsub_mixed')],
+      // operators has no 'mixed' value, so examplesByChoice (which keys its
+      // fallback on 'mixed') does not fit; spell the mapping out inline, same
+      // as g1-three-terms (issue #311 mirrors issue #309). The 'addsub' set
+      // stays identical to the static `examples` above.
+      examplesFor: (state) => {
+        const byChoice = {
+          add: ['35+24+18', '46+15+22', '18+37+9'],
+          sub: ['85-24-18', '76-15-22', '68-37-9'],
+          addsub: ['35+24-18', '46-15+22', '18+37-9'],
+        };
+        return byChoice[state?.operators ?? 'addsub'] ?? byChoice.addsub;
+      },
+      settings: [
+        {
+          id: 'operators', labelKey: 'setting_operators_label', type: 'choice',
+          options: [
+            { value: 'add', labelKey: 'setting_option_add_only' },
+            { value: 'sub', labelKey: 'setting_option_sub_only' },
+            { value: 'addsub', labelKey: 'setting_option_addsub_mixed' },
+          ],
+          default: 'addsub',
+        },
+      ],
       supportLevel: 'full',
       latexOnly: true,
-      buildParams: () => ({
-        command_type: 'ope', operator: ['add', 'sub'], terms: 3, mixed_operators: true,
-        a_min: 1, a_max: 99, b_min: 1, b_max: 99,
-      }),
+      buildParams: (state) => {
+        // add / sub are single-operator (no mixed_operators flag); addsub is the
+        // two-operator chain that nuts_calc_tex.py needs --mixed-operators for.
+        const operatorByChoice = { add: ['add'], sub: ['sub'], addsub: ['add', 'sub'] };
+        const operator = operatorByChoice[state?.operators ?? 'addsub'] ?? operatorByChoice.addsub;
+        return {
+          command_type: 'ope',
+          operator,
+          terms: 3,
+          ...(operator.length > 1 && { mixed_operators: true }),
+          a_min: 1, a_max: 99, b_min: 1, b_max: 99,
+        };
+      },
     },
     {
       id: 'g2-parentheses',

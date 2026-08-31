@@ -83,6 +83,16 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 
 この項目は `terms: 3` を常に送るため、issue #139 の live プレビュー対象でもある(下記 [[./presetDetail.js]] の multi-term 対応、issue #309)。`examplesFor` は backend 未到達時のフォールバック用に付与し(live 対象項目でも `examplesFor` を併存させる `g1-add-20`/`g1-sub-20` と同じ方針)、`operators` を直に読むインライン関数とした — `examplesByChoice` は fallback キーを `'mixed'` 固定で組み立てるため、`'mixed'` 値を持たない `operators`(`add`/`sub`/`addsub`)には合わない(`g2-kuku` の `dan` と同じ理由でインライン化)。`addsub` の返す配列は静的 `examples` と同一。
 
+### 2年生「3つの数の足し引き」の改称と演算モード追加(issue #311)
+
+issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテゴリの `g2-addsub-mixed` にもそのまま適用した。変更前は `settings: [fixedSetting('operators', 'setting_operators_label', 'setting_option_addsub_mixed')]`(非活性の「足し引き混合」固定表示)と、引数を取らない `buildParams: () => ({ operator: ['add', 'sub'], terms: 3, mixed_operators: true, … })` だった。
+
+- `settings` を `id: 'operators'` の choice(`add`/`sub`/`addsub`、`setting_option_add_only`/`setting_option_sub_only`/`setting_option_addsub_mixed`、既定 `addsub`)へ置き換えた。option の並びは `g1-three-terms` と揃え「引き算のみ」を中央に置く。
+- `buildParams(state)` は `operatorByChoice = { add: ['add'], sub: ['sub'], addsub: ['add', 'sub'] }` で選択値を演算子配列へ写し、`operator.length > 1`(= `addsub`)のときだけ `mixed_operators: true` を付ける([[../../../../backend/nuts_calc_tex.py]] の `--mixed-operators` は2演算子必須)。3モードとも `command_type: 'ope', terms: 3, a_min: 1, a_max: 99, b_min: 1, b_max: 99`(オペランドレンジは変更前と同一。`result_max` は元々持たず、そのまま)。
+- `examplesFor` をインライン `byChoice` 関数で付与した(`g1-three-terms` と同じ理由で `examplesByChoice` は使わない)。`addsub` は静的 `examples`(`['35+24-18', '46-15+22', '18+37-9']`)と同一。`sub` の例題(`['85-24-18', '76-15-22', '68-37-9']`)は途中結果がすべて正になる値を選定している(`evaluate_left_to_right` が引き算チェーンの各段を正に保つため生成自体は安全だが、フォールバック例題も同じ性質を満たすようオーサリングした)。
+- `id`(`g2-addsub-mixed`)・`difficultyKey`(`difficulty_standard`)・`supportLevel`(`full`)・`latexOnly`(`true`)・string キー名は据え置き、`strings.ja.json` 側で `menu_g2_addsub_mixed_title` を「3つの数の足し引き」へ改称した([[./strings.ja.json]] 参照)。
+- この項目も `terms: 3` を常に送るため live プレビュー対象で、`presetDetail.js` の変更は不要(#310 で multi-term の `operands[]/operators[]` 形状に対応済み、[[./presetDetail.js]] 参照)。
+
 ### 選択肢ヒント(`hintKey`)の汎用化
 
 旧実装は「値が `'mixed'` の設定は `setting_mixed_hint` を表示する」というハードコードだった。issue #132 でこれを `option.hintKey` ベースの汎用機構へ置き換え、`OPT_MIXED`(`carrySetting`/`remainderSetting`/`REDUCTION_OPTIONS` が共有)および `dan`/`NUMBER_KIND_OPTIONS`/`DENOMINATOR_CHOICE_OPTIONS` それぞれの独立した `'mixed'` オプションリテラル(計4箇所)に `hintKey: 'setting_mixed_hint'` を付与した。表示文言・表示条件(該当オプションが選択されているとき)は旧実装と同一で、挙動の変更はない。
@@ -93,7 +103,7 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 
 汎用ヘルパー `examplesByChoice(settingIds, byCombo)`(`drillPresets.js:66-72`)は、`settingIds`(例: `['carryMode']`、複数設定なら `['denominator', 'numberKind']`)の現在値を `_` 結合したキーで `byCombo` を引く `examplesFor(settingsState)` を返す。全設定が既定値 `'mixed'` のときのキー(単一なら `'mixed'`、複数なら `'mixed_mixed'` 等)は `byCombo` に必ず存在させる規約とし、未知の値・未設定のフォールバック先にも使う。これにより、既定状態(`state.settingsState` が全設定のデフォルト値)での `examplesFor()` の出力は必ず元の静的 `examples` と一致する(`drillPresets.test.js` の `examplesFor(defaultState) matches the static examples array` で保証)。
 
-`carryMode`/`remainderMode`/`denominator`/`numberKind`/`reduction`/`dan` を **choice型**で持つ25項目(issue #305 で `g1-add-20`、issue #307 で `g1-sub-20` が固定→choice 化され順次追加)、および issue #309 で `operators` の3値化に伴い `g1-three-terms` にのみ `examplesFor` を付与した(それ以外の `fixed`型でしか持たない項目や、`operators` を持つ他の項目は対象外で、静的 `examples` のまま)。`supportLevel: 'partial'` な項目(小数の carry/borrow 系)は `buildParams` が実際には該当設定を無視するため、`examplesFor` が返す内容は「その設定を選ぶとどんな問題を意味するか」を示す説明用であり、実際に生成される PDF の内容と一致する保証はない(該当箇所にコメントで明記)。6年生の reduction 系(6項目)は issue #114 で `full` に引き上げ済みのため、この注記は現在対象外(`reducible_mode` が実際に backend へ渡り、選択どおりの問題が生成される)。
+`carryMode`/`remainderMode`/`denominator`/`numberKind`/`reduction`/`dan` を **choice型**で持つ25項目(issue #305 で `g1-add-20`、issue #307 で `g1-sub-20` が固定→choice 化され順次追加)、および issue #309 で `operators` の3値化に伴い `g1-three-terms` に、issue #311 で同じく `operators` を choice 化した `g2-addsub-mixed` に `examplesFor` を付与した(それ以外の `fixed`型でしか持たない項目は対象外で、静的 `examples` のまま)。`supportLevel: 'partial'` な項目(小数の carry/borrow 系)は `buildParams` が実際には該当設定を無視するため、`examplesFor` が返す内容は「その設定を選ぶとどんな問題を意味するか」を示す説明用であり、実際に生成される PDF の内容と一致する保証はない(該当箇所にコメントで明記)。6年生の reduction 系(6項目)は issue #114 で `full` に引き上げ済みのため、この注記は現在対象外(`reducible_mode` が実際に backend へ渡り、選択どおりの問題が生成される)。
 
 ### 出題形式(式/筆算)設定(issue #134)
 
@@ -130,7 +140,7 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 このブランチが main から分岐した後に issue #157/#160(全項目への `pointKey` 必須化)が main へ先に merge されたため、`g3-add-result-10000`/`g3-sub-result-10000`/`g3-addsub-mixed-result-1000`/`g3-parentheses-mul-result-1000` の4新規項目には `pointKey` と対応する `strings.ja.json` の文言を追加で用意し、`g3-fraction-add`/`g3-fraction-sub` は main 側で追加された既存の `pointKey`(`menu_g3_fraction_add_point`/`menu_g3_fraction_sub_point`)を維持したまま移動した(マージコンフリクト解消、`frontend/web/src/drillPresets.js` 全体で issue #161 と #157/#160 の変更を統合)。
 
 3年生に新設した `four-operations` カテゴリ(`frontend/web/src/drillPresets.js:558-592`)は2項目を持つ:
-- `g3-addsub-mixed-result-1000`: 加減算のみの3項混合(`terms:3, mixed_operators:true`)で `a_min:1, a_max:999, b_min:1, b_max:999, result_max: 1000`。2年生の同名項目(`g2-addsub-mixed`)と異なり `result_max` を持つ点が唯一の差(掛け算は含まない)。
+- `g3-addsub-mixed-result-1000`: 加減算のみの3項混合(`terms:3, mixed_operators:true`)で `a_min:1, a_max:999, b_min:1, b_max:999, result_max: 1000`。2年生の対応項目(`g2-addsub-mixed`、issue #311 で「3つの数の足し引き」へ改称・演算モード選択化)と異なり `result_max` を持ち、演算モードは足し引き混合固定(掛け算は含まない)。
 - `g3-parentheses-mul-result-1000`: 加減乗の3項混合に `use_parentheses: true` を加え、掛け算オペランドを2桁までに揃えるため `a_min:1, a_max:99, b_min:1, b_max:99`(2年生の `g2-parentheses` と同様に `a_min`/`a_max` 形式を使う。4年生の `g4-parentheses` が使う `a_digits`/`b_digits` 形式とは異なる)、`result_max: 1000` で答えの上限も揃える。
 
 `catalog.js` の `CATEGORY_ORDER` は既に `four-operations` を `fraction` の直後(実質最後尾側)に固定しているため、3年生に `four-operations` カテゴリキーを追加するだけで学年ページ最下部にセクションが自動的に現れる(`catalog.js` 自体は無変更)。
@@ -160,7 +170,8 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 
 ## 変更履歴（git log より自動生成）
 
-- a08546b feat(#309): add subtraction-only mode to grade 1 three-term drill
+- 2359c63 feat(#311): rename grade 2 three-term drill and add operator-mode selection
+- 3278705 feat(#309): add subtraction-only mode to grade 1 three-term drill (#310)
 - 571563e feat(#307): add borrow-mode settings to grade 1 subtraction drills (#308)
 - 2f6add1 feat(#305): add carry-mode settings to grade 1 addition drills (#306)
 - a4104ca feat(#303): render fixed drill settings as an inactive segmented control (#304)
@@ -169,4 +180,3 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 - d542657 #176 frontend/web: cap the answer for grade-1/2 basic ope drills at their titled bound (#178)
 - 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)
 - 5864f10 refactor: standardize drill preset problem-sample examples to 3 each
-- bc0eef5 #113 nuts_calc_tex.py: allow --carry-borrow with decimal operands (#164)
