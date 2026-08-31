@@ -159,6 +159,18 @@ python3 nuts_calc_tex.py A4 frac -o mul --numerator-digits 1 --denominator-digit
   --proper-operands --require-reducible --out-file reducible-fractions.pdf
 ```
 
+For `ope -o mul` with asymmetric decimal places (`--a-decimal-places` !=
+`--b-decimal-places`), add `--mixed-decimal-operand-order` to randomly swap
+which operand carries the decimal per problem, so one worksheet mixes
+"decimal x integer" and "integer x decimal". Multiplication is commutative, so
+the product is unchanged; the flag is rejected for any other command or
+operator, or when the two decimal-place counts are equal.
+
+```bash
+python3 nuts_calc_tex.py A4 ope -o mul --a-digits 2 --b-digits 1 \
+  --a-decimal-places 1 --mixed-decimal-operand-order --out-file mixed-decimal-order.pdf
+```
+
 Use `--with-name-field` to print a `Name: ___` line in the page header (a
 common setting shared across all twenty commands, not just `ope`). Since plain
 `pdflatex` has no CJK font support, the label is rendered as English `Name:`

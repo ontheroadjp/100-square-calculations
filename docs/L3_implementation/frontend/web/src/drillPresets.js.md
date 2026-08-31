@@ -183,7 +183,8 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 
 ## 変更履歴（git log より自動生成）
 
-- 2359c63 feat(#311): rename grade 2 three-term drill and add operator-mode selection
+- f5656c4 feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication
+- 7334a3a feat(#311): rename grade 2 three-term drill and add operator-mode selection (#312)
 - 3278705 feat(#309): add subtraction-only mode to grade 1 three-term drill (#310)
 - 571563e feat(#307): add borrow-mode settings to grade 1 subtraction drills (#308)
 - 2f6add1 feat(#305): add carry-mode settings to grade 1 addition drills (#306)
@@ -192,4 +193,3 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 - 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
 - d542657 #176 frontend/web: cap the answer for grade-1/2 basic ope drills at their titled bound (#178)
 - 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)
-- 5864f10 refactor: standardize drill preset problem-sample examples to 3 each

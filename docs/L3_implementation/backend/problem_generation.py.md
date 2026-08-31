@@ -129,7 +129,8 @@ issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマ�
 
 ## 変更履歴(git log より自動生成)
 
-- 21b1a66 feat(#229): migrate the 100 hundred-square command to the internal presentation API
+- f5656c4 feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication
+- 7585ce7 feat(#229): migrate the 100 hundred-square command to the internal presentation API (#271)
 - c952709 feat(#228): expose the 100 hundred-square table via the /generate-problems JSON contract (#262)
 - 40ad870 #209 generate-pdf: migrate squ to the internal presentation API (#243)
 - 9f75d13 feat(#210): migrate generate-pdf pi command to internal presentation API
@@ -142,4 +143,3 @@ issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマ�
 - 490f44b #171 compare: support int/decimal/fraction kind mixing, expose via POST /generate-problems (#192)
 - 20b9462 #170 backend: support frac/mixed in POST /generate-problems (#191)
 - 2ebbe96 #169 problem_generation.py: support com/99/aBc/squ/pi (and 100's disposition) (#190)
-- caedeac #168 problem_generation.py: support ope --use-parentheses/--missing-value/--terms variants (#189)

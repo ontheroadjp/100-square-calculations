@@ -48,6 +48,7 @@
 
 ## 変更履歴（git log より自動生成）
 
+- f5656c4 feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication
 - 3b6bc6c refactor(#230): split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits
 - 490f44b #171 compare: support int/decimal/fraction kind mixing, expose via POST /generate-problems (#192)
 - 19fc419 test: default nuts_calc_tex.py E2E fixture to pdflatex, not lualatex
@@ -57,4 +58,3 @@
 - bc0eef5 #113 nuts_calc_tex.py: allow --carry-borrow with decimal operands (#164)
 - e8db9d7 #112 nuts_calc_tex.py: add mixed-number (帯分数) display support to the frac command (#125)
 - 241b2e1 #96 nuts_calc_tex.py: add fraction/decimal conversion drill commands (#108)
-- a6c52f9 #95 nuts_calc_tex.py: add LCM and GCD pair-number drill commands (#107)
