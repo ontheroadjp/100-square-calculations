@@ -111,6 +111,32 @@ def test_build_command_translates_boolean_flags() -> None:
     assert "--with-bottom-answer" in command
 
 
+def test_build_command_translates_mixed_decimal_operand_order() -> None:
+    params = {
+        "paper_size": "A4",
+        "command_type": "ope",
+        "operator": ["mul"],
+        "a_decimal_places": 1,
+        "mixed_decimal_operand_order": True,
+    }
+    command = renderers.build_command("latex", params, "out.pdf")
+    assert "--mixed-decimal-operand-order" in command
+
+
+def test_build_command_omits_mixed_decimal_operand_order_when_falsy() -> None:
+    for value in (False, None):
+        params = {
+            "paper_size": "A4",
+            "command_type": "ope",
+            "operator": ["mul"],
+            "a_decimal_places": 1,
+        }
+        if value is not None:
+            params["mixed_decimal_operand_order"] = value
+        command = renderers.build_command("latex", params, "out.pdf")
+        assert "--mixed-decimal-operand-order" not in command
+
+
 def test_build_command_passes_operator_list_once() -> None:
     params = {
         "paper_size": "A4",

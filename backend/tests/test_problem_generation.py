@@ -70,6 +70,24 @@ def test_generate_problems_ope_ignores_a_value() -> None:
         assert 1 <= problem["b"] <= 9
 
 
+def test_generate_problems_mixed_decimal_operand_order_mixes_both_orientations() -> None:
+    import random
+
+    random.seed(1)
+    params = {
+        "paper_size": "A4", "command_type": "ope", "num": 40,
+        "a_digits": 2, "b_digits": 1, "operator": ["mul"],
+        "a_decimal_places": 1, "mixed_decimal_operand_order": True,
+    }
+    problems = problem_generation.generate_problems(params)
+    assert len(problems) == 40
+    seen_orders = {(p["a_decimal_places"], p["b_decimal_places"]) for p in problems}
+    assert seen_orders == {(1, 0), (0, 1)}
+    for problem in problems:
+        assert {problem["a_decimal_places"], problem["b_decimal_places"]} == {0, 1}
+        assert problem["a"] * problem["b"] == problem["result"]
+
+
 def test_generate_problems_intermediate_includes_memo() -> None:
     params = {
         "paper_size": "A4", "command_type": "ope", "num": 5,
