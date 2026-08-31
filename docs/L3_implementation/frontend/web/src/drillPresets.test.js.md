@@ -10,6 +10,8 @@
 
 2年生の発展足し算・発展引き算(issue #154)について、それぞれ addition/subtraction カテゴリに存在し、`difficulty_advanced`/`latexOnly: true` を持ち、既定の「まぜる」状態から1〜999のオペランド範囲と `result_max: 1000` を生成することを検証する(`frontend/web/src/drillPresets.test.js:100-132`)。
 
+1年生の足し算(issue #305)について、`g1-add-10` が `type: 'fixed'` の `carryMode` 設定(`valueLabelKey: 'setting_option_none'`)を持ち `buildParams()` が従来どおり `carry_mode: 'none'`/`result_max: 10` を返すこと、`g1-add-20` が `type: 'choice'` の `carryMode`(options `none`/`required`/`mixed`)を持ち、`required` は 1桁+1桁(`a_max: 9`)、`none`/`mixed` は加数 A を 1..19 に広げた混在レンジを `result_max: 20` で返すこと(`mixed` と無引数呼び出しは `carry_mode` を省略)を検証する。
+
 6年生の分数×整数・整数×分数・分数×分数・分数÷整数・整数÷分数・分数÷分数(計6項目、issue #114)について、`supportLevel` が `'full'` であること、および `reduction` 設定の `required`/`none`/`mixed` の各値と未設定時のフォールバック(`'mixed'`)が `buildParams(state).reducible_mode` へそのまま反映されることを検証する。
 
 ## 重要な設計判断とその理由
@@ -27,7 +29,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- abd63f8 feat(#303): render fixed drill settings as an inactive segmented control
+- ab2d2fc feat(#305): add carry-mode settings to grade 1 addition drills
+- a4104ca feat(#303): render fixed drill settings as an inactive segmented control (#304)
 - 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
 - d542657 #176 frontend/web: cap the answer for grade-1/2 basic ope drills at their titled bound (#178)
 - 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)
@@ -36,4 +39,3 @@
 - c9011f1 #154 Add grade-2 advanced subtraction capped at 1,000 (#159)
 - 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)
 - 06870bb #148 Add multiplication-table question-order options (#150)
-- 85e58b1 #146 Add an advanced difficulty badge to the web UI (#147)
