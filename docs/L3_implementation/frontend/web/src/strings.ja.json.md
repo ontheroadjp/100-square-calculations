@@ -6,7 +6,7 @@
 
 ## 動作の概要
 
-画面見出し、操作ラベル、ドリル名、設定値などの日本語文言を一元管理する。難易度キーは `difficulty_basic`(基礎)、`difficulty_standard`(標準)、`difficulty_basic_standard`(基礎〜標準)、`difficulty_advanced`(発展)を定義する(`frontend/web/src/strings.ja.json:118-121`)。2年生の九九設定では `setting_question_order_label`(出題順序)と `setting_option_order_ascending`/`descending`/`random`(1から/9から/ランダム)を提供する(`frontend/web/src/strings.ja.json:128-154`)。2年生の発展項目には「1,000までの足し算」「1,000までの引き算」というタイトル(issue #161 でそれぞれ「答えが1,000までの足し算」「答えが1,000までの引き算」から短縮)と、3桁までの数を使い答えを1,000以下にする説明を提供する(`frontend/web/src/strings.ja.json:181-189`)。`menu_g1_add_20_desc` は issue #305 で `g1-add-20` の繰り上がり設定が選択可能(なし/あり/まぜる)になったのに合わせ、「繰り上がりのある、1桁どうしの足し算…」から「20までの数の足し算…繰り上がりは『なし』『あり』『まぜる』から選べます」へ改訂した([[./drillPresets.js]] 参照)。
+画面見出し、操作ラベル、ドリル名、設定値などの日本語文言を一元管理する。難易度キーは `difficulty_basic`(基礎)、`difficulty_standard`(標準)、`difficulty_basic_standard`(基礎〜標準)、`difficulty_advanced`(発展)を定義する(`frontend/web/src/strings.ja.json:118-121`)。2年生の九九設定では `setting_question_order_label`(出題順序)と `setting_option_order_ascending`/`descending`/`random`(1から/9から/ランダム)を提供する(`frontend/web/src/strings.ja.json:128-154`)。2年生の発展項目には「1,000までの足し算」「1,000までの引き算」というタイトル(issue #161 でそれぞれ「答えが1,000までの足し算」「答えが1,000までの引き算」から短縮)と、3桁までの数を使い答えを1,000以下にする説明を提供する(`frontend/web/src/strings.ja.json:181-189`)。`menu_g1_add_20_desc` は issue #305 で `g1-add-20` の繰り上がり設定が選択可能(なし/あり/まぜる)になったのに合わせ、「繰り上がりのある、1桁どうしの足し算…」から「20までの数の足し算…繰り上がりは『なし』『あり』『まぜる』から選べます」へ改訂した。`menu_g1_sub_20_desc` も issue #307 で対称に、「繰り下がりのある、10〜19の数からの引き算…」から「20までの数の引き算…繰り下がりは『なし』『あり』『まぜる』から選べます」へ改訂した([[./drillPresets.js]] 参照)。
 
 `grade_point_1`〜`grade_point_6`(issue #157)は `catalog.js` のページヘッダーdescriptionに使う、学年ごとの指導ポイント文言。`menu_*_point`(61件、`drillPresets.js` の各アイテムの `pointKey` に対応)は `presetDetail.js` のページヘッダーdescriptionに使う、ドリルごとの指導ポイント文言。いずれも保護者(非専門家)が読むことを想定し、専門用語を避けた平易な一文で「なぜこの単元が大事か」を伝える文体を採用する。既存の `menu_*_desc`(旧 `drillCatalog.js` 向けの機械的な説明文)とは文体・用途が異なる別系統のキーとして併存する([[./drillPresets.js]] 参照)。
 
@@ -24,7 +24,8 @@ issue #110 で `drillCatalog.js`(旧絞り込み/検索UIのアダプター)を�
 
 ## 変更履歴（git log より自動生成）
 
-- ab2d2fc feat(#305): add carry-mode settings to grade 1 addition drills
+- b77d1db feat(#307): add borrow-mode settings to grade 1 subtraction drills
+- 2f6add1 feat(#305): add carry-mode settings to grade 1 addition drills (#306)
 - 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
 - 56aa1d3 #110 Remove frontend/web's unused drillCatalog.js and dead filter-UI i18n keys (#163)
 - 17070be #161 frontend/web: rebuild grade-3 addition/subtraction menu, retire fraction category, add four-operations drills (#162)
@@ -33,4 +34,3 @@ issue #110 で `drillCatalog.js`(旧絞り込み/検索UIのアダプター)を�
 - 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)
 - 06870bb #148 Add multiplication-table question-order options (#150)
 - 85e58b1 #146 Add an advanced difficulty badge to the web UI (#147)
-- 1edfbb5 fix(frontend/web): clarify grade-2/3 arithmetic menu label wording

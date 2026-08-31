@@ -178,12 +178,16 @@ const grade1 = {
       descKey: 'menu_g1_sub_10_desc',
       pointKey: 'menu_g1_sub_10_point',
       difficultyKey: 'difficulty_basic',
-      examples: ['8-3', '10-6', '9-4'],
-      settings: [],
+      examples: ['8-3', '9-4', '7-2'],
+      // borrowing is excluded here (carry_mode 'none'), so the setting is
+      // inactive -- shown as 繰り下がり：なし for consistency with the
+      // selectable なし/あり/まぜる control on 20までの引き算 below (issue #307),
+      // mirroring g1-add-10.
+      settings: [fixedSetting('carryMode', 'setting_borrow_label', 'setting_option_none', NONE_REQUIRED_MIXED_OPTIONS)],
       supportLevel: 'full',
       latexOnly: true,
       buildParams: () => ({
-        command_type: 'ope', operator: ['sub'],
+        command_type: 'ope', operator: ['sub'], carry_mode: 'none',
         a_min: 2, a_max: 10, b_min: 1, b_max: 9, result_max: 10,
       }),
     },
@@ -193,14 +197,28 @@ const grade1 = {
       descKey: 'menu_g1_sub_20_desc',
       pointKey: 'menu_g1_sub_20_point',
       difficultyKey: 'difficulty_standard',
-      examples: ['13-7', '16-9', '15-8'],
-      settings: [fixedSetting('carryMode', 'setting_borrow_label', 'setting_option_required', NONE_REQUIRED_MIXED_OPTIONS)],
+      examples: ['13-7', '18-5', '16-9'],
+      examplesFor: examplesByChoice(['carryMode'], {
+        none: ['18-5', '9-4', '17-6'],
+        required: ['13-7', '16-9', '15-8'],
+        mixed: ['13-7', '18-5', '16-9'],
+      }),
+      settings: [carrySetting('setting_borrow_label')],
       supportLevel: 'full',
       latexOnly: true,
-      buildParams: () => ({
-        command_type: 'ope', operator: ['sub'], carry_mode: 'required',
-        a_min: 10, a_max: 19, b_min: 1, b_max: 9, result_max: 20,
-      }),
+      // 'あり' keeps the classic 繰り下がり from a 10-19 minuend (a_min 10).
+      // 'なし'/'まぜる' widen the minuend to 2..19 so 1桁 and 2桁 minuends
+      // coexist under the answer-20 ceiling (subtrahend stays 1 digit);
+      // carryModeField omits carry_mode entirely for the single-operator
+      // 'まぜる' case (issue #307).
+      buildParams: (state) => {
+        const carryMode = state?.carryMode ?? 'mixed';
+        const aMin = carryMode === 'required' ? 10 : 2;
+        return {
+          command_type: 'ope', operator: ['sub'], ...carryModeField(['sub'], state),
+          a_min: aMin, a_max: 19, b_min: 1, b_max: 9, result_max: 20,
+        };
+      },
     },
   ],
   'four-operations': [

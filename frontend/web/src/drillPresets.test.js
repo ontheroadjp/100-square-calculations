@@ -169,6 +169,47 @@ test('grade 1 addition drills expose a 繰り上がり setting (issue #305)', ()
   assert.equal(g1AddTwenty.buildParams().carry_mode, undefined);
 });
 
+test('grade 1 subtraction drills expose a 繰り下がり setting (issue #307)', () => {
+  const grade1 = presetsByGrade[1];
+
+  const g1SubTen = grade1.subtraction.find((candidate) => candidate.id === 'g1-sub-10');
+  const tenBorrow = g1SubTen.settings.find((setting) => setting.id === 'carryMode');
+  assert.ok(tenBorrow, 'g1-sub-10 must carry a carryMode setting');
+  assert.equal(tenBorrow.type, 'fixed');
+  assert.equal(tenBorrow.valueLabelKey, 'setting_option_none');
+  // inactive なし: borrowing is excluded, so no 10-6 type problems.
+  assert.deepEqual(g1SubTen.buildParams(), {
+    command_type: 'ope', operator: ['sub'], carry_mode: 'none',
+    a_min: 2, a_max: 10, b_min: 1, b_max: 9, result_max: 10,
+  });
+
+  const g1SubTwenty = grade1.subtraction.find((candidate) => candidate.id === 'g1-sub-20');
+  const twentyBorrow = g1SubTwenty.settings.find((setting) => setting.id === 'carryMode');
+  assert.ok(twentyBorrow, 'g1-sub-20 must carry a carryMode setting');
+  assert.equal(twentyBorrow.type, 'choice');
+  assert.deepEqual(twentyBorrow.options.map((option) => option.value), ['none', 'required', 'mixed']);
+
+  // あり: classic 繰り下がり from a 10-19 minuend, capped at 20.
+  assert.deepEqual(g1SubTwenty.buildParams({ carryMode: 'required' }), {
+    command_type: 'ope', operator: ['sub'], carry_mode: 'required',
+    a_min: 10, a_max: 19, b_min: 1, b_max: 9, result_max: 20,
+  });
+  // なし: no borrowing, minuend widened to 2..19 so 1桁 and 2桁 minuends mix.
+  assert.deepEqual(g1SubTwenty.buildParams({ carryMode: 'none' }), {
+    command_type: 'ope', operator: ['sub'], carry_mode: 'none',
+    a_min: 2, a_max: 19, b_min: 1, b_max: 9, result_max: 20,
+  });
+  // まぜる: borrow unconstrained (carry_mode omitted for the single operator),
+  // same widened minuend range.
+  assert.deepEqual(g1SubTwenty.buildParams({ carryMode: 'mixed' }), {
+    command_type: 'ope', operator: ['sub'],
+    a_min: 2, a_max: 19, b_min: 1, b_max: 9, result_max: 20,
+  });
+  // no-arg call (used by the result_max self-documentation test) defaults to まぜる.
+  assert.equal(g1SubTwenty.buildParams().result_max, 20);
+  assert.equal(g1SubTwenty.buildParams().carry_mode, undefined);
+});
+
 test('grade 2 basic addition caps the answer at 100 (issue #176)', () => {
   const item = presetsByGrade[2].addition.find((candidate) => candidate.id === 'g2-add-2digit');
 
