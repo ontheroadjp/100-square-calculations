@@ -33,7 +33,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- b77d1db feat(#307): add borrow-mode settings to grade 1 subtraction drills
+- a08546b feat(#309): add subtraction-only mode to grade 1 three-term drill
+- 571563e feat(#307): add borrow-mode settings to grade 1 subtraction drills (#308)
 - 2f6add1 feat(#305): add carry-mode settings to grade 1 addition drills (#306)
 - a4104ca feat(#303): render fixed drill settings as an inactive segmented control (#304)
 - 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
@@ -42,4 +43,3 @@
 - 17070be #161 frontend/web: rebuild grade-3 addition/subtraction menu, retire fraction category, add four-operations drills (#162)
 - 9b366c1 #157 Add per-grade/per-drill header descriptions via a shared page header component (#160)
 - c9011f1 #154 Add grade-2 advanced subtraction capped at 1,000 (#159)
-- 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)

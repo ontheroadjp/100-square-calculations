@@ -57,7 +57,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- abd63f8 feat(#303): render fixed drill settings as an inactive segmented control
+- a08546b feat(#309): add subtraction-only mode to grade 1 three-term drill
+- a4104ca feat(#303): render fixed drill settings as an inactive segmented control (#304)
 - 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
 - 81e0b2d #139 frontend/web: switch preset detail example previews to live backend generation (#177)
 - 9b366c1 #157 Add per-grade/per-drill header descriptions via a shared page header component (#160)
@@ -66,4 +67,3 @@
 - 2d9ee47 #132 frontend/web: dynamic grade accent, KaTeX fraction examples, generalized setting hints, and move problem count into common settings on preset detail page (#136)
 - 1bb0f69 #126 frontend/web: add missing wireframe icons and unify page headers (#127)
 - 90864a5 refactor(frontend/web): replace hand-drawn nav/UI icons with Material Symbols
-- 9d1371e #100 frontend/web: rebuild preset detail settings/completion/preview screens (#118)

@@ -44,7 +44,7 @@ npm run build
 | 検証 | 結果 |
 |---|---|
 | `cd backend && python3 -m pytest -q` | 808 passed in 94.58s(2026-08-21 時点)。その後 issue #222 で +6、issue #228 で +5・1 置換となり、2026-08-29 に `python3 -m pytest -q --ignore=tests/test_nuts_calc_init.py` で 818 passed を再確認 |
-| `frontend/web` `node --test ...`(3ファイル) | 59 passed |
+| `frontend/web` `node --test ...`(3ファイル) | 67 passed(issue #305/#307/#309 で grade-1 ドリルのテストを追加) |
 | `cd frontend/web && npm run build` | 成功(3 HTML エントリ: `index.html`/`catalog.html`/`preset.html`。`custom.html` は issue #97 で削除) |
 
 **(解消済み、issue #232)** 以前は `backend/tests/test_nuts_calc_init.py` に9件の既知 stale 失敗(`exit()` の `SystemExit(None)` を期待するが、実装は issue #37 で `exit(1)` に修正済みだったための stale な期待値)があった。issue #232 で `nuts_calc.py` 本体とともにこのテストファイル自体を削除したため、この9件は「修正」ではなく「対象ファイルの削除」により解消した。

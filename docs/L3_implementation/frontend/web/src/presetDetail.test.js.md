@@ -25,10 +25,10 @@ DOMイベント、CSSの見た目、PDF生成APIとの通信はこの単体テ�
 
 ## 変更履歴（git log より自動生成）
 
-- abd63f8 feat(#303): render fixed drill settings as an inactive segmented control
+- a08546b feat(#309): add subtraction-only mode to grade 1 three-term drill
+- a4104ca feat(#303): render fixed drill settings as an inactive segmented control (#304)
 - 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
 - 81e0b2d #139 frontend/web: switch preset detail example previews to live backend generation (#177)
 - 06870bb #148 Add multiplication-table question-order options (#150)
 - 1d8ee60 #135 frontend/web: switch preset detail page example problems based on selected settings (#141)
 - 2d9ee47 #132 frontend/web: dynamic grade accent, KaTeX fraction examples, generalized setting hints, and move problem count into common settings on preset detail page (#136)
-- 9d1371e #100 frontend/web: rebuild preset detail settings/completion/preview screens (#118)
