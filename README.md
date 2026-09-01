@@ -273,12 +273,15 @@ node --test frontend/web/src/drillPresets.test.js frontend/web/src/presetDetail.
 cd frontend/web && npm run build
 ```
 
+The backend suite needs `pytest` and `pytest-xdist` (`pip install pytest pytest-xdist`). `backend/pytest.ini` sets `addopts = -n auto`, so `python3 -m pytest` fans the tests out across all CPU cores automatically; pass `-n0` to force serial execution when debugging a single test.
+
 `backend/tests/test_nuts_calc_init.py` is excluded above because 9 expectations still pin the old `exit()` status while the implementation correctly uses `exit(1)`; see `docs/L2_development/test.md`. `frontend/web` has no lint script and no `npm test` script, but `frontend/web/src/drillPresets.test.js` (node:test) covers its own drill-menu data model directly (issue #98), and `frontend/web/src/presetDetail.test.js` covers `presetDetail.js`'s pure problem-count/summary-building/example-to-KaTeX helpers (issues #100, #132); `frontend/web/src/drillPresets.js` diverged from the former `frontend/spa`'s version in #98 and no longer copies it (`frontend/spa` itself was removed entirely in issue #233); its former `drillCatalog.js` adapter was removed in #110 once `catalog.js`/`preset.js` stopped depending on it.
 
 ## Dependencies
 *   Python 3
 *   Flask (`pip install Flask`)
 *   Flask-Cors (`pip install Flask-Cors`)
+*   `pytest` and `pytest-xdist` (`pip install pytest pytest-xdist`) -- for the backend test suite; `pytest-xdist` backs the `-n auto` parallel run configured in `backend/pytest.ini`
 *   Node.js and npm (for `frontend/web`)
 *   `lualatex`, `texlive-luatex`, and `fonts-noto-cjk` -- required for the Web UI's default renderer (`nuts_calc_tex.py` with the Japanese-capable `lualatex` engine, issue #186; see Architecture below)
 *   (Optional) `pdflatex` -- an alternative LaTeX engine for `nuts_calc_tex.py`, selectable via `NUTS_CALC_TEX_ENGINE=pdflatex`; not needed with the default `lualatex` engine
