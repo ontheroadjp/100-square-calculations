@@ -106,6 +106,19 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 - `mixed` は live preview 対象(`command_type === 'ope'` かつ `use_parentheses`/`missing_value` 無し)であり、`presetDetail.js` はリクエストボディに `...params` を展開するため `mixed_decimal_operand_order: true` が `POST /generate-problems` へも届く(`presetDetail.js` 側の変更は不要、[[./presetDetail.js]] 参照)。
 - `examplesFor` を `examplesByChoice(['factorOrder'], { int_decimal: ['7×3.6','4×2.35','3×5.8'], decimal_int: ['3.6×7','2.35×4','5.8×3'], mixed: ['3.6×7','4×2.35','5.8×3'] })` で付与し、静的 `examples` を `mixed` キーと同じ `['3.6×7','4×2.35','5.8×3']` にした(`examplesByChoice` 規約どおり既定値キー = 静的配列)。
 
+### 5年生「整数と小数の割り算」の被除数オプション3値化(issue #317)
+
+`g5-decimal-div`(division カテゴリ)を改称・拡張した。変更前は `titleKey: 'menu_g5_decimal_div_title'`(文言「小数÷小数」)+ `settings: [fixedSetting('divisor', 'setting_divisor_label', 'setting_option_decimal')]`(非活性の「除数:小数」固定表示)+ 引数を無視する `buildParams: () => ({ command_type: 'ope', operator: ['div'], a_digits: 2, b_digits: 2, a_decimal_places: 1, b_decimal_places: 1 })` で、常に「小数(第1位)÷ 小数(第1位)= 整数」の1形態のみを出していた。
+
+- `strings.ja.json` 側で `menu_g5_decimal_div_title` を「整数と小数の割り算」へ、desc/point も「わる数が小数、わられる数は『整数÷小数』『小数÷小数』『まぜる』から選べる。答えは割り切れる整数」旨へ改訂した([[./strings.ja.json]] 参照)。`id`/`descKey`/`pointKey`/`difficultyKey`(`difficulty_standard`)/`supportLevel`(`full`)/`latexOnly`(`true`)は据え置き。この項目は `DISPLAY_FORMAT_ITEM_IDS`(前述「出題形式(式/筆算)設定」)に元々含まれない(#180 で保留中)ため無変更。
+- 固定設定を `id: 'dividendType'` の choice へ置き換えた。option は `DIVIDEND_TYPE_OPTIONS`(`drillPresets.js` の grade5 直前)= `integer_div_decimal`(`setting_option_integer_div_decimal`「整数÷小数」)/ `decimal_div_decimal`(`setting_option_decimal_div_decimal`「小数÷小数」)/ `mixed`(`setting_option_mixed`「まぜる」、`hintKey: 'setting_mixed_hint'`)の3値、既定 `'mixed'`。
+- `buildParams(state)` は `state?.dividendType ?? 'mixed'` で分岐する。`base = { command_type: 'ope', operator: ['div'], a_digits: 2, b_digits: 2, b_decimal_places: 1 }` を共通にし:
+    - `integer_div_decimal` → `{ ...base, a_decimal_places: 0, dividend_mode: 'integer' }`(被除数=整数、除数=小数第1位、商=整数)。
+    - `decimal_div_decimal` → `{ ...base, a_decimal_places: 1 }`(#317 以前と同一。`dividend_mode` を送らない)。
+    - `mixed`(既定) → `{ ...base, a_decimal_places: 1, dividend_mode: 'mixed' }`。`nuts_calc_tex.py` が問題ごとに整数被除数 / 小数被除数を抽選する(1枚のプリントに「整数÷小数」と「小数÷小数」が混在)。除数は常に小数。学習指導要領が「除数を整数にして計算」を教え、導入は商が整数であることに合わせた。[[../../../../backend/nuts_calc_tex.py]] の `### ope --a-decimal-places/--b-decimal-places` と [[../../../../backend/renderers.py]] 参照。
+- live preview 対象(`command_type === 'ope'` かつ `use_parentheses`/`missing_value` 無し)であり、`presetDetail.js` はリクエストボディに `...params` を展開するため `dividend_mode` が `POST /generate-problems` へも届く(`presetDetail.js` 側の変更は不要、[[./presetDetail.js]] 参照)。
+- `examplesFor` を `examplesByChoice(['dividendType'], { integer_div_decimal: ['72÷1.8','96÷2.4','51÷1.7'], decimal_div_decimal: ['7.2÷1.8','9.6÷2.4','8.4÷1.2'], mixed: ['72÷1.8','7.2÷1.8','96÷2.4'] })` で付与し、静的 `examples` を `mixed` キーと同じ `['72÷1.8','7.2÷1.8','96÷2.4']` にした(`examplesByChoice` 規約どおり既定値キー = 静的配列)。
+
 ### 選択肢ヒント(`hintKey`)の汎用化
 
 旧実装は「値が `'mixed'` の設定は `setting_mixed_hint` を表示する」というハードコードだった。issue #132 でこれを `option.hintKey` ベースの汎用機構へ置き換え、`OPT_MIXED`(`carrySetting`/`remainderSetting`/`REDUCTION_OPTIONS` が共有)および `dan`/`NUMBER_KIND_OPTIONS`/`DENOMINATOR_CHOICE_OPTIONS` それぞれの独立した `'mixed'` オプションリテラル(計4箇所)に `hintKey: 'setting_mixed_hint'` を付与した。表示文言・表示条件(該当オプションが選択されているとき)は旧実装と同一で、挙動の変更はない。
@@ -124,7 +137,7 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 
 対象は次の18項目に限定し、機械的な「`--vertical` と併用可能かどうか」の判定だけで対象範囲を決めていない(ユーザー指示による明示的な列挙): `g2-add-2digit`/`g2-add-result-1000`/`g2-sub-2digit`/`g2-sub-result-1000`/`g3-add-result-10000`/`g3-decimal-addsub`/`g3-sub-result-10000`/`g3-decimal-sub`/`g3-mul-2x1`/`g3-mul-3x1`/`g3-mul-2x2`/`g4-decimal-add`/`g4-decimal-sub`/`g4-decimal-mul-int`/`g4-div-1digit`/`g4-div-2digit`/`g4-decimal-div-int`/`g5-decimal-mul`(`drillPresets.test.js` の `DISPLAY_FORMAT_ITEM_IDS` で厳密に一致検証)。全項目が無条件で `command_type: 'ope'` を返すため(`--vertical` は `ope` コマンドのみ実装、[[../../../../backend/nuts_calc_tex.py]] 参照)、`disabledWhen`/`resolveValue` は不要。
 
-同じく「小数÷小数」(`g5-decimal-div`)は対象から除外した。vendor済み `longdivision` パッケージの `\intlongdivision` が整数の除数しか受け付けないため、除数の小数点をシフトして整数化する回避策(教科書的な標準手法)を検討したが、「出題形式:筆算のときも式と同じ数値表現である必要がある」というユーザー方針により不採用、issue #180(agenda)で対応方針を検討中(実装は保留)。
+同じく `g5-decimal-div`(issue #317 で「小数÷小数」から「整数と小数の割り算」へ改称)は対象から除外した。vendor済み `longdivision` パッケージの `\intlongdivision` が整数の除数しか受け付けないため、除数の小数点をシフトして整数化する回避策(教科書的な標準手法)を検討したが、「出題形式:筆算のときも式と同じ数値表現である必要がある」というユーザー方針により不採用、issue #180(agenda)で対応方針を検討中(実装は保留)。
 
 ### 九九(`g2-kuku`)の段選択
 

@@ -215,6 +215,7 @@ BORROWING_SUBTRAHENDS = tuple(range(1, 10))
 CarryMode = Literal['required', 'none', 'mixed']
 RemainderMode = Literal['required', 'none', 'mixed']
 ReducibleMode = Literal['required', 'none', 'mixed']
+DividendMode = Literal['integer', 'decimal', 'mixed']
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 VENDOR_TEXMF_DIR = os.path.join(SCRIPT_DIR, 'vendor', 'texmf')
@@ -410,6 +411,35 @@ def _init() -> argparse.Namespace:
         , action = 'store_const'
         , const = 'mixed'
         , help = 'Mix exact and remainder division (ope -o div only)'
+    )
+    dividend_group = parser.add_mutually_exclusive_group()
+    dividend_group.add_argument('--integer-dividend'
+        , dest = 'dividend_mode'
+        , action = 'store_const'
+        , const = 'integer'
+        , default = None
+        , help = (
+            'Make the dividend a whole number while the divisor stays a '
+            'decimal (ope -o div with a decimal --b-decimal-places only)'
+        )
+    )
+    dividend_group.add_argument('--decimal-dividend'
+        , dest = 'dividend_mode'
+        , action = 'store_const'
+        , const = 'decimal'
+        , help = (
+            'Keep the dividend a decimal (ope -o div with a decimal '
+            '--b-decimal-places only; same as the default)'
+        )
+    )
+    dividend_group.add_argument('--mixed-dividend'
+        , dest = 'dividend_mode'
+        , action = 'store_const'
+        , const = 'mixed'
+        , help = (
+            'Mix whole-number and decimal dividends across one worksheet '
+            '(ope -o div with a decimal --b-decimal-places only)'
+        )
     )
     reducible_group = parser.add_mutually_exclusive_group()
     reducible_group.add_argument('--require-reducible'
@@ -884,6 +914,30 @@ def _init() -> argparse.Namespace:
         if args.a_decimal_places != MIN_DECIMAL_PLACES or args.b_decimal_places != MIN_DECIMAL_PLACES:
             failure("--remainder/--no-remainder/--mixed-remainder only support integer operands.")
 
+    if args.dividend_mode is not None:
+        if args.command != 'ope' or args.operator != ['div']:
+            failure("--integer-dividend/--decimal-dividend/--mixed-dividend only support 'ope -o div'.")
+        if args.b_decimal_places <= MIN_DECIMAL_PLACES:
+            failure(
+                "--integer-dividend/--decimal-dividend/--mixed-dividend require a "
+                "decimal divisor (--b-decimal-places >= 1)."
+            )
+        if args.remainder_mode is not None:
+            failure(
+                "--integer-dividend/--decimal-dividend/--mixed-dividend cannot be "
+                "combined with --remainder/--no-remainder/--mixed-remainder."
+            )
+        if args.use_parentheses or args.missing_value or terms_options_given:
+            failure(
+                "--integer-dividend/--decimal-dividend/--mixed-dividend cannot be "
+                "combined with --use-parentheses/--missing-value/--terms family."
+            )
+        if args.intermediate:
+            failure(
+                "--integer-dividend/--decimal-dividend/--mixed-dividend cannot be "
+                "combined with --intermediate."
+            )
+
     if args.reducible_mode is not None:
         allowed_reducible_operators = {'mul', 'div'}
         if (
@@ -944,7 +998,15 @@ def _init() -> argparse.Namespace:
                 "-o/--operator must be exactly 'mul' or exactly 'div' "
                 "(decimal-by-integer multiplication/division)."
             )
-        if 'div' in args.operator and args.a_decimal_places < args.b_decimal_places:
+        if (
+                'div' in args.operator
+                and args.a_decimal_places < args.b_decimal_places
+                and args.dividend_mode != 'integer'
+            ):
+            # --integer-dividend legitimately pairs a 0-place dividend with a
+            # decimal divisor: the quotient is kept a whole number by
+            # construction (generate_ope_problems only accepts dividends that
+            # divide evenly), so ope_result_decimal_places clamps to 0.
             failure(
                 "--a-decimal-places must be greater than or equal to "
                 "--b-decimal-places when dividing (the quotient's decimal "
@@ -2052,15 +2114,17 @@ def ope_result_decimal_places(operator: str, a_places: int, b_places: int) -> in
     add/sub/mix, and a_places >= b_places for div):
     - add/sub (and mix, which requires equal places): same as the operands.
     - mul: a_places + b_places (e.g. 3.6 x 2.4 -> 2 places).
-    - div: a_places - b_places (aligning decimal points before dividing, as
-      taught in the course of study -- e.g. 6.4 / 1.6 has 0 places, 6.4 / 2
-      has 1). Always >= 0 (enforced by _init()), and exact because calc_div
-      only accepts a raw a % b == 0.
+    - div: max(0, a_places - b_places) (aligning decimal points before
+      dividing, as taught in the course of study -- e.g. 6.4 / 1.6 has 0
+      places, 6.4 / 2 has 1). _init() keeps a_places >= b_places except for
+      --integer-dividend (0-place dividend, decimal divisor, whole-number
+      quotient by construction), where the difference is negative and clamps
+      to 0. Exact because calc_div only accepts a raw a % b == 0.
     """
     if operator == 'mul':
         return a_places + b_places
     if operator == 'div':
-        return a_places - b_places
+        return max(0, a_places - b_places)
     return a_places
 
 
@@ -2302,6 +2366,54 @@ def calc_div(
     )
 
 
+def calc_div_integer_dividend(
+        a: int, b: int, nums_a: list[int], nums_b: list[int],
+        a_decimal_places: int, b_decimal_places: int,
+    ) -> tuple[int, int, int]:
+    """
+    Retry with freshly-sampled operands until the division is a whole-number
+    dividend over a genuine decimal divisor with an exact whole-number
+    quotient: the returned `a` is an integer (scale 0), `b` is a decimal that
+    is not `b.0` (still scaled by `b_decimal_places`), and
+    `a / (b / 10**b_decimal_places)` is exact.
+
+    `a` is sampled at the `nums_a` scale (`a_decimal_places`); only values
+    that are already whole at that scale are accepted, and the returned
+    dividend is that whole number. Backs the grade-5 "整数と小数の割り算"
+    drill's 整数÷小数 option (issue #317): the course of study introduces
+    dividing by a decimal by scaling the divisor up to an integer, and its
+    worked examples (e.g. 96 / 2.4 = 40) keep the quotient a whole number.
+    """
+    a_scale = 10 ** a_decimal_places
+    b_scale = 10 ** b_decimal_places
+
+    def _accept(cand_a: int, cand_b: int) -> tuple[int, int, int] | None:
+        if cand_b == 0 or cand_b % b_scale == 0 or cand_a % a_scale != 0:
+            return None
+        dividend = cand_a // a_scale
+        scaled = dividend * b_scale
+        if scaled % cand_b != 0:
+            return None
+        return dividend, cand_b, scaled // cand_b
+
+    for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
+        hit = _accept(a, b)
+        if hit is not None:
+            return hit
+        a = random.choice(nums_a)
+        b = random.choice(nums_b)
+
+    for cand_b in nums_b:
+        for cand_a in nums_a:
+            hit = _accept(cand_a, cand_b)
+            if hit is not None:
+                return hit
+    raise ValueError(
+        "No integer-dividend / decimal-divisor pair with an exact "
+        "whole-number quotient found in the given number ranges."
+    )
+
+
 CALC_FUNCTIONS: dict[str, Callable[[int, int, list[int], list[int]], tuple[int, int, int]]] = {
     'add': calc_add,
     'sub': calc_sub,
@@ -2318,6 +2430,7 @@ def generate_ope_problems(
         remainder_mode: RemainderMode | None = None,
         result_max: int | None = None,
         mixed_decimal_operand_order: bool = False,
+        dividend_mode: DividendMode | None = None,
     ) -> list[OpeProblem]:
     """
     Generate `order` arithmetic problems starting at `start_index`.
@@ -2349,6 +2462,13 @@ def generate_ope_problems(
     single worksheet mixes "decimal x integer" and "integer x decimal". The
     swap happens after calc_mul, and multiplication is commutative, so the
     product c is unchanged.
+
+    dividend_mode (div only, requires a decimal b_decimal_places -- enforced
+    by _init()) controls the dividend's kind: 'integer' forces every dividend
+    to a whole number (calc_div_integer_dividend), 'decimal' keeps the
+    pre-#317 decimal dividend, and 'mixed' chooses per problem. An
+    integer-dividend problem records a_decimal_places=0 and a 0 remainder
+    (it is exact by construction).
     """
     effective_operators = MIX_OPERATORS if 'mix' in operators else operators
     problems = []
@@ -2357,6 +2477,7 @@ def generate_ope_problems(
             a = random.choice(nums_a)
             b = random.choice(nums_b)
             operator = random.choice(effective_operators)
+            dividend_is_integer = False
             if operator == 'add':
                 carry = None if carry_mode in (None, 'mixed') else carry_mode == 'required'
                 a, b, c = calc_add(a, b, nums_a, nums_b, carry)
@@ -2366,9 +2487,20 @@ def generate_ope_problems(
             elif operator == 'div' and remainder_mode is not None:
                 want_remainder = random.choice((False, True)) if remainder_mode == 'mixed' else remainder_mode == 'required'
                 a, b, c = calc_div(a, b, nums_a, nums_b, want_remainder)
+            elif operator == 'div' and dividend_mode is not None:
+                if dividend_mode == 'mixed':
+                    dividend_is_integer = random.choice((False, True))
+                else:
+                    dividend_is_integer = dividend_mode == 'integer'
+                if dividend_is_integer:
+                    a, b, c = calc_div_integer_dividend(
+                        a, b, nums_a, nums_b, a_decimal_places, b_decimal_places,
+                    )
+                else:
+                    a, b, c = calc_div(a, b, nums_a, nums_b, None)
             else:
                 a, b, c = CALC_FUNCTIONS[operator](a, b, nums_a, nums_b)
-            problem_a_decimal_places = a_decimal_places
+            problem_a_decimal_places = 0 if dividend_is_integer else a_decimal_places
             problem_b_decimal_places = b_decimal_places
             if mixed_decimal_operand_order and operator == 'mul' and random.choice((False, True)):
                 a, b = b, a
@@ -2378,7 +2510,7 @@ def generate_ope_problems(
             )
             if result_max is not None and c > result_max * 10 ** result_decimal_places:
                 continue
-            remainder = a - b * c if operator == 'div' else 0
+            remainder = a - b * c if operator == 'div' and not dividend_is_integer else 0
             problems.append(OpeProblem(
                 index=start_index + offset, a=a, b=b, operator=operator, c=c,
                 a_decimal_places=problem_a_decimal_places,
@@ -4025,6 +4157,7 @@ def build_ope_pages(
             nums_a, nums_b, ini.operator, order, start_index,
             ini.a_decimal_places, ini.b_decimal_places, ini.carry_mode,
             ini.remainder_mode, ini.result_max, ini.mixed_decimal_operand_order,
+            ini.dividend_mode,
         )
         blank_page, filled_page = build_ope_page_pair(problems, ini.columns, ini.vertical, ini.intermediate)
         pages_problems.append(problems)

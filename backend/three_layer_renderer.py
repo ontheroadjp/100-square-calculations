@@ -866,6 +866,7 @@ def _generate_ope_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple
             nums_a, nums_b, operator, rows * columns, start_index,
             a_decimal_places, b_decimal_places,
             data.get('carry_mode'), data.get('remainder_mode'), data.get('result_max'),
+            dividend_mode=data.get('dividend_mode'),
         ),
         nuts_calc_tex.build_ope_bottom_answer_tex,
     )

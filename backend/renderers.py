@@ -30,6 +30,7 @@ class RendererRequest(TypedDict, total=False):
     carry_mode: Literal["required", "none", "mixed"]
     remainder_mode: Literal["required", "none", "mixed"]
     reducible_mode: Literal["required", "none", "mixed"]
+    dividend_mode: Literal["integer", "decimal", "mixed"]
     descend: bool
     reverse: bool
     shuffle: bool
@@ -84,6 +85,12 @@ REDUCIBLE_MODE_FLAGS = {
     "required": "--require-reducible",
     "none": "--no-reducible",
     "mixed": "--mixed-reducible",
+}
+
+DIVIDEND_MODE_FLAGS = {
+    "integer": "--integer-dividend",
+    "decimal": "--decimal-dividend",
+    "mixed": "--mixed-dividend",
 }
 
 
@@ -183,6 +190,12 @@ def build_command(renderer_name: str, params: RendererRequest, out_file: str) ->
             allowed = ", ".join(REDUCIBLE_MODE_FLAGS)
             raise ValueError(f"Unknown reducible_mode {reducible_mode!r}. Must be one of: {allowed}.")
         command.append(REDUCIBLE_MODE_FLAGS[reducible_mode])
+    if "dividend_mode" in params:
+        dividend_mode = params["dividend_mode"]
+        if dividend_mode not in DIVIDEND_MODE_FLAGS:
+            allowed = ", ".join(DIVIDEND_MODE_FLAGS)
+            raise ValueError(f"Unknown dividend_mode {dividend_mode!r}. Must be one of: {allowed}.")
+        command.append(DIVIDEND_MODE_FLAGS[dividend_mode])
     if params.get("descend"):
         command.append("--descend")
     if params.get("reverse"):

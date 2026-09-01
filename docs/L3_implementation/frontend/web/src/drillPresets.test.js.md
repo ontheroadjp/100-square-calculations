@@ -20,6 +20,8 @@
 
 2年生「3つの数の足し引き」(`g2-addsub-mixed`、issue #311)について、上記 `g1-three-terms` テストと対称の内容を検証する。`operators` choice の option 順序・labelKey・既定(`addsub`)、`buildParams` の3モード写像(`add`/`sub` は `mixed_operators` なし、`addsub` と無引数は `mixed_operators: true`。3モードとも `terms:3, a_min:1,a_max:99,b_min:1,b_max:99`、`result_max` なし)、`examplesFor` の演算子追従(`add`→`-` を含まない、`sub`→`+` を含まない、`addsub`・無引数は静的 `examples` と一致)を確認する。
 
+5年生「整数と小数の割り算」(`g5-decimal-div`、issue #317)について、`dividendType` choice が `integer_div_decimal`/`decimal_div_decimal`/`mixed` をこの順・対応 labelKey で持ち既定が `mixed` であること、`buildParams` の3モード写像(`integer_div_decimal`→`a_decimal_places:0, dividend_mode:'integer'`、`decimal_div_decimal`→`a_decimal_places:1` のみ(#317 前と同一・`dividend_mode` なし)、`mixed`・無引数・`{}`→`a_decimal_places:1, dividend_mode:'mixed'`。3モードとも `command_type:'ope', operator:['div'], a_digits:2, b_digits:2, b_decimal_places:1`)、`examplesFor` の追従(`integer_div_decimal`→`整数÷小数.` パターン、`decimal_div_decimal`→`小数÷小数.` パターン、`mixed`は静的 `examples` と一致)を確認する。
+
 ## 重要な設計判断とその理由
 
 難易度は単なる文字列型ではなくUIの文言・CSS・互換分類と結び付く列挙値であるため、文字列であることだけでなく既知キーとの一致を検証する。

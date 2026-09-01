@@ -403,6 +403,49 @@ test('grade 4 integer/decimal multiplication offers 整数×小数 / 小数×整
   assert.ok(item.examplesFor({ factorOrder: 'decimal_int' }).every((example) => /^\d+\.\d+×/.test(example)));
 });
 
+test('grade 5 decimal division offers 整数÷小数 / 小数÷小数 / まぜる dividend selection (issue #317)', () => {
+  const item = presetsByGrade[5].division.find((candidate) => candidate.id === 'g5-decimal-div');
+  assert.ok(item, 'g5-decimal-div must exist');
+  assert.equal(item.titleKey, 'menu_g5_decimal_div_title');
+
+  const dividendType = item.settings.find((setting) => setting.id === 'dividendType');
+  assert.ok(dividendType, 'g5-decimal-div must carry a dividendType setting');
+  assert.equal(dividendType.type, 'choice');
+  assert.deepEqual(
+    dividendType.options.map((option) => option.value),
+    ['integer_div_decimal', 'decimal_div_decimal', 'mixed'],
+  );
+  assert.deepEqual(
+    dividendType.options.map((option) => option.labelKey),
+    ['setting_option_integer_div_decimal', 'setting_option_decimal_div_decimal', 'setting_option_mixed'],
+  );
+  assert.equal(dividendType.default, 'mixed');
+
+  // 整数÷小数: whole-number dividend (a_decimal_places 0), decimal divisor, --integer-dividend.
+  assert.deepEqual(item.buildParams({ dividendType: 'integer_div_decimal' }), {
+    command_type: 'ope', operator: ['div'], a_digits: 2, b_digits: 2,
+    b_decimal_places: 1, a_decimal_places: 0, dividend_mode: 'integer',
+  });
+  // 小数÷小数: unchanged from before #317 (no dividend_mode flag).
+  assert.deepEqual(item.buildParams({ dividendType: 'decimal_div_decimal' }), {
+    command_type: 'ope', operator: ['div'], a_digits: 2, b_digits: 2,
+    b_decimal_places: 1, a_decimal_places: 1,
+  });
+  // まぜる (default): backend mixes the dividend kind per problem.
+  const mixedExpected = {
+    command_type: 'ope', operator: ['div'], a_digits: 2, b_digits: 2,
+    b_decimal_places: 1, a_decimal_places: 1, dividend_mode: 'mixed',
+  };
+  assert.deepEqual(item.buildParams({ dividendType: 'mixed' }), mixedExpected);
+  assert.deepEqual(item.buildParams(), mixedExpected);
+  assert.deepEqual(item.buildParams({}), mixedExpected);
+
+  // example chips track the chosen dividend kind.
+  assert.deepEqual(item.examplesFor({ dividendType: 'mixed' }), item.examples);
+  assert.ok(item.examplesFor({ dividendType: 'integer_div_decimal' }).every((example) => /^\d+÷\d+\.\d/.test(example)));
+  assert.ok(item.examplesFor({ dividendType: 'decimal_div_decimal' }).every((example) => /^\d+\.\d+÷\d+\.\d/.test(example)));
+});
+
 test('grade 3 four-operations mix caps the answer at 1,000 without multiplication', () => {
   const item = presetsByGrade[3]['four-operations'].find((candidate) => candidate.id === 'g3-addsub-mixed-result-1000');
 

@@ -245,6 +245,39 @@ def test_build_command_rejects_unknown_reducible_mode() -> None:
         renderers.build_command("latex", params, "out.pdf")
 
 
+@pytest.mark.parametrize(
+    ("dividend_mode", "expected_flag"),
+    [
+        ("integer", "--integer-dividend"),
+        ("decimal", "--decimal-dividend"),
+        ("mixed", "--mixed-dividend"),
+    ],
+)
+def test_build_command_translates_dividend_mode(dividend_mode: str, expected_flag: str) -> None:
+    params = {
+        "paper_size": "A4",
+        "command_type": "ope",
+        "operator": ["div"],
+        "b_decimal_places": 1,
+        "dividend_mode": dividend_mode,
+    }
+
+    command = renderers.build_command("latex", params, "out.pdf")
+
+    assert expected_flag in command
+
+
+def test_build_command_rejects_unknown_dividend_mode() -> None:
+    params = {
+        "paper_size": "A4",
+        "command_type": "ope",
+        "dividend_mode": "unknown",
+    }
+
+    with pytest.raises(ValueError, match="Unknown dividend_mode"):
+        renderers.build_command("latex", params, "out.pdf")
+
+
 def test_build_command_translates_fraction_params() -> None:
     params = {
         "paper_size": "A4",
