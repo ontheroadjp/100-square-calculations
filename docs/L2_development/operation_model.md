@@ -36,7 +36,7 @@ source venv/bin/activate
 pip install Flask Flask-Cors
 python app.py
 ```
-根拠: `README.md:77-90`。パッケージ定義ファイル(`requirements.txt`/`pyproject.toml`/`setup.py`)は存在しないため、`pip install Flask Flask-Cors` を手動実行する必要がある([[../L0_concept/policy]] 参照)。`http://127.0.0.1:5000` で起動し、`POST /generate-pdf` にフォーム相当の JSON を送ると `nuts_calc_tex.py` を `subprocess` 実行して PDF を返す(`backend/app.py:14-79`)。`renderers.py` のスクリプトパス解決は `Path(__file__).resolve().parent`(=`backend/`)基準のため、`backend/` 直下に `nuts_calc_tex.py` が存在することを前提にしている(issue #88)。
+根拠: `README.md:77-90`。パッケージ定義ファイル(`requirements.txt`/`pyproject.toml`/`setup.py`)は存在しないため、`pip install Flask Flask-Cors` を手動実行する必要がある([[../L0_concept/policy]] 参照)。`http://127.0.0.1:5000` で起動し、`POST /generate-pdf` にフォーム相当の JSON を送ると `backend/three_layer_renderer.py` の `render_worksheet_pdf` が `nuts_calc_tex.py` の内部プレゼンテーション API をプロセス内で呼んで PDF を返す(`backend/app.py`。issue #297 で legacy subprocess 経路を削除)。`renderer_config.py`(issue #297 で `renderers.py` からリネーム)の `RENDERER_SCRIPTS` スクリプトパス解決は `Path(__file__).resolve().parent`(=`backend/`)基準のため、`backend/` 直下に `nuts_calc_tex.py` が存在することを前提にしている(issue #88)。
 
 **(削除済み、issue #233)** かつては React SPA `frontend/spa`(`cd frontend/spa && npm install && npm run dev`、`http://localhost:5173`)ももう1つの Web フロントエンドとして存在した。`npm run build` は2026-08-12時点で実機確認済み(成功)だったが、`npm run lint` は `frontend/spa/src/drillPresets.js:433` の日本語コメント内全角空白を `no-irregular-whitespace` が拒否し1件失敗していた。`frontend/spa` 自体が issue #233 で削除されたため、以下は現在唯一の Web フロントエンドである `frontend/web` の手順。
 

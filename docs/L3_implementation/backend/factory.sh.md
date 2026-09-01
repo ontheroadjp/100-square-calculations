@@ -6,7 +6,7 @@
 
 ## 動作の概要
 
-- 対象コマンド生成スクリプトを issue #232 で `nuts_calc.py`(ReportLab)から `nuts_calc_tex.py`(LaTeX)に切り替えた。CLI引数体系(`-a`/`-b`/`-o`/`-c`/`-r`/`-p`/`--out-file`/`--a-min`/`--a-max`/`--b-min`/`--b-max`/`--shuffle`/`--reverse` 等)は両スクリプトで共通のため、呼び出し箇所の置換のみで移行できた(`backend/factory.sh:127-190` 付近)。`renderers.py`(Flask backend が使うレンダラー選択レイヤー)は経由せず、`python nuts_calc_tex.py ...` を直接 subprocess 実行する。
+- 対象コマンド生成スクリプトを issue #232 で `nuts_calc.py`(ReportLab)から `nuts_calc_tex.py`(LaTeX)に切り替えた。CLI引数体系(`-a`/`-b`/`-o`/`-c`/`-r`/`-p`/`--out-file`/`--a-min`/`--a-max`/`--b-min`/`--b-max`/`--shuffle`/`--reverse` 等)は両スクリプトで共通のため、呼び出し箇所の置換のみで移行できた(`backend/factory.sh:127-190` 付近)。`renderer_config.py`(Flask backend のレンダラー名解決レイヤー。issue #297 で `renderers.py` からリネーム)は経由せず、`python nuts_calc_tex.py ...` を直接 subprocess 実行する。
 - `_basic()`(`backend/factory.sh:117-150`)は用紙サイズ(a3/a4)ごとに8ステップ(基礎計算・暗算・実践)のワークシートを生成し、`${DIST_DIR}/mental_arithmetic/${long}/${size}/step-0N.pdf` へ出力する。`ope` の桁数指定(step-01/02/03/05/08)は issue #230 で `-a`/`-b` から `--a-digits`/`--b-digits` へ移行済み(`ope` は `-a/--a-value` を桁数として一切読まなくなったため)。`aBc`(`-a 2 -b 1`)・`squ`(`-a 5`)・`99`(`-a ${dan}`)は値そのものの意味で `-a`/`-b` を使う既存コマンドのため無変更。
 - `_kuku()`/`_kuku_descend()`/`_kuku_random()`/`_kuku_all_mix()`(`backend/factory.sh:155-193`)は九九(`99`)コマンドの通常順・降順・ランダム順・全段混合ワークシートを生成する実装だが、`_main()` からは呼ばれていない(コメントアウト済み、`backend/factory.sh:110-113`)。
 - `_init()`/`_args_check()`/`_set_static_var()` 等はテンプレート由来の汎用オプションパーサ(`-h`/`-v`/`-a`/`-b`/`-c`/`--verbose` 等)で、本スクリプト固有の生成ロジックとは独立している。

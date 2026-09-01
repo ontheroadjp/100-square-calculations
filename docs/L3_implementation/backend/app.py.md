@@ -34,9 +34,9 @@
 
 ## 変更履歴（git log より自動生成）
 
-- (pending) refactor(#297): delete the legacy /generate-pdf subprocess rendering path
-- 365f188 refactor(#291): add hardcoded 3-layer-vs-legacy renderer switch
-- 9502f20 refactor(#290): extract 3-layer-model PDF glue from app.py into three_layer_renderer.py
+- 56b66ad refactor(#297): delete the legacy /generate-pdf subprocess rendering path
+- 6417a2f refactor(#291): add a hardcoded 3-layer-vs-legacy renderer switch and drop the per-command subprocess fallthrough (#294)
+- 0b35732 refactor(#290): extract the 3-layer-model PDF glue from app.py into three_layer_renderer.py (#293)
 - 32162b8 feat(#286): wire presentation page options (#288)
 - ea4c269 feat(#285): migrate mixed reducibility PDF generation (#289)
 - 1bdac41 feat(#284): migrate multi-term mixed PDF generation (#287)
@@ -44,4 +44,3 @@
 - 3c55ae3 feat(#226): migrate ope --intermediate to the internal presentation API
 - 2d4c435 feat(#225): migrate commondenom to the internal presentation API (#274)
 - 84c789b feat(#224): migrate compare to the internal presentation API (#273)
-- 7943190 feat(#223): migrate ope --missing-value to the internal presentation API (#272)

@@ -21,7 +21,7 @@ issue #36 では `test_web_backend_renderers.py` として `build_command()`(JSO
 
 ## 変更履歴(git log より自動生成)
 
-- (pending) refactor(#297): delete the legacy /generate-pdf subprocess rendering path (rename test_web_backend_renderers.py -> test_renderer_config.py)
+- 56b66ad refactor(#297): delete the legacy /generate-pdf subprocess rendering path (rename test_web_backend_renderers.py -> test_renderer_config.py)
 - ba08963 feat(#317): add integer/decimal dividend selection to grade 5 decimal division
 - 40dfb0a feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication (#314)
 - 37a5a80 #230 Split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits (#236)
