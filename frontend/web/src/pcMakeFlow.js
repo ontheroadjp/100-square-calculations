@@ -13,7 +13,7 @@ const API_BASE = 'http://127.0.0.1:5000';
 // layout/interaction pass" requirement.
 const CATEGORY_ORDER = [
   'addition', 'subtraction', 'multiplication', 'division',
-  'fraction', 'four-operations', 'number-sense',
+  'decimal', 'fraction', 'four-operations', 'number-sense',
 ];
 
 const DIFFICULTY_BADGE_CLASS = {

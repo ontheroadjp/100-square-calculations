@@ -4,7 +4,7 @@ import { GRADES, UNGRADED, presetsByGrade } from './drillPresets.js';
 
 const KNOWN_CATEGORIES = new Set([
   'addition', 'subtraction', 'multiplication', 'division',
-  'fraction', 'four-operations', 'number-sense',
+  'decimal', 'fraction', 'four-operations', 'number-sense',
 ]);
 
 const KNOWN_SUPPORT_LEVELS = new Set(['full', 'partial', 'none']);
@@ -403,8 +403,19 @@ test('grade 4 integer/decimal multiplication offers 整数×小数 / 小数×整
   assert.ok(item.examplesFor({ factorOrder: 'decimal_int' }).every((example) => /^\d+\.\d+×/.test(example)));
 });
 
+test('grade 5 groups 小数×小数 / 整数と小数の割り算 under a dedicated decimal category, not multiplication/division (issue #320)', () => {
+  assert.equal(presetsByGrade[5].multiplication, undefined);
+  assert.equal(presetsByGrade[5].division, undefined);
+  assert.deepEqual(
+    presetsByGrade[5].decimal.map((item) => item.id),
+    ['g5-decimal-mul', 'g5-decimal-div'],
+  );
+  // The 小数の四則混合計算 drill stays in four-operations.
+  assert.ok(presetsByGrade[5]['four-operations'].some((item) => item.id === 'g5-decimal-four-ops'));
+});
+
 test('grade 5 decimal division offers 整数÷小数 / 小数÷小数 / まぜる dividend selection (issue #317)', () => {
-  const item = presetsByGrade[5].division.find((candidate) => candidate.id === 'g5-decimal-div');
+  const item = presetsByGrade[5].decimal.find((candidate) => candidate.id === 'g5-decimal-div');
   assert.ok(item, 'g5-decimal-div must exist');
   assert.equal(item.titleKey, 'menu_g5_decimal_div_title');
 

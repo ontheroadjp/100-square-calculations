@@ -1011,7 +1011,11 @@ const DIVIDEND_TYPE_OPTIONS = [
 // ---------------------------------------------------------------------
 
 const grade5 = {
-  multiplication: [
+  // 5年生の算数は小数の乗除が中心。汎用の「かけ算」「わり算」カテゴリに
+  // 単発の小数ドリルを分散させず、専用の「小数」カテゴリ(CATEGORY_ORDER で
+  // fraction の直前)へ小数×小数・整数と小数の割り算をまとめる。小数の
+  // 四則混合計算は従来どおり four-operations カテゴリに残す。
+  decimal: [
     {
       id: 'g5-decimal-mul',
       titleKey: 'menu_g5_decimal_mul_title',
@@ -1028,8 +1032,6 @@ const grade5 = {
         ...displayFormatParam(state),
       }),
     },
-  ],
-  division: [
     {
       id: 'g5-decimal-div',
       titleKey: 'menu_g5_decimal_div_title',

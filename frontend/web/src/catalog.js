@@ -13,10 +13,11 @@ const API_BASE = 'http://127.0.0.1:5000';
 // (docs/uiux/calculation_drill_menu_parameters_v1.md). Object key order in
 // drillPresets.js's presetsByGrade varies per grade (e.g. grade4 lists
 // division before addition), so section order is driven by this fixed list
-// rather than Object.keys() insertion order.
+// rather than Object.keys() insertion order. 'decimal' is grade 5's dedicated
+// 小数 section and sits directly above 'fraction'.
 const CATEGORY_ORDER = [
   'addition', 'subtraction', 'multiplication', 'division',
-  'fraction', 'four-operations', 'number-sense',
+  'decimal', 'fraction', 'four-operations', 'number-sense',
 ];
 
 const DIFFICULTY_BADGE_CLASS = {

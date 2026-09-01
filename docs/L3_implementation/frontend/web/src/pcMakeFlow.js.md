@@ -8,7 +8,7 @@
 
 - `mountPcMakeFlow(container)`: `grade`/`item`/設定状態/`pdfUrl` 等を持つクロージャ状態を構築し、`container.innerHTML` を丸ごと差し替える `renderAll()` で4カラムをまとめて再描画する(`catalog.js`/`presetDetail.js` と同じ「クリックのたびに innerHTML を全再生成」のパターンを踏襲)。
 - カラム1(学年): `GRADES` をボタンのリストで表示。クリックで `selectGrade(grade)` → `item`/設定状態をリセットして再描画。
-- カラム2(計算を選ぶ): `presetsByGrade[grade]` を `CATEGORY_ORDER`(`catalog.js` と同じ固定順序)でグルーピングし、`canUseItem(item, activeRenderer)` でフィルタしたドリルカードを表示。難易度は `DIFFICULTY_BADGE_CLASS` で `difficulty_basic`/`difficulty_standard`/`difficulty_basic_standard`/`difficulty_advanced` を対応するCSSクラスへ変換し、未知のキーは標準バッジへフォールバックする(`frontend/web/src/pcMakeFlow.js:19-24,113-122`)。クリックで `selectItem(item)` → 問題数・設定状態・詳細設定・PDF状態をデフォルトへリセットして再描画。
+- カラム2(計算を選ぶ): `presetsByGrade[grade]` を `CATEGORY_ORDER`(`catalog.js` と同じ固定順序。5年生専用の `decimal` を `fraction` の直前に含む、issue #320)でグルーピングし、`canUseItem(item, activeRenderer)` でフィルタしたドリルカードを表示。難易度は `DIFFICULTY_BADGE_CLASS` で `difficulty_basic`/`difficulty_standard`/`difficulty_basic_standard`/`difficulty_advanced` を対応するCSSクラスへ変換し、未知のキーは標準バッジへフォールバックする(`frontend/web/src/pcMakeFlow.js:19-24,113-122`)。クリックで `selectItem(item)` → 問題数・設定状態・詳細設定・PDF状態をデフォルトへリセットして再描画。
 - カラム3(ドリル設定): 選択中アイテムの `settings`(`choice`/`fixed`)・問題数セグメント・詳細設定(用紙サイズ/ページ数)disclosure・名前をつけるトグル・「PDFを作成する」ボタンを表示。マークアップは `presetDetail.js` の設定画面とほぼ同一だが、戻るボタンは持たない(カラムが常時表示のため)。`type: 'fixed'` の設定は `presetDetail.js` から import した `fixedSettingView(setting)` を使い、choice と同一形状の非活性 segmented control として描画する(issue #303。旧実装は `.setting-fixed-value` の素テキスト。この分岐が唯一 `presetDetail.js` の非公開描画ヘルパーに依存する箇所)。詳細設定 disclosure の開閉シェブローンは `presetDetail.js` と同じ `ICONS.chevronRight`(issue #126。旧実装はテキストグリフ `›` を直書きしており、`icons.js` 導入コミット `90864a5` で唯一置き換え漏れていた)。
 - カラム4(プレビュー): `status === 'loading'` 中はローディング文言、`pdfUrl` があれば iframe プレビュー+ダウンロードリンク、いずれもなければプレースホルダー文言(`pc_preview_placeholder`)を表示。
 - `generatePdf()`: `presetDetail.js` と同じ `layoutForProblemCount`/`isVerticalOperation`/`POST /generate-pdf` の呼び出しパターンを使う。成功時は `pdfUrl` をセットするのみで、`presetDetail.js` の「done」画面(完了演出・確認サマリ)には遷移しない(カラム3の設定とカラム4のプレビューが同時に見えているため、モバイル向けの完了演出は不要と判断)。
@@ -43,7 +43,8 @@ wireframe の PC レイアウトはドリル設定とプレビューが同一画
 
 ## 変更履歴(git log より自動生成)
 
-- abd63f8 feat(#303): render fixed drill settings as an inactive segmented control
+- c7260fa refactor(#320): replace grade 5 multiplication/division sections with a 小数 section
+- a4104ca feat(#303): render fixed drill settings as an inactive segmented control (#304)
 - 85e58b1 #146 Add an advanced difficulty badge to the web UI (#147)
 - 1bb0f69 #126 frontend/web: add missing wireframe icons and unify page headers (#127)
 - 77f95b7 #101 frontend/web: add PC 4-column layout to the make flow (#119)

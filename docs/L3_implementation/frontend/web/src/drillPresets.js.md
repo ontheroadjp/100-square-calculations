@@ -6,7 +6,7 @@
 
 ## 動作の概要
 
-`GRADES`(`[1,2,3,4,5,6]`)・`UNGRADED`(`'ungraded'`)・`presetsByGrade` を export する。`presetsByGrade[grade]` は `{ <categoryId>: menuItem[] }` の形で、`categoryId` は `addition`/`subtraction`/`multiplication`/`division`/`fraction`/`four-operations`/`number-sense` のいずれか(該当する学年にのみ出現)。`fraction` は3年生(issue #161で撤廃)・4年生(issue #315で撤廃)を除く5〜6年生に残る。カテゴリキーは `catalog.js` の固定 `CATEGORY_ORDER`(`addition, subtraction, multiplication, division, fraction, four-operations, number-sense`)による学年ページのセクション見出し順序付けにのみ使われ、`drillCatalog.js` の絞り込み分類(`numberType`/`operationGroup`)には影響しない(`Object.values(categories)` でカテゴリキーを捨ててフラット化するため)。
+`GRADES`(`[1,2,3,4,5,6]`)・`UNGRADED`(`'ungraded'`)・`presetsByGrade` を export する。`presetsByGrade[grade]` は `{ <categoryId>: menuItem[] }` の形で、`categoryId` は `addition`/`subtraction`/`multiplication`/`division`/`decimal`/`fraction`/`four-operations`/`number-sense` のいずれか(該当する学年にのみ出現)。`decimal` は5年生専用で、`multiplication`/`division` カテゴリを廃止した代わりに小数×小数・整数と小数の割り算をまとめる(issue #320、下記セクション参照)。`fraction` は3年生(issue #161で撤廃)・4年生(issue #315で撤廃)を除く5〜6年生に残る。カテゴリキーは `catalog.js` の固定 `CATEGORY_ORDER`(`addition, subtraction, multiplication, division, decimal, fraction, four-operations, number-sense`)による学年ページのセクション見出し順序付けにのみ使われ、`drillCatalog.js` の絞り込み分類(`numberType`/`operationGroup`)には影響しない(`Object.values(categories)` でカテゴリキーを捨ててフラット化するため)。
 
 各 `menuItem` は以下を持つ:
 - `id`/`titleKey`/`descKey`/`pointKey`: 全データモデル中で `id` は一意。`pointKey`(issue #157)は `presetDetail.js` のページヘッダーに表示する、保護者向けの平易な指導ポイント文言(60件、[[./pageHeader.js]] 参照)。既存の `descKey` はもともと旧 `drillCatalog.js` 向けの機械的な説明文で、同ファイルが issue #110 で削除された現在は本データモデル上のフィールドとしてのみ残る(`drillPresets.test.js` が全項目に `descKey` が存在することを検証しているため、フィールド自体は残置)。`pointKey` とは用途・文体が異なる別系統のキーとして併存する。
@@ -106,9 +106,18 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 - `mixed` は live preview 対象(`command_type === 'ope'` かつ `use_parentheses`/`missing_value` 無し)であり、`presetDetail.js` はリクエストボディに `...params` を展開するため `mixed_decimal_operand_order: true` が `POST /generate-problems` へも届く(`presetDetail.js` 側の変更は不要、[[./presetDetail.js]] 参照)。
 - `examplesFor` を `examplesByChoice(['factorOrder'], { int_decimal: ['7×3.6','4×2.35','3×5.8'], decimal_int: ['3.6×7','2.35×4','5.8×3'], mixed: ['3.6×7','4×2.35','5.8×3'] })` で付与し、静的 `examples` を `mixed` キーと同じ `['3.6×7','4×2.35','5.8×3']` にした(`examplesByChoice` 規約どおり既定値キー = 静的配列)。
 
+### 5年生の小数カテゴリ新設、かけ算/わり算カテゴリ廃止(issue #320)
+
+5年生の `multiplication` カテゴリ(`g5-decimal-mul` = 小数×小数 の1項目のみ)と `division` カテゴリ(`g5-decimal-div` = 整数と小数の割り算 の1項目のみ)を廃止し、両項目を内容無変更のまま新設の `decimal` カテゴリ(この順)へ移した。`decimal` は `presetsByGrade[5]` のオブジェクトキー順で `four-operations` より前に置くが、実際のセクション表示順は `CATEGORY_ORDER` が `'decimal'` を `'fraction'` の直前に固定するため「小数 → 分数 → 四則混合 → 数の性質・九九」になる。
+
+- 5年生の算数は小数の乗除が中心のため、汎用の「かけ算」「わり算」見出しに単発の小数ドリルを分散させず、専用の「小数」見出し(`strings.ja.json` の `category_decimal` = 「小数」)にまとめる方針。`g5-decimal-mul`/`g5-decimal-div` の `id`/`titleKey`/`descKey`/`pointKey`/`settings`/`buildParams`/`examplesFor` は一切変更していない(カテゴリキーの移動のみ)。
+- 小数の四則混合計算(`g5-decimal-four-ops`)は従来どおり `four-operations` カテゴリ(表示名「四則混合」)に残す。
+- `multiplication`/`division`/`fraction` カテゴリキーは2〜4年生・6年生が引き続き使うため `CATEGORY_ORDER`・`KNOWN_CATEGORIES`・`strings.ja.json` の該当ラベルからは削除しない。`decimal` は現状5年生でしか使われないが、`CATEGORY_ORDER` に恒久追加した。
+- `drillPresets.test.js` に「grade 5 groups ... under a dedicated decimal category」テストを追加し、issue #317 の被除数テストの参照を `presetsByGrade[5].division` → `presetsByGrade[5].decimal` へ更新した([[./drillPresets.test.js]] 参照)。`catalog.js`/`pcMakeFlow.js` は `CATEGORY_ORDER` 配列に `'decimal'` を1語足すだけの変更([[./catalog.js]]/[[./pcMakeFlow.js]] 参照)。
+
 ### 5年生「整数と小数の割り算」の被除数オプション3値化(issue #317)
 
-`g5-decimal-div`(division カテゴリ)を改称・拡張した。変更前は `titleKey: 'menu_g5_decimal_div_title'`(文言「小数÷小数」)+ `settings: [fixedSetting('divisor', 'setting_divisor_label', 'setting_option_decimal')]`(非活性の「除数:小数」固定表示)+ 引数を無視する `buildParams: () => ({ command_type: 'ope', operator: ['div'], a_digits: 2, b_digits: 2, a_decimal_places: 1, b_decimal_places: 1 })` で、常に「小数(第1位)÷ 小数(第1位)= 整数」の1形態のみを出していた。
+`g5-decimal-div`(issue #320 以降は `decimal` カテゴリ、#320 以前は `division` カテゴリ)を改称・拡張した。変更前は `titleKey: 'menu_g5_decimal_div_title'`(文言「小数÷小数」)+ `settings: [fixedSetting('divisor', 'setting_divisor_label', 'setting_option_decimal')]`(非活性の「除数:小数」固定表示)+ 引数を無視する `buildParams: () => ({ command_type: 'ope', operator: ['div'], a_digits: 2, b_digits: 2, a_decimal_places: 1, b_decimal_places: 1 })` で、常に「小数(第1位)÷ 小数(第1位)= 整数」の1形態のみを出していた。
 
 - `strings.ja.json` 側で `menu_g5_decimal_div_title` を「整数と小数の割り算」へ、desc/point も「わる数が小数、わられる数は『整数÷小数』『小数÷小数』『まぜる』から選べる。答えは割り切れる整数」旨へ改訂した([[./strings.ja.json]] 参照)。`id`/`descKey`/`pointKey`/`difficultyKey`(`difficulty_standard`)/`supportLevel`(`full`)/`latexOnly`(`true`)は据え置き。この項目は `DISPLAY_FORMAT_ITEM_IDS`(前述「出題形式(式/筆算)設定」)に元々含まれない(#180 で保留中)ため無変更。
 - 固定設定を `id: 'dividendType'` の choice へ置き換えた。option は `DIVIDEND_TYPE_OPTIONS`(`drillPresets.js` の grade5 直前)= `integer_div_decimal`(`setting_option_integer_div_decimal`「整数÷小数」)/ `decimal_div_decimal`(`setting_option_decimal_div_decimal`「小数÷小数」)/ `mixed`(`setting_option_mixed`「まぜる」、`hintKey: 'setting_mixed_hint'`)の3値、既定 `'mixed'`。
@@ -202,7 +211,8 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 
 ## 変更履歴（git log より自動生成）
 
-- ba08963 feat(#317): add integer/decimal dividend selection to grade 5 decimal division
+- c7260fa refactor(#320): replace grade 5 multiplication/division sections with a 小数 section
+- f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)
 - 697db43 refactor(#315): move grade 4 fraction add/sub into addition/subtraction categories (#316)
 - 40dfb0a feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication (#314)
 - 7334a3a feat(#311): rename grade 2 three-term drill and add operator-mode selection (#312)
@@ -211,4 +221,3 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 - 2f6add1 feat(#305): add carry-mode settings to grade 1 addition drills (#306)
 - a4104ca feat(#303): render fixed drill settings as an inactive segmented control (#304)
 - 37a5a80 #230 Split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits (#236)
-- 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
