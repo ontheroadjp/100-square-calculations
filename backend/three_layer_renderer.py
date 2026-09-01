@@ -9,16 +9,16 @@ issue #290 (a strangler-fig step under #174) so ``app.py`` is reduced to HTTP
 routing plus a thin renderer dispatcher.
 
 It imports no ``flask`` and has no import-time side effects (no directory
-creation): input is the request ``dict`` (``renderers.RendererRequest``), output
+creation): input is the request ``dict`` (``renderer_config.RendererRequest``), output
 is a ``(filepath, filename)`` pair. This keeps it reusable by the CLI
 (``nuts_calc_tex.py``), which is also planned to move onto the 3-layer model.
 
-Since issue #291 every ``/generate-pdf`` request is served here;
-``render_worksheet_pdf`` raises ``ValueError`` for a request no builder handles
-instead of signalling a subprocess fallthrough. ``renderers.py``'s subprocess
-path is still built but is reachable only by flipping
-``app._USE_LEGACY_PDF_PIPELINE`` (a temporary source-level switch; see #174 for
-its planned removal).
+Every ``/generate-pdf`` request is served here. ``render_worksheet_pdf`` raises
+``ValueError`` for a request no builder handles (an unmatched request is an
+explicit HTTP 500). The legacy ``backend/renderers.py`` subprocess path and its
+``app._USE_LEGACY_PDF_PIPELINE`` switch were removed in issue #297 (issue #174
+段3); ``backend/renderer_config.py`` is now only renderer-name resolution plus
+the shared ``RendererRequest`` type.
 """
 
 import contextlib
@@ -33,7 +33,7 @@ from typing import Protocol, TypeVar
 
 import nuts_calc_tex
 import problem_generation
-import renderers
+import renderer_config
 
 class _IndexedProblem(Protocol):
     index: int
@@ -42,7 +42,7 @@ class _IndexedProblem(Protocol):
 _IndexedProblemT = TypeVar('_IndexedProblemT', bound=_IndexedProblem)
 
 
-def _resolve_page_count(data: renderers.RendererRequest) -> int:
+def _resolve_page_count(data: renderer_config.RendererRequest) -> int:
     page_count = int(data.get('page', 1))
     if page_count < 1:
         raise ValueError("page must be at least 1.")
@@ -50,7 +50,7 @@ def _resolve_page_count(data: renderers.RendererRequest) -> int:
 
 
 def _build_presentation_pages(
-    data: renderers.RendererRequest,
+    data: renderer_config.RendererRequest,
     order: int,
     generate_page: Callable[[int], list[_IndexedProblemT]],
     bottom_answer_builder: Callable[[list[_IndexedProblemT]], str] | None,
@@ -75,11 +75,11 @@ def _build_presentation_pages(
     return pages
 
 
-def _generate_com_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+def _generate_com_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """
     Build a 'com' command PDF via nuts_calc_tex.py's internal presentation
     API (build_presentation_document_tex, issue #183) instead of shelling
-    out through renderers.py's subprocess path (issue #199, the first
+    out through the legacy subprocess path (issue #199, the first
     command-group migration under #174/B-5). Basic-case only: a_value plus
     optional rows/columns, always a single blank (practice) page --
     with_bottom_answer/with_name_field/multi-page/merge are not wired for
@@ -147,7 +147,7 @@ def _generate_com_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple
     return output_filepath, output_filename
 
 
-def _is_plain_mixed_pdf_request(data: renderers.RendererRequest) -> bool:
+def _is_plain_mixed_pdf_request(data: renderer_config.RendererRequest) -> bool:
     """Return whether data selects the basic two-term mixed worksheet."""
     if data.get('command_type') != 'mixed':
         return False
@@ -156,7 +156,7 @@ def _is_plain_mixed_pdf_request(data: renderers.RendererRequest) -> bool:
     return not any(key in data for key in ('terms', 'terms_min', 'terms_max'))
 
 
-def _is_multi_term_mixed_pdf_request(data: renderers.RendererRequest) -> bool:
+def _is_multi_term_mixed_pdf_request(data: renderer_config.RendererRequest) -> bool:
     """Return whether data selects a multi-term or mixed-operator worksheet."""
     if data.get('command_type') != 'mixed' or data.get('reducible_mode') is not None:
         return False
@@ -166,7 +166,7 @@ def _is_multi_term_mixed_pdf_request(data: renderers.RendererRequest) -> bool:
 
 
 def _generate_mixed_pdf(
-    data: renderers.RendererRequest,
+    data: renderer_config.RendererRequest,
     output_dir: str,
     *,
     terms_min: int = nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT,
@@ -278,7 +278,7 @@ def _generate_mixed_pdf(
 
 
 def _generate_multi_term_mixed_pdf(
-    data: renderers.RendererRequest, output_dir: str
+    data: renderer_config.RendererRequest, output_dir: str
 ) -> tuple[str, str]:
     """Build a multi-term or mixed-operator mixed PDF via the presentation API."""
     terms = data.get('terms')
@@ -299,7 +299,7 @@ def _generate_multi_term_mixed_pdf(
     )
 
 
-def _generate_lcm_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+def _generate_lcm_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """
     Build an 'lcm' command PDF via nuts_calc_tex.py's internal presentation
     API (build_presentation_document_tex, issue #183), mirroring
@@ -380,7 +380,7 @@ def _generate_lcm_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple
     return output_filepath, output_filename
 
 
-def _generate_divfrac_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+def _generate_divfrac_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """Build a basic division-as-fraction PDF through the presentation API.
 
     The digit-count shorthand and explicit ranges retain the CLI contract.
@@ -446,7 +446,7 @@ def _generate_divfrac_pdf(data: renderers.RendererRequest, output_dir: str) -> t
     return output_filepath, output_filename
 
 
-def _generate_gcd_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+def _generate_gcd_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """
     Build a 'gcd' command PDF via nuts_calc_tex.py's internal presentation
     API (build_presentation_document_tex, issue #183), mirroring the pattern-1a
@@ -517,7 +517,7 @@ def _generate_gcd_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple
     return output_filepath, output_filename
 
 
-def _generate_evenodd_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+def _generate_evenodd_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """
     Build an 'evenodd' command PDF via the internal presentation API (issue
     #214). Basic-case only: a_min/a_max plus optional rows/columns, always a
@@ -575,7 +575,7 @@ def _generate_evenodd_pdf(data: renderers.RendererRequest, output_dir: str) -> t
     return output_filepath, output_filename
 
 
-def _generate_kuku_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+def _generate_kuku_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """
     Build a '99' (times-table / kuku) command PDF via nuts_calc_tex.py's
     internal presentation API (build_presentation_document_tex, issue #183),
@@ -587,8 +587,8 @@ def _generate_kuku_pdf(data: renderers.RendererRequest, output_dir: str) -> tupl
     supported (unlike the other omitted flags) because frontend/web's
     g2-kuku preset (drillPresets.js) sends them for its descending/random
     question-order settings; silently ignoring them here would regress that
-    live feature once this command_type stops reaching renderers.py's
-    subprocess path. `reverse` (issue #292) is the presentation-layer
+    live feature once this command_type no longer had a legacy subprocess
+    path to fall back to. `reverse` (issue #292) is the presentation-layer
     equation side-swap (`c = a x b`), bound into the content_format via
     functools.partial; it is distinct from the descend/shuffle data-layer
     ordering flags.
@@ -656,7 +656,7 @@ def _generate_kuku_pdf(data: renderers.RendererRequest, output_dir: str) -> tupl
     return output_filepath, output_filename
 
 
-def _generate_abc_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+def _generate_abc_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """
     Build a basic-case 'aBc' PDF via the internal presentation API.
 
@@ -712,7 +712,7 @@ def _generate_abc_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple
     return output_filepath, output_filename
 
 
-def _generate_pi_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+def _generate_pi_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """
     Build a 'pi' command PDF via nuts_calc_tex.py's internal presentation
     API (build_presentation_document_tex, issue #183), mirroring
@@ -786,7 +786,7 @@ def _generate_pi_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[
     return output_filepath, output_filename
 
 
-def _is_plain_ope_pdf_request(data: renderers.RendererRequest) -> bool:
+def _is_plain_ope_pdf_request(data: renderer_config.RendererRequest) -> bool:
     """
     True when `data` requests the plain 2-term `ope` PDF this issue (#205,
     the first migration under the pattern-1a tracking issue #201) covers:
@@ -799,7 +799,8 @@ def _is_plain_ope_pdf_request(data: renderers.RendererRequest) -> bool:
     _is_missing_value_ope_pdf_request)/the terms family
     (terms/terms_min/terms_max/mixed_operators, #207's flat multi-term
     variant, migrated by _is_multi_term_ope_pdf_request). Every other
-    combination keeps using renderers.py's subprocess path.
+    combination is rejected here (and by nuts_calc_tex.py's _init()
+    validation), returning HTTP 500.
     """
     if data.get('command_type') != 'ope':
         return False
@@ -814,7 +815,7 @@ def _is_plain_ope_pdf_request(data: renderers.RendererRequest) -> bool:
     return True
 
 
-def _generate_ope_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+def _generate_ope_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """
     Build a plain 2-term 'ope' command PDF via nuts_calc_tex.py's internal
     presentation API (build_presentation_document_tex, issue #183), mirroring
@@ -899,7 +900,7 @@ def _generate_ope_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple
     return output_filepath, output_filename
 
 
-def _is_tree_ope_pdf_request(data: renderers.RendererRequest) -> bool:
+def _is_tree_ope_pdf_request(data: renderer_config.RendererRequest) -> bool:
     """
     True when `data` requests the `ope --use-parentheses` ('tree' variant)
     PDF this issue (#206, following #205's plain 2-term migration under the
@@ -907,7 +908,8 @@ def _is_tree_ope_pdf_request(data: renderers.RendererRequest) -> bool:
     use_parentheses set, and none of vertical/intermediate/missing_value
     also set -- each is mutually exclusive with --use-parentheses per
     nuts_calc_tex.py's _init() validation (nuts_calc_tex.py:676-692), so a
-    request combining them keeps using the subprocess path unchanged. The
+    request combining them is invalid per that validation and returns HTTP
+    500. The
     terms family (terms/terms_min/terms_max/mixed_operators) IS supported
     here: it is --use-parentheses's own N-term generalization (issue #71),
     not a separate pattern-1a-adjacent variant.
@@ -921,7 +923,7 @@ def _is_tree_ope_pdf_request(data: renderers.RendererRequest) -> bool:
     return True
 
 
-def _generate_tree_ope_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+def _generate_tree_ope_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """
     Build an `ope --use-parentheses` (tree variant) command PDF via
     nuts_calc_tex.py's internal presentation API
@@ -1016,7 +1018,7 @@ def _generate_tree_ope_pdf(data: renderers.RendererRequest, output_dir: str) -> 
     return output_filepath, output_filename
 
 
-def _is_multi_term_ope_pdf_request(data: renderers.RendererRequest) -> bool:
+def _is_multi_term_ope_pdf_request(data: renderer_config.RendererRequest) -> bool:
     """
     True when `data` requests the flat multi-term `ope` ('multi_term'
     variant, no parentheses) PDF this issue (#207, the last migration under
@@ -1042,7 +1044,7 @@ def _is_multi_term_ope_pdf_request(data: renderers.RendererRequest) -> bool:
     return any(key in data for key in ('terms', 'terms_min', 'terms_max'))
 
 
-def _generate_multi_term_ope_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+def _generate_multi_term_ope_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """
     Build a flat multi-term 'ope' command PDF (no parentheses; terms/
     terms_min/terms_max/mixed_operators) via nuts_calc_tex.py's internal
@@ -1139,7 +1141,7 @@ def _generate_multi_term_ope_pdf(data: renderers.RendererRequest, output_dir: st
     return output_filepath, output_filename
 
 
-def _is_missing_value_ope_pdf_request(data: renderers.RendererRequest) -> bool:
+def _is_missing_value_ope_pdf_request(data: renderer_config.RendererRequest) -> bool:
     """
     True when `data` requests the `ope --missing-value` (mushikuizan) PDF this
     issue (#223, one of #174/B-5's breadth=1 pattern-2 batches, following the
@@ -1148,8 +1150,8 @@ def _is_missing_value_ope_pdf_request(data: renderers.RendererRequest) -> bool:
     vertical/intermediate/use_parentheses/mixed_operators/the terms family
     also set -- each is mutually exclusive with --missing-value per
     nuts_calc_tex.py's _init() validation (nuts_calc_tex.py:684-715), so a
-    request combining them keeps using renderers.py's subprocess path
-    unchanged.
+    request combining them is invalid per that validation and returns HTTP
+    500.
     """
     if data.get('command_type') != 'ope':
         return False
@@ -1164,7 +1166,7 @@ def _is_missing_value_ope_pdf_request(data: renderers.RendererRequest) -> bool:
     return True
 
 
-def _generate_missing_value_ope_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+def _generate_missing_value_ope_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """
     Build an `ope --missing-value` (mushikuizan) command PDF via
     nuts_calc_tex.py's internal presentation API
@@ -1247,7 +1249,7 @@ def _generate_missing_value_ope_pdf(data: renderers.RendererRequest, output_dir:
     return output_filepath, output_filename
 
 
-def _is_vertical_ope_pdf_request(data: renderers.RendererRequest) -> bool:
+def _is_vertical_ope_pdf_request(data: renderer_config.RendererRequest) -> bool:
     """
     True when `data` requests the `ope --vertical` (hissan / written-calculation)
     PDF this issue (#227, one of #174/B-5's breadth=1 pattern-6 batches,
@@ -1257,7 +1259,7 @@ def _is_vertical_ope_pdf_request(data: renderers.RendererRequest) -> bool:
     intermediate/use_parentheses/missing_value/mixed_operators/the terms family
     also set -- each is mutually exclusive with --vertical per nuts_calc_tex.py's
     _init() validation (nuts_calc_tex.py:754-795), so a request combining them
-    keeps using renderers.py's subprocess path unchanged.
+    is invalid per that validation and returns HTTP 500.
 
     Mirrors _is_plain_ope_pdf_request exactly, only with `vertical` required
     instead of rejected.
@@ -1275,7 +1277,7 @@ def _is_vertical_ope_pdf_request(data: renderers.RendererRequest) -> bool:
     return True
 
 
-def _generate_vertical_ope_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+def _generate_vertical_ope_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """
     Build an `ope --vertical` (hissan) command PDF via nuts_calc_tex.py's
     internal presentation API (build_presentation_document_tex, issue #183),
@@ -1377,7 +1379,7 @@ def _generate_vertical_ope_pdf(data: renderers.RendererRequest, output_dir: str)
     return output_filepath, output_filename
 
 
-def _is_intermediate_ope_pdf_request(data: renderers.RendererRequest) -> bool:
+def _is_intermediate_ope_pdf_request(data: renderer_config.RendererRequest) -> bool:
     """
     True when `data` requests the `ope --intermediate` (staged mental-math
     arrow-chain) PDF this issue (#226, one of #174/B-5's breadth=1 pattern-5
@@ -1387,8 +1389,7 @@ def _is_intermediate_ope_pdf_request(data: renderers.RendererRequest) -> bool:
     vertical/use_parentheses/missing_value/mixed_operators/the terms family
     also set -- each is mutually exclusive with --intermediate per
     nuts_calc_tex.py's _init() validation (nuts_calc_tex.py:750-797), so a
-    request combining them keeps using renderers.py's subprocess path
-    unchanged. `ope --vertical` (pattern 6) stays on the subprocess path.
+    request combining them is invalid per that validation and returns HTTP 500.
     """
     if data.get('command_type') != 'ope':
         return False
@@ -1403,7 +1404,7 @@ def _is_intermediate_ope_pdf_request(data: renderers.RendererRequest) -> bool:
     return True
 
 
-def _generate_intermediate_ope_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+def _generate_intermediate_ope_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """
     Build an `ope --intermediate` (staged mental-math arrow-chain) command PDF
     via nuts_calc_tex.py's internal presentation API
@@ -1420,9 +1421,8 @@ def _generate_intermediate_ope_pdf(data: renderers.RendererRequest, output_dir: 
     _generate_com_pdf's docstring). --intermediate only supports a single
     'mul' operator and a single-digit second operand, and rejects decimal
     places (nuts_calc_tex.py:750-797, 880-881); the same constraints are
-    enforced here with ValueError so an out-of-scope request fails the same way
-    the subprocess path would rather than silently producing a different
-    worksheet. carry_mode/remainder_mode/decimal places are not forwarded --
+    enforced here with ValueError so an out-of-scope request fails explicitly
+    rather than silently producing a different worksheet. carry_mode/remainder_mode/decimal places are not forwarded --
     they are meaningless for a mul-only variant (cf. _generate_missing_value_ope_pdf).
     """
     a_min, a_max = problem_generation.resolve_digit_count_range(
@@ -1495,7 +1495,7 @@ def _generate_intermediate_ope_pdf(data: renderers.RendererRequest, output_dir: 
     return output_filepath, output_filename
 
 
-def _generate_squ_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+def _generate_squ_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """
     Build a 'squ' command PDF via nuts_calc_tex.py's internal presentation
     API (build_presentation_document_tex, issue #183), following #199's
@@ -1573,7 +1573,7 @@ def _generate_squ_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple
     return output_filepath, output_filename
 
 
-def _generate_multiples_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+def _generate_multiples_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """Build one blank `multiples` page via the internal presentation API.
 
     This basic-case migration preserves the data-layer defaults and the
@@ -1640,7 +1640,7 @@ def _generate_multiples_pdf(data: renderers.RendererRequest, output_dir: str) ->
     return output_filepath, output_filename
 
 
-def _generate_divisors_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+def _generate_divisors_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """Build one blank `divisors` page via the internal presentation API.
 
     This basic-case migration preserves the data-layer range defaults.
@@ -1699,7 +1699,7 @@ def _generate_divisors_pdf(data: renderers.RendererRequest, output_dir: str) -> 
     return output_filepath, output_filename
 
 
-def _generate_frac_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+def _generate_frac_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """Build one blank basic `frac` page via the presentation API."""
     numerator_digits = int(data.get('numerator_digits', 1))
     denominator_digits = int(data.get('denominator_digits', 1))
@@ -1812,7 +1812,7 @@ def _generate_frac_pdf(data: renderers.RendererRequest, output_dir: str) -> tupl
     return output_filepath, output_filename
 
 
-def _generate_simplify_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+def _generate_simplify_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """Build one blank basic `simplify` page via the presentation API."""
     numerator_digits = int(data.get('numerator_digits', 1))
     denominator_digits = int(data.get('denominator_digits', 1))
@@ -1872,7 +1872,7 @@ def _generate_simplify_pdf(data: renderers.RendererRequest, output_dir: str) -> 
     return output_filepath, output_filename
 
 
-def _generate_frac2dec_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+def _generate_frac2dec_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """Build one blank basic `frac2dec` page via the presentation API."""
     numerator_digits = int(data.get('numerator_digits', 1))
     denominator_digits = int(data.get('denominator_digits', 1))
@@ -1932,7 +1932,7 @@ def _generate_frac2dec_pdf(data: renderers.RendererRequest, output_dir: str) -> 
     return output_filepath, output_filename
 
 
-def _generate_dec2frac_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+def _generate_dec2frac_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """Build one blank basic `dec2frac` page via the presentation API.
 
     Unlike `frac2dec`, `dec2frac` has no numerator/denominator digit options --
@@ -1985,7 +1985,7 @@ def _generate_dec2frac_pdf(data: renderers.RendererRequest, output_dir: str) -> 
     return output_filepath, output_filename
 
 
-def _generate_compare_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+def _generate_compare_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """Build one blank basic `compare` (fraction comparison) page via the
     presentation API (build_presentation_document_tex, issue #224 -- one of
     #174/B-5's breadth=1 pattern-3 batches, following #199's `com` precedent).
@@ -2058,7 +2058,7 @@ def _generate_compare_pdf(data: renderers.RendererRequest, output_dir: str) -> t
     return output_filepath, output_filename
 
 
-def _generate_commondenom_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+def _generate_commondenom_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """Build one blank basic `commondenom` page via the presentation API."""
     numerator_digits = int(data.get('numerator_digits', 1))
     denominator_digits = int(data.get('denominator_digits', 1))
@@ -2118,10 +2118,10 @@ def _generate_commondenom_pdf(data: renderers.RendererRequest, output_dir: str) 
     return output_filepath, output_filename
 
 
-def _generate_hundred_square_pdf(data: renderers.RendererRequest, output_dir: str) -> tuple[str, str]:
+def _generate_hundred_square_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """Build one blank `100` (hundred-square addition table) page via the
     internal presentation API (build_presentation_document_tex, issue #183),
-    for issue #229's migration of `command_type == '100'` off renderers.py's
+    for issue #229's migration of `command_type == '100'` off the legacy
     subprocess path.
 
     Unlike every other migrated command, `100` is one self-contained table
@@ -2198,15 +2198,14 @@ _UNSUPPORTED_REQUEST_ERROR = (
 
 
 def render_worksheet_pdf(
-    data: renderers.RendererRequest, output_dir: str
+    data: renderer_config.RendererRequest, output_dir: str
 ) -> tuple[str, str]:
     """Render a worksheet PDF through the internal presentation API.
 
     Returns ``(filepath, filename)`` when ``data`` selects one of the covered
-    builders. Raises ``ValueError`` when no builder matches -- since issue #291
-    every ``/generate-pdf`` request goes through this function (the legacy
-    ``renderers.run(...)`` subprocess path is reachable only via
-    ``app._USE_LEGACY_PDF_PIPELINE``), so an unmatched request is an explicit
+    builders. Raises ``ValueError`` when no builder matches -- every
+    ``/generate-pdf`` request goes through this function (the legacy subprocess
+    path was removed in issue #297), so an unmatched request is an explicit
     error rather than a silent subprocess fallthrough. The branch order here
     mirrors the dispatch ladder that lived in ``app.py``'s ``generate_pdf()``
     before issue #290 exactly, so which requests are served vs rejected is

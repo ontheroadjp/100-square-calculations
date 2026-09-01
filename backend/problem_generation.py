@@ -1,8 +1,8 @@
 """
 In-process problem-only generation: produce arithmetic problems as plain
 Python data, without a subprocess call and without generating a PDF/LaTeX
-document. This is the data-layer counterpart to renderers.py's
-subprocess-based, PDF-generation (presentation) layer.
+document. This is the data-layer counterpart to
+backend/three_layer_renderer.py's PDF-generation (presentation) layer.
 
 `command_type == 'ope'` is supported, including its --use-parentheses/
 --missing-value/--terms*/--mixed-operators variants (issue #168), as are
@@ -26,7 +26,7 @@ from fractions import Fraction
 from typing import Callable, TypedDict
 
 import nuts_calc_tex
-import renderers
+import renderer_config
 
 DEFAULT_A_MIN = 1
 DEFAULT_A_MAX = 9
@@ -47,13 +47,13 @@ class OpeProblemData(TypedDict, total=False):
     intermediate_memo: str
 
 
-def generate_problems(params: renderers.RendererRequest, renderer_name: str | None = None) -> list[dict[str, object]]:
+def generate_problems(params: renderer_config.RendererRequest, renderer_name: str | None = None) -> list[dict[str, object]]:
     """
     Generate `params['num']` problems for `params['command_type']` using
     nuts_calc_tex.py's data-generation functions, called directly in-process
     (no subprocess, no PDF/LaTeX byte output).
 
-    `renderer_name` is resolved via `renderers.get_renderer_name()` when not
+    `renderer_name` is resolved via `renderer_config.get_renderer_name()` when not
     given, purely to fail fast with a clear error for any renderer other
     than `latex` (issue #232 removed nuts_calc.py/reportlab, the only other
     renderer this endpoint ever supported) -- the resolved value itself is
@@ -61,7 +61,7 @@ def generate_problems(params: renderers.RendererRequest, renderer_name: str | No
     one implementation. The parameter is kept as the extension point for a
     future second renderer, should one be added.
     """
-    renderer_name = renderer_name or renderers.get_renderer_name()
+    renderer_name = renderer_name or renderer_config.get_renderer_name()
     command_type = params.get("command_type")
 
     num = params.get("num")
@@ -94,7 +94,7 @@ def generate_problems(params: renderers.RendererRequest, renderer_name: str | No
     return generator(params, num)
 
 
-def _generate_ope_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_ope_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
     variant, terms_min, terms_max = _determine_ope_variant(params)
     if variant is not None:
         if variant == "tree":
@@ -106,7 +106,7 @@ def _generate_ope_problems(params: renderers.RendererRequest, num: int) -> list[
     return _generate_ope_problems_latex(params, num)
 
 
-def _determine_ope_variant(params: renderers.RendererRequest) -> tuple[str | None, int, int]:
+def _determine_ope_variant(params: renderer_config.RendererRequest) -> tuple[str | None, int, int]:
     """
     Decide which `ope` problem shape `params` requests -- 'tree'
     (--use-parentheses), 'missing_value' (--missing-value), 'multi_term'
@@ -170,7 +170,7 @@ def _dataclass_to_dict(value: object) -> object:
 
 
 def _generate_tree_ope_problems(
-    params: renderers.RendererRequest, num: int, terms_min: int, terms_max: int,
+    params: renderer_config.RendererRequest, num: int, terms_min: int, terms_max: int,
 ) -> list[dict[str, object]]:
     a_min, a_max = resolve_digit_count_range(params, "a_digits", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
     b_min, b_max = resolve_digit_count_range(params, "b_digits", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
@@ -186,7 +186,7 @@ def _generate_tree_ope_problems(
 
 
 def _generate_multi_term_ope_problems(
-    params: renderers.RendererRequest, num: int, terms_min: int, terms_max: int,
+    params: renderer_config.RendererRequest, num: int, terms_min: int, terms_max: int,
 ) -> list[dict[str, object]]:
     a_min, a_max = resolve_digit_count_range(params, "a_digits", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
     b_min, b_max = resolve_digit_count_range(params, "b_digits", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
@@ -201,7 +201,7 @@ def _generate_multi_term_ope_problems(
     return [_dataclass_to_dict(problem) for problem in problems]
 
 
-def _generate_missing_value_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_missing_value_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
     a_min, a_max = resolve_digit_count_range(params, "a_digits", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
     b_min, b_max = resolve_digit_count_range(params, "b_digits", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
     operator = list(params.get("operator") or DEFAULT_OPERATOR)
@@ -215,7 +215,7 @@ def _generate_missing_value_problems(params: renderers.RendererRequest, num: int
 
 
 def resolve_digit_count_range(
-    params: renderers.RendererRequest, digits_key: str, min_key: str, max_key: str,
+    params: renderer_config.RendererRequest, digits_key: str, min_key: str, max_key: str,
     default_min: int, default_max: int,
 ) -> tuple[int, int]:
     """
@@ -245,7 +245,7 @@ _HUNDRED_SQUARE_MIN_AXIS_VALUES = (
 
 
 def resolve_hundred_square_axes(
-    params: renderers.RendererRequest,
+    params: renderer_config.RendererRequest,
 ) -> tuple[list[int], list[int]]:
     """Resolve the (left, top) axis value lists for one `100` addition table.
 
@@ -282,7 +282,7 @@ def resolve_hundred_square_axes(
     return nums_left, nums_top
 
 
-def generate_hundred_square_table(params: renderers.RendererRequest) -> dict[str, object]:
+def generate_hundred_square_table(params: renderer_config.RendererRequest) -> dict[str, object]:
     """Generate one `100` addition table for the `/generate-problems` endpoint.
 
     `100` is the single command_type this endpoint serves that does NOT use
@@ -331,7 +331,7 @@ def _validate_intermediate(operator: list[str], b_max: int, single_digit_max: in
         raise ValueError(f"intermediate only supports a single-digit second operand (b_max <= {single_digit_max}).")
 
 
-def _generate_ope_problems_latex(params: renderers.RendererRequest, num: int) -> list[OpeProblemData]:
+def _generate_ope_problems_latex(params: renderer_config.RendererRequest, num: int) -> list[OpeProblemData]:
     a_min, a_max = resolve_digit_count_range(params, "a_digits", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
     b_min, b_max = resolve_digit_count_range(params, "b_digits", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
     operator = list(params.get("operator") or DEFAULT_OPERATOR)
@@ -386,7 +386,7 @@ def validate_com_target(a_value: int | None) -> int:
     return a_value
 
 
-def _generate_com_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_com_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
     target = validate_com_target(params.get("a_value"))
     problems = nuts_calc_tex.generate_com_problems(target, num, 1)
     return [_dataclass_to_dict(problem) for problem in problems]
@@ -404,7 +404,7 @@ def validate_kuku_a_value(a_value: int | None) -> int:
     return a_value
 
 
-def _generate_kuku_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_kuku_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
     a_value = validate_kuku_a_value(params.get("a_value"))
     descend = bool(params.get("descend", False))
     shuffle = bool(params.get("shuffle", False))
@@ -412,7 +412,7 @@ def _generate_kuku_problems(params: renderers.RendererRequest, num: int) -> list
     return [_dataclass_to_dict(problem) for problem in problems]
 
 
-def _generate_abc_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_abc_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
     problems = nuts_calc_tex.generate_abc_problems(num, 1)
     return [_dataclass_to_dict(problem) for problem in problems]
 
@@ -429,7 +429,7 @@ def validate_squ_start(a_value: int | None) -> int:
     return a_value
 
 
-def _generate_squ_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_squ_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
     start_num = validate_squ_start(params.get("a_value"))
     descend = bool(params.get("descend", False))
     shuffle = bool(params.get("shuffle", False))
@@ -449,7 +449,7 @@ def validate_pi_start(a_value: int | None) -> int:
     return a_value
 
 
-def _generate_pi_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_pi_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
     start_num = validate_pi_start(params.get("a_value"))
     descend = bool(params.get("descend", False))
     shuffle = bool(params.get("shuffle", False))
@@ -476,7 +476,7 @@ def _validate_reducible_operators(operator: list[str], command_type: str) -> Non
         )
 
 
-def _generate_frac_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_frac_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
     numerator_digits = params.get("numerator_digits", 1)
     denominator_digits = params.get("denominator_digits", 1)
     _validate_fraction_digits(numerator_digits, denominator_digits, "frac")
@@ -517,7 +517,7 @@ def _generate_frac_problems(params: renderers.RendererRequest, num: int) -> list
     return [_dataclass_to_dict(problem) for problem in problems]
 
 
-def _determine_mixed_terms(params: renderers.RendererRequest, mixed_operators: bool) -> tuple[int, int, bool]:
+def _determine_mixed_terms(params: renderer_config.RendererRequest, mixed_operators: bool) -> tuple[int, int, bool]:
     """Resolve/validate the 'mixed' command's terms_min/terms_max the same
     way nuts_calc_tex.py's _init() does (nuts_calc_tex.py:624-635,709-715),
     since this endpoint bypasses argparse and its defaults/validation.
@@ -541,7 +541,7 @@ def _determine_mixed_terms(params: renderers.RendererRequest, mixed_operators: b
     return terms_min, terms_max, terms_options_given
 
 
-def _generate_mixed_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_mixed_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
     numerator_digits = params.get("numerator_digits", 1)
     denominator_digits = params.get("denominator_digits", 1)
     _validate_fraction_digits(numerator_digits, denominator_digits, "mixed")
@@ -585,7 +585,7 @@ def _generate_mixed_problems(params: renderers.RendererRequest, num: int) -> lis
 DEFAULT_COMPARISON_KIND = ["fraction"]
 
 
-def _generate_compare_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_compare_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
     numerator_digits = params.get("numerator_digits", 1)
     denominator_digits = params.get("denominator_digits", 1)
     _validate_fraction_digits(numerator_digits, denominator_digits, "compare")
@@ -626,7 +626,7 @@ def _generate_compare_problems(params: renderers.RendererRequest, num: int) -> l
     return result
 
 
-def _generate_evenodd_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_evenodd_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
     a_min = params.get("a_min", DEFAULT_A_MIN)
     a_max = params.get("a_max", DEFAULT_A_MAX)
     nums_a = list(range(a_min, a_max + 1))
@@ -634,7 +634,7 @@ def _generate_evenodd_problems(params: renderers.RendererRequest, num: int) -> l
     return [_dataclass_to_dict(problem) for problem in problems]
 
 
-def _generate_multiples_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_multiples_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
     a_min = params.get("a_min", DEFAULT_A_MIN)
     a_max = params.get("a_max", DEFAULT_A_MAX)
     if a_min < 1:
@@ -651,7 +651,7 @@ def _generate_multiples_problems(params: renderers.RendererRequest, num: int) ->
     return [_dataclass_to_dict(problem) for problem in problems]
 
 
-def _generate_divisors_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_divisors_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
     a_min = params.get("a_min", DEFAULT_A_MIN)
     a_max = params.get("a_max", DEFAULT_A_MAX)
     if a_min < 1:
@@ -663,7 +663,7 @@ def _generate_divisors_problems(params: renderers.RendererRequest, num: int) -> 
 
 
 def _generate_number_pair_problems(
-    params: renderers.RendererRequest, num: int, compute: Callable[[int, int], int],
+    params: renderer_config.RendererRequest, num: int, compute: Callable[[int, int], int],
 ) -> list[dict[str, object]]:
     """
     Shared by 'lcm'/'gcd' (issue #172): math.lcm/math.gcd (via `compute`) is
@@ -679,15 +679,15 @@ def _generate_number_pair_problems(
     return [_dataclass_to_dict(problem) for problem in problems]
 
 
-def _generate_lcm_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_lcm_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
     return _generate_number_pair_problems(params, num, math.lcm)
 
 
-def _generate_gcd_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_gcd_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
     return _generate_number_pair_problems(params, num, math.gcd)
 
 
-def _generate_simplify_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_simplify_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
     numerator_digits = params.get("numerator_digits", 1)
     denominator_digits = params.get("denominator_digits", 1)
     _validate_fraction_digits(numerator_digits, denominator_digits, "simplify")
@@ -695,7 +695,7 @@ def _generate_simplify_problems(params: renderers.RendererRequest, num: int) -> 
     return [_dataclass_to_dict(problem) for problem in problems]
 
 
-def _generate_commondenom_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_commondenom_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
     numerator_digits = params.get("numerator_digits", 1)
     denominator_digits = params.get("denominator_digits", 1)
     _validate_fraction_digits(numerator_digits, denominator_digits, "commondenom")
@@ -703,7 +703,7 @@ def _generate_commondenom_problems(params: renderers.RendererRequest, num: int) 
     return [_dataclass_to_dict(problem) for problem in problems]
 
 
-def _generate_frac2dec_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_frac2dec_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
     numerator_digits = params.get("numerator_digits", 1)
     denominator_digits = params.get("denominator_digits", 1)
     _validate_fraction_digits(numerator_digits, denominator_digits, "frac2dec")
@@ -716,7 +716,7 @@ def _generate_frac2dec_problems(params: renderers.RendererRequest, num: int) -> 
     return result
 
 
-def _generate_dec2frac_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_dec2frac_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
     problems = nuts_calc_tex.generate_dec2frac_problems(num, 1)
     result = []
     for problem in problems:
@@ -726,7 +726,7 @@ def _generate_dec2frac_problems(params: renderers.RendererRequest, num: int) -> 
     return result
 
 
-def _generate_divfrac_problems(params: renderers.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_divfrac_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
     a_min, a_max = resolve_digit_count_range(params, "a_digits", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
     b_min, b_max = resolve_digit_count_range(params, "b_digits", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
     if b_min < 1:
