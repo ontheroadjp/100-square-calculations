@@ -8,6 +8,7 @@ decimals anywhere) -- see nuts_calc_tex.py.md's decimal-arithmetic design
 note.
 """
 
+import random
 from decimal import Decimal
 
 import pytest
@@ -93,6 +94,45 @@ def test_generate_ope_problems_decimal_divide_by_decimal_yields_whole_number() -
         # An exact integer quotient -- never a repeating/infinite decimal.
         assert problem.a % problem.b == 0
         assert problem.c == problem.a // problem.b
+
+
+def test_generate_ope_problems_mixed_decimal_operand_order_mixes_both_orders() -> None:
+    random.seed(1)
+    problems = tex_module.generate_ope_problems(
+        list(range(10, 100)), list(range(1, 10)), ["mul"], 60, 1,
+        a_decimal_places=1, b_decimal_places=0,
+        mixed_decimal_operand_order=True,
+    )
+    assert len(problems) == 60
+    seen_orders = {(problem.a_decimal_places, problem.b_decimal_places) for problem in problems}
+    # Both "decimal x integer" (1, 0) and "integer x decimal" (0, 1) appear.
+    assert seen_orders == {(1, 0), (0, 1)}
+    for problem in problems:
+        assert {problem.a_decimal_places, problem.b_decimal_places} == {0, 1}
+        c_places = tex_module.ope_result_decimal_places(
+            "mul", problem.a_decimal_places, problem.b_decimal_places,
+        )
+        assert c_places == 1
+        a_value = (
+            Decimal(problem.a).scaleb(-problem.a_decimal_places)
+            if problem.a_decimal_places else Decimal(problem.a)
+        )
+        b_value = (
+            Decimal(problem.b).scaleb(-problem.b_decimal_places)
+            if problem.b_decimal_places else Decimal(problem.b)
+        )
+        c_value = Decimal(problem.c).scaleb(-c_places)
+        assert a_value * b_value == c_value
+
+
+def test_generate_ope_problems_without_mixed_flag_keeps_fixed_operand_order() -> None:
+    problems = tex_module.generate_ope_problems(
+        list(range(10, 100)), list(range(1, 10)), ["mul"], 30, 1,
+        a_decimal_places=1, b_decimal_places=0,
+    )
+    for problem in problems:
+        assert problem.a_decimal_places == 1
+        assert problem.b_decimal_places == 0
 
 
 def test_build_horizontal_block_tex_renders_decimal_points() -> None:

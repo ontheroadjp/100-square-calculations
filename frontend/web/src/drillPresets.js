@@ -739,6 +739,16 @@ const NUMBER_KIND_OPTIONS = [
   { value: 'mixed', labelKey: 'setting_option_mixed', hintKey: 'setting_mixed_hint' },
 ];
 
+// 乗数(g4-decimal-mul-int, issue #313): which factor carries the decimal.
+// 'mixed' sends nuts_calc_tex.py's --mixed-decimal-operand-order so a single
+// worksheet mixes both orders per problem; the two fixed orders just swap
+// which operand gets a_decimal_places: 1.
+const DECIMAL_FACTOR_ORDER_OPTIONS = [
+  { value: 'int_decimal', labelKey: 'setting_option_int_times_decimal' },
+  { value: 'decimal_int', labelKey: 'setting_option_decimal_times_int' },
+  { value: 'mixed', labelKey: 'setting_option_mixed', hintKey: 'setting_mixed_hint' },
+];
+
 // Maps the 数の種類(分数/帯分数を含む/まぜる) numberKind setting to
 // nuts_calc_tex.py's frac --a-fraction-form/--b-fraction-form (#112).
 // 'fraction' omits both flags so the request keeps the CLI's 'proper'
@@ -863,14 +873,29 @@ const grade4 = {
       descKey: 'menu_g4_decimal_mul_int_desc',
       pointKey: 'menu_g4_decimal_mul_int_point',
       difficultyKey: 'difficulty_standard',
-      examples: ['3.6×7', '2.35×4', '5.8×3'],
-      settings: [fixedSetting('multiplier', 'setting_multiplier_label', 'setting_option_integer'), displayFormatSetting()],
+      examples: ['3.6×7', '4×2.35', '5.8×3'],
+      examplesFor: examplesByChoice(['factorOrder'], {
+        int_decimal: ['7×3.6', '4×2.35', '3×5.8'],
+        decimal_int: ['3.6×7', '2.35×4', '5.8×3'],
+        mixed: ['3.6×7', '4×2.35', '5.8×3'],
+      }),
+      settings: [
+        { id: 'factorOrder', labelKey: 'setting_multiplier_label', type: 'choice', options: DECIMAL_FACTOR_ORDER_OPTIONS, default: 'mixed' },
+        displayFormatSetting(),
+      ],
       supportLevel: 'full',
       latexOnly: true,
-      buildParams: (state) => ({
-        command_type: 'ope', operator: ['mul'], a_digits: 2, b_digits: 1, a_decimal_places: 1,
-        ...displayFormatParam(state),
-      }),
+      buildParams: (state) => {
+        const order = state?.factorOrder ?? 'mixed';
+        const base = { command_type: 'ope', operator: ['mul'], ...displayFormatParam(state) };
+        if (order === 'int_decimal') {
+          return { ...base, a_digits: 1, b_digits: 2, b_decimal_places: 1 };
+        }
+        if (order === 'decimal_int') {
+          return { ...base, a_digits: 2, b_digits: 1, a_decimal_places: 1 };
+        }
+        return { ...base, a_digits: 2, b_digits: 1, a_decimal_places: 1, mixed_decimal_operand_order: true };
+      },
     },
   ],
   fraction: [

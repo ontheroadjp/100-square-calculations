@@ -1443,6 +1443,54 @@ def test_cli_ope_decimal_rejects_non_ope_command(run_tex_cli, tmp_path):
     assert not (tmp_path / "result.pdf").exists()
 
 
+def test_cli_ope_decimal_mixed_operand_order_produces_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "mul", "--a-digits", "2", "--b-digits", "1",
+        "--a-decimal-places", "1", "--mixed-decimal-operand-order",
+        "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
+def test_cli_ope_decimal_mixed_operand_order_vertical_produces_pdfs(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "mul", "--a-digits", "2", "--b-digits", "1",
+        "--a-decimal-places", "1", "--mixed-decimal-operand-order", "--vertical",
+        "-r", "2", "-c", "2", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+def test_cli_ope_mixed_operand_order_rejects_non_mul_operator(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "div", "--a-digits", "2", "--b-digits", "1",
+        "--a-decimal-places", "1", "--mixed-decimal-operand-order",
+        "--out-file", "result.pdf",
+    )
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_mixed_operand_order_rejects_equal_decimal_places(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "mul", "--a-decimal-places", "1", "--b-decimal-places", "1",
+        "--mixed-decimal-operand-order", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_mixed_operand_order_rejects_non_ope_command(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "mixed", "--mixed-decimal-operand-order", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
 def test_cli_mixed_produces_blank_and_filled_pdfs(run_tex_cli, tmp_path):
     result = run_tex_cli(
         "A4", "mixed", "-o", "mix", "--numerator-digits", "1", "--denominator-digits", "1",

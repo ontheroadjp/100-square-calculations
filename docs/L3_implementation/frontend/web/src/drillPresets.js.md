@@ -93,6 +93,19 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 - `id`(`g2-addsub-mixed`)・`difficultyKey`(`difficulty_standard`)・`supportLevel`(`full`)・`latexOnly`(`true`)・string キー名は据え置き、`strings.ja.json` 側で `menu_g2_addsub_mixed_title` を「3つの数の足し引き」へ改称した([[./strings.ja.json]] 参照)。
 - この項目も `terms: 3` を常に送るため live プレビュー対象で、`presetDetail.js` の変更は不要(#310 で multi-term の `operands[]/operators[]` 形状に対応済み、[[./presetDetail.js]] 参照)。
 
+### 4年生「整数と小数の掛け算」の乗数オプション3値化(issue #313)
+
+`g4-decimal-mul-int`(multiplication カテゴリ)を改称・拡張した。変更前は `titleKey: 'menu_g4_decimal_mul_int_title'`(文言「小数×整数」)+ `settings: [fixedSetting('multiplier', 'setting_multiplier_label', 'setting_option_integer'), displayFormatSetting()]`(非活性の「乗数:整数」固定表示)+ 引数を無視する `buildParams: (state) => ({ command_type: 'ope', operator: ['mul'], a_digits: 2, b_digits: 1, a_decimal_places: 1, ...displayFormatParam(state) })` で、常に「小数(第1位)× 整数」の1形態のみを出していた。
+
+- `strings.ja.json` 側で `menu_g4_decimal_mul_int_title` を「整数と小数の掛け算」へ、desc/point も「かける順番は『整数×小数』『小数×整数』『まぜる』から選べる」旨へ改訂した([[./strings.ja.json]] 参照)。`id`/`descKey`/`pointKey`/`difficultyKey`/`supportLevel`(`full`)/`latexOnly`(`true`)は据え置き。`id` を変えないため `DISPLAY_FORMAT_ITEM_IDS`(前述「出題形式(式/筆算)設定」)の18項目列挙も無変更。
+- 固定設定を `id: 'factorOrder'` の choice へ置き換えた。option は `DECIMAL_FACTOR_ORDER_OPTIONS`(`drillPresets.js:742-751` 付近)= `int_decimal`(`setting_option_int_times_decimal`「整数×小数」)/ `decimal_int`(`setting_option_decimal_times_int`「小数×整数」)/ `mixed`(`setting_option_mixed`「まぜる」、`hintKey: 'setting_mixed_hint'`)の3値、既定 `'mixed'`。`displayFormatSetting()` は第2設定として残す。
+- `buildParams(state)` は `state?.factorOrder ?? 'mixed'` で分岐する。`base = { command_type: 'ope', operator: ['mul'], ...displayFormatParam(state) }` を共通にし:
+    - `int_decimal` → `{ ...base, a_digits: 1, b_digits: 2, b_decimal_places: 1 }`(第1因数=整数1桁、第2因数=小数第1位2桁)。
+    - `decimal_int` → `{ ...base, a_digits: 2, b_digits: 1, a_decimal_places: 1 }`(#313 以前と同一。第1因数=小数第1位)。
+    - `mixed`(既定) → `{ ...base, a_digits: 2, b_digits: 1, a_decimal_places: 1, mixed_decimal_operand_order: true }`。`decimal_int` と同じ非対称 decimal-places 指定に `mixed_decimal_operand_order: true` を足すことで、`nuts_calc_tex.py` が問題ごとにどちらの因数へ小数点を置くかをランダムに入れ替える(1枚のプリントに「小数×整数」と「整数×小数」が混在)。乗算は可換なので積は不変。[[../../../../backend/nuts_calc_tex.py]] の `### ope --a-decimal-places/--b-decimal-places` と [[../../../../backend/renderers.py]] 参照。
+- `mixed` は live preview 対象(`command_type === 'ope'` かつ `use_parentheses`/`missing_value` 無し)であり、`presetDetail.js` はリクエストボディに `...params` を展開するため `mixed_decimal_operand_order: true` が `POST /generate-problems` へも届く(`presetDetail.js` 側の変更は不要、[[./presetDetail.js]] 参照)。
+- `examplesFor` を `examplesByChoice(['factorOrder'], { int_decimal: ['7×3.6','4×2.35','3×5.8'], decimal_int: ['3.6×7','2.35×4','5.8×3'], mixed: ['3.6×7','4×2.35','5.8×3'] })` で付与し、静的 `examples` を `mixed` キーと同じ `['3.6×7','4×2.35','5.8×3']` にした(`examplesByChoice` 規約どおり既定値キー = 静的配列)。
+
 ### 選択肢ヒント(`hintKey`)の汎用化
 
 旧実装は「値が `'mixed'` の設定は `setting_mixed_hint` を表示する」というハードコードだった。issue #132 でこれを `option.hintKey` ベースの汎用機構へ置き換え、`OPT_MIXED`(`carrySetting`/`remainderSetting`/`REDUCTION_OPTIONS` が共有)および `dan`/`NUMBER_KIND_OPTIONS`/`DENOMINATOR_CHOICE_OPTIONS` それぞれの独立した `'mixed'` オプションリテラル(計4箇所)に `hintKey: 'setting_mixed_hint'` を付与した。表示文言・表示条件(該当オプションが選択されているとき)は旧実装と同一で、挙動の変更はない。
@@ -170,7 +183,8 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 
 ## 変更履歴（git log より自動生成）
 
-- 2359c63 feat(#311): rename grade 2 three-term drill and add operator-mode selection
+- f5656c4 feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication
+- 7334a3a feat(#311): rename grade 2 three-term drill and add operator-mode selection (#312)
 - 3278705 feat(#309): add subtraction-only mode to grade 1 three-term drill (#310)
 - 571563e feat(#307): add borrow-mode settings to grade 1 subtraction drills (#308)
 - 2f6add1 feat(#305): add carry-mode settings to grade 1 addition drills (#306)
@@ -179,4 +193,3 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 - 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
 - d542657 #176 frontend/web: cap the answer for grade-1/2 basic ope drills at their titled bound (#178)
 - 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)
-- 5864f10 refactor: standardize drill preset problem-sample examples to 3 each

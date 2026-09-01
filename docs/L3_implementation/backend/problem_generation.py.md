@@ -25,6 +25,7 @@
     - `'multi_term'` → `_generate_multi_term_ope_problems`: `nuts_calc_tex.generate_multi_term_ope_problems(...)` を直接呼び出し、`MultiTermOpeProblem` dataclass のリストを返す。
     - いずれも `_dataclass_to_dict()`(後述の JSON contract 節を実装する汎用コンバータ、`problem_generation.py:140-153`)で dict 化してから返す。
 - 亜種が判定されなかった場合(素の2項 `ope`)は `_generate_ope_problems_latex` を直接呼び出す。`nuts_calc_tex.generate_ope_problems(...)` を呼び出し、返る `OpeProblem` dataclass のリストをそのままdictへ変換する。`intermediate=True` の場合は `nuts_calc_tex.build_intermediate_memo(a, b)`(既存の純粋関数、LaTeXマークアップを含まないプレーンテキストを返す)を再利用してメモ文字列を追加する。issue #232 以前は `_generate_ope_problems_reportlab`(`nuts_calc.get_operation_data(...)` を呼び出し、演算子記号 `+`/`-`/`×`/`÷` を `SYMBOL_TO_OPERATOR_NAME` で正規化する実装)との二択だったが、`nuts_calc.py` 削除に伴い前者のみが残った。
+- `_generate_ope_problems_latex` は `params.get("mixed_decimal_operand_order", False)` を `bool(...)` 化して `nuts_calc_tex.generate_ope_problems(...)` の最後の位置引数として渡す(issue #313、`problem_generation.py:350`)。これは live preview(`presetDetail.js` → `POST /generate-problems`)でも `POST /generate-pdf`(`renderers.build_command()`)と同じ「小数×整数/整数×小数」問題ごとランダム入れ替え結果を得るための転送で、`_generate_ope_problems_latex` 側に新しい制約チェックは無い(`ope -o mul` + 非対称 decimal places の前提は CLI と共通のドメイン制約であり、live preview を出す `isLivePreviewSupported()` は `command_type === 'ope'` かつ `use_parentheses`/`missing_value` 無しのみを通すため、素の2項 `ope` としてここに到達する)。この亜種でない `ope` 経路のみが対象で、`tree`/`missing_value`/`multi_term` は従来どおりこのフラグを参照しない。
 - `a_digits`/`b_digits`(桁数指定のショートハンド、issue #230 で `a_value`/`b_value` から分離。旧経緯は下記「`-a/--a-value` の桁数解釈を `--a-digits`/`--b-digits` へ分離した理由」参照)は `resolve_digit_count_range()`(`problem_generation.py` 内、`nuts_calc_tex.set_min_max_value()` を経由)で `a_min`/`a_max`/`b_min`/`b_max` に変換する。指定がなければ `a_min=1`/`a_max=9`/`b_min=1`/`b_max=9`(CLIのデフォルトと同値)を使う。この解決は3亜種の生成関数でも共通利用する。`a_value`/`b_value` は `ope` では一切読まれない(`com`/`99`/`squ`/`pi` 専用の値そのものフィールド)。
 - `intermediate=True` の場合(素の2項 `ope` のみ)、`operator == ['mul']` かつ `b_max <= nuts_calc_tex.INTERMEDIATE_SINGLE_DIGIT_MAX`(値は9)であることを検証し、`_init()` の CLI バリデーションと同じ制約を(`exit(1)` ではなく)`ValueError` として再現する。
 
@@ -128,7 +129,8 @@ issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマ�
 
 ## 変更履歴(git log より自動生成)
 
-- 21b1a66 feat(#229): migrate the 100 hundred-square command to the internal presentation API
+- f5656c4 feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication
+- 7585ce7 feat(#229): migrate the 100 hundred-square command to the internal presentation API (#271)
 - c952709 feat(#228): expose the 100 hundred-square table via the /generate-problems JSON contract (#262)
 - 40ad870 #209 generate-pdf: migrate squ to the internal presentation API (#243)
 - 9f75d13 feat(#210): migrate generate-pdf pi command to internal presentation API
@@ -141,4 +143,3 @@ issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマ�
 - 490f44b #171 compare: support int/decimal/fraction kind mixing, expose via POST /generate-problems (#192)
 - 20b9462 #170 backend: support frac/mixed in POST /generate-problems (#191)
 - 2ebbe96 #169 problem_generation.py: support com/99/aBc/squ/pi (and 100's disposition) (#190)
-- caedeac #168 problem_generation.py: support ope --use-parentheses/--missing-value/--terms variants (#189)

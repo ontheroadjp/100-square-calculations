@@ -363,6 +363,46 @@ test('grade 2 three-term drill offers add-only / sub-only / mixed operators (iss
   assert.deepEqual(item.examplesFor(), item.examples);
 });
 
+test('grade 4 integer/decimal multiplication offers 整数×小数 / 小数×整数 / 混合 (issue #313)', () => {
+  const item = presetsByGrade[4].multiplication.find((candidate) => candidate.id === 'g4-decimal-mul-int');
+  assert.ok(item, 'g4-decimal-mul-int must exist');
+  assert.equal(item.titleKey, 'menu_g4_decimal_mul_int_title');
+
+  const factorOrder = item.settings.find((setting) => setting.id === 'factorOrder');
+  assert.ok(factorOrder, 'g4-decimal-mul-int must carry a factorOrder setting');
+  assert.equal(factorOrder.type, 'choice');
+  assert.deepEqual(factorOrder.options.map((option) => option.value), ['int_decimal', 'decimal_int', 'mixed']);
+  assert.deepEqual(
+    factorOrder.options.map((option) => option.labelKey),
+    ['setting_option_int_times_decimal', 'setting_option_decimal_times_int', 'setting_option_mixed'],
+  );
+  assert.equal(factorOrder.default, 'mixed');
+
+  // 整数×小数: the integer is the first factor, the decimal is the second.
+  assert.deepEqual(item.buildParams({ factorOrder: 'int_decimal' }), {
+    command_type: 'ope', operator: ['mul'], a_digits: 1, b_digits: 2, b_decimal_places: 1,
+  });
+  // 小数×整数: the decimal is the first factor (unchanged from before #313).
+  assert.deepEqual(item.buildParams({ factorOrder: 'decimal_int' }), {
+    command_type: 'ope', operator: ['mul'], a_digits: 2, b_digits: 1, a_decimal_places: 1,
+  });
+  // 混合 (default): backend randomizes the operand order per problem.
+  const mixedExpected = {
+    command_type: 'ope', operator: ['mul'], a_digits: 2, b_digits: 1, a_decimal_places: 1,
+    mixed_decimal_operand_order: true,
+  };
+  assert.deepEqual(item.buildParams({ factorOrder: 'mixed' }), mixedExpected);
+  assert.deepEqual(item.buildParams(), mixedExpected);
+
+  // displayFormat: written still adds vertical: true on top of any factorOrder.
+  assert.equal(item.buildParams({ factorOrder: 'mixed', displayFormat: 'written' }).vertical, true);
+
+  // example chips track the chosen order.
+  assert.deepEqual(item.examplesFor({ factorOrder: 'mixed' }), item.examples);
+  assert.ok(item.examplesFor({ factorOrder: 'int_decimal' }).every((example) => /^\d+×/.test(example)));
+  assert.ok(item.examplesFor({ factorOrder: 'decimal_int' }).every((example) => /^\d+\.\d+×/.test(example)));
+});
+
 test('grade 3 four-operations mix caps the answer at 1,000 without multiplication', () => {
   const item = presetsByGrade[3]['four-operations'].find((candidate) => candidate.id === 'g3-addsub-mixed-result-1000');
 

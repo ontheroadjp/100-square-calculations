@@ -22,6 +22,7 @@ class RendererRequest(TypedDict, total=False):
     denominator_digits: int
     a_decimal_places: int
     b_decimal_places: int
+    mixed_decimal_operand_order: bool
     decimal_places: int
     a_kind: list[str]
     b_kind: list[str]
@@ -154,6 +155,8 @@ def build_command(renderer_name: str, params: RendererRequest, out_file: str) ->
         command.extend(["--a-decimal-places", str(params["a_decimal_places"])])
     if "b_decimal_places" in params:
         command.extend(["--b-decimal-places", str(params["b_decimal_places"])])
+    if params.get("mixed_decimal_operand_order"):
+        command.append("--mixed-decimal-operand-order")
     if "decimal_places" in params:
         command.extend(["--decimal-places", str(params["decimal_places"])])
     if params.get("a_kind"):

@@ -506,6 +506,16 @@ def _init() -> argparse.Namespace:
         , default = MIN_DECIMAL_PLACES
         , help = 'Number of digits after the decimal point for the second "ope" operand (0-%d, ope only)' % MAX_DECIMAL_PLACES
     )
+    parser.add_argument('--mixed-decimal-operand-order'
+        , dest = 'mixed_decimal_operand_order'
+        , action = 'store_true'
+        , help = (
+            'For "ope -o mul" with asymmetric decimal places '
+            '(--a-decimal-places != --b-decimal-places): randomly swap which '
+            'operand carries the decimal per problem, so one worksheet mixes '
+            '"decimal x integer" and "integer x decimal" (ope only).'
+        )
+    )
     parser.add_argument('--decimal-places'
         , type = int
         , default = 1
@@ -953,6 +963,22 @@ def _init() -> argparse.Namespace:
                 "--vertical does not yet support a decimal --b-decimal-places "
                 "divisor for the 'div' operator (see the open question in "
                 "nuts_calc_tex.py.md)."
+            )
+
+    if args.mixed_decimal_operand_order:
+        if args.command != 'ope':
+            failure("--mixed-decimal-operand-order is only supported for the 'ope' command.")
+        if args.operator != ['mul']:
+            failure(
+                "--mixed-decimal-operand-order requires exactly '-o mul' "
+                "(multiplication is commutative, so swapping the operands keeps "
+                "the same product; swapping 'div' operands would change the quotient)."
+            )
+        if args.a_decimal_places == args.b_decimal_places:
+            failure(
+                "--mixed-decimal-operand-order requires --a-decimal-places and "
+                "--b-decimal-places to differ (otherwise swapping the operands "
+                "is a no-op)."
             )
 
     if args.command in ('mixed', 'compare'):
@@ -2291,6 +2317,7 @@ def generate_ope_problems(
         carry_mode: CarryMode | None = None,
         remainder_mode: RemainderMode | None = None,
         result_max: int | None = None,
+        mixed_decimal_operand_order: bool = False,
     ) -> list[OpeProblem]:
     """
     Generate `order` arithmetic problems starting at `start_index`.
@@ -2315,6 +2342,13 @@ def generate_ope_problems(
     recorded on the resulting OpeProblem for display (see
     ope_result_decimal_places/format_decimal_value). _init() guarantees the
     operand/operator combination keeps every result an exact, finite value.
+
+    mixed_decimal_operand_order=True (mul only, requires
+    a_decimal_places != b_decimal_places -- enforced by _init()) randomly
+    swaps (value, decimal_places) between the two operands per problem, so a
+    single worksheet mixes "decimal x integer" and "integer x decimal". The
+    swap happens after calc_mul, and multiplication is commutative, so the
+    product c is unchanged.
     """
     effective_operators = MIX_OPERATORS if 'mix' in operators else operators
     problems = []
@@ -2334,15 +2368,21 @@ def generate_ope_problems(
                 a, b, c = calc_div(a, b, nums_a, nums_b, want_remainder)
             else:
                 a, b, c = CALC_FUNCTIONS[operator](a, b, nums_a, nums_b)
+            problem_a_decimal_places = a_decimal_places
+            problem_b_decimal_places = b_decimal_places
+            if mixed_decimal_operand_order and operator == 'mul' and random.choice((False, True)):
+                a, b = b, a
+                problem_a_decimal_places, problem_b_decimal_places = b_decimal_places, a_decimal_places
             result_decimal_places = ope_result_decimal_places(
-                operator, a_decimal_places, b_decimal_places,
+                operator, problem_a_decimal_places, problem_b_decimal_places,
             )
             if result_max is not None and c > result_max * 10 ** result_decimal_places:
                 continue
             remainder = a - b * c if operator == 'div' else 0
             problems.append(OpeProblem(
                 index=start_index + offset, a=a, b=b, operator=operator, c=c,
-                a_decimal_places=a_decimal_places, b_decimal_places=b_decimal_places,
+                a_decimal_places=problem_a_decimal_places,
+                b_decimal_places=problem_b_decimal_places,
                 remainder=remainder,
             ))
             break
@@ -3984,7 +4024,7 @@ def build_ope_pages(
         problems = generate_ope_problems(
             nums_a, nums_b, ini.operator, order, start_index,
             ini.a_decimal_places, ini.b_decimal_places, ini.carry_mode,
-            ini.remainder_mode, ini.result_max,
+            ini.remainder_mode, ini.result_max, ini.mixed_decimal_operand_order,
         )
         blank_page, filled_page = build_ope_page_pair(problems, ini.columns, ini.vertical, ini.intermediate)
         pages_problems.append(problems)
