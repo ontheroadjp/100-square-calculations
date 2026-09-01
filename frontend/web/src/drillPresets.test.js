@@ -444,6 +444,12 @@ test('grade 3 fraction items live under addition/subtraction, not a separate fra
   assert.ok(presetsByGrade[3].subtraction.some((item) => item.id === 'g3-fraction-sub'));
 });
 
+test('grade 4 fraction items live under addition/subtraction, not a separate fraction category', () => {
+  assert.equal(presetsByGrade[4].fraction, undefined);
+  assert.ok(presetsByGrade[4].addition.some((item) => item.id === 'g4-fraction-add'));
+  assert.ok(presetsByGrade[4].subtraction.some((item) => item.id === 'g4-fraction-sub'));
+});
+
 test('grade 6 fraction mul/div items support reducible_mode and are marked full (#114)', () => {
   const ids = [
     'g6-fraction-mul-int', 'g6-int-mul-fraction', 'g6-fraction-mul',

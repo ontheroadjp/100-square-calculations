@@ -6,7 +6,7 @@
 
 ## 動作の概要
 
-`GRADES`(`[1,2,3,4,5,6]`)・`UNGRADED`(`'ungraded'`)・`presetsByGrade` を export する。`presetsByGrade[grade]` は `{ <categoryId>: menuItem[] }` の形で、`categoryId` は `addition`/`subtraction`/`multiplication`/`division`/`fraction`/`four-operations`/`number-sense` のいずれか(該当する学年にのみ出現)。`fraction` は3年生(issue #161で撤廃)を除く4〜6年生に残る。カテゴリキーは `catalog.js` の固定 `CATEGORY_ORDER`(`addition, subtraction, multiplication, division, fraction, four-operations, number-sense`)による学年ページのセクション見出し順序付けにのみ使われ、`drillCatalog.js` の絞り込み分類(`numberType`/`operationGroup`)には影響しない(`Object.values(categories)` でカテゴリキーを捨ててフラット化するため)。
+`GRADES`(`[1,2,3,4,5,6]`)・`UNGRADED`(`'ungraded'`)・`presetsByGrade` を export する。`presetsByGrade[grade]` は `{ <categoryId>: menuItem[] }` の形で、`categoryId` は `addition`/`subtraction`/`multiplication`/`division`/`fraction`/`four-operations`/`number-sense` のいずれか(該当する学年にのみ出現)。`fraction` は3年生(issue #161で撤廃)・4年生(issue #315で撤廃)を除く5〜6年生に残る。カテゴリキーは `catalog.js` の固定 `CATEGORY_ORDER`(`addition, subtraction, multiplication, division, fraction, four-operations, number-sense`)による学年ページのセクション見出し順序付けにのみ使われ、`drillCatalog.js` の絞り込み分類(`numberType`/`operationGroup`)には影響しない(`Object.values(categories)` でカテゴリキーを捨ててフラット化するため)。
 
 各 `menuItem` は以下を持つ:
 - `id`/`titleKey`/`descKey`/`pointKey`: 全データモデル中で `id` は一意。`pointKey`(issue #157)は `presetDetail.js` のページヘッダーに表示する、保護者向けの平易な指導ポイント文言(60件、[[./pageHeader.js]] 参照)。既存の `descKey` はもともと旧 `drillCatalog.js` 向けの機械的な説明文で、同ファイルが issue #110 で削除された現在は本データモデル上のフィールドとしてのみ残る(`drillPresets.test.js` が全項目に `descKey` が存在することを検証しているため、フィールド自体は残置)。`pointKey` とは用途・文体が異なる別系統のキーとして併存する。
@@ -158,6 +158,12 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 
 `catalog.js` の `CATEGORY_ORDER` は既に `four-operations` を `fraction` の直後(実質最後尾側)に固定しているため、3年生に `four-operations` カテゴリキーを追加するだけで学年ページ最下部にセクションが自動的に現れる(`catalog.js` 自体は無変更)。
 
+### 4年生の分数カテゴリ撤廃(issue #315)
+
+issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `fraction` カテゴリ(`g4-fraction-add`/`g4-fraction-sub` の2項目のみで構成)を撤廃し、両項目を内容無変更のまま `addition`/`subtraction` 配列の末尾へ移動した(`g4-fraction-add` は `g4-decimal-add` の後、`g4-fraction-sub` は `g4-decimal-sub` の後)。`id`/`titleKey`/`descKey`/`pointKey`/`settings`/`buildParams`/`examplesFor`、`g4-fraction-sub` の `proper_result` 判定コメントを含め一切変更していない。
+
+カテゴリキーは学年ページのセクション見出し順序付け(`catalog.js` の `CATEGORY_ORDER`)にのみ使われ、削除済み `drillCatalog.js` の分類ロジック(`operationGroup`/`numberType`)には影響しない。よってこの移動によるカタログ絞り込みへの影響はない(#161 と同じ理屈)。`catalog.js` の `CATEGORY_ORDER` と `strings.ja.json` の `category_fraction` は5・6年生が引き続き `fraction` カテゴリを使うため無変更。`drillPresets.test.js` に3年生と対称な「grade 4 fraction items live under addition/subtraction」テストを追加した。
+
 ### `ope` プリセットの桁数指定が `a_value`/`b_value` から `a_digits`/`b_digits` へ移行した理由(issue #230)
 
 `backend/nuts_calc_tex.py` の `-a/--a-value` は、`ope`(と `100`/`lcm`/`gcd`/`divfrac`)では「桁数」、`99`/`squ`/`pi` では「値そのもの」という2つの異なる意味をコマンドによって切り替えて解釈していた。この単一パラメータへの意味の二重化を根本的に解消するため、issue #230 で `ope`/`100`/`lcm`/`gcd`/`divfrac` 専用の新フィールド `a_digits`/`b_digits` を新設し、`a_value`/`b_value` はこれらのコマンドで一切読まれなくなった(`docs/L3_implementation/backend/nuts_calc_tex.py.md` の該当セクション参照)。これに伴い、`ope` の桁数ショートハンドを使っていた13箇所のプリセット(`g3-decimal-addsub`/`g3-decimal-sub`/`g3-mul-2x1`/`g3-mul-3x1`/`g3-mul-2x2`/`g4-decimal-div-int`/`g4-decimal-add`/`g4-decimal-sub`/`g4-decimal-mul-int`/`g4-four-operations`/`g4-parentheses`/`g5-decimal-mul`/`g5-decimal-div`)を `a_value`/`b_value` から `a_digits`/`b_digits` へ機械的に置き換えた(値そのものは無変更)。`99`(`g2-kuku`)/`squ` プリセットの `a_value` は値そのものの意味のままなので無変更。`lcm`/`gcd`/`divfrac` プリセットはこの移行以前から `a_min`/`a_max`(明示レンジ)を直接指定しており対象外だった。
@@ -183,7 +189,8 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 
 ## 変更履歴（git log より自動生成）
 
-- f5656c4 feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication
+- e31b296 refactor(#315): move grade 4 fraction add/sub into addition/subtraction categories
+- 40dfb0a feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication (#314)
 - 7334a3a feat(#311): rename grade 2 three-term drill and add operator-mode selection (#312)
 - 3278705 feat(#309): add subtraction-only mode to grade 1 three-term drill (#310)
 - 571563e feat(#307): add borrow-mode settings to grade 1 subtraction drills (#308)
@@ -192,4 +199,3 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 - 37a5a80 #230 Split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits (#236)
 - 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
 - d542657 #176 frontend/web: cap the answer for grade-1/2 basic ope drills at their titled bound (#178)
-- 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)
