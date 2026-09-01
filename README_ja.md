@@ -144,7 +144,7 @@ cd frontend/web && npm run build
 リポジトリは `backend/` + `frontend/{web}` 構成(将来 `backend`/`frontend` を別リポジトリに分離する可能性も見据えている)。かつては `frontend/{spa,web}` として2つの独立したフロントエンドを持っていたが、`frontend/spa` は issue #233 で削除された。
 
 *   **CLI**: `backend/nuts_calc_tex.py` → LaTeX(`lualatex`/`pdflatex`) → PDF/CSV。サーバー、DB、永続状態はありません。旧 ReportLab版 `nuts_calc.py` は issue #232 で削除されました。
-*   **Web UI**: フロントエンド(`frontend/web` の軽量静的サイト) → Flask backend(`backend/app.py`) → `backend/renderers.py` → `nuts_calc_tex.py` をsubprocess実行し、PDFを返します。レンダラー切り替えの仕組み(`NUTS_CALC_RENDERER`)自体は将来の別レンダラー追加に備えて維持されています。
+*   **Web UI**: フロントエンド(`frontend/web` の軽量静的サイト) → Flask backend(`backend/app.py`) → `backend/three_layer_renderer.py` の `render_worksheet_pdf` が `nuts_calc_tex.py` の内部プレゼンテーション API をプロセス内で呼び、PDF を返します(旧 `backend/renderers.py` の subprocess 実行経路は issue #297 で削除。`renderers.py` は `renderer_config.py` にリネーム)。レンダラー切り替えの仕組み(`NUTS_CALC_RENDERER`)自体は将来の別レンダラー追加に備えて維持されています。
 *   **バッチ**: `backend/factory.sh` が `nuts_calc_tex.py` を繰り返し呼び出し、`dist/` に成果物を生成します。
 
 `nuts_calc_tex.py` は旧 ReportLab版とコード共有しない独立実装で、互換7コマンドにLaTeX専用の分数・混合・比較・数論・変換系コマンドを加えた計20コマンドを持ちます。
