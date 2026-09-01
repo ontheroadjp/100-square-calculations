@@ -130,17 +130,13 @@ issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマ�
 
 ## 変更履歴(git log より自動生成)
 
-- f5656c4 feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication
+- ba08963 feat(#317): add integer/decimal dividend selection to grade 5 decimal division
+- 40dfb0a feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication (#314)
 - 7585ce7 feat(#229): migrate the 100 hundred-square command to the internal presentation API (#271)
 - c952709 feat(#228): expose the 100 hundred-square table via the /generate-problems JSON contract (#262)
+- 429c088 #210 generate-pdf: migrate pi to the internal presentation API (#244)
 - 40ad870 #209 generate-pdf: migrate squ to the internal presentation API (#243)
-- 9f75d13 feat(#210): migrate generate-pdf pi command to internal presentation API
 - a6187e9 #208 generate-pdf: migrate 99 (kuku) to the internal presentation API (#242)
 - 36288a2 #237 app.py: dedupe 'com' a_value/target validation with problem_generation.py (#238)
 - 37a5a80 #230 Split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits (#236)
 - 700f115 #232 backend: remove nuts_calc.py (ReportLab renderer) and the reportlab dependency (#234)
-- 0c1f60c #173 problem_generation.py: support simplify/commondenom/frac2dec/dec2frac/divfrac, expose via POST /generate-problems (#194)
-- 00d9891 #172 problem_generation.py: support evenodd/multiples/divisors/lcm/gcd, expose via POST /generate-problems (#193)
-- 490f44b #171 compare: support int/decimal/fraction kind mixing, expose via POST /generate-problems (#192)
-- 20b9462 #170 backend: support frac/mixed in POST /generate-problems (#191)
-- 2ebbe96 #169 problem_generation.py: support com/99/aBc/squ/pi (and 100's disposition) (#190)

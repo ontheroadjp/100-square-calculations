@@ -544,7 +544,8 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴（git log より自動生成）
 
-- f5656c4 feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication
+- ba08963 feat(#317): add integer/decimal dividend selection to grade 5 decimal division
+- 40dfb0a feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication (#314)
 - c03270f feat(#301): rebalance drill-sheet typography and rework hissan layout (#302)
 - eb3afe8 feat(#292): honor the reverse equation side-swap in the 3-layer renderer for 99/squ/pi (#295)
 - 230261c feat(#227): migrate ope --vertical to the internal presentation API
@@ -553,4 +554,3 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - a704907 feat(#269): render the written-calculation (hissan) content format via shared TeX components (#281)
 - 8cce41a feat(#268): render the staged arrow-chain content format via a shared TeX component (#278)
 - 299eab0 feat(#267): render arrow-conversion content formats via shared TeX components (#279)
-- f794743 feat(#266): render the comparison content format via a shared TeX component (#277)

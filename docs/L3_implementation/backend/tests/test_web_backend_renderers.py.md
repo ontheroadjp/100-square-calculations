@@ -14,11 +14,13 @@ FlaskバックエンドがPDF生成リクエストを正しいCLI引数へ変換
 
 ## 変更履歴(git log より自動生成)
 
-- f5656c4 feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication
-- 3b6bc6c refactor(#230): split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits
+- ba08963 feat(#317): add integer/decimal dividend selection to grade 5 decimal division
+- 40dfb0a feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication (#314)
+- 37a5a80 #230 Split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits (#236)
 - 700f115 #232 backend: remove nuts_calc.py (ReportLab renderer) and the reportlab dependency (#234)
 - 9393898 #186 renderers/engine: make latex+lualatex the default (and only reachable) configuration (#187)
 - 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)
 - 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)
 - 26ec449 #93 nuts_calc_tex.py: add optional name field to generated worksheets (#105)
 - eae5107 #91 nuts_calc_tex.py: add remainder control to division (none/required/mixed) (#102)
+- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

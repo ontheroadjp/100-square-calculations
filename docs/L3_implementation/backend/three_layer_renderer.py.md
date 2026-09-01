@@ -79,7 +79,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- bfd4b9c fix(#298): honor descend / shuffle in _generate_squ_pdf (3-layer renderer)
+- ba08963 feat(#317): add integer/decimal dividend selection to grade 5 decimal division
+- e6e0e98 fix(#298): honor descend / shuffle in _generate_squ_pdf (3-layer renderer) (#299)
 - eb3afe8 feat(#292): honor the reverse equation side-swap in the 3-layer renderer for 99/squ/pi (#295)
 - 6417a2f refactor(#291): add a hardcoded 3-layer-vs-legacy renderer switch and drop the per-command subprocess fallthrough (#294)
 - 0b35732 refactor(#290): extract the 3-layer-model PDF glue from app.py into three_layer_renderer.py (#293)

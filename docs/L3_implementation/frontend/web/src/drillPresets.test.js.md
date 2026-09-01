@@ -37,7 +37,9 @@
 
 ## 変更履歴（git log より自動生成）
 
-- f5656c4 feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication
+- ba08963 feat(#317): add integer/decimal dividend selection to grade 5 decimal division
+- 697db43 refactor(#315): move grade 4 fraction add/sub into addition/subtraction categories (#316)
+- 40dfb0a feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication (#314)
 - 7334a3a feat(#311): rename grade 2 three-term drill and add operator-mode selection (#312)
 - 3278705 feat(#309): add subtraction-only mode to grade 1 three-term drill (#310)
 - 571563e feat(#307): add borrow-mode settings to grade 1 subtraction drills (#308)
@@ -45,5 +47,3 @@
 - a4104ca feat(#303): render fixed drill settings as an inactive segmented control (#304)
 - 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
 - d542657 #176 frontend/web: cap the answer for grade-1/2 basic ope drills at their titled bound (#178)
-- 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)
-- 17070be #161 frontend/web: rebuild grade-3 addition/subtraction menu, retire fraction category, add four-operations drills (#162)

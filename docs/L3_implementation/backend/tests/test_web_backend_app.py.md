@@ -27,7 +27,9 @@ Flask test client の単体・結合テストであり、実 HTTP server や実 
 
 ## 変更履歴（git log より自動生成）
 
-- bfd4b9c fix(#298): honor descend / shuffle in _generate_squ_pdf (3-layer renderer)
+- ba08963 feat(#317): add integer/decimal dividend selection to grade 5 decimal division
+- c03270f feat(#301): rebalance drill-sheet typography and rework hissan layout (#302)
+- e6e0e98 fix(#298): honor descend / shuffle in _generate_squ_pdf (3-layer renderer) (#299)
 - eb3afe8 feat(#292): honor the reverse equation side-swap in the 3-layer renderer for 99/squ/pi (#295)
 - 6417a2f refactor(#291): add a hardcoded 3-layer-vs-legacy renderer switch and drop the per-command subprocess fallthrough (#294)
 - 0b35732 refactor(#290): extract the 3-layer-model PDF glue from app.py into three_layer_renderer.py (#293)
@@ -35,5 +37,3 @@ Flask test client の単体・結合テストであり、実 HTTP server や実 
 - ea4c269 feat(#285): migrate mixed reducibility PDF generation (#289)
 - 1bdac41 feat(#284): migrate multi-term mixed PDF generation (#287)
 - 230261c feat(#227): migrate ope --vertical to the internal presentation API
-- 3c55ae3 feat(#226): migrate ope --intermediate to the internal presentation API
-- 9b643c3 feat(#270): render the hundred-square grid table via shared TeX components (#280)

@@ -49,8 +49,9 @@ issue #186 時点では `nuts_calc.py`(`reportlab`)のコード自体は残し�
 
 ## 変更履歴(git log より自動生成)
 
-- f5656c4 feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication
-- 3b6bc6c refactor(#230): split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits
+- ba08963 feat(#317): add integer/decimal dividend selection to grade 5 decimal division
+- 40dfb0a feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication (#314)
+- 37a5a80 #230 Split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits (#236)
 - 700f115 #232 backend: remove nuts_calc.py (ReportLab renderer) and the reportlab dependency (#234)
 - 9393898 #186 renderers/engine: make latex+lualatex the default (and only reachable) configuration (#187)
 - 13bef63 #138 backend: add POST /generate-problems for PDF-free ope problem generation (#175)

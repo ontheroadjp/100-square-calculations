@@ -202,7 +202,8 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 
 ## 変更履歴（git log より自動生成）
 
-- e31b296 refactor(#315): move grade 4 fraction add/sub into addition/subtraction categories
+- ba08963 feat(#317): add integer/decimal dividend selection to grade 5 decimal division
+- 697db43 refactor(#315): move grade 4 fraction add/sub into addition/subtraction categories (#316)
 - 40dfb0a feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication (#314)
 - 7334a3a feat(#311): rename grade 2 three-term drill and add operator-mode selection (#312)
 - 3278705 feat(#309): add subtraction-only mode to grade 1 three-term drill (#310)
@@ -211,4 +212,3 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 - a4104ca feat(#303): render fixed drill settings as an inactive segmented control (#304)
 - 37a5a80 #230 Split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits (#236)
 - 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
-- d542657 #176 frontend/web: cap the answer for grade-1/2 basic ope drills at their titled bound (#178)

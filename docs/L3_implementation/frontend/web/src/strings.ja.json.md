@@ -24,7 +24,8 @@ issue #110 で `drillCatalog.js`(旧絞り込み/検索UIのアダプター)を�
 
 ## 変更履歴（git log より自動生成）
 
-- f5656c4 feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication
+- ba08963 feat(#317): add integer/decimal dividend selection to grade 5 decimal division
+- 40dfb0a feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication (#314)
 - 7334a3a feat(#311): rename grade 2 three-term drill and add operator-mode selection (#312)
 - 3278705 feat(#309): add subtraction-only mode to grade 1 three-term drill (#310)
 - 571563e feat(#307): add borrow-mode settings to grade 1 subtraction drills (#308)
@@ -33,4 +34,3 @@ issue #110 で `drillCatalog.js`(旧絞り込み/検索UIのアダプター)を�
 - 56aa1d3 #110 Remove frontend/web's unused drillCatalog.js and dead filter-UI i18n keys (#163)
 - 17070be #161 frontend/web: rebuild grade-3 addition/subtraction menu, retire fraction category, add four-operations drills (#162)
 - 9b366c1 #157 Add per-grade/per-drill header descriptions via a shared page header component (#160)
-- c9011f1 #154 Add grade-2 advanced subtraction capped at 1,000 (#159)
