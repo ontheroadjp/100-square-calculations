@@ -6,7 +6,7 @@
 
 ## 動作の概要
 
-`GRADES`(`[1,2,3,4,5,6]`)・`UNGRADED`(`'ungraded'`)・`presetsByGrade` を export する。`presetsByGrade[grade]` は `{ <categoryId>: menuItem[] }` の形で、`categoryId` は `addition`/`subtraction`/`multiplication`/`division`/`fraction`/`four-operations`/`number-sense` のいずれか(該当する学年にのみ出現)。`fraction` は3年生(issue #161で撤廃)を除く4〜6年生に残る。カテゴリキーは `catalog.js` の固定 `CATEGORY_ORDER`(`addition, subtraction, multiplication, division, fraction, four-operations, number-sense`)による学年ページのセクション見出し順序付けにのみ使われ、`drillCatalog.js` の絞り込み分類(`numberType`/`operationGroup`)には影響しない(`Object.values(categories)` でカテゴリキーを捨ててフラット化するため)。
+`GRADES`(`[1,2,3,4,5,6]`)・`UNGRADED`(`'ungraded'`)・`presetsByGrade` を export する。`presetsByGrade[grade]` は `{ <categoryId>: menuItem[] }` の形で、`categoryId` は `addition`/`subtraction`/`multiplication`/`division`/`fraction`/`four-operations`/`number-sense` のいずれか(該当する学年にのみ出現)。`fraction` は3年生(issue #161で撤廃)・4年生(issue #315で撤廃)を除く5〜6年生に残る。カテゴリキーは `catalog.js` の固定 `CATEGORY_ORDER`(`addition, subtraction, multiplication, division, fraction, four-operations, number-sense`)による学年ページのセクション見出し順序付けにのみ使われ、`drillCatalog.js` の絞り込み分類(`numberType`/`operationGroup`)には影響しない(`Object.values(categories)` でカテゴリキーを捨ててフラット化するため)。
 
 各 `menuItem` は以下を持つ:
 - `id`/`titleKey`/`descKey`/`pointKey`: 全データモデル中で `id` は一意。`pointKey`(issue #157)は `presetDetail.js` のページヘッダーに表示する、保護者向けの平易な指導ポイント文言(60件、[[./pageHeader.js]] 参照)。既存の `descKey` はもともと旧 `drillCatalog.js` 向けの機械的な説明文で、同ファイルが issue #110 で削除された現在は本データモデル上のフィールドとしてのみ残る(`drillPresets.test.js` が全項目に `descKey` が存在することを検証しているため、フィールド自体は残置)。`pointKey` とは用途・文体が異なる別系統のキーとして併存する。
@@ -157,6 +157,12 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 - `g3-parentheses-mul-result-1000`: 加減乗の3項混合に `use_parentheses: true` を加え、掛け算オペランドを2桁までに揃えるため `a_min:1, a_max:99, b_min:1, b_max:99`(2年生の `g2-parentheses` と同様に `a_min`/`a_max` 形式を使う。4年生の `g4-parentheses` が使う `a_digits`/`b_digits` 形式とは異なる)、`result_max: 1000` で答えの上限も揃える。
 
 `catalog.js` の `CATEGORY_ORDER` は既に `four-operations` を `fraction` の直後(実質最後尾側)に固定しているため、3年生に `four-operations` カテゴリキーを追加するだけで学年ページ最下部にセクションが自動的に現れる(`catalog.js` 自体は無変更)。
+
+### 4年生の分数カテゴリ撤廃(issue #315)
+
+issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `fraction` カテゴリ(`g4-fraction-add`/`g4-fraction-sub` の2項目のみで構成)を撤廃し、両項目を内容無変更のまま `addition`/`subtraction` 配列の末尾へ移動した(`g4-fraction-add` は `g4-decimal-add` の後、`g4-fraction-sub` は `g4-decimal-sub` の後)。`id`/`titleKey`/`descKey`/`pointKey`/`settings`/`buildParams`/`examplesFor`、`g4-fraction-sub` の `proper_result` 判定コメントを含め一切変更していない。
+
+カテゴリキーは学年ページのセクション見出し順序付け(`catalog.js` の `CATEGORY_ORDER`)にのみ使われ、削除済み `drillCatalog.js` の分類ロジック(`operationGroup`/`numberType`)には影響しない。よってこの移動によるカタログ絞り込みへの影響はない(#161 と同じ理屈)。`catalog.js` の `CATEGORY_ORDER` と `strings.ja.json` の `category_fraction` は5・6年生が引き続き `fraction` カテゴリを使うため無変更。`drillPresets.test.js` に3年生と対称な「grade 4 fraction items live under addition/subtraction」テストを追加した。
 
 ### `ope` プリセットの桁数指定が `a_value`/`b_value` から `a_digits`/`b_digits` へ移行した理由(issue #230)
 
