@@ -23,7 +23,7 @@ AI 運用の single source of truth。`AGENTS.md` はこのファイルへの sy
 
 ## Local Tooling Environment
 
-Observed by /init-docs (2026-09-01, standalone mode):
+Observed by /init-docs (2026-09-02, standalone mode):
 - gh: 2.98.0
 - gh auth: logged in to github.com as ontheroadjp (ssh protocol, scopes: admin:public_key, gist, read:org, repo)
 - node: v24.16.0 (via mise: `~/.local/share/mise/installs/node/24/bin/node`)
@@ -41,11 +41,11 @@ Notes:
 - All CLI/Flask code lives under `backend/` (moved there from the repo root and `web/backend/` in issue #88); run these commands with `backend/` as the working directory.
 - No lock file, `requirements.txt`, or `pyproject.toml` exists. The CLI (`nuts_calc_tex.py`) has zero pip dependencies; the web backend needs `Flask`/`Flask-Cors`; the test suite needs `pytest` and `pytest-xdist`. Install via `pip install flask flask-cors pytest pytest-xdist` (see `README.md`).
 - repo-local `venv/` has Python 3.12.3, Flask 3.1.3, Flask-Cors 6.0.5, and pytest 9.1.1.
-- `cd backend && python3 -m pytest -q` passes all 1147 tests as of 2026-09-01; `backend/pytest.ini` uses pytest-xdist `-n auto`. See `docs/L2_development/test.md`.
+- `cd backend && python3 -m pytest -q` passes all 1107 tests as of 2026-09-02; `backend/pytest.ini` uses pytest-xdist `-n auto`. Issue #297 removed the legacy subprocess-path tests. See `docs/L2_development/test.md`.
 - `nuts_calc_tex.py` requires `pdflatex`/`lualatex` on `PATH`; its `pdflatex`-dependent CLI tests auto-skip when it's absent. Its `vendor/texmf` lookup is resolved relative to its own file location (`backend/vendor/texmf`), so it required no code change when `backend/` was introduced in issue #88. Its optional `lualatex` engine adapter (see Local Tooling Environment above) has its own `lualatex`-gated tests (`backend/tests/test_nuts_calc_tex_lualatex_engine.py`, plus pure-Python adapter-selection tests in `test_nuts_calc_tex_engine_adapter.py` that need neither binary) that auto-skip the same way when `lualatex` is absent.
 
 ## Web Frontend Environment (`frontend/web`)
 
 `frontend/web` shares the same `backend/app.py` Flask API (issue #88). It was originally one of two independent frontends alongside `frontend/spa` (a React SPA); `frontend/spa` was removed in issue #233, leaving `frontend/web` as the sole Web UI frontend.
 
-- `frontend/web` (lightweight static multi-page site — `index.html`/`catalog.html`/`preset.html` — Vite + Sass + KaTeX, Japanese only): `npm run build` succeeds (verified 2026-09-01, Vite 8.2.1, 3 HTML entries). Its three `node:test` files are run directly and 72 tests passed; no npm test/lint scripts are configured. Its `preset.html` detail screen calls `POST /generate-problems` for live previews.
+- `frontend/web` (lightweight static multi-page site — `index.html`/`catalog.html`/`preset.html` — Vite + Sass + KaTeX, Japanese only): `npm run build` succeeds (verified 2026-09-02, Vite 8.2.1, 3 HTML entries). Its three `node:test` files are run directly and 72 tests passed; no npm test/lint scripts are configured. Its `preset.html` detail screen calls `POST /generate-problems` for live previews.

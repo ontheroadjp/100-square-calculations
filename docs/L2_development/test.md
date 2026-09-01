@@ -41,11 +41,11 @@ cd frontend/web
 npm run build
 ```
 
-## 実行結果(2026-09-01、standalone `/init-docs` で再検証)
+## 実行結果(2026-09-02、standalone `/init-docs` で再検証)
 
 | 検証 | 結果 |
 |---|---|
-| `cd backend && python3 -m pytest -q` | 1147 passed in 86.05s。`backend/pytest.ini:4` の `addopts = -n auto` により pytest-xdist で並列実行 |
+| `cd backend && python3 -m pytest -q` | 1107 passed in 78.49s。`backend/pytest.ini:4` の `addopts = -n auto` により pytest-xdist で並列実行。issue #297 で legacy subprocess-path tests を削除 |
 | `frontend/web` `node --test ...`(3ファイル) | 72 passed |
 | `cd frontend/web && npm run build` | 成功(3 HTML エントリ: `index.html`/`catalog.html`/`preset.html`。`custom.html` は issue #97 で削除) |
 

@@ -74,7 +74,7 @@ cd backend
 pip install pytest
 python3 -m pytest -q
 ```
-`backend/pytest.ini` により `backend/` ディレクトリ内で実行し、`addopts = -n auto` で pytest-xdist が並列化する。2026-09-01 の再検証では1147件全てが成功した。詳細は [[test]]。
+`backend/pytest.ini` により `backend/` ディレクトリ内で実行し、`addopts = -n auto` で pytest-xdist が並列化する。2026-09-02 の再検証では1107件全てが成功した。詳細は [[test]]。
 
 frontend の純粋関数テストは `package.json` に script がないため直接実行する:
 
@@ -82,12 +82,12 @@ frontend の純粋関数テストは `package.json` に script がないため�
 node --test frontend/web/src/drillPresets.test.js frontend/web/src/presetDetail.test.js frontend/web/vite.config.test.js
 ```
 
-2026-09-01 の再検証では3ファイル72件すべて成功した。`frontend/web/vite.config.test.js:1-9` は開発用 CSS sourcemap が有効で production sourcemap は未設定であることを検証する。
+2026-09-02 の再検証では3ファイル72件すべて成功した。`frontend/web/vite.config.test.js:1-9` は開発用 CSS sourcemap が有効で production sourcemap は未設定であることを検証する。
 
 ## ビルド
 
 - CLI/Web バックエンド: ビルド工程なし(PDF/CSV 生成そのものが成果物)。
-- `frontend/web`: `npm run build`(Vite、マルチページ)。2026-09-01 に Vite 8.2.1 で実機確認済み(3 HTML エントリの build 成功)。
+- `frontend/web`: `npm run build`(Vite、マルチページ)。2026-09-02 に Vite 8.2.1 で実機確認済み(3 HTML エントリの build 成功)。
 
 ## 未確認事項
 
