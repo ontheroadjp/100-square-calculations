@@ -40,7 +40,7 @@ CI 定義・パッケージ定義(lock file 等)は Python 側に存在しない
 
 ### Web バックエンド(`backend/`、`frontend/web` が利用)
 
-- `backend/app.py`: Flask アプリ。エンドポイントは `POST /generate-pdf`(PDF生成)、`POST /generate-problems`(PDFを生成せず問題データのみJSONで返す、issue #138)、`GET /renderer-info`(現在有効なレンダラー名の取得、issue #46)の3つ。`POST /generate-pdf` は既定の `_USE_LEGACY_PDF_PIPELINE = False` で全20コマンドを `backend/three_layer_renderer.py` の内部 presentation API へ送る。`backend/renderers.py` の CLI/subprocess 経路は緊急ロールバック用の source-level switch を `True` にした場合だけ使われる(`backend/app.py:17-60`)。`POST /generate-problems` も全20コマンドに対応し、19コマンドは `{"problems": [...]}`、`100` は単一表用の `{"table": {...}}` を返す(`backend/app.py:86-117`、`backend/problem_generation.py:12-16,285-322`)。詳細は [[../L3_implementation/api]]・[[../L3_implementation/specification_summary]] を参照。
+- `backend/app.py`: Flask アプリ。エンドポイントは `POST /generate-pdf`、`POST /generate-problems`、`GET /renderer-info` の3つ。`POST /generate-pdf` は全20コマンドを `backend/three_layer_renderer.py` の `render_worksheet_pdf` でプロセス内生成する(issue #297 で legacy CLI/subprocess 経路を削除、`backend/app.py:16-46`)。レンダラー名解決と共有 `RendererRequest` 型は `backend/renderer_config.py` にある(issue #297 で `renderers.py` からリネーム)。`POST /generate-problems` も全20コマンドに対応し、19コマンドは `{"problems": [...]}`、`100` は単一表用の `{"table": {...}}` を返す(`backend/app.py:48-79`、`backend/problem_generation.py:12-16,285-322`)。詳細は [[../L3_implementation/api]]・[[../L3_implementation/specification_summary]] を参照。
 
 かつては React SPA `frontend/spa` ももう1つの Web フロントエンドとして存在し、`App.jsx`(ヘッダー・英語/日本語切り替え)、`GradeDrills.jsx`(学年別ドリル選択トップ画面。LaTeX レンダラー時は1年生の繰り上がり・繰り下がり条件別6カード、4〜6年生の中学受験準備27カードを含む)、`CustomGenerator.jsx`(7種類の `command` に対応する詳細パラメータフォーム)を持っていたが、issue #233 で削除された。
 

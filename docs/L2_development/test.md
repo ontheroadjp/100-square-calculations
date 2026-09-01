@@ -4,7 +4,7 @@
 
 - Python は pytest を使う。`backend/pytest.ini:1-4` が `testpaths = tests`、`pythonpath = .`、`addopts = -n auto` を定義する(issue #88 で `backend/` ディレクトリへ移動。`pythonpath = .` は `backend/` 起点のまま機能するため内容変更なし。`addopts = -n auto` は issue #322 で追加し、`pytest-xdist` によりテストを CPU コア数だけのワーカーへ分散する)。CI は存在しないためローカル実行が保証手段である。
 - `nuts_calc_tex.py` は純 Python の生成関数に加え、`pdflatex`/`lualatex` がある環境では PDF 生成も対象にする(`backend/tests/test_nuts_calc_tex.py:16-23`)。旧 ReportLab CLI(`nuts_calc.py`)向けのテスト(`test_nuts_calc_init.py`/`test_nuts_calc_data.py`/`test_nuts_calc_cli.py`/`conftest.py`)は issue #232 での削除に伴い、対象ファイルごと削除した。
-- Flask は test client とレンダラー変換関数をモジュールレベルで検証する(`backend/tests/test_web_backend_app.py`、`backend/tests/test_web_backend_renderers.py`)。
+- Flask は test client(`backend/tests/test_web_backend_app.py`)とレンダラー名解決(`backend/tests/test_renderer_config.py`。issue #297 で `test_web_backend_renderers.py` からリネーム、`build_command` テストは同 issue で削除)をモジュールレベルで検証する。
 - `frontend/web` は Node.js 組み込み `node:test` でプリセットデータモデル、詳細画面の純粋ヘルパー、Vite 設定を検証する。DOMやブラウザE2Eは対象外である。
 
 ## テスト構成
@@ -16,7 +16,7 @@
 | LaTeX CLI | `test_nuts_calc_tex.py` とコマンド別 `test_nuts_calc_tex_*_generation.py` | 全20コマンド、小数、分数比較、混合数種、繰り上がり条件の生成ロジックと LaTeX 成果物を検証する |
 | 小数・混合プリセット | `test_nuts_calc_tex_decimal_generation.py`, `test_nuts_calc_tex_decimal_mixed_presets.py`, `test_nuts_calc_tex_mixed_generation.py` | issue #76 の小数 `ope` と `mixed` を検証する |
 | 中学受験プリセット | `test_nuts_calc_tex_exam_prep_presets.py` | 4〜6年生×3段階×3レベルの組み合わせが retry 上限を枯渇させないことを生成関数で検証する |
-| Web backend | `test_web_backend_app.py`, `test_web_backend_renderers.py` | renderer 選択、HTTP 応答、JSON→CLI 引数変換を検証する。issue #88 の移動に伴い `sys.path` の組み立て(旧: `REPO_ROOT / "web" / "backend"`)を `BACKEND_DIR` 直接参照に修正済み |
+| Web backend | `test_web_backend_app.py`, `test_renderer_config.py` | `test_web_backend_app.py` は HTTP 応答と 3層モデル経路への routing を、`test_renderer_config.py`(issue #297 で `test_web_backend_renderers.py` からリネーム)は `get_renderer_name()` を検証する。issue #297 で legacy subprocess 経路と JSON→CLI 引数変換(`build_command`)のテストは削除。issue #88 の移動に伴い `sys.path` の組み立て(旧: `REPO_ROOT / "web" / "backend"`)を `BACKEND_DIR` 直接参照に修正済み |
 | Web backend(問題データのみ生成) | `test_problem_generation.py` | `POST /generate-problems`(issue #138)が使う `backend/problem_generation.py` の in-process 生成ラッパーを検証する |
 | Frontend 純粋関数(`frontend/web`) | `drillPresets.test.js`, `presetDetail.test.js` | メニュー項目の契約、設定サマリ、例題整形を `node:test` で検証する |
 | Frontend build 設定 | `frontend/web/vite.config.test.js` | 開発用 CSS sourcemap が有効で production sourcemap は未設定であることを検証する |

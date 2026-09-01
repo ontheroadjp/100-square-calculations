@@ -36,7 +36,7 @@ source venv/bin/activate
 pip install Flask Flask-Cors
 python app.py
 ```
-根拠: `README.md` の Installation / Usage。パッケージ定義ファイル(`requirements.txt`/`pyproject.toml`/`setup.py`)は存在しないため、`pip install Flask Flask-Cors` を手動実行する必要がある。`POST /generate-pdf` は既定の `_USE_LEGACY_PDF_PIPELINE = False` で `three_layer_renderer.render_worksheet_pdf()` をプロセス内で呼び出す。`renderers.run()` の CLI/subprocess 経路は同定数を `True` に変更して再起動した緊急ロールバック時だけ使う(`backend/app.py:17-60`)。
+根拠: `README.md` の Installation / Usage。パッケージ定義ファイル(`requirements.txt`/`pyproject.toml`/`setup.py`)は存在しないため、`pip install Flask Flask-Cors` を手動実行する必要がある。`POST /generate-pdf` は `backend/three_layer_renderer.py` の `render_worksheet_pdf` が内部 presentation API をプロセス内で呼んで PDF を返す。legacy subprocess経路は issue #297 で削除され、これが唯一のPDF経路である(`backend/app.py:16-46`)。
 
 **(削除済み、issue #233)** かつては React SPA `frontend/spa`(`cd frontend/spa && npm install && npm run dev`、`http://localhost:5173`)ももう1つの Web フロントエンドとして存在した。`npm run build` は2026-08-12時点で実機確認済み(成功)だったが、`npm run lint` は `frontend/spa/src/drillPresets.js:433` の日本語コメント内全角空白を `no-irregular-whitespace` が拒否し1件失敗していた。`frontend/spa` 自体が issue #233 で削除されたため、以下は現在唯一の Web フロントエンドである `frontend/web` の手順。
 

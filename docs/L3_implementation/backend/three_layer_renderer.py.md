@@ -2,9 +2,9 @@
 
 ## 目的・役割
 
-`POST /generate-pdf` の「内部プレゼンテーション API(3層モデル、issue #183 の `build_presentation_document_tex` / `PresentationPage`)」経路の PDF 生成グルーを一手に担う Flask 非依存モジュール。issue #290 で `backend/app.py` から約2100行(26個の `_generate_*_pdf` ビルダー、8個の `_is_*_request` ルーティング述語、共通の `_resolve_page_count` / `_build_presentation_pages`、`command_type` → ビルダーのディスパッチ)を **バイト等価** で抜き出したもの(#174 の strangler-fig ステップ)。これにより `app.py` は HTTP ルーティング + 薄いレンダラーディスパッチャに縮小された。
+`POST /generate-pdf` の「内部プレゼンテーション API(3層モデル、issue #183 の `build_presentation_document_tex` / `PresentationPage`)」経路の PDF 生成グルーを一手に担う Flask 非依存モジュール。issue #290 で `backend/app.py` から約2100行(26個の `_generate_*_pdf` ビルダー、8個の `_is_*_request` ルーティング述語、共通の `_resolve_page_count` / `_build_presentation_pages`、`command_type` → ビルダーのディスパッチ)を **バイト等価** で抜き出したもの(#174 の strangler-fig ステップ)。これにより `app.py` は HTTP ルーティングだけに縮小された。
 
-`flask` を import せず、import 時副作用(ディレクトリ生成など)を持たない。入力はリクエスト `dict`(`renderers.RendererRequest`)、出力は `(filepath, filename)` タプル。これは 3層モデルへ移行予定の CLI(`nuts_calc_tex.py`)からの再利用を可能にするための制約である。issue #291 以降、`POST /generate-pdf` の全リクエストがこのモジュールを通り、`render_worksheet_pdf` はどのビルダーにもマッチしないリクエストに対して `ValueError` を送出する(旧: subprocess フォールスルーを合図する `None` を返す)。`renderers.py` の subprocess 経路は残っているが、`backend/app.py` の `_USE_LEGACY_PDF_PIPELINE` を `True` にした場合にのみ到達可能な一時的なソースレベル切替であり、その一括削除は #174 の 段3 で計画されている。
+`flask` を import せず、import 時副作用(ディレクトリ生成など)を持たない。入力はリクエスト `dict`(`renderer_config.RendererRequest`)、出力は `(filepath, filename)` タプル。これは 3層モデルへ移行予定の CLI(`nuts_calc_tex.py`)からの再利用を可能にするための制約である。`POST /generate-pdf` の全リクエストがこのモジュールを通り、`render_worksheet_pdf` はどのビルダーにもマッチしないリクエストに対して `ValueError` を送出する(issue #291 以前は subprocess フォールスルーを合図する `None` を返していた)。legacy subprocess 経路(旧 `backend/renderers.py` の `build_command`/`run`)と `backend/app.py` の `_USE_LEGACY_PDF_PIPELINE` 切替定数は issue #297(#174 段3)で削除された。`backend/renderers.py` は `backend/renderer_config.py` へリネームされ、レンダラー名解決と共有 `RendererRequest` 型のみを持つ。
 
 ## 動作の概要と主要な判定ロジック・フロー
 
@@ -57,17 +57,17 @@
 
 - **Flask 非依存・dict 駆動(import 副作用なし)**: 3層モデルへ移行予定の CLI(`nuts_calc_tex.py`)からの再利用を可能にするため。`generated_pdfs` ディレクトリ生成は `app.py` に残す。
 - **バイト等価な抽出(#290)**: `app.py:25-2145` を無改変で移設した(`class _IndexedProblem` から `_generate_hundred_square_pdf` まで)。挙動変更なし・byte-identical PDF 出力が完了条件。
-- **マッチなしを `None` 返しではなく `ValueError` 送出にした理由(#291)**: #290 では戻り型 `tuple[str, str] | None` の `None` を「この `command_type` は内部 API 経路の対象外」の合図とし、`app.py` が `renderers.run(...)` へフォールバックしていた。#291 で `_USE_LEGACY_PDF_PIPELINE`(既定 `False`)が全リクエストをこのモジュールへ固定したため、マッチなしは「一時的に未実装」ではなく「無効なリクエスト」を意味する。そこで戻り型を `tuple[str, str]` に絞り、終端で明示的に `ValueError` を送出する — silent な subprocess フォールスルーを排除し、`except ValueError` 節で HTTP 500 にする。分岐順は `generate_pdf()` の旧ラダーと完全一致のまま。
-- **`RendererRequest` は `renderers.py` に据え置き**、本モジュールは import して型注釈に使う(issue #290 スコープ)。
+- **マッチなしを `None` 返しではなく `ValueError` 送出にした理由(#291)**: #290 では戻り型 `tuple[str, str] | None` の `None` を「この `command_type` は内部 API 経路の対象外」の合図とし、`app.py` が `renderers.run(...)` へフォールバックしていた。#291 で `_USE_LEGACY_PDF_PIPELINE`(既定 `False`)が全リクエストをこのモジュールへ固定したため、マッチなしは「一時的に未実装」ではなく「無効なリクエスト」を意味する。そこで戻り型を `tuple[str, str]` に絞り、終端で明示的に `ValueError` を送出する — silent な subprocess フォールスルーを排除し、`except ValueError` 節で HTTP 500 にする。分岐順は `generate_pdf()` の旧ラダーと完全一致のまま。issue #297 で legacy subprocess 経路と `_USE_LEGACY_PDF_PIPELINE` 定数自体が削除され、この経路が唯一の `/generate-pdf` 実装になった。
+- **`RendererRequest` は `renderer_config.py`(issue #297 で `renderers.py` からリネーム)に据え置き**、本モジュールは import して型注釈に使う(issue #290 スコープ)。
 - **`reverse` を `functools.partial` で束縛する理由(#292)**: `build_presentation_document_tex` の `content_format` 契約は `Callable[[problem, show_answer], str]`(`nuts_calc_tex.py:1773` が `content_format(problem, show_answer)` で呼ぶ)。`reverse` は問題データではなくプレゼンテーション層のオプションのため、slot builder に `reverse: bool = False` を追加し `functools.partial(build_*_slot_content_tex, reverse=reverse)` で束縛する。これで `build_presentation_document_tex` のシグネチャも呼び出し箇所も無改変のまま、`99`/`squ`/`pi` の3 helper だけが `reverse` を通す。`aBc` は矢印変換(`abcd ⇒ 値`)で入れ替える等式がなく、legacy 経路にも `reverse` パラメータが存在しないため対象外。
 
 ## 統合ポイント
 
-- 呼び出し元: `backend/app.py` の `generate_pdf()`(`POST /generate-pdf`)のみ。`_USE_LEGACY_PDF_PIPELINE = False`(既定)のとき `output_filepath, output_filename = three_layer_renderer.render_worksheet_pdf(data, PDF_OUTPUT_DIR)` を呼び、その `(filepath, filename)` を `send_file` する。マッチなしの `ValueError`・ビルダーの `RuntimeError` はそれぞれ `generate_pdf()` の `except` 節が HTTP 500 に変換する。
+- 呼び出し元: `backend/app.py` の `generate_pdf()`(`POST /generate-pdf`)のみ。`output_filepath, output_filename = three_layer_renderer.render_worksheet_pdf(data, PDF_OUTPUT_DIR)` を無条件で呼び、その `(filepath, filename)` を `send_file` する(issue #297 で legacy 分岐を削除)。マッチなしの `ValueError`・ビルダーの `RuntimeError` はそれぞれ `generate_pdf()` の `except` 節が HTTP 500 に変換する。
 - 呼び出し先:
   - `backend/nuts_calc_tex.py`: 内部プレゼンテーション API(`build_presentation_document_tex` / `PresentationPage` / `ContentAreaLayout` / `DEFAULT_PAGE_SHELL` / `get_latex_engine_adapter`)、各 command の `generate_*_problems` / `build_*_slot_content_tex` / `build_*_bottom_answer_tex`、定数(`DEFAULT_ROWS` / `MIN_ROWS_OR_COLUMNS` / `MIN_FRACTION_DIGITS` / `MAX_FRACTION_DIGITS` / `MIN_DECIMAL_PLACES` / `MAX_DECIMAL_PLACES` / `TERM_COUNT_FLOOR_DEFAULT` / `INTERMEDIATE_SINGLE_DIGIT_MAX` / `MIN_COMPLEMENT_TARGET` / `MIN_MULTIPLES_COUNT` / `DEFAULT_MULTIPLES_COUNT` / `MIXED_OPERAND_KINDS` / `MIX_OPERATORS` / `COMPARE_REL_BLANK_TEX` / `BLANK_ANSWER_TEX` 等)、`resolve_term_range`、`failure`。
   - `backend/problem_generation.py`: `validate_com_target` / `validate_kuku_a_value` / `validate_pi_start` / `validate_squ_start`、`resolve_digit_count_range`、`resolve_hundred_square_axes`、`DEFAULT_A_MIN` / `DEFAULT_A_MAX` / `DEFAULT_B_MIN` / `DEFAULT_B_MAX` / `DEFAULT_OPERATOR`。
-  - `backend/renderers.py`: `RendererRequest`(型注釈のみ)。
+  - `backend/renderer_config.py`: `RendererRequest`(型注釈のみ)。
   - 標準ライブラリ: `math.lcm` / `math.gcd`、`shutil.which`、`contextlib.redirect_stdout`、`io.StringIO`、`os.path.join`、`uuid.uuid4`。
 
 ## 注意事項・既知の制限
@@ -79,7 +79,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- ba08963 feat(#317): add integer/decimal dividend selection to grade 5 decimal division
+- 56b66ad refactor(#297): delete the legacy /generate-pdf subprocess rendering path
+- f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)
 - e6e0e98 fix(#298): honor descend / shuffle in _generate_squ_pdf (3-layer renderer) (#299)
 - eb3afe8 feat(#292): honor the reverse equation side-swap in the 3-layer renderer for 99/squ/pi (#295)
 - 6417a2f refactor(#291): add a hardcoded 3-layer-vs-legacy renderer switch and drop the per-command subprocess fallthrough (#294)

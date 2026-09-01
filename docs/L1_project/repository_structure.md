@@ -13,8 +13,8 @@
 │   ├── nuts_calc_tex.py    # LaTeX(pdflatex/lualatex)レンダリングのPDF生成CLI本体(実行可能)。旧 ReportLab CLI nuts_calc.py は issue #232 で削除
 │   ├── factory.sh          # バッチ生成シェルスクリプト(実行可能)
 │   ├── app.py              # Flask API(POST /generate-pdf, POST /generate-problems, GET /renderer-info)
-│   ├── renderers.py        # 緊急ロールバック用CLI/subprocess経路の構築・実行(issue #36)
-│   ├── three_layer_renderer.py # 既定のPOST /generate-pdf内部presentation API経路
+│   ├── renderer_config.py  # レンダラー名解決 + 共有 RendererRequest 型(Flask非依存、issue #36。issue #297 で renderers.py からリネーム、build_command/run は同 issue で削除)
+│   ├── three_layer_renderer.py # POST /generate-pdfの唯一の内部presentation API経路
 │   ├── problem_generation.py  # POST /generate-problems 用、CLIの生成関数をin-processで呼ぶラッパー(issue #138)
 │   ├── pytest.ini          # pytest 設定(testpaths=tests, pythonpath=., addopts=-n auto)
 │   ├── tests/               # pytestテストスイート(34個のtest_*.py)
@@ -48,9 +48,9 @@
 - `backend/tests/`: pytestテストスイート(34個の `test_*.py`、`test_problem_generation.py` は issue #138 の `backend/problem_generation.py` を検証する)。`backend/pytest.ini:4` の `-n auto` により通常実行は pytest-xdist で並列化される。`frontend/web` には `node:test` 3ファイル(`src/` の2ファイルと `vite.config.test.js`)がある。詳細は [[../L2_development/test]]。
 - `docs/reference/`: 教材仕様の根拠となる一次資料を出典・取得日・SHA-256と共に保存する(`docs/reference/README.md:1-24`)。
 - `backend/vendor/texmf/tex/latex/longdivision/`: CTAN の `longdivision` パッケージ(LPPLライセンス)を vendoring したもの。Ubuntu の `texlive-latex-extra` に同梱されていないため、`nuts_calc_tex.py` が `TEXINPUTS` 経由でこのパスを解決する([[../L3_implementation/nuts_calc_tex.py]] 参照)。
-- `backend/app.py`: Flask アプリ。`POST /generate-pdf`(PDF生成)、`POST /generate-problems`(問題データJSON)、`GET /renderer-info` の3エンドポイント。既定の PDF 経路は `three_layer_renderer.render_worksheet_pdf`、`renderers.run` は hardcoded switch を有効化した緊急ロールバック時だけ使う(`backend/app.py:17-60`)。`frontend/web` から利用される。
-- `backend/renderers.py`: `NUTS_CALC_RENDERER` env 変数(デフォルト `latex`、issue #186 で `reportlab` から変更)経由で `nuts_calc_tex.py` を呼び出す、Flask 非依存の純粋関数群(issue #36)。レンダラー切り替えの仕組み自体は将来の別レンダラー追加に備えて温存しているが、`nuts_calc.py`(ReportLab)は issue #232 でコード自体が削除され、`RENDERER_SCRIPTS` は現在 `latex` の1エントリのみを持つ。`RENDERER_SCRIPTS` はスクリプトパスを `Path(__file__).resolve().parent`(=`backend/`)基準で解決する(issue #88 で `web/backend/` からの移動に伴い repo-root 基準から変更)。
-- `backend/problem_generation.py`: `POST /generate-problems` が使う、`nuts_calc_tex.py` の既存データ生成関数をsubprocessを起動せずプロセス内で直接呼び出すラッパー(issue #138)。19コマンドは `_COMMAND_GENERATORS`、`100` は専用 `generate_hundred_square_table()` で処理する(`backend/problem_generation.py:12-16,285-322,743-748`)。詳細は [[../L3_implementation/api]]。
+- `backend/app.py`: Flask アプリ。`POST /generate-pdf`、`POST /generate-problems`、`GET /renderer-info` の3エンドポイント。PDF は `three_layer_renderer.render_worksheet_pdf` のみを使い、legacy subprocess経路は issue #297 で削除済み(`backend/app.py:16-46`)。
+- `backend/renderer_config.py`: `NUTS_CALC_RENDERER` からレンダラー名を解決する `get_renderer_name()` と共有 `RendererRequest` 型を持つ。issue #297 で `renderers.py` からリネームし、旧 `build_command`/`run` は削除された(`backend/renderer_config.py:1-13,21-102`)。
+- `backend/problem_generation.py`: `POST /generate-problems` 用の in-process ラッパー。19コマンドは `_COMMAND_GENERATORS`、`100` は専用 `generate_hundred_square_table()` で処理する(`backend/problem_generation.py:12-16,285-322,743-748`)。
 - `frontend/web/`: HTML/CSS(Sass)/JS のみの軽量フロントエンド(新規、issue #88)。React・i18n ライブラリを使わず日本語のみに対応する。ユーザーの明示的な指示により、SPA(単一 `index.html` を JS ルーターで画面切替する構成)ではなく、画面ごとに実在の `.html` を持つ複数ページ構成として実装されている(通常の `<a href>` リンクと GET フォームで画面遷移する)。かつて併存していた `frontend/spa/`(Vite ベースの React SPA。トップ画面は学年別ドリル選択の `GradeDrills.jsx`、「カスタム」選択時の詳細パラメータ指定フォーム `CustomGenerator.jsx` を持ち、`frontend/web` と機能的に同等だった)は issue #233 で削除された。
 
 ## 未確認事項

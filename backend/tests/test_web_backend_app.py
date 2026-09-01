@@ -6,7 +6,6 @@ these run without a live backend or pdflatex.
 
 import importlib
 import os
-import subprocess
 import sys
 from fractions import Fraction
 from pathlib import Path
@@ -16,7 +15,7 @@ sys.path.insert(0, str(BACKEND_DIR))
 
 import pytest
 
-import renderers  # noqa: E402
+import renderer_config  # noqa: E402
 import three_layer_renderer  # noqa: E402
 
 
@@ -33,7 +32,7 @@ def client(monkeypatch):
 
 
 def test_renderer_info_defaults_to_latex_when_env_unset(client, monkeypatch) -> None:
-    monkeypatch.delenv(renderers.RENDERER_ENV_VAR, raising=False)
+    monkeypatch.delenv(renderer_config.RENDERER_ENV_VAR, raising=False)
     response = client.get("/renderer-info")
     assert response.status_code == 200
     assert response.get_json() == {"renderer": "latex"}
@@ -42,28 +41,28 @@ def test_renderer_info_defaults_to_latex_when_env_unset(client, monkeypatch) -> 
 def test_renderer_info_rejects_removed_reportlab(client, monkeypatch) -> None:
     # nuts_calc.py/reportlab was removed (issue #232); explicit reportlab
     # is no longer a special case, just another unknown value.
-    monkeypatch.setenv(renderers.RENDERER_ENV_VAR, "reportlab")
+    monkeypatch.setenv(renderer_config.RENDERER_ENV_VAR, "reportlab")
     response = client.get("/renderer-info")
     assert response.status_code == 500
     assert "Unknown NUTS_CALC_RENDERER value" in response.get_json()["error"]
 
 
 def test_renderer_info_reads_env_var(client, monkeypatch) -> None:
-    monkeypatch.setenv(renderers.RENDERER_ENV_VAR, "latex")
+    monkeypatch.setenv(renderer_config.RENDERER_ENV_VAR, "latex")
     response = client.get("/renderer-info")
     assert response.status_code == 200
     assert response.get_json() == {"renderer": "latex"}
 
 
 def test_renderer_info_rejects_unknown_renderer_env_value(client, monkeypatch) -> None:
-    monkeypatch.setenv(renderers.RENDERER_ENV_VAR, "bogus")
+    monkeypatch.setenv(renderer_config.RENDERER_ENV_VAR, "bogus")
     response = client.get("/renderer-info")
     assert response.status_code == 500
     assert "Unknown NUTS_CALC_RENDERER value" in response.get_json()["error"]
 
 
 def test_generate_problems_returns_problems_from_the_data_layer(client, monkeypatch) -> None:
-    monkeypatch.delenv(renderers.RENDERER_ENV_VAR, raising=False)
+    monkeypatch.delenv(renderer_config.RENDERER_ENV_VAR, raising=False)
     backend_app = sys.modules["app"]
     monkeypatch.setattr(
         backend_app.problem_generation, "generate_problems",
@@ -138,7 +137,6 @@ def test_generate_pdf_com_requires_a_value(client) -> None:
 
 
 def test_generate_pdf_com_rejects_a_value_below_minimum(client) -> None:
-    backend_app = sys.modules["app"]
     response = client.post(
         "/generate-pdf",
         json={"paper_size": "A4", "command_type": "com", "a_value": three_layer_renderer.nuts_calc_tex.MIN_COMPLEMENT_TARGET - 1},
@@ -151,16 +149,9 @@ def test_generate_pdf_com_uses_presentation_api_not_subprocess(client, monkeypat
     """
     The 'com' command_type must build its PDF via
     nuts_calc_tex.build_presentation_document_tex (issue #199), not via
-    renderers.run's subprocess path -- assert this by making
-    renderers.run raise if called, and by stubbing the LaTeX engine's
+    the legacy subprocess path -- assert this by stubbing the LaTeX engine's
     compile() (no real pdflatex/lualatex needed) to write a dummy PDF.
     """
-    backend_app = sys.modules["app"]
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for command_type 'com'")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
@@ -184,7 +175,6 @@ def test_generate_pdf_com_uses_presentation_api_not_subprocess(client, monkeypat
 def test_generate_pdf_com_wires_page_bottom_answer_and_name_field(
     client, monkeypatch
 ) -> None:
-    backend_app = sys.modules["app"]
     captured_tex = []
 
     def fake_compile(self, tex_source, out_pdf_path):
@@ -245,7 +235,6 @@ def test_generate_pdf_com_maps_compile_failure_to_500(client, monkeypatch) -> No
     compile error; the route must catch that and return a JSON 500 instead
     of letting the request thread die (issue #199 integration finding).
     """
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
@@ -275,15 +264,9 @@ def test_generate_pdf_kuku_uses_presentation_api_not_subprocess(client, monkeypa
     """
     The '99' command_type must build its PDF via
     nuts_calc_tex.build_presentation_document_tex (issue #208), not via
-    renderers.run's subprocess path -- assert this the same way
+    the legacy subprocess path -- assert this the same way
     test_generate_pdf_com_uses_presentation_api_not_subprocess does.
     """
-    backend_app = sys.modules["app"]
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for command_type '99'")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
@@ -305,12 +288,6 @@ def test_generate_pdf_kuku_uses_presentation_api_not_subprocess(client, monkeypa
 
 
 def test_generate_pdf_abc_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for command_type 'aBc'")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
@@ -333,7 +310,6 @@ def test_generate_pdf_abc_uses_presentation_api_not_subprocess(client, monkeypat
 
 
 def test_generate_pdf_abc_maps_compile_failure_to_500(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
@@ -360,7 +336,6 @@ def test_generate_pdf_kuku_forwards_descend_and_shuffle(client, monkeypatch) -> 
     must forward them to generate_kuku_problems instead of silently falling
     back to ascending/non-shuffled order.
     """
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     captured = {}
@@ -440,7 +415,6 @@ def test_generate_pdf_kuku_maps_compile_failure_to_500(client, monkeypatch) -> N
     of letting the request thread die (mirrors #199's integration finding
     for 'com').
     """
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
@@ -470,15 +444,9 @@ def test_generate_pdf_pi_uses_presentation_api_not_subprocess(client, monkeypatc
     """
     The 'pi' command_type must build its PDF via
     nuts_calc_tex.build_presentation_document_tex (issue #210), not via
-    renderers.run's subprocess path -- assert this the same way as the
+    the legacy subprocess path -- assert this the same way as the
     'com' equivalent above.
     """
-    backend_app = sys.modules["app"]
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for command_type 'pi'")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
@@ -508,7 +476,6 @@ def test_generate_pdf_pi_maps_compile_failure_to_500(client, monkeypatch) -> Non
     also applicable to 'pi' since #210 reuses the same in-process compile
     path).
     """
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
@@ -538,15 +505,9 @@ def test_generate_pdf_squ_uses_presentation_api_not_subprocess(client, monkeypat
     """
     The 'squ' command_type must build its PDF via
     nuts_calc_tex.build_presentation_document_tex (issue #209), not via
-    renderers.run's subprocess path -- assert this the same way
+    the legacy subprocess path -- assert this the same way
     test_generate_pdf_com_uses_presentation_api_not_subprocess does.
     """
-    backend_app = sys.modules["app"]
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for command_type 'squ'")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
@@ -568,7 +529,6 @@ def test_generate_pdf_squ_uses_presentation_api_not_subprocess(client, monkeypat
 
 
 def test_generate_pdf_squ_maps_compile_failure_to_500(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
@@ -664,16 +624,9 @@ def test_generate_pdf_lcm_uses_presentation_api_not_subprocess(client, monkeypat
     """
     The 'lcm' command_type must build its PDF via
     nuts_calc_tex.build_presentation_document_tex (issue #211), not via
-    renderers.run's subprocess path -- assert this by making
-    renderers.run raise if called, and by stubbing the LaTeX engine's
+    the legacy subprocess path -- assert this by stubbing the LaTeX engine's
     compile() (no real pdflatex/lualatex needed) to write a dummy PDF.
     """
-    backend_app = sys.modules["app"]
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for command_type 'lcm'")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
@@ -701,7 +654,6 @@ def test_generate_pdf_lcm_maps_compile_failure_to_500(client, monkeypatch) -> No
     compile error; the route must catch that and return a JSON 500 instead
     of letting the request thread die (mirrors the 'com' finding from #199).
     """
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
@@ -722,12 +674,6 @@ def test_generate_pdf_lcm_maps_compile_failure_to_500(client, monkeypatch) -> No
 
 
 def test_generate_pdf_divfrac_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for command_type 'divfrac'")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
@@ -752,7 +698,6 @@ def test_generate_pdf_divfrac_uses_presentation_api_not_subprocess(client, monke
 
 
 def test_generate_pdf_divfrac_resolves_digit_and_explicit_ranges(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     captured = {}
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
@@ -813,7 +758,6 @@ def test_generate_pdf_divfrac_rejects_invalid_layout_or_denominator_range(
 
 
 def test_generate_pdf_divfrac_maps_compile_failure_to_500(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
@@ -837,14 +781,8 @@ def test_generate_pdf_divfrac_maps_compile_failure_to_500(client, monkeypatch) -
 def test_generate_pdf_gcd_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
     """
     The 'gcd' command_type must build its PDF via the internal presentation
-    API (issue #212), not via renderers.run's subprocess path.
+    API (issue #212), not the legacy subprocess path.
     """
-    backend_app = sys.modules["app"]
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for command_type 'gcd'")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
@@ -867,7 +805,6 @@ def test_generate_pdf_gcd_uses_presentation_api_not_subprocess(client, monkeypat
 
 
 def test_generate_pdf_gcd_maps_compile_failure_to_500(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
@@ -888,12 +825,6 @@ def test_generate_pdf_gcd_maps_compile_failure_to_500(client, monkeypatch) -> No
 
 
 def test_generate_pdf_evenodd_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for command_type 'evenodd'")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
@@ -916,7 +847,6 @@ def test_generate_pdf_evenodd_uses_presentation_api_not_subprocess(client, monke
 
 
 def test_generate_pdf_evenodd_maps_compile_failure_to_500(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
@@ -937,12 +867,6 @@ def test_generate_pdf_evenodd_maps_compile_failure_to_500(client, monkeypatch) -
 
 
 def test_generate_pdf_multiples_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for command_type 'multiples'")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     captured = {}
@@ -995,7 +919,6 @@ def test_generate_pdf_multiples_rejects_invalid_basic_input(
 
 
 def test_generate_pdf_multiples_maps_compile_failure_to_500(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
@@ -1016,12 +939,6 @@ def test_generate_pdf_multiples_maps_compile_failure_to_500(client, monkeypatch)
 
 
 def test_generate_pdf_divisors_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for command_type 'divisors'")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     captured = {}
@@ -1083,7 +1000,6 @@ def test_generate_pdf_divisors_rejects_invalid_basic_input(
 
 
 def test_generate_pdf_divisors_maps_compile_failure_to_500(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
@@ -1103,27 +1019,12 @@ def test_generate_pdf_divisors_maps_compile_failure_to_500(client, monkeypatch) 
     assert "lualatex failed while building the worksheet" in response.get_json()["error"]
 
 
-def test_generate_pdf_defaults_to_the_three_layer_pipeline(client) -> None:
-    backend_app = sys.modules["app"]
-
-    assert backend_app._USE_LEGACY_PDF_PIPELINE is False
-
-
-def test_generate_pdf_unmatched_request_returns_500_without_subprocess_fallback(
-    client, monkeypatch
-) -> None:
+def test_generate_pdf_unmatched_request_returns_500_without_subprocess_fallback(client) -> None:
     """With the default (3-layer) pipeline, a request that matches no builder
     is an explicit error -- it must NOT silently fall through to the legacy
     subprocess path. The only recognized-command_type request that reaches
     render_worksheet_pdf's terminal raise is `mixed` + reducible_mode + a
     multi-term option, which nuts_calc_tex.py's _init() also rejects."""
-    backend_app = sys.modules["app"]
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called on the 3-layer path")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-
     response = client.post(
         "/generate-pdf",
         json={
@@ -1137,16 +1038,7 @@ def test_generate_pdf_unmatched_request_returns_500_without_subprocess_fallback(
     assert "reducible_mode cannot be combined with" in response.get_json()["error"]
 
 
-def test_generate_pdf_unknown_command_type_returns_500_without_subprocess_fallback(
-    client, monkeypatch
-) -> None:
-    backend_app = sys.modules["app"]
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called on the 3-layer path")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
-
+def test_generate_pdf_unknown_command_type_returns_500_without_subprocess_fallback(client) -> None:
     response = client.post(
         "/generate-pdf", json={"paper_size": "A4", "command_type": "not-a-command"}
     )
@@ -1154,50 +1046,14 @@ def test_generate_pdf_unknown_command_type_returns_500_without_subprocess_fallba
     assert "No presentation-layer builder handles this" in response.get_json()["error"]
 
 
-def test_generate_pdf_legacy_pipeline_switch_routes_every_request_through_subprocess(
-    client, monkeypatch
-) -> None:
-    """Flipping _USE_LEGACY_PDF_PIPELINE routes even a normally-3-layer
-    command_type (`com`) through renderers.run(...), and render_worksheet_pdf
-    is not consulted at all."""
-    backend_app = sys.modules["app"]
-    monkeypatch.setattr(backend_app, "_USE_LEGACY_PDF_PIPELINE", True)
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("render_worksheet_pdf must not be called on the legacy path")
-
-    monkeypatch.setattr(
-        backend_app.three_layer_renderer, "render_worksheet_pdf", fail_if_called
-    )
-
-    def fake_run(data, output_dir, renderer_name):
-        pdf_path = os.path.join(output_dir, "worksheet_fake.pdf")
-        with open(pdf_path, "wb") as f:
-            f.write(b"%PDF-1.4 fake")
-        completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
-        return pdf_path, "worksheet_fake.pdf", completed
-
-    monkeypatch.setattr(backend_app.renderers, "run", fake_run)
-    response = client.post(
-        "/generate-pdf", json={"paper_size": "A4", "command_type": "com", "a_value": 10}
-    )
-    assert response.status_code == 200
-    assert response.data.startswith(b"%PDF")
-
-
 def test_generate_pdf_frac_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     captured_tex = []
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for command_type 'frac'")
 
     def fake_compile(self, tex_source, out_pdf_path):
         captured_tex.append(tex_source)
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
     monkeypatch.setattr(
         three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
@@ -1231,7 +1087,6 @@ def test_generate_pdf_frac_uses_presentation_api_not_subprocess(client, monkeypa
 def test_generate_pdf_frac_rejects_invalid_basic_input(
     client, monkeypatch, request_fields, error_text
 ) -> None:
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     response = client.post(
@@ -1243,7 +1098,6 @@ def test_generate_pdf_frac_rejects_invalid_basic_input(
 
 
 def test_generate_pdf_frac_maps_compile_failure_to_500(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
@@ -1265,18 +1119,13 @@ def test_generate_pdf_frac_maps_compile_failure_to_500(client, monkeypatch) -> N
 
 
 def test_generate_pdf_simplify_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     captured_tex = []
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for command_type 'simplify'")
 
     def fake_compile(self, tex_source, out_pdf_path):
         captured_tex.append(tex_source)
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
     monkeypatch.setattr(
         three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
@@ -1323,7 +1172,6 @@ def test_generate_pdf_simplify_rejects_invalid_basic_input(
 
 
 def test_generate_pdf_simplify_maps_compile_failure_to_500(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
@@ -1346,18 +1194,13 @@ def test_generate_pdf_simplify_maps_compile_failure_to_500(client, monkeypatch) 
 
 
 def test_generate_pdf_frac2dec_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     captured_tex = []
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for command_type 'frac2dec'")
 
     def fake_compile(self, tex_source, out_pdf_path):
         captured_tex.append(tex_source)
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
     monkeypatch.setattr(
         three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
@@ -1404,7 +1247,6 @@ def test_generate_pdf_frac2dec_rejects_invalid_basic_input(
 
 
 def test_generate_pdf_frac2dec_maps_compile_failure_to_500(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
@@ -1427,18 +1269,13 @@ def test_generate_pdf_frac2dec_maps_compile_failure_to_500(client, monkeypatch) 
 
 
 def test_generate_pdf_dec2frac_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     captured_tex = []
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for command_type 'dec2frac'")
 
     def fake_compile(self, tex_source, out_pdf_path):
         captured_tex.append(tex_source)
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
     monkeypatch.setattr(
         three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
@@ -1482,7 +1319,6 @@ def test_generate_pdf_dec2frac_rejects_invalid_basic_input(
 
 
 def test_generate_pdf_dec2frac_maps_compile_failure_to_500(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
@@ -1505,18 +1341,13 @@ def test_generate_pdf_dec2frac_maps_compile_failure_to_500(client, monkeypatch) 
 
 
 def test_generate_pdf_compare_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     captured_tex = []
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for command_type 'compare'")
 
     def fake_compile(self, tex_source, out_pdf_path):
         captured_tex.append(tex_source)
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
     monkeypatch.setattr(
         three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
@@ -1562,7 +1393,6 @@ def test_generate_pdf_compare_rejects_invalid_basic_input(
 
 
 def test_generate_pdf_compare_maps_compile_failure_to_500(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
@@ -1585,18 +1415,13 @@ def test_generate_pdf_compare_maps_compile_failure_to_500(client, monkeypatch) -
 
 
 def test_generate_pdf_commondenom_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     captured_tex = []
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for command_type 'commondenom'")
 
     def fake_compile(self, tex_source, out_pdf_path):
         captured_tex.append(tex_source)
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
     monkeypatch.setattr(
         three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
@@ -1641,7 +1466,6 @@ def test_generate_pdf_commondenom_rejects_invalid_basic_input(
 
 
 def test_generate_pdf_commondenom_maps_compile_failure_to_500(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
@@ -1664,12 +1488,6 @@ def test_generate_pdf_commondenom_maps_compile_failure_to_500(client, monkeypatc
 
 
 def test_generate_pdf_mixed_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for a basic mixed request")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
@@ -1703,13 +1521,8 @@ def test_generate_pdf_mixed_uses_presentation_api_not_subprocess(client, monkeyp
 def test_generate_pdf_multi_term_mixed_uses_presentation_api_not_subprocess(
     client, monkeypatch, variant_fields, expected_terms, expected_mixed_operators
 ) -> None:
-    backend_app = sys.modules["app"]
     generation_args = {}
 
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for multi-term mixed requests")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: binary_name)
 
     real_generate_mixed_problems = three_layer_renderer.nuts_calc_tex.generate_mixed_problems
@@ -1752,13 +1565,8 @@ def test_generate_pdf_multi_term_mixed_uses_presentation_api_not_subprocess(
 def test_generate_pdf_mixed_reducible_variants_use_presentation_api_not_subprocess(
     client, monkeypatch, reducible_mode
 ) -> None:
-    backend_app = sys.modules["app"]
     generation_args = {}
 
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for mixed reducibility requests")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: binary_name)
 
     def fake_generate_mixed_problems(*args, **kwargs):
@@ -1885,7 +1693,6 @@ def test_generate_pdf_mixed_rejects_invalid_basic_input(
 
 
 def test_generate_pdf_mixed_maps_compile_failure_to_500(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
@@ -1913,7 +1720,7 @@ def test_generate_pdf_mixed_maps_compile_failure_to_500(client, monkeypatch) -> 
         # predicate picks it up. Before issue #291 this silently fell through
         # to the subprocess path (where the CLI rejected it); since #291 the
         # 3-layer pipeline is the only path, so render_worksheet_pdf raises an
-        # explicit error -> HTTP 500, and renderers.run is never reached.
+        # explicit error -> HTTP 500.
         {"use_parentheses": True, "vertical": True},
         {"use_parentheses": True, "intermediate": True},
         {"use_parentheses": True, "missing_value": True},
@@ -1922,12 +1729,6 @@ def test_generate_pdf_mixed_maps_compile_failure_to_500(client, monkeypatch) -> 
 def test_generate_pdf_invalid_ope_variant_combo_returns_500_without_subprocess(
     client, monkeypatch, variant_fields
 ) -> None:
-    backend_app = sys.modules["app"]
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called on the 3-layer path")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     response = client.post(
         "/generate-pdf",
         json={"paper_size": "A4", "command_type": "ope", "a_min": 1, "a_max": 9, **variant_fields},
@@ -1940,15 +1741,9 @@ def test_generate_pdf_ope_uses_presentation_api_not_subprocess(client, monkeypat
     """
     A plain 2-term 'ope' request must build its PDF via
     nuts_calc_tex.build_presentation_document_tex (issue #205), not via
-    renderers.run's subprocess path -- assert this the same way
+    the legacy subprocess path -- assert this the same way
     test_generate_pdf_com_uses_presentation_api_not_subprocess does.
     """
-    backend_app = sys.modules["app"]
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for a plain 2-term 'ope' request")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
@@ -1971,7 +1766,6 @@ def test_generate_pdf_ope_uses_presentation_api_not_subprocess(client, monkeypat
 
 
 def test_generate_pdf_ope_maps_compile_failure_to_500(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
@@ -1995,15 +1789,9 @@ def test_generate_pdf_ope_tree_uses_presentation_api_not_subprocess(client, monk
     """
     An `ope --use-parentheses` (tree variant) request must build its PDF via
     nuts_calc_tex.build_presentation_document_tex (issue #206), not via
-    renderers.run's subprocess path -- assert this the same way
+    the legacy subprocess path -- assert this the same way
     test_generate_pdf_ope_uses_presentation_api_not_subprocess does.
     """
-    backend_app = sys.modules["app"]
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for an ope --use-parentheses request")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
@@ -2035,12 +1823,6 @@ def test_generate_pdf_ope_tree_supports_terms_family_via_presentation_api(client
     separate not-yet-migrated variant -- it must also route through the
     presentation API, not fall back to the subprocess path.
     """
-    backend_app = sys.modules["app"]
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for an ope --use-parentheses + terms request")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
@@ -2066,7 +1848,6 @@ def test_generate_pdf_ope_tree_supports_terms_family_via_presentation_api(client
 
 
 def test_generate_pdf_ope_tree_maps_compile_failure_to_500(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
@@ -2102,15 +1883,9 @@ def test_generate_pdf_ope_multi_term_uses_presentation_api_not_subprocess(client
     """
     A flat multi-term 'ope' request (terms family, no use_parentheses) must
     build its PDF via nuts_calc_tex.build_presentation_document_tex (issue
-    #207), not via renderers.run's subprocess path -- assert this the same
+    #207), not the legacy subprocess path -- assert this the same
     way test_generate_pdf_ope_tree_uses_presentation_api_not_subprocess does.
     """
-    backend_app = sys.modules["app"]
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for a multi-term ope request")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
@@ -2137,7 +1912,6 @@ def test_generate_pdf_ope_multi_term_uses_presentation_api_not_subprocess(client
 
 
 def test_generate_pdf_ope_multi_term_maps_compile_failure_to_500(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
@@ -2165,15 +1939,9 @@ def test_generate_pdf_ope_missing_value_uses_presentation_api_not_subprocess(cli
     """
     An `ope --missing-value` (mushikuizan) request must build its PDF via
     nuts_calc_tex.build_presentation_document_tex (issue #223), not via
-    renderers.run's subprocess path -- assert this the same way
+    the legacy subprocess path -- assert this the same way
     test_generate_pdf_ope_uses_presentation_api_not_subprocess does.
     """
-    backend_app = sys.modules["app"]
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for an 'ope --missing-value' request")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
@@ -2199,7 +1967,6 @@ def test_generate_pdf_ope_missing_value_uses_presentation_api_not_subprocess(cli
 
 
 def test_generate_pdf_ope_missing_value_maps_compile_failure_to_500(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
@@ -2227,20 +1994,15 @@ def test_generate_pdf_ope_vertical_uses_presentation_api_not_subprocess(client, 
     """
     An `ope --vertical` (hissan / written-calculation) request must build its
     PDF via nuts_calc_tex.build_presentation_document_tex (issue #227), not via
-    renderers.run's subprocess path -- assert this the same way
+    the legacy subprocess path -- assert this the same way
     test_generate_pdf_ope_missing_value_uses_presentation_api_not_subprocess
     does, and additionally check the captured TeX carries the pattern-6
     written-calculation body (\\verticalcalcblank for a blank practice page),
     the Layer-2 numbered slot box, and the tabular grid the multi-row xlop /
     longdivision output needs.
     """
-    backend_app = sys.modules["app"]
     captured_tex = []
 
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for an 'ope --vertical' request")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
@@ -2274,7 +2036,6 @@ def test_generate_pdf_ope_vertical_uses_presentation_api_not_subprocess(client, 
 
 
 def test_generate_pdf_ope_vertical_maps_compile_failure_to_500(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
@@ -2304,14 +2065,8 @@ def test_generate_pdf_ope_vertical_rejects_decimal_divisor(client, monkeypatch) 
     rejected before compilation (longdivision's `\\intlongdivision` takes an
     integer divisor only), with the same message nuts_calc_tex.py's _init()
     uses -- app.py bypasses _init(), so _generate_vertical_ope_pdf
-    re-implements the check. renderers.run must not be reached either.
+    re-implements the check.
     """
-    backend_app = sys.modules["app"]
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for a rejected 'ope --vertical' request")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     response = client.post(
@@ -2329,18 +2084,12 @@ def test_generate_pdf_ope_integer_dividend_uses_presentation_api_with_whole_divi
     """
     The grade-5 "整数と小数の割り算" 整数÷小数 option (issue #317) posts
     `ope -o div` with a_decimal_places=0 / b_decimal_places=1 / dividend_mode
-    "integer". It must build via the in-process presentation API (not
-    renderers.run), and every div expression must be a whole-number dividend
+    "integer". It must build via the in-process presentation API (not a
+    subprocess), and every div expression must be a whole-number dividend
     over a decimal divisor.
     """
     import re
 
-    backend_app = sys.modules["app"]
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for an 'ope' dividend_mode request")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
@@ -2373,15 +2122,9 @@ def test_generate_pdf_ope_intermediate_uses_presentation_api_not_subprocess(clie
     An `ope --intermediate` (staged mental-math arrow-chain, content-format
     pattern 5) request must build its PDF via
     nuts_calc_tex.build_presentation_document_tex (issue #226), not via
-    renderers.run's subprocess path -- assert this the same way
+    the legacy subprocess path -- assert this the same way
     test_generate_pdf_ope_missing_value_uses_presentation_api_not_subprocess does.
     """
-    backend_app = sys.modules["app"]
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for an 'ope --intermediate' request")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def fake_compile(self, tex_source, out_pdf_path):
@@ -2407,7 +2150,6 @@ def test_generate_pdf_ope_intermediate_uses_presentation_api_not_subprocess(clie
 
 
 def test_generate_pdf_ope_intermediate_maps_compile_failure_to_500(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
@@ -2435,13 +2177,7 @@ def test_generate_pdf_ope_intermediate_rejects_non_mul_operator(client, monkeypa
     """--intermediate only supports a single 'mul' operator; an out-of-scope
     operator must fail the same way nuts_calc_tex.py's _init() would rather
     than silently producing a different worksheet (issue #226)."""
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for an 'ope --intermediate' request")
-
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
 
     response = client.post(
         "/generate-pdf",
@@ -2456,20 +2192,15 @@ def test_generate_pdf_ope_intermediate_rejects_non_mul_operator(client, monkeypa
 
 def test_generate_pdf_hundred_square_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
     """The '100' command_type must build its PDF via the internal
-    presentation API (issue #229), not renderers.run's subprocess path, and
+    presentation API (issue #229), not the legacy subprocess path, and
     without a per-problem number box (single unnumbered full-area slot)."""
-    backend_app = sys.modules["app"]
     captured_tex = []
-
-    def fail_if_called(*args, **kwargs):
-        raise AssertionError("renderers.run must not be called for command_type '100'")
 
     def fake_compile(self, tex_source, out_pdf_path):
         captured_tex.append(tex_source)
         with open(out_pdf_path, "wb") as f:
             f.write(b"%PDF-1.4 fake")
 
-    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
     monkeypatch.setattr(
         three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
@@ -2500,7 +2231,6 @@ def test_generate_pdf_hundred_square_matches_legacy_document_output(client, monk
     """Issue #229 Done Criteria: existing visual output is preserved as-is.
     The presentation-API TeX for one blank table must be byte-identical to
     the legacy build_document_tex path for the same table."""
-    backend_app = sys.modules["app"]
     tex_module = three_layer_renderer.nuts_calc_tex
     captured_tex = []
 
@@ -2551,7 +2281,6 @@ def test_generate_pdf_hundred_square_matches_legacy_document_output(client, monk
 
 
 def test_generate_pdf_hundred_square_maps_compile_failure_to_500(client, monkeypatch) -> None:
-    backend_app = sys.modules["app"]
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
     def failing_compile(self, tex_source, out_pdf_path):
