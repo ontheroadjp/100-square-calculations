@@ -9,7 +9,7 @@
 
 ## テスト構成
 
-`backend/tests/` には26個の `test_*.py` がある(issue #88 でリポジトリルートの `tests/` から移動)。主な責務は次のとおり。
+`backend/tests/` には34個の `test_*.py` がある(issue #88 でリポジトリルートの `tests/` から移動)。主な責務は次のとおり。
 
 | 対象 | ファイル | 根拠・理由 |
 |---|---|---|
@@ -41,12 +41,12 @@ cd frontend/web
 npm run build
 ```
 
-## 実行結果(2026-08-21、standalone `/init-docs` で再検証)
+## 実行結果(2026-09-01、standalone `/init-docs` で再検証)
 
 | 検証 | 結果 |
 |---|---|
-| `cd backend && python3 -m pytest -q` | 808 passed in 94.58s(2026-08-21 時点)。その後 issue #222 で +6、issue #228 で +5・1 置換となり、2026-08-29 に `python3 -m pytest -q --ignore=tests/test_nuts_calc_init.py` で 818 passed を再確認。2026-08-31 に issue #313 で `--mixed-decimal-operand-order` 系テストを +10 追加し、repo-local `venv/` の pytest で 1130 passed を確認。2026-09-01 に issue #322 で `addopts = -n auto`(pytest-xdist)を追加し、8 論理コア環境で `1147 passed in 84.68s`(逐次実行 283.49s から約 3.3 倍)を確認。テスト件数・内容は不変 |
-| `frontend/web` `node --test ...`(3ファイル) | 67 passed(issue #305/#307/#309 で grade-1 ドリルのテストを追加)。issue #313 で grade-4「整数と小数の掛け算」のテストを +1 追加し 69 passed を確認(2026-08-31) |
+| `cd backend && python3 -m pytest -q` | 1147 passed in 86.05s。`backend/pytest.ini:4` の `addopts = -n auto` により pytest-xdist で並列実行 |
+| `frontend/web` `node --test ...`(3ファイル) | 72 passed |
 | `cd frontend/web && npm run build` | 成功(3 HTML エントリ: `index.html`/`catalog.html`/`preset.html`。`custom.html` は issue #97 で削除) |
 
 **(解消済み、issue #232)** 以前は `backend/tests/test_nuts_calc_init.py` に9件の既知 stale 失敗(`exit()` の `SystemExit(None)` を期待するが、実装は issue #37 で `exit(1)` に修正済みだったための stale な期待値)があった。issue #232 で `nuts_calc.py` 本体とともにこのテストファイル自体を削除したため、この9件は「修正」ではなく「対象ファイルの削除」により解消した。

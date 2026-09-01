@@ -15,7 +15,7 @@ CI 定義・パッケージ定義(lock file 等)は Python 側に存在しない
 | Web バックエンド | Flask + Flask-Cors | `backend/app.py:1-2,7-8`、`README.md:107-108` |
 | Web フロントエンド | vanilla JS + Vite 8.2.1 + Sass 1.102.0 + KaTeX 0.16.47(React/i18nライブラリ非依存、日本語のみ、issue #88) | `frontend/web/package.json:1-17`、`frontend/web/package-lock.json:698,1110,1158`、[[../L3_implementation/specification_summary]] |
 | バッチ生成 | Bash(`set -Ceu`) | `backend/factory.sh:1,38` |
-| テスト | pytest(`backend/tests/`、26個の `test_*.py`) + Node.js 組み込み `node:test`(`frontend/web` 3ファイル) | `backend/pytest.ini:1-3`、`backend/tests/`、`frontend/web/src/*.test.js`、`frontend/web/vite.config.test.js` |
+| テスト | pytest + pytest-xdist(`backend/tests/`、34個の `test_*.py`) + Node.js 組み込み `node:test`(`frontend/web` 3ファイル) | `backend/pytest.ini:1-4`、`backend/tests/`、`frontend/web/src/*.test.js`、`frontend/web/vite.config.test.js` |
 | パッケージマネージャ(Python) | pip(lock file なし。旧 `setup.py` は削除済み、`git log` のコミット `d9fc0a3` で確認) | `README.md:13-14` は pip インストールを謳うが検証すると裏付けとなるパッケージ定義ファイルは存在しない |
 | パッケージマネージャ(Web) | npm(`frontend/web` が独立した `package-lock.json` を持つ) | `frontend/web/package-lock.json` |
 | ライセンス | MIT | `LICENSE:1-21` |
@@ -40,7 +40,7 @@ CI 定義・パッケージ定義(lock file 等)は Python 側に存在しない
 
 ### Web バックエンド(`backend/`、`frontend/web` が利用)
 
-- `backend/app.py`: Flask アプリ。エンドポイントは `POST /generate-pdf`(PDF生成)、`POST /generate-problems`(PDFを生成せず問題データのみJSONで返す、issue #138)、`GET /renderer-info`(現在有効なレンダラー名の取得、issue #46)の3つ。コマンド構築・レンダラー選択・subprocess 実行のロジックは `backend/renderers.py`(issue #36)に切り出されており、env 変数 `NUTS_CALC_RENDERER`(デフォルト `latex`、issue #186 で `reportlab` から変更)で切り替える。切り替えの仕組み自体は将来の別レンダラー追加に備えて温存しているが、`reportlab`(`nuts_calc.py`)は issue #232 でコード自体が削除され、明示指定は他の未知の値と同じ汎用エラーで拒否される。`POST /generate-problems` は `command_type='ope'` に加え `com`/`99`/`aBc`/`squ`/`pi`/`frac`/`mixed`/`compare`/`evenodd`/`multiples`/`divisors`/`lcm`/`gcd`/`simplify`/`commondenom`/`frac2dec`/`dec2frac`/`divfrac` の計19種類に対応する(`100` のみ対象外、[[../L3_implementation/api]] 参照)。`backend/problem_generation.py` が CLI の生成関数をプロセス内で直接呼び出す例外で、subprocess は起動しない。詳細は [[../L3_implementation/api]]・[[../L3_implementation/specification_summary]] を参照。
+- `backend/app.py`: Flask アプリ。エンドポイントは `POST /generate-pdf`(PDF生成)、`POST /generate-problems`(PDFを生成せず問題データのみJSONで返す、issue #138)、`GET /renderer-info`(現在有効なレンダラー名の取得、issue #46)の3つ。`POST /generate-pdf` は既定の `_USE_LEGACY_PDF_PIPELINE = False` で全20コマンドを `backend/three_layer_renderer.py` の内部 presentation API へ送る。`backend/renderers.py` の CLI/subprocess 経路は緊急ロールバック用の source-level switch を `True` にした場合だけ使われる(`backend/app.py:17-60`)。`POST /generate-problems` も全20コマンドに対応し、19コマンドは `{"problems": [...]}`、`100` は単一表用の `{"table": {...}}` を返す(`backend/app.py:86-117`、`backend/problem_generation.py:12-16,285-322`)。詳細は [[../L3_implementation/api]]・[[../L3_implementation/specification_summary]] を参照。
 
 かつては React SPA `frontend/spa` ももう1つの Web フロントエンドとして存在し、`App.jsx`(ヘッダー・英語/日本語切り替え)、`GradeDrills.jsx`(学年別ドリル選択トップ画面。LaTeX レンダラー時は1年生の繰り上がり・繰り下がり条件別6カード、4〜6年生の中学受験準備27カードを含む)、`CustomGenerator.jsx`(7種類の `command` に対応する詳細パラメータフォーム)を持っていたが、issue #233 で削除された。
 
