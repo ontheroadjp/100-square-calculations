@@ -2,7 +2,7 @@
 
 ## テスト戦略
 
-- Python は pytest を使う。`backend/pytest.ini:1-3` が `testpaths = tests` と `pythonpath = .` を定義する(issue #88 で `backend/` ディレクトリへ移動。`pythonpath = .` は `backend/` 起点のまま機能するため内容変更なし)。CI は存在しないためローカル実行が保証手段である。
+- Python は pytest を使う。`backend/pytest.ini:1-4` が `testpaths = tests`、`pythonpath = .`、`addopts = -n auto` を定義する(issue #88 で `backend/` ディレクトリへ移動。`pythonpath = .` は `backend/` 起点のまま機能するため内容変更なし。`addopts = -n auto` は issue #322 で追加し、`pytest-xdist` によりテストを CPU コア数だけのワーカーへ分散する)。CI は存在しないためローカル実行が保証手段である。
 - `nuts_calc_tex.py` は純 Python の生成関数に加え、`pdflatex`/`lualatex` がある環境では PDF 生成も対象にする(`backend/tests/test_nuts_calc_tex.py:16-23`)。旧 ReportLab CLI(`nuts_calc.py`)向けのテスト(`test_nuts_calc_init.py`/`test_nuts_calc_data.py`/`test_nuts_calc_cli.py`/`conftest.py`)は issue #232 での削除に伴い、対象ファイルごと削除した。
 - Flask は test client とレンダラー変換関数をモジュールレベルで検証する(`backend/tests/test_web_backend_app.py`、`backend/tests/test_web_backend_renderers.py`)。
 - `frontend/web` は Node.js 組み込み `node:test` でプリセットデータモデル、詳細画面の純粋ヘルパー、Vite 設定を検証する。DOMやブラウザE2Eは対象外である。
@@ -27,9 +27,11 @@ Python 依存を手動導入してから `backend/` ディレクトリ内で実�
 
 ```bash
 cd backend
-pip install flask flask-cors pytest
+pip install flask flask-cors pytest pytest-xdist
 python3 -m pytest -q
 ```
+
+`addopts = -n auto`(`backend/pytest.ini`)により `python3 -m pytest` は追加フラグなしで並列実行になる。`pytest-xdist` 未導入だと `unrecognized arguments: -n` で即失敗するため、上記の `pip install` に含める。単一テストのデバッグ等で逐次実行したい場合は `python3 -m pytest -n0` で打ち消す。
 
 `frontend/web` の `package.json` にはテスト・lintスクリプトがないため、テストは直接実行する:
 
@@ -43,7 +45,7 @@ npm run build
 
 | 検証 | 結果 |
 |---|---|
-| `cd backend && python3 -m pytest -q` | 808 passed in 94.58s(2026-08-21 時点)。その後 issue #222 で +6、issue #228 で +5・1 置換となり、2026-08-29 に `python3 -m pytest -q --ignore=tests/test_nuts_calc_init.py` で 818 passed を再確認。2026-08-31 に issue #313 で `--mixed-decimal-operand-order` 系テストを +10 追加し、repo-local `venv/` の pytest で 1130 passed を確認 |
+| `cd backend && python3 -m pytest -q` | 808 passed in 94.58s(2026-08-21 時点)。その後 issue #222 で +6、issue #228 で +5・1 置換となり、2026-08-29 に `python3 -m pytest -q --ignore=tests/test_nuts_calc_init.py` で 818 passed を再確認。2026-08-31 に issue #313 で `--mixed-decimal-operand-order` 系テストを +10 追加し、repo-local `venv/` の pytest で 1130 passed を確認。2026-09-01 に issue #322 で `addopts = -n auto`(pytest-xdist)を追加し、8 論理コア環境で `1147 passed in 84.68s`(逐次実行 283.49s から約 3.3 倍)を確認。テスト件数・内容は不変 |
 | `frontend/web` `node --test ...`(3ファイル) | 67 passed(issue #305/#307/#309 で grade-1 ドリルのテストを追加)。issue #313 で grade-4「整数と小数の掛け算」のテストを +1 追加し 69 passed を確認(2026-08-31) |
 | `cd frontend/web && npm run build` | 成功(3 HTML エントリ: `index.html`/`catalog.html`/`preset.html`。`custom.html` は issue #97 で削除) |
 
@@ -53,7 +55,7 @@ npm run build
 
 ## カバレッジ方針
 
-`pytest-cov`、frontend coverage、数値目標は設定されていない(`backend/pytest.ini:1-3`、`frontend/web/package.json`)。現状はテスト件数と対象機能で回帰範囲を管理する。
+`pytest-cov`、frontend coverage、数値目標は設定されていない(`backend/pytest.ini:1-4`、`frontend/web/package.json`)。現状はテスト件数と対象機能で回帰範囲を管理する。
 
 ## 未確認事項
 

@@ -40,5 +40,6 @@
 
 ## 変更履歴(git log より自動生成)
 
+- 8792f47 chore(#322): run the backend pytest suite in parallel via pytest-xdist
 - 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)
 - 6cebc5d test: add pytest regression suite for nuts_calc.py
