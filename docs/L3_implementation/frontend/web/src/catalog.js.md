@@ -46,7 +46,8 @@
 
 ## 変更履歴(git log より自動生成)
 
-- 1ae72a3 feat(#157): add per-grade/per-drill header descriptions via a shared page header component
+- c7260fa refactor(#320): replace grade 5 multiplication/division sections with a 小数 section
+- 9b366c1 #157 Add per-grade/per-drill header descriptions via a shared page header component (#160)
 - 85e58b1 #146 Add an advanced difficulty badge to the web UI (#147)
 - d43d1bc #130 frontend/web: make catalog page accent color switch dynamically per grade (#131)
 - 1bb0f69 #126 frontend/web: add missing wireframe icons and unify page headers (#127)
