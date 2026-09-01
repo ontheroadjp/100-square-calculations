@@ -20,6 +20,8 @@
 
 2年生「3つの数の足し引き」(`g2-addsub-mixed`、issue #311)について、上記 `g1-three-terms` テストと対称の内容を検証する。`operators` choice の option 順序・labelKey・既定(`addsub`)、`buildParams` の3モード写像(`add`/`sub` は `mixed_operators` なし、`addsub` と無引数は `mixed_operators: true`。3モードとも `terms:3, a_min:1,a_max:99,b_min:1,b_max:99`、`result_max` なし)、`examplesFor` の演算子追従(`add`→`-` を含まない、`sub`→`+` を含まない、`addsub`・無引数は静的 `examples` と一致)を確認する。
 
+5年生「整数と小数の割り算」(`g5-decimal-div`、issue #317)について、`dividendType` choice が `integer_div_decimal`/`decimal_div_decimal`/`mixed` をこの順・対応 labelKey で持ち既定が `mixed` であること、`buildParams` の3モード写像(`integer_div_decimal`→`a_decimal_places:0, dividend_mode:'integer'`、`decimal_div_decimal`→`a_decimal_places:1` のみ(#317 前と同一・`dividend_mode` なし)、`mixed`・無引数・`{}`→`a_decimal_places:1, dividend_mode:'mixed'`。3モードとも `command_type:'ope', operator:['div'], a_digits:2, b_digits:2, b_decimal_places:1`)、`examplesFor` の追従(`integer_div_decimal`→`整数÷小数.` パターン、`decimal_div_decimal`→`小数÷小数.` パターン、`mixed`は静的 `examples` と一致)を確認する。
+
 ## 重要な設計判断とその理由
 
 難易度は単なる文字列型ではなくUIの文言・CSS・互換分類と結び付く列挙値であるため、文字列であることだけでなく既知キーとの一致を検証する。
@@ -35,7 +37,9 @@
 
 ## 変更履歴（git log より自動生成）
 
-- f5656c4 feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication
+- ba08963 feat(#317): add integer/decimal dividend selection to grade 5 decimal division
+- 697db43 refactor(#315): move grade 4 fraction add/sub into addition/subtraction categories (#316)
+- 40dfb0a feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication (#314)
 - 7334a3a feat(#311): rename grade 2 three-term drill and add operator-mode selection (#312)
 - 3278705 feat(#309): add subtraction-only mode to grade 1 three-term drill (#310)
 - 571563e feat(#307): add borrow-mode settings to grade 1 subtraction drills (#308)
@@ -43,5 +47,3 @@
 - a4104ca feat(#303): render fixed drill settings as an inactive segmented control (#304)
 - 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
 - d542657 #176 frontend/web: cap the answer for grade-1/2 basic ope drills at their titled bound (#178)
-- 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)
-- 17070be #161 frontend/web: rebuild grade-3 addition/subtraction menu, retire fraction category, add four-operations drills (#162)

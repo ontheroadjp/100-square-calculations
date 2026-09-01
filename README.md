@@ -171,6 +171,20 @@ python3 nuts_calc_tex.py A4 ope -o mul --a-digits 2 --b-digits 1 \
   --a-decimal-places 1 --mixed-decimal-operand-order --out-file mixed-decimal-order.pdf
 ```
 
+For `ope -o div` with a decimal divisor (`--b-decimal-places` >= 1), use
+`--integer-dividend`, `--decimal-dividend` (the default behavior), or
+`--mixed-dividend` to make the dividend a whole number, a decimal, or a
+per-problem mix of both. With `--integer-dividend` the dividend is a whole
+number, the divisor stays a decimal, and the quotient is an exact integer
+(e.g. `96 ÷ 2.4 = 40`); it is rejected for any other command or operator, an
+integer divisor, or when combined with `--remainder`/`--use-parentheses`/
+`--missing-value`/the `--terms` family/`--intermediate`.
+
+```bash
+python3 nuts_calc_tex.py A4 ope -o div --a-digits 2 --b-digits 2 \
+  --a-decimal-places 0 --b-decimal-places 1 --integer-dividend --out-file integer-dividend.pdf
+```
+
 Use `--with-name-field` to print a `Name: ___` line in the page header (a
 common setting shared across all twenty commands, not just `ope`). Since plain
 `pdflatex` has no CJK font support, the label is rendered as English `Name:`

@@ -88,6 +88,41 @@ def test_generate_problems_mixed_decimal_operand_order_mixes_both_orientations()
         assert problem["a"] * problem["b"] == problem["result"]
 
 
+def test_generate_problems_integer_dividend_previews_whole_dividend_and_quotient() -> None:
+    # grade-5 "整数と小数の割り算" 整数÷小数 live preview (issue #317).
+    import random
+
+    random.seed(5)
+    params = {
+        "paper_size": "A4", "command_type": "ope", "num": 20,
+        "a_digits": 2, "b_digits": 2, "operator": ["div"],
+        "a_decimal_places": 0, "b_decimal_places": 1, "dividend_mode": "integer",
+    }
+    problems = problem_generation.generate_problems(params)
+    assert len(problems) == 20
+    for problem in problems:
+        assert problem["a_decimal_places"] == 0
+        assert problem["b_decimal_places"] == 1
+        assert problem["b"] % 10 != 0
+        assert problem["remainder"] == 0
+        # a / (b / 10) is an exact whole number
+        assert problem["a"] * 10 == problem["b"] * problem["result"]
+
+
+def test_generate_problems_mixed_dividend_previews_both_dividend_kinds() -> None:
+    import random
+
+    random.seed(2)
+    params = {
+        "paper_size": "A4", "command_type": "ope", "num": 40,
+        "a_digits": 2, "b_digits": 2, "operator": ["div"],
+        "a_decimal_places": 1, "b_decimal_places": 1, "dividend_mode": "mixed",
+    }
+    problems = problem_generation.generate_problems(params)
+    assert len(problems) == 40
+    assert {p["a_decimal_places"] for p in problems} == {0, 1}
+
+
 def test_generate_problems_intermediate_includes_memo() -> None:
     params = {
         "paper_size": "A4", "command_type": "ope", "num": 5,

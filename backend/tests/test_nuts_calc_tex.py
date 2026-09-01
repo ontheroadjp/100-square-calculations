@@ -1361,6 +1361,54 @@ def test_cli_ope_decimal_divide_by_decimal_produces_whole_number_answers(run_tex
         assert "." not in answer  # a/b decimal places are equal -> exact integer quotient
 
 
+def test_cli_ope_integer_dividend_produces_whole_dividend_and_quotient(run_tex_cli, tmp_path):
+    # grade-5 "整数と小数の割り算" 整数÷小数 option (issue #317): the dividend is
+    # a whole number, the divisor is a decimal, and the quotient is exact.
+    result = run_tex_cli(
+        "A4", "ope", "-o", "div", "--a-digits", "2", "--b-digits", "2",
+        "--a-decimal-places", "0", "--b-decimal-places", "1", "--integer-dividend",
+        "-r", "3", "-c", "3", "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    for row in (tmp_path / "result.csv").read_text().strip().splitlines():
+        _, _, dividend, _, divisor, quotient, remainder = row.split(",")
+        assert "." not in dividend      # whole-number dividend
+        assert "." in divisor           # decimal divisor
+        assert "." not in quotient      # exact whole-number quotient
+        assert remainder == "0"
+
+
+def test_cli_ope_mixed_dividend_produces_both_whole_and_decimal_dividends(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "div", "--a-digits", "2", "--b-digits", "2",
+        "--a-decimal-places", "1", "--b-decimal-places", "1", "--mixed-dividend",
+        "-r", "5", "-c", "4", "--csv", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    dividends = [row.split(",")[2] for row in (tmp_path / "result.csv").read_text().strip().splitlines()]
+    assert any("." in value for value in dividends)      # decimal dividends
+    assert any("." not in value for value in dividends)  # whole-number dividends
+
+
+@pytest.mark.parametrize(
+    "extra_args",
+    [
+        ["-o", "mul"],                                          # not div
+        ["-o", "div", "--b-decimal-places", "0"],               # divisor is not a decimal
+        ["-o", "div", "--b-decimal-places", "1", "--mixed-remainder"],  # conflicts with --remainder family
+        ["-o", "div", "--b-decimal-places", "1", "--use-parentheses"],
+    ],
+)
+def test_cli_ope_integer_dividend_rejects_unsupported_combinations(run_tex_cli, tmp_path, extra_args):
+    result = run_tex_cli(
+        "A4", "ope", "--a-digits", "2", "--b-digits", "2", "--integer-dividend",
+        *extra_args, "--out-file", "result.pdf",
+    )
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
 def test_cli_ope_decimal_add_sub_mul_vertical_produces_pdfs(run_tex_cli, tmp_path):
     result = run_tex_cli(
         "A4", "ope", "-o", "add", "sub", "mul", "--a-digits", "2", "--b-digits", "2",

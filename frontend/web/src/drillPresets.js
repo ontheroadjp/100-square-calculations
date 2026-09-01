@@ -994,6 +994,18 @@ function denominatorParams(state) {
 
 const REDUCTION_OPTIONS = [OPT_NONE, OPT_REQUIRED, OPT_MIXED];
 
+// 被除数(g5-decimal-div, issue #317): the divisor is always a decimal (5年
+// 「小数のわり算」= 除数が小数); this picks the dividend's kind. 'integer' and
+// 'mixed' send nuts_calc_tex.py's --integer-dividend/--mixed-dividend so a
+// whole-number dividend (e.g. 96÷2.4) is generated with an exact integer
+// quotient, matching how the course of study introduces the unit. The
+// 小数÷小数 option keeps the pre-#317 params unchanged.
+const DIVIDEND_TYPE_OPTIONS = [
+  { value: 'integer_div_decimal', labelKey: 'setting_option_integer_div_decimal' },
+  { value: 'decimal_div_decimal', labelKey: 'setting_option_decimal_div_decimal' },
+  { value: 'mixed', labelKey: 'setting_option_mixed', hintKey: 'setting_mixed_hint' },
+];
+
 // ---------------------------------------------------------------------
 // Grade 5
 // ---------------------------------------------------------------------
@@ -1024,14 +1036,31 @@ const grade5 = {
       descKey: 'menu_g5_decimal_div_desc',
       pointKey: 'menu_g5_decimal_div_point',
       difficultyKey: 'difficulty_standard',
-      examples: ['7.56÷1.2', '4.8÷0.6', '9.36÷2.4'],
-      settings: [fixedSetting('divisor', 'setting_divisor_label', 'setting_option_decimal')],
+      examples: ['72÷1.8', '7.2÷1.8', '96÷2.4'],
+      examplesFor: examplesByChoice(['dividendType'], {
+        integer_div_decimal: ['72÷1.8', '96÷2.4', '51÷1.7'],
+        decimal_div_decimal: ['7.2÷1.8', '9.6÷2.4', '8.4÷1.2'],
+        mixed: ['72÷1.8', '7.2÷1.8', '96÷2.4'],
+      }),
+      settings: [
+        { id: 'dividendType', labelKey: 'setting_dividend_label', type: 'choice', options: DIVIDEND_TYPE_OPTIONS, default: 'mixed' },
+      ],
       supportLevel: 'full',
       latexOnly: true,
-      buildParams: () => ({
-        command_type: 'ope', operator: ['div'], a_digits: 2, b_digits: 2,
-        a_decimal_places: 1, b_decimal_places: 1,
-      }),
+      buildParams: (state) => {
+        const base = {
+          command_type: 'ope', operator: ['div'], a_digits: 2, b_digits: 2, b_decimal_places: 1,
+        };
+        const dividendType = state?.dividendType ?? 'mixed';
+        if (dividendType === 'integer_div_decimal') {
+          return { ...base, a_decimal_places: 0, dividend_mode: 'integer' };
+        }
+        if (dividendType === 'decimal_div_decimal') {
+          // Unchanged from before #317: 小数第1位 ÷ 小数第1位 = integer.
+          return { ...base, a_decimal_places: 1 };
+        }
+        return { ...base, a_decimal_places: 1, dividend_mode: 'mixed' };
+      },
     },
   ],
   'four-operations': [

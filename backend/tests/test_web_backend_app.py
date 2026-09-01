@@ -2325,6 +2325,49 @@ def test_generate_pdf_ope_vertical_rejects_decimal_divisor(client, monkeypatch) 
     assert "does not yet support a decimal --b-decimal-places" in response.get_json()["error"]
 
 
+def test_generate_pdf_ope_integer_dividend_uses_presentation_api_with_whole_dividends(client, monkeypatch) -> None:
+    """
+    The grade-5 "整数と小数の割り算" 整数÷小数 option (issue #317) posts
+    `ope -o div` with a_decimal_places=0 / b_decimal_places=1 / dividend_mode
+    "integer". It must build via the in-process presentation API (not
+    renderers.run), and every div expression must be a whole-number dividend
+    over a decimal divisor.
+    """
+    import re
+
+    backend_app = sys.modules["app"]
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("renderers.run must not be called for an 'ope' dividend_mode request")
+
+    monkeypatch.setattr(backend_app.renderers, "run", fail_if_called)
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+
+    def fake_compile(self, tex_source, out_pdf_path):
+        assert re.search(r"\d \\opspace \\div \\opspace \d", tex_source)
+        assert not re.search(r"\.\d \\opspace \\div", tex_source)  # no decimal dividend
+        with open(out_pdf_path, "wb") as f:
+            f.write(b"%PDF-1.4 fake")
+
+    monkeypatch.setattr(
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+    monkeypatch.setattr(
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf",
+        json={
+            "paper_size": "A4", "command_type": "ope", "operator": ["div"],
+            "a_digits": 2, "b_digits": 2,
+            "a_decimal_places": 0, "b_decimal_places": 1, "dividend_mode": "integer",
+        },
+    )
+    assert response.status_code == 200, response.get_data(as_text=True)
+    assert response.data.startswith(b"%PDF")
+
+
 def test_generate_pdf_ope_intermediate_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
     """
     An `ope --intermediate` (staged mental-math arrow-chain, content-format
