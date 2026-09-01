@@ -14,9 +14,10 @@
 │   ├── factory.sh          # バッチ生成シェルスクリプト(実行可能)
 │   ├── app.py              # Flask API(POST /generate-pdf, POST /generate-problems, GET /renderer-info)
 │   ├── renderer_config.py  # レンダラー名解決 + 共有 RendererRequest 型(Flask非依存、issue #36。issue #297 で renderers.py からリネーム、build_command/run は同 issue で削除)
+│   ├── three_layer_renderer.py # POST /generate-pdfの唯一の内部presentation API経路
 │   ├── problem_generation.py  # POST /generate-problems 用、CLIの生成関数をin-processで呼ぶラッパー(issue #138)
-│   ├── pytest.ini          # pytest 設定(testpaths=tests, pythonpath=.)
-│   ├── tests/               # pytestテストスイート。nuts_calc_tex.py/app.py/renderer_config.py/problem_generation.py/three_layer_renderer.pyを対象
+│   ├── pytest.ini          # pytest 設定(testpaths=tests, pythonpath=., addopts=-n auto)
+│   ├── tests/               # pytestテストスイート(34個のtest_*.py)
 │   └── vendor/
 │       └── texmf/tex/latex/longdivision/  # CTAN 'longdivision' パッケージのvendoring(nuts_calc_tex.pyの--vertical divで使用)
 ├── frontend/
@@ -44,12 +45,12 @@
 - `memo.md`: コードではなく、暗算指導法・学習ステップ・受験算数における計算力の重要性を説明する日本語の教育コンテンツ。
 - `LICENSE`: MIT License(`LICENSE:1-21`、Copyright (c) 2025 ontheroadjp)。
 - `README.md` / `README_ja.md`: 英語/日本語で内容が対応した利用者向け説明。CLI・`factory.sh`・Web UI(バックエンド/フロントエンド起動手順)をカバーしている。README.md には `Architecture`/`Design Principles` セクションがあるが README_ja.md には対応するセクションがなく、両者は完全な対訳ではなくなっている(下記「未確認事項」参照)。
-- `backend/tests/`: pytestテストスイート(26個の `test_*.py`、`test_problem_generation.py` は issue #138 の `backend/problem_generation.py` を検証する)。Flask/CLI変換、各ドリル生成を検証する(issue #232 でレンダラーは `latex` の1種類のみになった)。`frontend/web` には `node:test` 3ファイル(`src/` の2ファイルと `vite.config.test.js`)がある。詳細は [[../L2_development/test]]。
+- `backend/tests/`: pytestテストスイート(34個の `test_*.py`、`test_problem_generation.py` は issue #138 の `backend/problem_generation.py` を検証する)。`backend/pytest.ini:4` の `-n auto` により通常実行は pytest-xdist で並列化される。`frontend/web` には `node:test` 3ファイル(`src/` の2ファイルと `vite.config.test.js`)がある。詳細は [[../L2_development/test]]。
 - `docs/reference/`: 教材仕様の根拠となる一次資料を出典・取得日・SHA-256と共に保存する(`docs/reference/README.md:1-24`)。
 - `backend/vendor/texmf/tex/latex/longdivision/`: CTAN の `longdivision` パッケージ(LPPLライセンス)を vendoring したもの。Ubuntu の `texlive-latex-extra` に同梱されていないため、`nuts_calc_tex.py` が `TEXINPUTS` 経由でこのパスを解決する([[../L3_implementation/nuts_calc_tex.py]] 参照)。
-- `backend/app.py`: Flask アプリ。`POST /generate-pdf`(PDF生成)、`POST /generate-problems`(PDFを生成せず問題データのみJSONで返す、issue #138)、`GET /renderer-info`(有効レンダラー名の取得)の3エンドポイント。`POST /generate-pdf` の PDF 生成は `backend/three_layer_renderer.py` の `render_worksheet_pdf` をプロセス内で呼ぶ(issue #297 で legacy subprocess 経路を削除)。レンダラー名解決は `backend/renderer_config.py`(詳細は [[../L1_project/project_overview]])。`frontend/web` から利用される(かつては `frontend/spa` も共通利用していたが issue #233 で削除)。`POST /generate-problems` は現状 `frontend/web` の `preset.html` のみが呼ぶ。
-- `backend/renderer_config.py`(issue #297 で `renderers.py` からリネーム): `NUTS_CALC_RENDERER` env 変数(デフォルト `latex`、issue #186 で `reportlab` から変更)からレンダラー名を解決する `get_renderer_name()` と、Web リクエストボディの共有型 `RendererRequest` を持つ Flask 非依存モジュール(issue #36)。issue #297 以前はここに `build_command`/`run`(CLI 引数変換 + subprocess 実行)もあったが、legacy `/generate-pdf` 経路とともに削除された。レンダラー切り替えの仕組み自体は将来の別レンダラー追加に備えて温存しているが、`nuts_calc.py`(ReportLab)は issue #232 で削除され、`RENDERER_SCRIPTS` は現在 `latex` の1エントリのみ。`RENDERER_SCRIPTS` はスクリプトパスを `Path(__file__).resolve().parent`(=`backend/`)基準で解決する(issue #88)。
-- `backend/problem_generation.py`: `POST /generate-problems` が使う、`nuts_calc_tex.py` の既存データ生成関数をsubprocessを起動せずプロセス内で直接呼び出すラッパー(issue #138)。`ope` を含む19コマンド(`100` を除く全対応コマンド)に対応する。詳細は [[../L3_implementation/api]]。
+- `backend/app.py`: Flask アプリ。`POST /generate-pdf`、`POST /generate-problems`、`GET /renderer-info` の3エンドポイント。PDF は `three_layer_renderer.render_worksheet_pdf` のみを使い、legacy subprocess経路は issue #297 で削除済み(`backend/app.py:16-46`)。
+- `backend/renderer_config.py`: `NUTS_CALC_RENDERER` からレンダラー名を解決する `get_renderer_name()` と共有 `RendererRequest` 型を持つ。issue #297 で `renderers.py` からリネームし、旧 `build_command`/`run` は削除された(`backend/renderer_config.py:1-13,21-102`)。
+- `backend/problem_generation.py`: `POST /generate-problems` 用の in-process ラッパー。19コマンドは `_COMMAND_GENERATORS`、`100` は専用 `generate_hundred_square_table()` で処理する(`backend/problem_generation.py:12-16,285-322,743-748`)。
 - `frontend/web/`: HTML/CSS(Sass)/JS のみの軽量フロントエンド(新規、issue #88)。React・i18n ライブラリを使わず日本語のみに対応する。ユーザーの明示的な指示により、SPA(単一 `index.html` を JS ルーターで画面切替する構成)ではなく、画面ごとに実在の `.html` を持つ複数ページ構成として実装されている(通常の `<a href>` リンクと GET フォームで画面遷移する)。かつて併存していた `frontend/spa/`(Vite ベースの React SPA。トップ画面は学年別ドリル選択の `GradeDrills.jsx`、「カスタム」選択時の詳細パラメータ指定フォーム `CustomGenerator.jsx` を持ち、`frontend/web` と機能的に同等だった)は issue #233 で削除された。
 
 ## 未確認事項

@@ -36,7 +36,7 @@ source venv/bin/activate
 pip install Flask Flask-Cors
 python app.py
 ```
-根拠: `README.md:77-90`。パッケージ定義ファイル(`requirements.txt`/`pyproject.toml`/`setup.py`)は存在しないため、`pip install Flask Flask-Cors` を手動実行する必要がある([[../L0_concept/policy]] 参照)。`http://127.0.0.1:5000` で起動し、`POST /generate-pdf` にフォーム相当の JSON を送ると `backend/three_layer_renderer.py` の `render_worksheet_pdf` が `nuts_calc_tex.py` の内部プレゼンテーション API をプロセス内で呼んで PDF を返す(`backend/app.py`。issue #297 で legacy subprocess 経路を削除)。`renderer_config.py`(issue #297 で `renderers.py` からリネーム)の `RENDERER_SCRIPTS` スクリプトパス解決は `Path(__file__).resolve().parent`(=`backend/`)基準のため、`backend/` 直下に `nuts_calc_tex.py` が存在することを前提にしている(issue #88)。
+根拠: `README.md` の Installation / Usage。パッケージ定義ファイル(`requirements.txt`/`pyproject.toml`/`setup.py`)は存在しないため、`pip install Flask Flask-Cors` を手動実行する必要がある。`POST /generate-pdf` は `backend/three_layer_renderer.py` の `render_worksheet_pdf` が内部 presentation API をプロセス内で呼んで PDF を返す。legacy subprocess経路は issue #297 で削除され、これが唯一のPDF経路である(`backend/app.py:16-46`)。
 
 **(削除済み、issue #233)** かつては React SPA `frontend/spa`(`cd frontend/spa && npm install && npm run dev`、`http://localhost:5173`)ももう1つの Web フロントエンドとして存在した。`npm run build` は2026-08-12時点で実機確認済み(成功)だったが、`npm run lint` は `frontend/spa/src/drillPresets.js:433` の日本語コメント内全角空白を `no-irregular-whitespace` が拒否し1件失敗していた。`frontend/spa` 自体が issue #233 で削除されたため、以下は現在唯一の Web フロントエンドである `frontend/web` の手順。
 
@@ -74,7 +74,7 @@ cd backend
 pip install pytest
 python3 -m pytest -q
 ```
-`backend/pytest.ini` により `backend/` ディレクトリ内で実行する。2026-08-21 の再検証では808件全てが成功した。詳細は [[test]]。
+`backend/pytest.ini` により `backend/` ディレクトリ内で実行し、`addopts = -n auto` で pytest-xdist が並列化する。2026-09-02 の再検証では1107件全てが成功した。詳細は [[test]]。
 
 frontend の純粋関数テストは `package.json` に script がないため直接実行する:
 
@@ -82,12 +82,12 @@ frontend の純粋関数テストは `package.json` に script がないため�
 node --test frontend/web/src/drillPresets.test.js frontend/web/src/presetDetail.test.js frontend/web/vite.config.test.js
 ```
 
-2026-08-21 の再検証では3ファイル59件すべて成功した。`frontend/web/vite.config.test.js:1-9` は開発用 CSS sourcemap が有効で production sourcemap は未設定であることを検証する。
+2026-09-02 の再検証では3ファイル72件すべて成功した。`frontend/web/vite.config.test.js:1-9` は開発用 CSS sourcemap が有効で production sourcemap は未設定であることを検証する。
 
 ## ビルド
 
 - CLI/Web バックエンド: ビルド工程なし(PDF/CSV 生成そのものが成果物)。
-- `frontend/web`: `npm run build`(Vite、マルチページ)。2026-08-21 に Vite 8.2.1 で実機確認済み(3 HTML エントリの build 成功)。
+- `frontend/web`: `npm run build`(Vite、マルチページ)。2026-09-02 に Vite 8.2.1 で実機確認済み(3 HTML エントリの build 成功)。
 
 ## 未確認事項
 

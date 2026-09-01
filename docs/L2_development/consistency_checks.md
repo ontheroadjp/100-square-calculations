@@ -1,16 +1,16 @@
 # Consistency Checks
 
-CI 定義が存在しないため、整合性はローカルで再現可能なコマンドと実装参照で保証する。以下は standalone `/init-docs` 再実行(2026-08-21)の結果である。
+CI 定義が存在しないため、整合性はローカルで再現可能なコマンドと実装参照で保証する。以下は standalone `/init-docs` 再実行(2026-09-02)の結果である。
 
 ## 実体に対する検証
 
 | 観点 | 検証 | 結果・根拠 |
 |---|---|---|
 | LaTeX CLI | `cd backend && python3 nuts_calc_tex.py A4 ope ...` を実行 | PDF を生成して成功。コマンド定義は `backend/nuts_calc_tex.py`。旧 ReportLab CLI(`nuts_calc.py`)は issue #232 で削除された |
-| Python tests | `cd backend && python3 -m pytest -q` | 808 passed in 94.58s(`pdflatex`/`lualatex` 依存テストを含む) |
+| Python tests | `cd backend && python3 -m pytest -q` | 1107 passed in 78.49s(`backend/pytest.ini:4` の `-n auto` による並列実行) |
 | Frontend(web) build | `cd frontend/web && npm run build` | 成功。`dist/index.html`/`catalog.html`/`preset.html` の3エントリを出力(`custom.html` は issue #97 で削除) |
-| Frontend(web) tests | `node --test frontend/web/src/drillPresets.test.js frontend/web/src/presetDetail.test.js frontend/web/vite.config.test.js` | 59 passed |
-| API | ルートと renderer 変換をソース/pytest で照合 | `POST /generate-pdf`・`POST /generate-problems`(issue #138)・`GET /renderer-info` の3本。`result_max` と内部 presentation API 移行済み経路を含む backend テストは上記808件に含まれ成功 |
+| Frontend(web) tests | `node --test frontend/web/src/drillPresets.test.js frontend/web/src/presetDetail.test.js frontend/web/vite.config.test.js` | 72 passed |
+| API | ルートと renderer 変換をソース/pytest で照合 | `POST /generate-pdf`・`POST /generate-problems`・`GET /renderer-info` の3本。唯一の内部 PDF 経路の全20コマンドと `100` 専用 JSON envelope を含む backend テストは上記1107件に含まれ成功 |
 | Web バックエンド実プロセス | `backend/app.py` を起動し `frontend/web` からブラウザで検証(issue #88 時点では `frontend/spa` も併せて検証していたが、`frontend/spa` 自体が issue #233 で削除された)。`frontend/web` は issue #99 で学年選択(トップ)→カテゴリ別ドリル一覧(カタログ)の2画面に再構築済み(検索・絞り込みUI・カスタム生成フォームはいずれも issue #97/#99 で撤去済み) | 学年選択→カテゴリ別ドリル一覧→PDF生成/プレビュー/ダウンロードがいずれも正常動作。pytest による自動結合テストではなく手動確認 |
 
 **(削除済み、issue #233)** この2026-08-20時点の検証では `frontend/spa` も併存しており、`node --test`(3ファイル)17 passed・`npm run build` 成功・`npm run lint` は `drillPresets.js:433` の全角空白を `no-irregular-whitespace` が拒否し1失敗、という結果だった。`frontend/spa` 自体が issue #233 で削除されたため、これらの検証項目自体が対象外になった。

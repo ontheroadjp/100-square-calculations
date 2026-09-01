@@ -231,9 +231,9 @@ cd backend
 
 This will generate a variety of mental arithmetic and other practice sheets into the `dist/` directory. Review the `factory.sh` script to understand the specific types and configurations of worksheets it generates.
 
-### Running the Web Interface (Flask + one of the two frontends)
+### Running the Web Interface (Flask + `frontend/web`)
 
-To use either web interface, you need to start the Flask backend and one of the two independent frontends. Both frontends talk to the same backend, so you only need to start one of them.
+To use the Web UI, start the Flask backend and the sole frontend, `frontend/web`.
 
 1.  **Start the Flask Backend**:
     *   Open a terminal and navigate to the `backend` directory:
@@ -268,14 +268,14 @@ Once running, open your browser to the frontend's address (e.g., `http://localho
 ### Running checks
 
 ```bash
-cd backend && python3 -m pytest -q --ignore=tests/test_nuts_calc_init.py
-node --test frontend/web/src/drillPresets.test.js frontend/web/src/presetDetail.test.js
+cd backend && python3 -m pytest -q
+node --test frontend/web/src/drillPresets.test.js frontend/web/src/presetDetail.test.js frontend/web/vite.config.test.js
 cd frontend/web && npm run build
 ```
 
 The backend suite needs `pytest` and `pytest-xdist` (`pip install pytest pytest-xdist`). `backend/pytest.ini` sets `addopts = -n auto`, so `python3 -m pytest` fans the tests out across all CPU cores automatically; pass `-n0` to force serial execution when debugging a single test.
 
-`backend/tests/test_nuts_calc_init.py` is excluded above because 9 expectations still pin the old `exit()` status while the implementation correctly uses `exit(1)`; see `docs/L2_development/test.md`. `frontend/web` has no lint script and no `npm test` script, but `frontend/web/src/drillPresets.test.js` (node:test) covers its own drill-menu data model directly (issue #98), and `frontend/web/src/presetDetail.test.js` covers `presetDetail.js`'s pure problem-count/summary-building/example-to-KaTeX helpers (issues #100, #132); `frontend/web/src/drillPresets.js` diverged from the former `frontend/spa`'s version in #98 and no longer copies it (`frontend/spa` itself was removed entirely in issue #233); its former `drillCatalog.js` adapter was removed in #110 once `catalog.js`/`preset.js` stopped depending on it.
+`frontend/web` has no lint script and no `npm test` script, but the three explicitly invoked `node:test` files cover the drill-menu data model, preset-detail pure helpers, and Vite sourcemap configuration. The stale `backend/tests/test_nuts_calc_init.py` suite was removed with the former ReportLab CLI in issue #232; the current backend command runs the complete suite without an ignore exception.
 
 ## Dependencies
 *   Python 3
@@ -300,7 +300,7 @@ See `docs/L1_project/project_overview.md` and `docs/L0_concept/concept.md` for t
 
 ## Design Principles
 
-*   **Renderer-owned drill logic.** The web backend does not implement worksheet generation; it translates requests and shells out to the selected renderer. Most CLI parameters are shared; LaTeX-only features such as `frac` are always available now that `latex` is the Web UI's default and only reachable renderer (issue #186).
+*   **Renderer-owned drill logic.** The web backend does not duplicate worksheet-generation rules; it dispatches every PDF request to `three_layer_renderer.py`, which calls `nuts_calc_tex.py`'s data and presentation APIs in-process. The former CLI/subprocess renderer path was deleted in issue #297.
 *   **No dependency pinning on the Python side.** There is no lock file, `requirements.txt`, or `pyproject.toml`; dependencies are installed ad hoc. This reflects the project's scope as a small personal/batch-generation tool rather than a deployed service.
 *   **Local tests are the current quality gate (no CI yet).** pytest covers both generators and backend translation; Node's built-in test runner covers `frontend/web`'s own `drillPresets.test.js` (issue #98). Renderer-dependent tests compile PDF/CSV output when dependencies are available.
 *   **One frontend, no shared package.** `frontend/web` was added as a lightweight (no React, no i18n library, Japanese-only) alternative to the former `frontend/spa` (removed in issue #233), built as a genuine static multi-page site rather than a single-page JS router. It is an independent npm project; its `verticalLayout.js` still duplicates the former `frontend/spa`'s copy, but its drill-menu data model (`drillPresets.js`) diverged from `frontend/spa`'s in issue #98 to match `docs/uiux/calculation_drill_menu_parameters_v1.md` exactly. It does not depend on a shared internal package, anticipating a possible future split of `backend`/`frontend` into separate repositories.

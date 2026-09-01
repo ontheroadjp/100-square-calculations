@@ -23,13 +23,13 @@ AI 運用の single source of truth。`AGENTS.md` はこのファイルへの sy
 
 ## Local Tooling Environment
 
-Observed by /init-docs (2026-08-21, standalone mode):
-- gh: 2.97.0
+Observed by /init-docs (2026-09-02, standalone mode):
+- gh: 2.98.0
 - gh auth: logged in to github.com as ontheroadjp (ssh protocol, scopes: admin:public_key, gist, read:org, repo)
 - node: v24.16.0 (via mise: `~/.local/share/mise/installs/node/24/bin/node`)
 - npm: 11.13.0 (same mise install)
-- Node runtime manager hints: no repo-local `.nvmrc`/`.node-version`/`.tool-versions`/`mise.toml` found; node/npm resolved from the user's global mise install, not a repo-local pin. `frontend/web` has a real Node.js dependency (Vite build) — node/npm ARE required there, unlike the CLI/`factory.sh`/`nuts_calc_tex.py` (in `backend/`) which remain Python-only (the latter additionally requires `pdflatex`, not Node.js).
-- `nuts_calc_tex.py`'s optional Japanese-capable `lualatex` engine adapter (`NUTS_CALC_TEX_ENGINE=lualatex`, issue #121) additionally requires: the `lualatex` binary (LuaHBTeX, present via the base TeX Live install), the `texlive-luatex` apt package (provides `luaotfload`, the font loader `fontspec` needs on LuaLaTeX; installed 2026-08-14 via `sudo apt install texlive-luatex`, 2 packages, self-contained on top of the already-installed `texlive-latex-extra`), and the `fonts-noto-cjk` apt package (provides `Noto Sans CJK JP`, already present on this machine). None of this is required for the default `pdflatex` engine or for `backend/app.py`. upLaTeX/`luatexja` were evaluated and rejected for now: on Ubuntu both live inside `texlive-lang-japanese`, which pulls in `texlive-lang-cjk` (114 packages, including unrelated Chinese/Korean/Thai support) versus `texlive-luatex`'s 2; revisit only if paragraph-level Japanese typesetting (kinsoku shori/JFM spacing) is needed.
+- Node runtime manager hints: no repo-local `.nvmrc`/`.node-version`/`.tool-versions`/`mise.toml` found; node/npm resolved from the user's global mise install, not a repo-local pin. `frontend/web` requires Node.js for Vite; the Python CLI additionally requires `lualatex`(default) or `pdflatex`.
+- `nuts_calc_tex.py` の既定エンジンは日本語対応の `lualatex` で、`lualatex` binary、`luaotfload`、`Noto Sans CJK JP` が必要。`pdflatex` は `NUTS_CALC_TEX_ENGINE=pdflatex` で選択できる(`backend/nuts_calc_tex.py:1158-1209`)。
 
 Notes:
 - If `gh` operations fail with API schema or compatibility errors, check `gh --version` first. Prefer upgrading `gh` when possible; if upgrading is impossible, use an equivalent `gh api` REST call or GitHub Web UI for the affected operation.
@@ -39,13 +39,13 @@ Notes:
 ## Python Environment
 
 - All CLI/Flask code lives under `backend/` (moved there from the repo root and `web/backend/` in issue #88); run these commands with `backend/` as the working directory.
-- No lock file, `requirements.txt`, or `pyproject.toml` exists. The CLI (`nuts_calc_tex.py`) has zero pip dependencies (standard library only); the web backend needs `Flask`/`Flask-Cors`; the test suite needs `pytest`. Install via `pip install flask flask-cors pytest` (see `README.md`). The former ReportLab CLI `nuts_calc.py` (which did depend on the `reportlab` package) was removed in issue #232.
+- No lock file, `requirements.txt`, or `pyproject.toml` exists. The CLI (`nuts_calc_tex.py`) has zero pip dependencies; the web backend needs `Flask`/`Flask-Cors`; the test suite needs `pytest` and `pytest-xdist`. Install via `pip install flask flask-cors pytest pytest-xdist` (see `README.md`).
 - repo-local `venv/` has Python 3.12.3, Flask 3.1.3, Flask-Cors 6.0.5, and pytest 9.1.1.
-- `cd backend && python3 -m pytest -q` passes all 808 tests as of 2026-08-21; available `pdflatex`/`lualatex`-dependent tests ran successfully. See `docs/L2_development/test.md`.
+- `cd backend && python3 -m pytest -q` passes all 1107 tests as of 2026-09-02; `backend/pytest.ini` uses pytest-xdist `-n auto`. Issue #297 removed the legacy subprocess-path tests. See `docs/L2_development/test.md`.
 - `nuts_calc_tex.py` requires `pdflatex`/`lualatex` on `PATH`; its `pdflatex`-dependent CLI tests auto-skip when it's absent. Its `vendor/texmf` lookup is resolved relative to its own file location (`backend/vendor/texmf`), so it required no code change when `backend/` was introduced in issue #88. Its optional `lualatex` engine adapter (see Local Tooling Environment above) has its own `lualatex`-gated tests (`backend/tests/test_nuts_calc_tex_lualatex_engine.py`, plus pure-Python adapter-selection tests in `test_nuts_calc_tex_engine_adapter.py` that need neither binary) that auto-skip the same way when `lualatex` is absent.
 
 ## Web Frontend Environment (`frontend/web`)
 
 `frontend/web` shares the same `backend/app.py` Flask API (issue #88). It was originally one of two independent frontends alongside `frontend/spa` (a React SPA); `frontend/spa` was removed in issue #233, leaving `frontend/web` as the sole Web UI frontend.
 
-- `frontend/web` (lightweight static multi-page site — `index.html`/`catalog.html`/`preset.html` — Vite + Sass + KaTeX, Japanese only): `npm run build` succeeds (verified 2026-08-21, Vite 8.2.1, 3 HTML entries). Its three `node:test` files are run directly and 59 tests passed; no npm test/lint scripts are configured. Its grade→category→menu-item model diverged from the former `frontend/spa`'s in issue #98. Its `preset.html` detail screen also calls `backend/app.py`'s `POST /generate-problems` endpoint (issue #138/#139) for live example previews — a feature the former `frontend/spa` did not have.
+- `frontend/web` (lightweight static multi-page site — `index.html`/`catalog.html`/`preset.html` — Vite + Sass + KaTeX, Japanese only): `npm run build` succeeds (verified 2026-09-02, Vite 8.2.1, 3 HTML entries). Its three `node:test` files are run directly and 72 tests passed; no npm test/lint scripts are configured. Its `preset.html` detail screen calls `POST /generate-problems` for live previews.
