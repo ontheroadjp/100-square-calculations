@@ -14,7 +14,7 @@
 
 1年生の引き算(issue #307)について対称に、`g1-sub-10` が `type: 'fixed'` の `carryMode` 設定(`valueLabelKey: 'setting_option_none'`)を持ち `buildParams()` が `carry_mode: 'none'`/`result_max: 10` を返すこと(旧 `10-6` 型を生成しない)、`g1-sub-20` が `type: 'choice'` の `carryMode`(options `none`/`required`/`mixed`)を持ち、`required` は 10〜19 の被減数(`a_min: 10`、`carry_mode: 'required'`)、`none`/`mixed` は被減数を 2..19 に広げた混在レンジを `result_max: 20` で返すこと(`mixed` と無引数呼び出しは `carry_mode` を省略)を検証する。
 
-6年生の分数×整数・整数×分数・分数×分数・分数÷整数・整数÷分数・分数÷分数(計6項目、issue #114)について、`supportLevel` が `'full'` であること、および `reduction` 設定の `required`/`none`/`mixed` の各値と未設定時のフォールバック(`'mixed'`)が `buildParams(state).reducible_mode` へそのまま反映されることを検証する。
+6年生の整数×分数・分数×分数・整数÷分数・分数÷分数(4項目、issue #114)について、`supportLevel` が `'full'` であること、および `reduction` 設定の `required`/`none`/`mixed` の各値と未設定時のフォールバック(`'mixed'`)が `buildParams(state).reducible_mode` へそのまま反映されることを検証する。分数×整数・分数÷整数は issue #327 で5年生へ移設したため、この #114 テストの id リストから外し(6年生に残る4項目のみ)、別途「分数×整数 / 分数÷整数 live in the grade 5 fraction category, not grade 6(issue #327)」テストで、`g6-fraction-mul-int`/`g6-fraction-div-int` が `presetsByGrade[6].fraction` に存在しないこと、および `g5-fraction-mul-int`/`g5-fraction-div-int` が `presetsByGrade[5].fraction` に存在し `supportLevel: 'full'`・`latexOnly: true`・`buildParams` の形(`command_type: 'mixed'`、`operator`、`a_kind: ['fraction']`、`b_kind: ['int']`)・`reducible_mode` 配線を満たすことを検証する。
 
 1年生「3つの数の足し引き」(`g1-three-terms`、issue #309)について、`operators` choice が `add`/`sub`/`addsub` をこの順で持ち(`sub` = `setting_option_sub_only` を `add` と `addsub` の間に）既定が `addsub` であること、`buildParams({operators})` が `add`→`operator:['add']`、`sub`→`operator:['sub']`(いずれも `mixed_operators` なし)、`addsub` と無引数→`operator:['add','sub'], mixed_operators:true` を返すこと(3モードとも `terms:3, a_min:1,a_max:9,b_min:1,b_max:9`)、および `examplesFor` が `add`→加算のみ・`sub`→減算のみの例題を返し `addsub`・無引数は静的 `examples` と一致することを検証する。
 
@@ -39,7 +39,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- c7260fa refactor(#320): replace grade 5 multiplication/division sections with a 小数 section
+- 94df557 fix(#327): reassign 分数×整数 / 分数÷整数 drills from grade 6 to grade 5
+- f440b57 refactor(#320): replace grade 5 multiplication/division sections with a dedicated 小数 section (#321)
 - f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)
 - 697db43 refactor(#315): move grade 4 fraction add/sub into addition/subtraction categories (#316)
 - 40dfb0a feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication (#314)
@@ -48,4 +49,3 @@
 - 571563e feat(#307): add borrow-mode settings to grade 1 subtraction drills (#308)
 - 2f6add1 feat(#305): add carry-mode settings to grade 1 addition drills (#306)
 - a4104ca feat(#303): render fixed drill settings as an inactive segmented control (#304)
-- 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
