@@ -191,25 +191,37 @@ python3 nuts_calc_tex.py A4 ope -o div --no-remainder --quotient-digits 2 \
 ```
 
 For `ope -o div`, `--decimal-remainder` divides a decimal dividend
-(`--a-decimal-places` >= 1) by a whole-number divisor (`--b-decimal-places 0`),
-taking the quotient only to the ones place and leaving a nonzero decimal
-remainder aligned to the dividend — the grade-4 「小数のあまりのある割り算」
-(e.g. `7.6 ÷ 3 = 2 ⋯ 1.6`, rendered with the same `\cdots` shorthand as the
-integer remainder). Every problem has a whole-number quotient of at least 1, a
-dividend with a genuine fractional part, and a nonzero remainder. It is rejected
-for any other command or operator, without a decimal dividend, with a decimal
-divisor, and when combined with
+(`--a-decimal-places` >= 1) by a whole-number **or decimal** divisor
+(`--b-decimal-places` between 0 and `--a-decimal-places`), taking the quotient
+only to the ones place and leaving a nonzero decimal remainder aligned to the
+*original* dividend. With a whole-number divisor this is the grade-4
+「小数のあまりのある割り算」 (e.g. `7.6 ÷ 3 = 2 ⋯ 1.6`); with a decimal divisor
+the divisor is scaled up to a whole number before dividing — the grade-5
+「小数のわり算」 (e.g. `7.6 ÷ 2.3 = 3 ⋯ 0.7`, the remainder still aligned to the
+un-shifted `7.6`). Both render with the same `\cdots` shorthand as the integer
+remainder. Every problem has a whole-number quotient of at least 1, a dividend
+with a genuine fractional part, and (for a decimal divisor) a divisor that is
+not a disguised whole number, and a nonzero remainder. It is rejected for any
+other command or operator, without a decimal dividend, when `--b-decimal-places`
+exceeds `--a-decimal-places`, and when combined with
 `--remainder`/`--no-remainder`/`--mixed-remainder`, `--quotient-digits`,
 `--integer-dividend`/`--decimal-dividend`/`--mixed-dividend`, `--vertical`,
 `--intermediate`, `--mixed-decimal-operand-order`, or
 `--use-parentheses`/`--missing-value`/the `--terms` family. The command fails
-explicitly if the operand ranges contain no qualifying pair. わり進み (dividing
-past the ones place) and 商のがい数 (a rounded quotient) are separate grade-4
-skills tracked as follow-ups under issue #326.
+explicitly if the operand ranges contain no qualifying pair.
+
+わり進み (dividing past the ones place) is not implemented; it is a possible
+future `ope -o div` flag covering pure division mechanics (e.g. `8.5 ÷ 2 =
+4.25`). 商のがい数 (a rounded quotient) is not implemented here either; it is
+deferred to a planned separate 概数計算 drill (not an `ope -o div` flag).
 
 ```bash
 python3 nuts_calc_tex.py A4 ope -o div --decimal-remainder --a-decimal-places 1 \
   --a-digits 2 --b-min 2 --b-max 9 --out-file decimal-remainder.pdf
+
+python3 nuts_calc_tex.py A4 ope -o div --decimal-remainder \
+  --a-decimal-places 1 --b-decimal-places 1 --a-digits 2 --b-digits 2 \
+  --out-file decimal-remainder-decimal-divisor.pdf
 ```
 
 For `frac -o mul`/`div` and two-term `mixed -o mul`/`div` (with one `fraction`

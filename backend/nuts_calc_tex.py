@@ -448,9 +448,11 @@ def _init() -> argparse.Namespace:
         , action = 'store_true'
         , help = (
             'Divide a decimal dividend (--a-decimal-places >= 1) by a whole-number '
-            'divisor (--b-decimal-places 0), giving the quotient to the ones place '
-            'and a nonzero decimal remainder aligned to the dividend (ope -o div '
-            'only). E.g. 7.6 / 3 = 2 \\cdots 1.6. Grade-4 "小数のあまりのある割り算".'
+            'or decimal divisor (--b-decimal-places between 0 and --a-decimal-places), '
+            'giving the quotient to the ones place and a nonzero decimal remainder '
+            'aligned to the original dividend (ope -o div only). E.g. 7.6 / 3 = '
+            '2 \\cdots 1.6 (grade-4 "小数のあまりのある割り算") or 7.6 / 2.3 = '
+            '3 \\cdots 0.7 (grade-5 "小数のわり算").'
         )
     )
     dividend_group = parser.add_mutually_exclusive_group()
@@ -1071,18 +1073,31 @@ def _init() -> argparse.Namespace:
             failure("--decimal-remainder cannot be combined with --vertical.")
         if args.mixed_decimal_operand_order:
             failure("--decimal-remainder cannot be combined with --mixed-decimal-operand-order.")
-        if args.a_decimal_places <= MIN_DECIMAL_PLACES or args.b_decimal_places != MIN_DECIMAL_PLACES:
+        if args.a_decimal_places <= MIN_DECIMAL_PLACES:
             failure(
-                "--decimal-remainder requires a decimal dividend (--a-decimal-places >= 1) "
-                "and a whole-number divisor (--b-decimal-places 0)."
+                "--decimal-remainder requires a decimal dividend (--a-decimal-places >= 1)."
+            )
+        # A decimal divisor is allowed (grade-5 "小数のわり算": 除数が小数),
+        # scaled up to a whole number before dividing -- issue #334. The
+        # quotient's decimal places are a_decimal_places - b_decimal_places
+        # (see ope_result_decimal_places), so the divisor may not carry more
+        # decimal places than the dividend. The generic div-operand rule below
+        # also rejects a_decimal_places < b_decimal_places, but a targeted
+        # message here keeps the failure attributable to --decimal-remainder.
+        if args.b_decimal_places > args.a_decimal_places:
+            failure(
+                "--decimal-remainder requires --b-decimal-places to be between 0 and "
+                "--a-decimal-places (the divisor may not have more decimal places "
+                "than the dividend)."
             )
         nums_a_probe = list(range(args.a_min, args.a_max + 1))
         nums_b_probe = list(range(args.b_min, args.b_max + 1))
         if find_decimal_remainder_division_pair(
-                nums_a_probe, nums_b_probe, args.a_decimal_places) is None:
+                nums_a_probe, nums_b_probe,
+                args.a_decimal_places, args.b_decimal_places) is None:
             failure(
-                "--decimal-remainder: no decimal-dividend / whole-number-divisor pair "
-                "with a quotient >= 1 and a nonzero remainder exists in the scaled "
+                "--decimal-remainder: no decimal-dividend / divisor pair with a "
+                "quotient >= 1 and a nonzero remainder exists in the scaled "
                 f"ranges [{args.a_min}, {args.a_max}] / [{args.b_min}, {args.b_max}]."
             )
 
@@ -2552,42 +2567,60 @@ def find_remainder_division_pair(
     return None
 
 
-def _decimal_remainder_division_ok(a: int, b: int, divisor_scale: int) -> bool:
+def _decimal_remainder_division_ok(
+        a: int, b: int, a_decimal_places: int, b_decimal_places: int = 0,
+    ) -> bool:
     """
-    Whether dividing the decimal dividend a / divisor_scale by the whole
-    number b, taken only to the ones place, yields a textbook "小数のあまりの
-    ある割り算" (issue #333):
-    - the dividend genuinely has a fractional part (a % divisor_scale != 0),
-      so the drill never degenerates to "9.0 / 6" whole-number division;
+    Whether dividing the decimal dividend a / 10**a_decimal_places by the
+    divisor b / 10**b_decimal_places, taken only to the ones place, yields a
+    textbook "あまりのある小数のわり算" (issue #333, generalized to a decimal
+    divisor in issue #334):
+    - the dividend genuinely has a fractional part (a % 10**a_decimal_places
+      != 0), so the drill never degenerates to "9.0 / 6" whole-number
+      division;
+    - when the divisor is itself a decimal, it genuinely has a fractional
+      part (b % 10**b_decimal_places != 0), so a disguised whole-number
+      divisor like "2.0" is left to the grade-4 whole-divisor drill;
     - the whole-number quotient is at least 1 (dividend >= divisor), so it
       never prints "2.7 / 3 = 0 \\cdots 2.7";
     - the remainder is nonzero (a % divisor != 0), which is the point of the
       drill.
+
+    The textbook technique scales both operands up by 10**b_decimal_places so
+    the divisor becomes the whole number b; the dividend then sits at scale
+    10**(a_decimal_places - b_decimal_places). `_init()` guarantees
+    b_decimal_places <= a_decimal_places, so that shift is a non-negative
+    power of ten (and == 10**a_decimal_places when b_decimal_places == 0,
+    reproducing the issue #333 arithmetic exactly).
     """
-    if b == 0 or a % divisor_scale == 0:
+    if b == 0:
         return False
-    divisor = b * divisor_scale
+    if a % 10 ** a_decimal_places == 0:
+        return False
+    if b_decimal_places > 0 and b % 10 ** b_decimal_places == 0:
+        return False
+    divisor = b * 10 ** (a_decimal_places - b_decimal_places)
     return a >= divisor and a % divisor != 0
 
 
 def find_decimal_remainder_division_pair(
         nums_a: list[int], nums_b: list[int], a_decimal_places: int,
+        b_decimal_places: int = 0,
     ) -> tuple[int, int] | None:
     """
     Deterministically find one (raw a, b) pair for which
     _decimal_remainder_division_ok holds: dividing the decimal dividend
-    a / 10**a_decimal_places by the whole number b down to the ones place
-    gives a quotient >= 1 and a nonzero decimal remainder.
+    a / 10**a_decimal_places by the divisor b / 10**b_decimal_places down to
+    the ones place gives a quotient >= 1 and a nonzero decimal remainder.
 
-    `a` is the raw scaled integer (see OpeProblem). Mirrors
+    `a` and `b` are the raw scaled integers (see OpeProblem). Mirrors
     find_remainder_division_pair's role as calc_div_decimal_remainder's
     fallback (issue #333); a plain scan stays cheap because a qualifying pair
     is the common case.
     """
-    divisor_scale = 10 ** a_decimal_places
     for b in nums_b:
         for a in nums_a:
-            if _decimal_remainder_division_ok(a, b, divisor_scale):
+            if _decimal_remainder_division_ok(a, b, a_decimal_places, b_decimal_places):
                 return a, b
     return None
 
@@ -2703,28 +2736,33 @@ def calc_div_integer_dividend(
 
 def calc_div_decimal_remainder(
         a: int, b: int, nums_a: list[int], nums_b: list[int],
-        a_decimal_places: int,
+        a_decimal_places: int, b_decimal_places: int = 0,
     ) -> tuple[int, int, int]:
     """
     Retry with freshly-sampled operands until dividing the decimal dividend
-    a / 10**a_decimal_places by the whole number b, taken only to the ones
-    place, leaves a nonzero remainder.
+    a / 10**a_decimal_places by the divisor b / 10**b_decimal_places, taken
+    only to the ones place, leaves a nonzero remainder.
 
-    `a` stays the raw scaled integer and `b` the whole-number divisor (scale
-    0); the returned `c` is the whole-number quotient a // (b * 10**a_decimal_places),
-    always >= 1. The caller (generate_ope_problems) derives the decimal
-    remainder itself as a - c * b * 10**a_decimal_places and renders it with
-    a_decimal_places digits (issue #333). Mirrors calc_div_integer_dividend's
-    structure -- random sampling then a deterministic
-    find_decimal_remainder_division_pair fallback -- since the grade-4
-    "小数のあまりのある割り算" drill can pass a narrow operand range.
+    `a` and `b` stay the raw scaled integers; the returned `c` is the
+    whole-number quotient a // (b * 10**(a_decimal_places - b_decimal_places)),
+    always >= 1 (the divisor is scaled up to the whole number b, and the
+    dividend along with it, as taught in the course of study). The caller
+    (generate_ope_problems) derives the decimal remainder itself as
+    a - c * b * 10**(a_decimal_places - b_decimal_places) and renders it with
+    a_decimal_places digits, aligned to the *original* dividend (issue #333;
+    decimal divisor added in issue #334). With b_decimal_places == 0 the
+    shift is 10**a_decimal_places, reproducing the issue #333 arithmetic
+    exactly. Mirrors calc_div_integer_dividend's structure -- random sampling
+    then a deterministic find_decimal_remainder_division_pair fallback --
+    since the drill can pass a narrow operand range.
     """
-    divisor_scale = 10 ** a_decimal_places
+    shift = 10 ** (a_decimal_places - b_decimal_places)
 
     def _accept(cand_a: int, cand_b: int) -> tuple[int, int, int] | None:
-        if not _decimal_remainder_division_ok(cand_a, cand_b, divisor_scale):
+        if not _decimal_remainder_division_ok(
+                cand_a, cand_b, a_decimal_places, b_decimal_places):
             return None
-        return cand_a, cand_b, cand_a // (cand_b * divisor_scale)
+        return cand_a, cand_b, cand_a // (cand_b * shift)
 
     for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
         hit = _accept(a, b)
@@ -2733,13 +2771,14 @@ def calc_div_decimal_remainder(
         a = random.choice(nums_a)
         b = random.choice(nums_b)
 
-    fallback = find_decimal_remainder_division_pair(nums_a, nums_b, a_decimal_places)
+    fallback = find_decimal_remainder_division_pair(
+        nums_a, nums_b, a_decimal_places, b_decimal_places)
     if fallback is not None:
         fallback_a, fallback_b = fallback
-        return fallback_a, fallback_b, fallback_a // (fallback_b * divisor_scale)
+        return fallback_a, fallback_b, fallback_a // (fallback_b * shift)
     raise ValueError(
-        "No decimal-dividend / whole-number-divisor pair with a nonzero "
-        "remainder found in the given number ranges."
+        "No decimal-dividend / divisor pair with a nonzero remainder found "
+        "in the given number ranges."
     )
 
 
@@ -2817,13 +2856,17 @@ def generate_ope_problems(
     (it is exact by construction).
 
     decimal_remainder (div only, requires a decimal a_decimal_places and a
-    whole-number b_decimal_places -- enforced by _init(); mutually exclusive
-    with remainder_mode/quotient_digits/dividend_mode) routes every div
-    problem through calc_div_decimal_remainder: the quotient c is taken only
-    to the ones place and the leftover a - c*b*10**a_decimal_places is a
-    nonzero decimal remainder. The problem records result_decimal_places=0
-    (whole-number quotient) and remainder_decimal_places=a_decimal_places,
-    so build_ope_slot_content_tex prints "7.6 / 3 = 2 \\cdots 1.6" (issue #333).
+    divisor with 0 <= b_decimal_places <= a_decimal_places -- enforced by
+    _init(); mutually exclusive with remainder_mode/quotient_digits/
+    dividend_mode) routes every div problem through calc_div_decimal_remainder:
+    the quotient c is taken only to the ones place and the leftover
+    a - c*b*10**(a_decimal_places - b_decimal_places) is a nonzero decimal
+    remainder. The problem records result_decimal_places=0 (whole-number
+    quotient) and remainder_decimal_places=a_decimal_places, so
+    build_ope_slot_content_tex prints "7.6 / 3 = 2 \\cdots 1.6" (whole-number
+    divisor, issue #333) or "7.6 / 2.3 = 3 \\cdots 0.7" (decimal divisor,
+    issue #334). With b_decimal_places == 0 the arithmetic is byte-for-byte
+    the issue #333 behavior.
     """
     effective_operators = MIX_OPERATORS if 'mix' in operators else operators
     if a_multiple is not None:
@@ -2872,7 +2915,7 @@ def generate_ope_problems(
                     a, b, c = calc_div(a, b, nums_a, nums_b, None)
             elif operator == 'div' and decimal_remainder:
                 a, b, c = calc_div_decimal_remainder(
-                    a, b, nums_a, nums_b, a_decimal_places,
+                    a, b, nums_a, nums_b, a_decimal_places, b_decimal_places,
                 )
             else:
                 a, b, c = CALC_FUNCTIONS[operator](a, b, nums_a, nums_b)
@@ -2884,10 +2927,15 @@ def generate_ope_problems(
                 problem_a_decimal_places, problem_b_decimal_places = b_decimal_places, a_decimal_places
             if decimal_remainder_active:
                 # Quotient is taken only to the ones place; the leftover is a
-                # decimal aligned to the dividend (issue #333).
+                # decimal aligned to the *original* dividend (issue #333). The
+                # divisor is scaled up to the whole number b by 10**b_decimal_places,
+                # and the dividend along with it, so the effective divisor in
+                # a's raw scale is b * 10**(a_decimal_places - b_decimal_places)
+                # (issue #334 -- reduces to b * 10**a_decimal_places when the
+                # divisor is already whole).
                 result_decimal_places = 0
                 remainder_decimal_places = a_decimal_places
-                remainder = a - c * b * 10 ** a_decimal_places
+                remainder = a - c * b * 10 ** (a_decimal_places - b_decimal_places)
             else:
                 result_decimal_places = ope_result_decimal_places(
                     operator, problem_a_decimal_places, problem_b_decimal_places,

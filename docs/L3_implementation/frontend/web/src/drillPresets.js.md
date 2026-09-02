@@ -245,9 +245,19 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 
 **`displayFormatSetting` は付けない**(バックエンド `_init()` が `--vertical --decimal-remainder` を拒否する — longdivision が小数あまりのレイアウトをできない — ため。よって `drillPresets.test.js` の `DISPLAY_FORMAT_ITEM_IDS` 18項目列挙には**加えない**)。
 
-`buildParams()`(引数を無視)は `{ command_type: 'ope', operator: ['div'], a_digits: 2, b_min: 2, b_max: 9, a_decimal_places: 1, decimal_remainder: true }`。**「商を一の位まで求めてゼロでない小数あまり」はレンジで近似せず、バックエンドの新フラグ `decimal_remainder`(CLI の `--decimal-remainder`)に委ねる**(renderer-owned drill logic。generator が「わられる数が真の小数・商 1 以上・あまり非ゼロ」を保証する。[[../../../backend/nuts_calc_tex.py]] の `### ope --decimal-remainder`、および転送経路の [[../../../backend/renderer_config.py]]/[[../../../backend/problem_generation.py]]/[[../../../backend/three_layer_renderer.py]] 参照)。`decimal_remainder` は snake_case のリクエストキーで、`quotient_digits` と同じ plain-ope 3経路だけが転送する。`b_min: 2`/`b_max: 9` は明示指定(`b_digits: 1` だと `÷1` の自明な割り算が混じるため)。**わり進み・商のがい数は別スキルで issue #326 の後続 issue へ切り出す**(バックエンドの結果小数桁上書きと新しい整数長除算ルーチンが要るため、あまりとは別 PR)。
+`buildParams()`(引数を無視)は `{ command_type: 'ope', operator: ['div'], a_digits: 2, b_min: 2, b_max: 9, a_decimal_places: 1, decimal_remainder: true }`。**「商を一の位まで求めてゼロでない小数あまり」はレンジで近似せず、バックエンドの新フラグ `decimal_remainder`(CLI の `--decimal-remainder`)に委ねる**(renderer-owned drill logic。generator が「わられる数が真の小数・商 1 以上・あまり非ゼロ」を保証する。[[../../../backend/nuts_calc_tex.py]] の `### ope --decimal-remainder`、および転送経路の [[../../../backend/renderer_config.py]]/[[../../../backend/problem_generation.py]]/[[../../../backend/three_layer_renderer.py]] 参照)。`decimal_remainder` は snake_case のリクエストキーで、`quotient_digits` と同じ plain-ope 3経路だけが転送する。`b_min: 2`/`b_max: 9` は明示指定(`b_digits: 1` だと `÷1` の自明な割り算が混じるため)。**わり進み・商のがい数はこのオプションでは扱わない**(わり進みは将来の `ope -o div` フラグ候補、商のがい数は別途計画中の概数計算ドリルへ。あまりとは別 PR)。
 
 `strings.ja.json` に `menu_g4_decimal_div_int_remainder_{title,desc,point}` の3キーを `menu_g4_decimal_div_int_point` の直後へ追加([[./strings.ja.json]] 参照)。`docs/uiux/calculation_drill_menu_parameters_v1.md` の小学4年生表に「小数のあまりのある割り算」行を「小数÷整数」の直後へ追加。`drillPresets.test.js` に `buildParams()` の deep-equal(`decimal_remainder: true` を含む)・2固定ピル・`DISPLAY_FORMAT_ITEM_IDS` に含まれないことを検証する #333 テストを追加([[./drillPresets.test.js]] 参照)。`CATEGORY_ORDER` は無変更。
+
+### 5年生「小数のわり算（あまり）」ドリル追加(issue #334)
+
+学習指導要領解説 算数編 第5学年「小数のわり算」(除数が小数)が、割り切れない場合(商を一の位まで求めてあまりを出す)を扱うのに合わせ、`grade5.decimal` に3項目めの `g5-decimal-div-remainder` を追加した(配置は `g5-decimal-div` の直後)。`difficultyKey: 'difficulty_standard'`、`latexOnly: true`、`supportLevel: 'full'`。`settings` は 2 つの非活性固定ピル: `fixedSetting('divisor', 'setting_divisor_label', 'setting_option_decimal')`(除数:小数)と `fixedSetting('remainder', 'setting_remainder_label', 'setting_option_required')`(余り:あり)。#333 の `g4-decimal-div-int-remainder`(除数:整数)と対になる。#317 の割り切れる `g5-decimal-div` は無変更で別メニューとして残す。
+
+**`displayFormatSetting` は付けない**(#333 と同じ理由。`DISPLAY_FORMAT_ITEM_IDS` には加えない)。
+
+`buildParams()`(引数を無視)は `{ command_type: 'ope', operator: ['div'], a_digits: 2, b_digits: 2, a_decimal_places: 1, b_decimal_places: 1, decimal_remainder: true }`。`g5-decimal-div` の `decimal_div_decimal` 分岐と同じレンジ(わられる数・わる数とも小数第1位)に `decimal_remainder: true` を足しただけ。バックエンドは #334 で `--decimal-remainder` を小数除数対応に一般化し、除数を整数にスケールしてから割る(あまりの小数点はずらす前のわられる数の位置にそろえる)。`b_decimal_places` は既に全経路が転送しているため追加配線は不要([[../../../backend/nuts_calc_tex.py]] の `### ope --decimal-remainder` 参照)。
+
+`strings.ja.json` に `menu_g5_decimal_div_remainder_{title,desc,point}` の3キーを `menu_g5_decimal_div_point` の直後へ追加([[./strings.ja.json]] 参照)。`docs/uiux/calculation_drill_menu_parameters_v1.md` の小学5年生表に「小数のわり算（あまり）」行を「整数と小数の割り算」の直後へ追加。`drillPresets.test.js` に grade5 `decimal` の順序リスト更新と、`buildParams()` の deep-equal(`b_decimal_places: 1`/`decimal_remainder: true` を含む)・2固定ピル・`DISPLAY_FORMAT_ITEM_IDS` に含まれないこと・`g5-decimal-div` が無変更であることを検証する #334 テストを追加([[./drillPresets.test.js]] 参照)。`CATEGORY_ORDER` は無変更。
 
 ### `ope` プリセットの桁数指定が `a_value`/`b_value` から `a_digits`/`b_digits` へ移行した理由(issue #230)
 

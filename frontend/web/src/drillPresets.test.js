@@ -489,7 +489,7 @@ test('grade 5 groups 小数×小数 / 整数と小数の割り算 under a dedica
   assert.equal(presetsByGrade[5].division, undefined);
   assert.deepEqual(
     presetsByGrade[5].decimal.map((item) => item.id),
-    ['g5-decimal-mul', 'g5-decimal-div'],
+    ['g5-decimal-mul', 'g5-decimal-div', 'g5-decimal-div-remainder'],
   );
   // The 小数の四則混合計算 drill stays in four-operations.
   assert.ok(presetsByGrade[5]['four-operations'].some((item) => item.id === 'g5-decimal-four-ops'));
@@ -606,6 +606,46 @@ test('grade 4 division includes a 小数÷整数 decimal-remainder drill (issue 
   });
   assert.ok(!DISPLAY_FORMAT_ITEM_IDS.includes(item.id));
   assert.ok(!item.settings.some((setting) => setting.id === 'displayFormat'));
+});
+
+test('grade 5 decimal category includes a 小数÷小数 decimal-remainder drill (issue #334)', () => {
+  const item = presetsByGrade[5].decimal.find((candidate) => candidate.id === 'g5-decimal-div-remainder');
+
+  assert.ok(item, 'g5-decimal-div-remainder must exist in grade 5 decimal');
+  assert.equal(item.difficultyKey, 'difficulty_standard');
+  assert.equal(item.supportLevel, 'full');
+  assert.equal(item.latexOnly, true);
+  assert.equal(item.titleKey, 'menu_g5_decimal_div_remainder_title');
+
+  // Two fixed pills: 除数：小数 and 余り：あり. The drill is always あまり --
+  // わる数を整数に直して商を一の位まで求め、あまりを小数で出す (grade 5
+  // 小数のわり算). Distinct from the untouched #317 exact-quotient g5-decimal-div.
+  const divisor = item.settings.find((setting) => setting.id === 'divisor');
+  assert.equal(divisor.type, 'fixed');
+  assert.equal(divisor.valueLabelKey, 'setting_option_decimal');
+  const remainder = item.settings.find((setting) => setting.id === 'remainder');
+  assert.equal(remainder.type, 'fixed');
+  assert.equal(remainder.valueLabelKey, 'setting_option_required');
+
+  // decimal_remainder (snake_case = nuts_calc_tex.py --decimal-remainder) over a
+  // decimal dividend (a_decimal_places: 1) AND a decimal divisor
+  // (b_decimal_places: 1) -- the backend scales the divisor up to a whole
+  // number before dividing (issue #334). No displayFormat setting: the backend
+  // rejects --vertical --decimal-remainder, so this id must NOT be in
+  // DISPLAY_FORMAT_ITEM_IDS.
+  assert.deepEqual(item.buildParams(), {
+    command_type: 'ope', operator: ['div'],
+    a_digits: 2, b_digits: 2, a_decimal_places: 1, b_decimal_places: 1,
+    decimal_remainder: true,
+  });
+  assert.ok(!DISPLAY_FORMAT_ITEM_IDS.includes(item.id));
+  assert.ok(!item.settings.some((setting) => setting.id === 'displayFormat'));
+
+  // g5-decimal-div (#317, exact quotient) is untouched: still a single
+  // dividendType choice setting, no decimal_remainder.
+  const exact = presetsByGrade[5].decimal.find((candidate) => candidate.id === 'g5-decimal-div');
+  assert.ok(exact.settings.some((setting) => setting.id === 'dividendType'));
+  assert.equal(exact.buildParams({ dividendType: 'decimal_div_decimal' }).decimal_remainder, undefined);
 });
 
 test('grade 4 four-operations consolidates parentheses drills to two tiers: basic ＋− and standard ＋−×÷ (#340)', () => {

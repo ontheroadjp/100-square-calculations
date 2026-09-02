@@ -261,6 +261,40 @@ def test_build_ope_csv_rows_formats_decimal_remainder() -> None:
     ]
 
 
+def _decimal_remainder_decimal_divisor_problem() -> "tex_module.OpeProblem":
+    # 7.6 / 2.3 = 3 ... 0.7 (issue #334): decimal divisor, whole-number
+    # quotient, remainder aligned to the original 1-place dividend.
+    return tex_module.OpeProblem(
+        index=1, a=76, b=23, operator="div", c=3,
+        a_decimal_places=1, b_decimal_places=1,
+        remainder=7, remainder_decimal_places=1, result_decimal_places=0,
+    )
+
+
+def test_build_ope_slot_content_tex_renders_decimal_divisor_remainder_tail() -> None:
+    problem = _decimal_remainder_decimal_divisor_problem()
+    filled = tex_module.build_ope_slot_content_tex(problem, show_answer=True)
+    blank = tex_module.build_ope_slot_content_tex(problem, show_answer=False)
+    assert filled == (
+        "\\horizontaleq{7.6 \\opspace \\div \\opspace 2.3 \\opspace = \\opspace 3 \\cdots 0.7}"
+    )
+    # quotient prints as a whole number "3", not "0.3"
+    assert "0.3" not in filled
+    assert "0.7" not in blank and " \\cdots " in blank
+
+
+def test_build_ope_bottom_answer_tex_renders_decimal_divisor_remainder() -> None:
+    assert tex_module.build_ope_bottom_answer_tex(
+        [_decimal_remainder_decimal_divisor_problem()]
+    ) == "(1) 3 ... 0.7"
+
+
+def test_build_ope_csv_rows_formats_decimal_divisor_remainder() -> None:
+    assert tex_module.build_ope_csv_rows([[_decimal_remainder_decimal_divisor_problem()]]) == [
+        [1, 1, "7.6", "div", "2.3", "3", "0.7"],
+    ]
+
+
 def test_ope_problem_result_decimal_places_defaults_match_ope_result_decimal_places() -> None:
     # No override -> byte-identical to the pre-#333 derivation for every operator.
     for operator, a_dp, b_dp in [("add", 2, 2), ("mul", 1, 1), ("div", 1, 0), ("div", 2, 1)]:
