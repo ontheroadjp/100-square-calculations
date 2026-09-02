@@ -131,7 +131,8 @@ issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマ�
 
 ## 変更履歴(git log より自動生成)
 
-- 56b66ad refactor(#297): delete the legacy /generate-pdf subprocess rendering path
+- a88a90b feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint
+- 7bbec1b refactor(#297): delete the legacy /generate-pdf subprocess rendering path (#325)
 - f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)
 - 40dfb0a feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication (#314)
 - 7585ce7 feat(#229): migrate the 100 hundred-square command to the internal presentation API (#271)
@@ -140,4 +141,3 @@ issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマ�
 - 40ad870 #209 generate-pdf: migrate squ to the internal presentation API (#243)
 - a6187e9 #208 generate-pdf: migrate 99 (kuku) to the internal presentation API (#242)
 - 36288a2 #237 app.py: dedupe 'com' a_value/target validation with problem_generation.py (#238)
-- 37a5a80 #230 Split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits (#236)

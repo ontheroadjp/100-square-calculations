@@ -551,7 +551,8 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴（git log より自動生成）
 
-- ba08963 feat(#317): add integer/decimal dividend selection to grade 5 decimal division
+- a88a90b feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint
+- f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)
 - 40dfb0a feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication (#314)
 - c03270f feat(#301): rebalance drill-sheet typography and rework hissan layout (#302)
 - eb3afe8 feat(#292): honor the reverse equation side-swap in the 3-layer renderer for 99/squ/pi (#295)
@@ -560,4 +561,3 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - 9b643c3 feat(#270): render the hundred-square grid table via shared TeX components (#280)
 - a704907 feat(#269): render the written-calculation (hissan) content format via shared TeX components (#281)
 - 8cce41a feat(#268): render the staged arrow-chain content format via a shared TeX component (#278)
-- 299eab0 feat(#267): render arrow-conversion content formats via shared TeX components (#279)

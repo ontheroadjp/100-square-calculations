@@ -79,7 +79,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- 56b66ad refactor(#297): delete the legacy /generate-pdf subprocess rendering path
+- a88a90b feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint
+- 7bbec1b refactor(#297): delete the legacy /generate-pdf subprocess rendering path (#325)
 - f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)
 - e6e0e98 fix(#298): honor descend / shuffle in _generate_squ_pdf (3-layer renderer) (#299)
 - eb3afe8 feat(#292): honor the reverse equation side-swap in the 3-layer renderer for 99/squ/pi (#295)
