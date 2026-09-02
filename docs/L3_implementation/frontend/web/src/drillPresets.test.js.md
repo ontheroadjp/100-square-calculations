@@ -24,6 +24,8 @@
 
 5年生「整数と小数の割り算」(`g5-decimal-div`、issue #317)について、`dividendType` choice が `integer_div_decimal`/`decimal_div_decimal`/`mixed` をこの順・対応 labelKey で持ち既定が `mixed` であること、`buildParams` の3モード写像(`integer_div_decimal`→`a_decimal_places:0, dividend_mode:'integer'`、`decimal_div_decimal`→`a_decimal_places:1` のみ(#317 前と同一・`dividend_mode` なし)、`mixed`・無引数・`{}`→`a_decimal_places:1, dividend_mode:'mixed'`。3モードとも `command_type:'ope', operator:['div'], a_digits:2, b_digits:2, b_decimal_places:1`)、`examplesFor` の追従(`integer_div_decimal`→`整数÷小数.` パターン、`decimal_div_decimal`→`小数÷小数.` パターン、`mixed`は静的 `examples` と一致)を確認する。
 
+4年生「小数×整数」(`g4-decimal-mul-int`、issue #329)について「grade 4 decimal×integer multiplication is integer-multiplier only」テストを持つ。`factorOrder` という id の設定が存在しないこと、`settings[0]` が `type: 'fixed'`・`id: 'multiplier'`・`valueLabelKey: 'setting_option_integer'`、`settings[1]` が `displayFormat` であること、`buildParams()`/`buildParams({})` と `buildParams({factorOrder: 'int_decimal'})`/`buildParams({factorOrder: 'mixed'})`(保持済みの旧値は無視)がいずれも `{ command_type:'ope', operator:['mul'], a_digits:2, b_digits:1, a_decimal_places:1 }` を返し `mixed_decimal_operand_order` を含まないこと、`buildParams({displayFormat: 'written'})` がそれに `vertical: true` を加えること、`examplesFor` が `undefined` で全 `examples` が `/^\d+\.\d+×\d+$/`(小数×整数)であることを検証する。issue #313 で追加した3択 `factorOrder` テストを置き換えたもの。`DISPLAY_FORMAT_ITEM_IDS` の18項目列挙は `g4-decimal-mul-int` を含んだまま無変更。
+
 3年生・4年生の `four-operations` 混合計算(issue #161 / issue #328)について2つのテストを持つ。1つ目「grade 3 four-operations mix caps the answer at 1,000 without multiplication」は `g3-addsub-mixed-result-1000`(3年生に残る)の `buildParams()` が `operator:['add','sub'], terms:3, mixed_operators:true, a_min:1,a_max:999,b_min:1,b_max:999, result_max:1000` を返すことを検証する。2つ目「grade 4 parenthesized mix caps the answer at 1,000 and multiplication operands at 2 digits」は issue #328 で3年生から4年生へ移設した項目を対象に retarget され、`presetsByGrade[4]['four-operations']` の `g4-parentheses-mul-result-1000` の `buildParams()` が `operator:['add','sub','mul'], terms:3, mixed_operators:true, use_parentheses:true, a_min:1,a_max:99,b_min:1,b_max:99, result_max:1000` を返すことを検証する(移設前は `presetsByGrade[3]` / `g3-parentheses-mul-result-1000` を対象にしていた)。加えて #328 で「grade 3 four-operations no longer contains parentheses or multiplication (#328)」テストを追加し、`presetsByGrade[3]['four-operations']` の id 配列がちょうど `['g3-addsub-mixed-result-1000']` であること、および全項目の `buildParams()` が `use_parentheses` キーを持たず `operator` に `'mul'` を含まないことを検証する(学習指導要領解説 算数編 第4学年 A「数量の関係を表す式」が（）を用いた式・四則の混合した式・計算の順序のきまりを第4学年の内容とすることに対応)。
 
 ## 重要な設計判断とその理由
@@ -41,7 +43,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- 214e450 fix(#328): move parenthesized mixed-operation drill from grade 3 to grade 4
+- 53c92fe fix(#329): restrict g4-decimal-mul-int to 小数×整数 (integer multiplier only)
+- 5d42151 fix(#328): move parenthesized mixed-operation drill from grade 3 to grade 4 (#336)
 - d31e15c fix(#327): reassign fraction-by-integer mul/div drills from grade 6 to grade 5 (#335)
 - f440b57 refactor(#320): replace grade 5 multiplication/division sections with a dedicated 小数 section (#321)
 - f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)
@@ -50,4 +53,3 @@
 - 7334a3a feat(#311): rename grade 2 three-term drill and add operator-mode selection (#312)
 - 3278705 feat(#309): add subtraction-only mode to grade 1 three-term drill (#310)
 - 571563e feat(#307): add borrow-mode settings to grade 1 subtraction drills (#308)
-- 2f6add1 feat(#305): add carry-mode settings to grade 1 addition drills (#306)
