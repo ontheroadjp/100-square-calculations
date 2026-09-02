@@ -93,18 +93,15 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 - `id`(`g2-addsub-mixed`)・`difficultyKey`(`difficulty_standard`)・`supportLevel`(`full`)・`latexOnly`(`true`)・string キー名は据え置き、`strings.ja.json` 側で `menu_g2_addsub_mixed_title` を「3つの数の足し引き」へ改称した([[./strings.ja.json]] 参照)。
 - この項目も `terms: 3` を常に送るため live プレビュー対象で、`presetDetail.js` の変更は不要(#310 で multi-term の `operands[]/operators[]` 形状に対応済み、[[./presetDetail.js]] 参照)。
 
-### 4年生「整数と小数の掛け算」の乗数オプション3値化(issue #313)
+### 4年生「小数×整数」は乗数が整数の場合のみ(issue #329、#313 の revert)
 
-`g4-decimal-mul-int`(multiplication カテゴリ)を改称・拡張した。変更前は `titleKey: 'menu_g4_decimal_mul_int_title'`(文言「小数×整数」)+ `settings: [fixedSetting('multiplier', 'setting_multiplier_label', 'setting_option_integer'), displayFormatSetting()]`(非活性の「乗数:整数」固定表示)+ 引数を無視する `buildParams: (state) => ({ command_type: 'ope', operator: ['mul'], a_digits: 2, b_digits: 1, a_decimal_places: 1, ...displayFormatParam(state) })` で、常に「小数(第1位)× 整数」の1形態のみを出していた。
+`g4-decimal-mul-int`(multiplication カテゴリ)は「小数(第1位)× 整数」の1形態のみを出す。学習指導要領解説 算数編 第4学年 A数と計算「小数」が扱うのは*乗数・除数が整数の場合*の小数の乗除法であり、乗数が小数になる場合(整数×小数・小数×小数)は第5学年「小数の乗法」の内容のため。5年生側は `g5-decimal-mul`(小数×小数)がカバーする。
 
-- `strings.ja.json` 側で `menu_g4_decimal_mul_int_title` を「整数と小数の掛け算」へ、desc/point も「かける順番は『整数×小数』『小数×整数』『まぜる』から選べる」旨へ改訂した([[./strings.ja.json]] 参照)。`id`/`descKey`/`pointKey`/`difficultyKey`/`supportLevel`(`full`)/`latexOnly`(`true`)は据え置き。`id` を変えないため `DISPLAY_FORMAT_ITEM_IDS`(前述「出題形式(式/筆算)設定」)の18項目列挙も無変更。
-- 固定設定を `id: 'factorOrder'` の choice へ置き換えた。option は `DECIMAL_FACTOR_ORDER_OPTIONS`(`drillPresets.js:742-751` 付近)= `int_decimal`(`setting_option_int_times_decimal`「整数×小数」)/ `decimal_int`(`setting_option_decimal_times_int`「小数×整数」)/ `mixed`(`setting_option_mixed`「まぜる」、`hintKey: 'setting_mixed_hint'`)の3値、既定 `'mixed'`。`displayFormatSetting()` は第2設定として残す。
-- `buildParams(state)` は `state?.factorOrder ?? 'mixed'` で分岐する。`base = { command_type: 'ope', operator: ['mul'], ...displayFormatParam(state) }` を共通にし:
-    - `int_decimal` → `{ ...base, a_digits: 1, b_digits: 2, b_decimal_places: 1 }`(第1因数=整数1桁、第2因数=小数第1位2桁)。
-    - `decimal_int` → `{ ...base, a_digits: 2, b_digits: 1, a_decimal_places: 1 }`(#313 以前と同一。第1因数=小数第1位)。
-    - `mixed`(既定) → `{ ...base, a_digits: 2, b_digits: 1, a_decimal_places: 1, mixed_decimal_operand_order: true }`。`decimal_int` と同じ非対称 decimal-places 指定に `mixed_decimal_operand_order: true` を足すことで、`nuts_calc_tex.py` が問題ごとにどちらの因数へ小数点を置くかをランダムに入れ替える(1枚のプリントに「小数×整数」と「整数×小数」が混在)。乗算は可換なので積は不変。[[../../../../backend/nuts_calc_tex.py]] の `### ope --a-decimal-places/--b-decimal-places` と [[../../../../backend/renderer_config.py]] 参照。
-- `mixed` は live preview 対象(`command_type === 'ope'` かつ `use_parentheses`/`missing_value` 無し)であり、`presetDetail.js` はリクエストボディに `...params` を展開するため `mixed_decimal_operand_order: true` が `POST /generate-problems` へも届く(`presetDetail.js` 側の変更は不要、[[./presetDetail.js]] 参照)。
-- `examplesFor` を `examplesByChoice(['factorOrder'], { int_decimal: ['7×3.6','4×2.35','3×5.8'], decimal_int: ['3.6×7','2.35×4','5.8×3'], mixed: ['3.6×7','4×2.35','5.8×3'] })` で付与し、静的 `examples` を `mixed` キーと同じ `['3.6×7','4×2.35','5.8×3']` にした(`examplesByChoice` 規約どおり既定値キー = 静的配列)。
+- 設定: `settings: [fixedSetting('multiplier', 'setting_multiplier_label', 'setting_option_integer'), displayFormatSetting()]`。第1設定は非活性の「乗数：整数」固定ピル(兄弟 `g4-decimal-div-int` の「除数：整数」・`g5-decimal-mul` の「乗数：小数」と同じ形)。`displayFormatSetting()` を第2設定に持つため `DISPLAY_FORMAT_ITEM_IDS`(前述「出題形式(式/筆算)設定」)の18項目列挙に含まれ続ける。
+- `buildParams(state)` は `state` を参照せず常に `{ command_type: 'ope', operator: ['mul'], a_digits: 2, b_digits: 1, a_decimal_places: 1, ...displayFormatParam(state) }` を返す(被乗数 `a` = 小数第1位、乗数 `b` = 整数)。`displayFormat: 'written'` のときのみ `vertical: true` が加わる。
+- `examples` は `['3.6×7', '2.35×4', '5.8×3']`(すべて小数×整数)。設定に選択肢がないため `examplesFor` は持たない。
+- `strings.ja.json`: `menu_g4_decimal_mul_int_title` =「小数×整数」、desc =「小数に整数を掛ける計算を練習します。」、point =「小数×整数の計算です。答えの小数点をどこに打つかがポイントになります。」([[./strings.ja.json]] 参照)。
+- 経緯: issue #313/#314 で `id: 'factorOrder'` の choice(`int_decimal`/`decimal_int`/`mixed`、既定 `mixed`)と `DECIMAL_FACTOR_ORDER_OPTIONS` 定数、`mixed_decimal_operand_order` フラグ配線、`examplesByChoice(['factorOrder'], …)` を追加し、既定で乗数が小数になる問題(整数×小数・両順混在)を出していた。これが第4学年の範囲(乗数=整数)を超過していたため issue #329 で choice・定数・フラグ・`examplesFor` をすべて撤去し #313 以前の単一固定形態へ戻した。撤去に伴い `strings.ja.json` の `setting_option_int_times_decimal`/`setting_option_decimal_times_int` も他に参照がなくなり削除した。
 
 ### 5年生の小数カテゴリ新設、かけ算/わり算カテゴリ廃止(issue #320)
 

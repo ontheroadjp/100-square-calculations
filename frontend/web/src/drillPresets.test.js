@@ -363,44 +363,38 @@ test('grade 2 three-term drill offers add-only / sub-only / mixed operators (iss
   assert.deepEqual(item.examplesFor(), item.examples);
 });
 
-test('grade 4 integer/decimal multiplication offers 整数×小数 / 小数×整数 / 混合 (issue #313)', () => {
+test('grade 4 decimal×integer multiplication is integer-multiplier only (issue #329)', () => {
   const item = presetsByGrade[4].multiplication.find((candidate) => candidate.id === 'g4-decimal-mul-int');
   assert.ok(item, 'g4-decimal-mul-int must exist');
   assert.equal(item.titleKey, 'menu_g4_decimal_mul_int_title');
 
-  const factorOrder = item.settings.find((setting) => setting.id === 'factorOrder');
-  assert.ok(factorOrder, 'g4-decimal-mul-int must carry a factorOrder setting');
-  assert.equal(factorOrder.type, 'choice');
-  assert.deepEqual(factorOrder.options.map((option) => option.value), ['int_decimal', 'decimal_int', 'mixed']);
-  assert.deepEqual(
-    factorOrder.options.map((option) => option.labelKey),
-    ['setting_option_int_times_decimal', 'setting_option_decimal_times_int', 'setting_option_mixed'],
-  );
-  assert.equal(factorOrder.default, 'mixed');
+  // 学習指導要領 第4学年「小数」covers only the integer-multiplier case; the
+  // #313 factorOrder choice (整数×小数 / まぜる make the multiplier a decimal,
+  // a grade 5 topic) is removed. The multiplier is a fixed, disabled 整数 pill.
+  assert.equal(item.settings.find((setting) => setting.id === 'factorOrder'), undefined);
+  const multiplier = item.settings[0];
+  assert.equal(multiplier.id, 'multiplier');
+  assert.equal(multiplier.type, 'fixed');
+  assert.equal(multiplier.valueLabelKey, 'setting_option_integer');
+  assert.equal(item.settings[1].id, 'displayFormat');
 
-  // 整数×小数: the integer is the first factor, the decimal is the second.
-  assert.deepEqual(item.buildParams({ factorOrder: 'int_decimal' }), {
-    command_type: 'ope', operator: ['mul'], a_digits: 1, b_digits: 2, b_decimal_places: 1,
-  });
-  // 小数×整数: the decimal is the first factor (unchanged from before #313).
-  assert.deepEqual(item.buildParams({ factorOrder: 'decimal_int' }), {
+  // buildParams always yields 小数(第1位) × 整数, regardless of state.
+  const expected = {
     command_type: 'ope', operator: ['mul'], a_digits: 2, b_digits: 1, a_decimal_places: 1,
-  });
-  // 混合 (default): backend randomizes the operand order per problem.
-  const mixedExpected = {
-    command_type: 'ope', operator: ['mul'], a_digits: 2, b_digits: 1, a_decimal_places: 1,
-    mixed_decimal_operand_order: true,
   };
-  assert.deepEqual(item.buildParams({ factorOrder: 'mixed' }), mixedExpected);
-  assert.deepEqual(item.buildParams(), mixedExpected);
+  assert.deepEqual(item.buildParams(), expected);
+  assert.deepEqual(item.buildParams({}), expected);
+  // Stale persisted factorOrder values are ignored (no int_decimal / mixed branch).
+  assert.deepEqual(item.buildParams({ factorOrder: 'int_decimal' }), expected);
+  assert.deepEqual(item.buildParams({ factorOrder: 'mixed' }), expected);
+  assert.equal(item.buildParams({}).mixed_decimal_operand_order, undefined);
 
-  // displayFormat: written still adds vertical: true on top of any factorOrder.
-  assert.equal(item.buildParams({ factorOrder: 'mixed', displayFormat: 'written' }).vertical, true);
+  // displayFormat: written still adds vertical: true.
+  assert.deepEqual(item.buildParams({ displayFormat: 'written' }), { ...expected, vertical: true });
 
-  // example chips track the chosen order.
-  assert.deepEqual(item.examplesFor({ factorOrder: 'mixed' }), item.examples);
-  assert.ok(item.examplesFor({ factorOrder: 'int_decimal' }).every((example) => /^\d+×/.test(example)));
-  assert.ok(item.examplesFor({ factorOrder: 'decimal_int' }).every((example) => /^\d+\.\d+×/.test(example)));
+  // No per-choice example sets; every static example is 小数×整数.
+  assert.equal(item.examplesFor, undefined);
+  assert.ok(item.examples.every((example) => /^\d+\.\d+×\d+$/.test(example)));
 });
 
 test('grade 5 groups 小数×小数 / 整数と小数の割り算 under a dedicated decimal category, not multiplication/division (issue #320)', () => {
