@@ -176,11 +176,13 @@ def _generate_tree_ope_problems(
     b_min, b_max = resolve_digit_count_range(params, "b_digits", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
     operator = list(params.get("operator") or DEFAULT_OPERATOR)
     mixed_operators = bool(params.get("mixed_operators", False))
+    nontrivial_division = bool(params.get("nontrivial_division", False))
 
     nums_a = list(range(a_min, a_max + 1))
     nums_b = list(range(b_min, b_max + 1))
     problems = nuts_calc_tex.generate_tree_ope_problems(
-        nums_a, nums_b, operator, mixed_operators, terms_min, terms_max, num, 1, params.get("result_max"),
+        nums_a, nums_b, operator, mixed_operators, terms_min, terms_max, num, 1,
+        params.get("result_max"), nontrivial_division,
     )
     return [_dataclass_to_dict(problem) for problem in problems]
 

@@ -931,8 +931,9 @@ def _generate_tree_ope_pdf(data: renderer_config.RendererRequest, output_dir: st
     (build_presentation_document_tex, issue #183), mirroring
     _generate_ope_pdf's pattern (issue #205) for the pattern-1a tree-variant
     migration (#201/#206). Basic-case only: a/b range (a_digits/b_digits or
-    a_min/a_max/b_min/b_max), operator, mixed_operators, the terms family
-    (terms/terms_min/terms_max), result_max, plus rows/columns -- always a
+    a_min/a_max/b_min/b_max), operator, mixed_operators, nontrivial_division
+    (issue #342), the terms family (terms/terms_min/terms_max), result_max,
+    plus rows/columns -- always a
     single blank (practice) page. Callers must route here only when
     _is_tree_ope_pdf_request(data) is true; with_bottom_answer/
     with_name_field/multi-page/merge are unsupported here too, matching
@@ -955,6 +956,7 @@ def _generate_tree_ope_pdf(data: renderer_config.RendererRequest, output_dir: st
     )
     operator = list(data.get('operator') or problem_generation.DEFAULT_OPERATOR)
     mixed_operators = bool(data.get('mixed_operators', False))
+    nontrivial_division = bool(data.get('nontrivial_division', False))
 
     terms = data.get('terms')
     terms_min = data.get('terms_min', nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT)
@@ -986,7 +988,7 @@ def _generate_tree_ope_pdf(data: renderer_config.RendererRequest, output_dir: st
         rows * columns,
         lambda start_index: nuts_calc_tex.generate_tree_ope_problems(
             nums_a, nums_b, operator, mixed_operators, terms_min, terms_max,
-            rows * columns, start_index, data.get('result_max'),
+            rows * columns, start_index, data.get('result_max'), nontrivial_division,
         ),
         nuts_calc_tex.build_tree_ope_bottom_answer_tex,
     )
