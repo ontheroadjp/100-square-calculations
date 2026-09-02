@@ -29,7 +29,7 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 以下は #91-#96 のいずれにも含まれない、#98 実装時の検証で新たに判明したバックエンド制約:
 - 4・5年生「分数の足し算/引き算」(`g4-fraction-add`/`sub`、`g5-fraction-add`/`sub`)は issue #112 で `frac` コマンドが `--a-fraction-form`/`--b-fraction-form`(`mixed`/`mix`)による帯分数対応を実装したため `full` に引き上げ済み。詳細は下記「帯分数(#112)対応」を参照。
 - 3年生「小数第1位までの足し算/引き算」(`g3-decimal-addsub`/`g3-decimal-sub`)・4年生「小数の足し算/引き算」(`g4-decimal-add`/`g4-decimal-sub`)は issue #113 で `nuts_calc_tex.py` の `--carry-borrow`系フラグが `--a-decimal-places`/`--b-decimal-places` と併用可能になったため `full` に引き上げ済み。`buildParams` に `carryModeField(['add'|'sub'], state)` を配線している(`drillPresets.js:388-407,445-464,667-686,689-708`)。
-- 6年生の分数×整数・整数×分数・分数×分数・分数÷整数・整数÷分数・分数÷分数(計6項目)は、issue #114 で `nuts_calc_tex.py` に `--require-reducible`/`--no-reducible`/`--mixed-reducible` が追加されたことに伴い `full` へ引き上げ済み。詳細は下記「約分制御(#114)対応」を参照。
+- 5年生の分数×整数・分数÷整数(2項目、issue #327 で6年生から移設)と6年生の整数×分数・分数×分数・整数÷分数・分数÷分数(4項目)の計6項目は、issue #114 で `nuts_calc_tex.py` に `--require-reducible`/`--no-reducible`/`--mixed-reducible` が追加されたことに伴い `full` へ引き上げ済み。詳細は下記「約分制御(#114)対応」を参照。
 
 `partial` の項目も `settings` にはドキュメント通りの選択肢を全て含める(将来 backend 側の issue が閉じた際、データモデルの再設計なしに `supportLevel` を `full` へ引き上げられるようにするため)。
 
@@ -41,11 +41,11 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 
 ### 約分制御(#114)対応: `reducibleModeParam`
 
-6年生の分数×整数(`g6-fraction-mul-int`)・整数×分数(`g6-int-mul-fraction`)・分数×分数(`g6-fraction-mul`)・分数÷整数(`g6-fraction-div-int`)・整数÷分数(`g6-int-div-fraction`)・分数÷分数(`g6-fraction-div`)の6項目は、いずれも `id: 'reduction'` の choice 設定(`REDUCTION_OPTIONS` = なし/あり/まぜる、既定 `'mixed'`)を持つ。`reducibleModeParam(state)`(`state?.reduction ?? 'mixed'`)を各 `buildParams` の `reducible_mode` フィールドへそのまま渡す。
+5年生の分数×整数(`g5-fraction-mul-int`)・分数÷整数(`g5-fraction-div-int`)と6年生の整数×分数(`g6-int-mul-fraction`)・分数×分数(`g6-fraction-mul`)・整数÷分数(`g6-int-div-fraction`)・分数÷分数(`g6-fraction-div`)の計6項目は、いずれも `id: 'reduction'` の choice 設定(`REDUCTION_OPTIONS` = なし/あり/まぜる、既定 `'mixed'`)を持つ。`reducibleModeParam(state)`(`state?.reduction ?? 'mixed'`)を各 `buildParams` の `reducible_mode` フィールドへそのまま渡す。分数×整数・分数÷整数の2項目は当初6年生にあったが、issue #327 で学習指導要領に合わせて5年生へ移設した(下記「分数×整数 / 分数÷整数 を6年生から5年生へ移設(issue #327)」参照)。
 
 `--mixed-reducible` は `nuts_calc_tex.py` 側に `--mixed-carry-borrow` のような単一演算子制約がない(演算子1つだけの `frac -o mul`/`mixed -o div` 等でもそのまま有効)ため、`carryModeField` のように単一演算子時に `mixed` を省略する特例は不要で、`remainderModeParam` と同じ「常に値をそのまま送る」パターンを踏襲する(`drillPresets.js:56-63` 付近)。
 
-分数×整数/整数×分数の4項目は `command_type: 'mixed'`(`a_kind`/`b_kind` を `fraction`/`int` の片方ずつに固定、`nuts_calc_tex.py` の `_init()` が要求する2項限定・fraction+int 限定の条件を満たす)、分数×分数/分数÷分数の2項目は `command_type: 'frac'`(`proper_operands: true` と併用)を使う。
+分数×整数/分数÷整数/整数×分数/整数÷分数の4項目は `command_type: 'mixed'`(`a_kind`/`b_kind` を `fraction`/`int` の片方ずつに固定、`nuts_calc_tex.py` の `_init()` が要求する2項限定・fraction+int 限定の条件を満たす)、分数×分数/分数÷分数の2項目は `command_type: 'frac'`(`proper_operands: true` と併用)を使う。
 
 ### `--mixed-carry-borrow`/`--mixed-remainder` の単一演算子制約
 
@@ -138,7 +138,7 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 
 汎用ヘルパー `examplesByChoice(settingIds, byCombo)`(`drillPresets.js:66-72`)は、`settingIds`(例: `['carryMode']`、複数設定なら `['denominator', 'numberKind']`)の現在値を `_` 結合したキーで `byCombo` を引く `examplesFor(settingsState)` を返す。全設定が既定値 `'mixed'` のときのキー(単一なら `'mixed'`、複数なら `'mixed_mixed'` 等)は `byCombo` に必ず存在させる規約とし、未知の値・未設定のフォールバック先にも使う。これにより、既定状態(`state.settingsState` が全設定のデフォルト値)での `examplesFor()` の出力は必ず元の静的 `examples` と一致する(`drillPresets.test.js` の `examplesFor(defaultState) matches the static examples array` で保証)。
 
-`carryMode`/`remainderMode`/`denominator`/`numberKind`/`reduction`/`dan` を **choice型**で持つ25項目(issue #305 で `g1-add-20`、issue #307 で `g1-sub-20` が固定→choice 化され順次追加)、および issue #309 で `operators` の3値化に伴い `g1-three-terms` に、issue #311 で同じく `operators` を choice 化した `g2-addsub-mixed` に `examplesFor` を付与した(それ以外の `fixed`型でしか持たない項目は対象外で、静的 `examples` のまま)。`supportLevel: 'partial'` な項目(小数の carry/borrow 系)は `buildParams` が実際には該当設定を無視するため、`examplesFor` が返す内容は「その設定を選ぶとどんな問題を意味するか」を示す説明用であり、実際に生成される PDF の内容と一致する保証はない(該当箇所にコメントで明記)。6年生の reduction 系(6項目)は issue #114 で `full` に引き上げ済みのため、この注記は現在対象外(`reducible_mode` が実際に backend へ渡り、選択どおりの問題が生成される)。
+`carryMode`/`remainderMode`/`denominator`/`numberKind`/`reduction`/`dan` を **choice型**で持つ25項目(issue #305 で `g1-add-20`、issue #307 で `g1-sub-20` が固定→choice 化され順次追加)、および issue #309 で `operators` の3値化に伴い `g1-three-terms` に、issue #311 で同じく `operators` を choice 化した `g2-addsub-mixed` に `examplesFor` を付与した(それ以外の `fixed`型でしか持たない項目は対象外で、静的 `examples` のまま)。`supportLevel: 'partial'` な項目(小数の carry/borrow 系)は `buildParams` が実際には該当設定を無視するため、`examplesFor` が返す内容は「その設定を選ぶとどんな問題を意味するか」を示す説明用であり、実際に生成される PDF の内容と一致する保証はない(該当箇所にコメントで明記)。分数の reduction 系(計6項目、5年生の `g5-fraction-mul-int`/`g5-fraction-div-int` + 6年生の4項目)は issue #114 で `full` に引き上げ済みのため、この注記は現在対象外(`reducible_mode` が実際に backend へ渡り、選択どおりの問題が生成される)。
 
 ### 出題形式(式/筆算)設定(issue #134)
 
@@ -185,6 +185,12 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `fraction` カテゴリ(`g4-fraction-add`/`g4-fraction-sub` の2項目のみで構成)を撤廃し、両項目を内容無変更のまま `addition`/`subtraction` 配列の末尾へ移動した(`g4-fraction-add` は `g4-decimal-add` の後、`g4-fraction-sub` は `g4-decimal-sub` の後)。`id`/`titleKey`/`descKey`/`pointKey`/`settings`/`buildParams`/`examplesFor`、`g4-fraction-sub` の `proper_result` 判定コメントを含め一切変更していない。
 
 カテゴリキーは学年ページのセクション見出し順序付け(`catalog.js` の `CATEGORY_ORDER`)にのみ使われ、削除済み `drillCatalog.js` の分類ロジック(`operationGroup`/`numberType`)には影響しない。よってこの移動によるカタログ絞り込みへの影響はない(#161 と同じ理屈)。`catalog.js` の `CATEGORY_ORDER` と `strings.ja.json` の `category_fraction` は5・6年生が引き続き `fraction` カテゴリを使うため無変更。`drillPresets.test.js` に3年生と対称な「grade 4 fraction items live under addition/subtraction」テストを追加した。
+
+### 分数×整数 / 分数÷整数 を6年生から5年生へ移設(issue #327)
+
+学習指導要領解説 算数編 第5学年 A(1)「分数」が分数×整数・分数÷整数を第5学年の内容として挙げている(第6学年は乗数・除数が分数の場合を扱う)ことに合わせ、`g6-fraction-mul-int`(分数×整数)・`g6-fraction-div-int`(分数÷整数)の2項目を `grade6.fraction` から `grade5.fraction` へ移し、`id`/`titleKey`/`descKey`/`pointKey` を `g6-`→`g5-` に付け替えた(`g5-fraction-mul-int`/`g5-fraction-div-int`)。`examples`/`examplesFor`/`settings`/`buildParams`(`command_type: 'mixed'`、`reducible_mode` 配線を含む)は一切変更していない。配置は `g5-fraction-sub` の直後・`g5-frac2dec` の直前(学習指導要領の系列: 約分・通分 → 分数の加減 → 分数×整数・分数÷整数 → 分数と小数の関係)。
+
+`strings.ja.json` の対応6キー(`menu_g6_fraction_mul_int_{title,desc,point}`/`menu_g6_fraction_div_int_{title,desc,point}` → `menu_g5_…`)は文言そのままでリネームし、g5 ブロック(`menu_g5_gcd_point` の直後)へ移動した。`docs/uiux/calculation_drill_menu_parameters_v1.md` は分数×整数・分数÷整数の行を小学6年生の表から小学5年生の表(分数の引き算と分数を小数に直すの間)へ移した。整数×分数(`g6-int-mul-fraction`)・整数÷分数(`g6-int-div-fraction`)は乗数・除数が分数のため6年生に残す(issue #327 のスコープ外)。`drillPresets.test.js` の #114 テストの id リストを6年生に残る4項目へ縮小し、移設を検証する #327 テストを追加した([[./drillPresets.test.js]] 参照)。`CATEGORY_ORDER`(`catalog.js`/`pcMakeFlow.js`)は両学年とも `fraction` カテゴリを維持するため無変更。
 
 ### `ope` プリセットの桁数指定が `a_value`/`b_value` から `a_digits`/`b_digits` へ移行した理由(issue #230)
 

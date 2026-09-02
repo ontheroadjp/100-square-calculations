@@ -505,9 +505,11 @@ test('grade 4 fraction items live under addition/subtraction, not a separate fra
 });
 
 test('grade 6 fraction mul/div items support reducible_mode and are marked full (#114)', () => {
+  // 分数×整数 / 分数÷整数 moved to grade 5 in issue #327; grade 6 keeps the
+  // fraction-multiplier/divisor cases plus 分数×分数 / 分数÷分数.
   const ids = [
-    'g6-fraction-mul-int', 'g6-int-mul-fraction', 'g6-fraction-mul',
-    'g6-fraction-div-int', 'g6-int-div-fraction', 'g6-fraction-div',
+    'g6-int-mul-fraction', 'g6-fraction-mul',
+    'g6-int-div-fraction', 'g6-fraction-div',
   ];
   for (const id of ids) {
     const item = presetsByGrade[6].fraction.find((candidate) => candidate.id === id);
@@ -515,6 +517,43 @@ test('grade 6 fraction mul/div items support reducible_mode and are marked full 
 
     assert.ok(item, `${context}: item must exist`);
     assert.equal(item.supportLevel, 'full', `${context}: supportLevel must be 'full'`);
+    assert.equal(item.buildParams({ reduction: 'required' }).reducible_mode, 'required', context);
+    assert.equal(item.buildParams({ reduction: 'none' }).reducible_mode, 'none', context);
+    assert.equal(item.buildParams({ reduction: 'mixed' }).reducible_mode, 'mixed', context);
+    assert.equal(item.buildParams({}).reducible_mode, 'mixed', `${context}: unset state defaults to 'mixed'`);
+  }
+});
+
+test('分数×整数 / 分数÷整数 live in the grade 5 fraction category, not grade 6 (issue #327)', () => {
+  assert.equal(
+    presetsByGrade[6].fraction.find((item) => item.id === 'g6-fraction-mul-int'),
+    undefined,
+    'g6-fraction-mul-int must be gone from grade 6',
+  );
+  assert.equal(
+    presetsByGrade[6].fraction.find((item) => item.id === 'g6-fraction-div-int'),
+    undefined,
+    'g6-fraction-div-int must be gone from grade 6',
+  );
+
+  const cases = [
+    { id: 'g5-fraction-mul-int', operator: 'mul' },
+    { id: 'g5-fraction-div-int', operator: 'div' },
+  ];
+  for (const { id, operator } of cases) {
+    const item = presetsByGrade[5].fraction.find((candidate) => candidate.id === id);
+    const context = `grade 5 / fraction / ${id}`;
+
+    assert.ok(item, `${context}: item must exist`);
+    assert.equal(item.supportLevel, 'full', `${context}: supportLevel must be 'full'`);
+    assert.equal(item.latexOnly, true, `${context}: latexOnly must be true`);
+
+    const params = item.buildParams({ reduction: 'mixed' });
+    assert.equal(params.command_type, 'mixed', context);
+    assert.deepEqual(params.operator, [operator], context);
+    assert.deepEqual(params.a_kind, ['fraction'], context);
+    assert.deepEqual(params.b_kind, ['int'], context);
+
     assert.equal(item.buildParams({ reduction: 'required' }).reducible_mode, 'required', context);
     assert.equal(item.buildParams({ reduction: 'none' }).reducible_mode, 'none', context);
     assert.equal(item.buildParams({ reduction: 'mixed' }).reducible_mode, 'mixed', context);

@@ -1168,6 +1168,55 @@ const grade5 = {
       }),
     },
     {
+      // 分数×整数・分数÷整数 are grade 5 content in the Course of Study
+      // (解説算数編 第5学年 A数と計算「分数」); grade 6 covers the
+      // fraction-multiplier/divisor case. Moved here from grade 6 in issue #327.
+      id: 'g5-fraction-mul-int',
+      titleKey: 'menu_g5_fraction_mul_int_title',
+      descKey: 'menu_g5_fraction_mul_int_desc',
+      pointKey: 'menu_g5_fraction_mul_int_point',
+      difficultyKey: 'difficulty_basic',
+      examples: ['3/5×4', '4/6×3', '2/7×5'],
+      examplesFor: examplesByChoice(['reduction'], {
+        none: ['3/5×4', '2/7×5', '3/8×3'],
+        required: ['4/6×3', '2/4×3', '6/8×2'],
+        mixed: ['3/5×4', '4/6×3', '2/7×5'],
+      }),
+      settings: [
+        { id: 'reduction', labelKey: 'setting_reduction_label', type: 'choice', options: REDUCTION_OPTIONS, default: 'mixed' },
+        fixedSetting('multiplier', 'setting_multiplier_label', 'setting_option_integer'),
+      ],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: (state) => ({
+        command_type: 'mixed', operator: ['mul'], a_kind: ['fraction'], b_kind: ['int'],
+        numerator_digits: 1, denominator_digits: 1, reducible_mode: reducibleModeParam(state),
+      }),
+    },
+    {
+      id: 'g5-fraction-div-int',
+      titleKey: 'menu_g5_fraction_div_int_title',
+      descKey: 'menu_g5_fraction_div_int_desc',
+      pointKey: 'menu_g5_fraction_div_int_point',
+      difficultyKey: 'difficulty_basic',
+      examples: ['5/6÷3', '4/6÷2', '3/7÷2'],
+      examplesFor: examplesByChoice(['reduction'], {
+        none: ['5/6÷3', '3/7÷2', '4/9÷5'],
+        required: ['4/6÷2', '6/8÷3', '2/4÷2'],
+        mixed: ['5/6÷3', '4/6÷2', '3/7÷2'],
+      }),
+      settings: [
+        { id: 'reduction', labelKey: 'setting_reduction_label', type: 'choice', options: REDUCTION_OPTIONS, default: 'mixed' },
+        fixedSetting('divisor', 'setting_divisor_label', 'setting_option_integer'),
+      ],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: (state) => ({
+        command_type: 'mixed', operator: ['div'], a_kind: ['fraction'], b_kind: ['int'],
+        numerator_digits: 1, denominator_digits: 1, reducible_mode: reducibleModeParam(state),
+      }),
+    },
+    {
       id: 'g5-frac2dec',
       titleKey: 'menu_g5_frac2dec_title',
       descKey: 'menu_g5_frac2dec_desc',
@@ -1275,29 +1324,6 @@ const grade5 = {
 const grade6 = {
   fraction: [
     {
-      id: 'g6-fraction-mul-int',
-      titleKey: 'menu_g6_fraction_mul_int_title',
-      descKey: 'menu_g6_fraction_mul_int_desc',
-      pointKey: 'menu_g6_fraction_mul_int_point',
-      difficultyKey: 'difficulty_basic',
-      examples: ['3/5×4', '4/6×3', '2/7×5'],
-      examplesFor: examplesByChoice(['reduction'], {
-        none: ['3/5×4', '2/7×5', '3/8×3'],
-        required: ['4/6×3', '2/4×3', '6/8×2'],
-        mixed: ['3/5×4', '4/6×3', '2/7×5'],
-      }),
-      settings: [
-        { id: 'reduction', labelKey: 'setting_reduction_label', type: 'choice', options: REDUCTION_OPTIONS, default: 'mixed' },
-        fixedSetting('multiplier', 'setting_multiplier_label', 'setting_option_integer'),
-      ],
-      supportLevel: 'full',
-      latexOnly: true,
-      buildParams: (state) => ({
-        command_type: 'mixed', operator: ['mul'], a_kind: ['fraction'], b_kind: ['int'],
-        numerator_digits: 1, denominator_digits: 1, reducible_mode: reducibleModeParam(state),
-      }),
-    },
-    {
       id: 'g6-int-mul-fraction',
       titleKey: 'menu_g6_int_mul_fraction_title',
       descKey: 'menu_g6_int_mul_fraction_desc',
@@ -1340,29 +1366,6 @@ const grade6 = {
       buildParams: (state) => ({
         command_type: 'frac', operator: ['mul'], numerator_digits: 1, denominator_digits: 1,
         proper_operands: true, reducible_mode: reducibleModeParam(state),
-      }),
-    },
-    {
-      id: 'g6-fraction-div-int',
-      titleKey: 'menu_g6_fraction_div_int_title',
-      descKey: 'menu_g6_fraction_div_int_desc',
-      pointKey: 'menu_g6_fraction_div_int_point',
-      difficultyKey: 'difficulty_basic',
-      examples: ['5/6÷3', '4/6÷2', '3/7÷2'],
-      examplesFor: examplesByChoice(['reduction'], {
-        none: ['5/6÷3', '3/7÷2', '4/9÷5'],
-        required: ['4/6÷2', '6/8÷3', '2/4÷2'],
-        mixed: ['5/6÷3', '4/6÷2', '3/7÷2'],
-      }),
-      settings: [
-        { id: 'reduction', labelKey: 'setting_reduction_label', type: 'choice', options: REDUCTION_OPTIONS, default: 'mixed' },
-        fixedSetting('divisor', 'setting_divisor_label', 'setting_option_integer'),
-      ],
-      supportLevel: 'full',
-      latexOnly: true,
-      buildParams: (state) => ({
-        command_type: 'mixed', operator: ['div'], a_kind: ['fraction'], b_kind: ['int'],
-        numerator_digits: 1, denominator_digits: 1, reducible_mode: reducibleModeParam(state),
       }),
     },
     {
