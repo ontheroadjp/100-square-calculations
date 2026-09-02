@@ -130,6 +130,29 @@ def test_generate_problems_maps_data_layer_value_error_to_500(client, monkeypatc
     assert "not yet supported" in response.get_json()["error"]
 
 
+def test_generate_problems_ope_div_quotient_digits_end_to_end(client, monkeypatch) -> None:
+    # Full app -> problem_generation -> nuts_calc_tex path (no pdflatex needed
+    # for the data endpoint): the quotient_digits key must reach calc_div and
+    # constrain every previewed division to a 2-digit quotient (issue #332).
+    monkeypatch.delenv(renderer_config.RENDERER_ENV_VAR, raising=False)
+    response = client.post(
+        "/generate-problems",
+        json={
+            "paper_size": "A4", "command_type": "ope", "num": 12,
+            "operator": ["div"], "remainder_mode": "none",
+            "a_min": 20, "a_max": 99, "b_min": 2, "b_max": 9, "quotient_digits": 2,
+        },
+    )
+    assert response.status_code == 200
+    problems = response.get_json()["problems"]
+    assert len(problems) == 12
+    for problem in problems:
+        assert problem["operator"] == "div"
+        assert problem["remainder"] == 0
+        assert problem["a"] == problem["b"] * problem["result"]
+        assert 10 <= problem["result"] <= 99
+
+
 def test_generate_pdf_com_requires_a_value(client) -> None:
     response = client.post("/generate-pdf", json={"paper_size": "A4", "command_type": "com"})
     assert response.status_code == 500

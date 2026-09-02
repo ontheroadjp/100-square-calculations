@@ -175,6 +175,21 @@ Japanese "あまり" label.
 python3 nuts_calc_tex.py A4 ope -o div --remainder --out-file division-remainder.pdf
 ```
 
+For `ope -o div`, `--quotient-digits N` requires the quotient (`a // b`) to have
+exactly `N` digits — e.g. `--quotient-digits 2` restricts to two-digit quotients
+such as `48 ÷ 4 = 12`. It is integer-operands only, applies to exact and
+remainder division alike (combines with
+`--remainder`/`--no-remainder`/`--mixed-remainder`), and is rejected for any
+other command or operator, with decimal operands, with
+`--integer-dividend`/`--decimal-dividend`/`--mixed-dividend`, or with
+`--use-parentheses`/`--missing-value`/the `--terms` family. The command fails
+explicitly if no `N`-digit-quotient pair exists in the given operand ranges.
+
+```bash
+python3 nuts_calc_tex.py A4 ope -o div --no-remainder --quotient-digits 2 \
+  --a-min 20 --a-max 99 --b-min 2 --b-max 9 --out-file division-2digit-quotient.pdf
+```
+
 For `frac -o mul`/`div` and two-term `mixed -o mul`/`div` (with one `fraction`
 and one `int` operand kind), use `--require-reducible`, `--no-reducible`, or
 `--mixed-reducible` to require, forbid, or mix whether the raw (pre-

@@ -433,6 +433,16 @@ def _init() -> argparse.Namespace:
         , const = 'mixed'
         , help = 'Mix exact and remainder division (ope -o div only)'
     )
+    parser.add_argument('--quotient-digits'
+        , type = int
+        , default = None
+        , help = (
+            'Require the quotient (a // b) to have exactly N digits '
+            '(ope -o div only). E.g. --quotient-digits 2 restricts to '
+            '2-digit quotients such as 48/4=12. Combines with '
+            '--remainder/--no-remainder/--mixed-remainder.'
+        )
+    )
     dividend_group = parser.add_mutually_exclusive_group()
     dividend_group.add_argument('--integer-dividend'
         , dest = 'dividend_mode'
@@ -986,6 +996,40 @@ def _init() -> argparse.Namespace:
             )
         if args.a_decimal_places != MIN_DECIMAL_PLACES or args.b_decimal_places != MIN_DECIMAL_PLACES:
             failure("--remainder/--no-remainder/--mixed-remainder only support integer operands.")
+
+    if args.quotient_digits is not None:
+        if args.command != 'ope' or args.operator != ['div']:
+            failure("--quotient-digits only supports 'ope -o div'.")
+        if args.use_parentheses or args.missing_value or terms_options_given:
+            failure(
+                "--quotient-digits cannot be combined with "
+                "--use-parentheses/--missing-value/--terms family."
+            )
+        if args.a_decimal_places != MIN_DECIMAL_PLACES or args.b_decimal_places != MIN_DECIMAL_PLACES:
+            failure("--quotient-digits only supports integer operands.")
+        if args.dividend_mode is not None:
+            failure(
+                "--quotient-digits cannot be combined with "
+                "--integer-dividend/--decimal-dividend/--mixed-dividend."
+            )
+        if args.quotient_digits < 1:
+            failure("--quotient-digits must be at least 1.")
+        nums_a_probe = list(range(args.a_min, args.a_max + 1))
+        nums_b_probe = list(range(args.b_min, args.b_max + 1))
+        if args.remainder_mode in (None, 'none', 'mixed') and \
+                find_exact_division_pair(nums_a_probe, nums_b_probe, args.quotient_digits) is None:
+            failure(
+                f"--quotient-digits {args.quotient_digits}: no exact-division pair with a "
+                f"{args.quotient_digits}-digit quotient exists in the ranges "
+                f"[{args.a_min}, {args.a_max}] / [{args.b_min}, {args.b_max}]."
+            )
+        if args.remainder_mode in ('required', 'mixed') and \
+                find_remainder_division_pair(nums_a_probe, nums_b_probe, args.quotient_digits) is None:
+            failure(
+                f"--quotient-digits {args.quotient_digits}: no remainder-division pair with a "
+                f"{args.quotient_digits}-digit quotient exists in the ranges "
+                f"[{args.a_min}, {args.a_max}] / [{args.b_min}, {args.b_max}]."
+            )
 
     if args.dividend_mode is not None:
         if args.command != 'ope' or args.operator != ['div']:
@@ -2352,7 +2396,21 @@ def calc_mul(a: int, b: int, nums_a: list[int], nums_b: list[int]) -> tuple[int,
     return a, b, a * b
 
 
-def find_exact_division_pair(nums_a: list[int], nums_b: list[int]) -> tuple[int, int] | None:
+def _quotient_has_digit_count(quotient: int, digits: int) -> bool:
+    """
+    True when `quotient` (assumed >= 0) has exactly `digits` decimal digits.
+
+    Mirrors digit_range(digits): a 1-digit quotient is 1..9 (0 is excluded,
+    which never arises for exact/floor division with a positive dividend and
+    b >= 1), an N-digit quotient is 10**(N-1)..10**N - 1.
+    """
+    low = 1 if digits == 1 else 10 ** (digits - 1)
+    return low <= quotient <= 10 ** digits - 1
+
+
+def find_exact_division_pair(
+        nums_a: list[int], nums_b: list[int], quotient_digits: int | None = None,
+    ) -> tuple[int, int] | None:
     """
     Deterministically find one (a, b) pair with b != 0 and a % b == 0.
 
@@ -2361,6 +2419,9 @@ def find_exact_division_pair(nums_a: list[int], nums_b: list[int]) -> tuple[int,
     is a small fraction of nums_a x nums_b). For each candidate divisor,
     only its multiples within the nums_a range are probed (not every
     nums_a element), so this stays cheap even for large ranges.
+
+    quotient_digits (when not None) additionally requires the quotient
+    (candidate // b) to have exactly that many digits.
     """
     if not nums_a:
         return None
@@ -2371,12 +2432,17 @@ def find_exact_division_pair(nums_a: list[int], nums_b: list[int]) -> tuple[int,
             continue
         first_multiple = -(-a_min // b) * b  # ceiling division
         for candidate in range(first_multiple, a_max + 1, abs(b)):
-            if candidate in nums_a_set:
-                return candidate, b
+            if candidate not in nums_a_set:
+                continue
+            if quotient_digits is not None and not _quotient_has_digit_count(candidate // b, quotient_digits):
+                continue
+            return candidate, b
     return None
 
 
-def find_remainder_division_pair(nums_a: list[int], nums_b: list[int]) -> tuple[int, int] | None:
+def find_remainder_division_pair(
+        nums_a: list[int], nums_b: list[int], quotient_digits: int | None = None,
+    ) -> tuple[int, int] | None:
     """
     Deterministically find one (a, b) pair with b != 0 and a % b != 0.
 
@@ -2385,19 +2451,26 @@ def find_remainder_division_pair(nums_a: list[int], nums_b: list[int]) -> tuple[
     role for the remainder=False path, but a non-multiple is common enough that a
     plain scan (rather than find_exact_division_pair's multiples-only stepping,
     which only makes sense for *exact* multiples) stays cheap in practice.
+
+    quotient_digits (when not None) additionally requires the floor quotient
+    (a // b) to have exactly that many digits.
     """
     for b in nums_b:
         if b == 0:
             continue
         for a in nums_a:
-            if a % b != 0:
-                return a, b
+            if a % b == 0:
+                continue
+            if quotient_digits is not None and not _quotient_has_digit_count(a // b, quotient_digits):
+                continue
+            return a, b
     return None
 
 
 def calc_div(
         a: int, b: int, nums_a: list[int], nums_b: list[int],
         remainder: bool | None = None,
+        quotient_digits: int | None = None,
     ) -> tuple[int, int, int]:
     """
     Retry with freshly-sampled operands until the division matches `remainder`.
@@ -2410,32 +2483,48 @@ def calc_div(
     find_remainder_division_pair. The returned `c` is always the floor
     quotient (a // b); the caller (generate_ope_problems) derives the
     remainder itself as `a - b * c` for display.
+
+    quotient_digits (when not None) is an additional predicate on both retry
+    paths and their deterministic fallbacks: the floor quotient (a // b) must
+    have exactly that many digits. It is orthogonal to `remainder` -- the
+    quotient's digit count is well-defined whether or not the division is
+    exact -- so the two constrain the sample jointly.
     """
+    def _quotient_ok(quotient: int) -> bool:
+        return quotient_digits is None or _quotient_has_digit_count(quotient, quotient_digits)
+
+    quotient_suffix = (
+        "" if quotient_digits is None
+        else f", {quotient_digits}-digit quotient"
+    )
+
     if remainder:
         for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
-            if b != 0 and a % b != 0:
+            if b != 0 and a % b != 0 and _quotient_ok(a // b):
                 return a, b, a // b
             a = random.choice(nums_a)
             b = random.choice(nums_b)
-        fallback = find_remainder_division_pair(nums_a, nums_b)
+        fallback = find_remainder_division_pair(nums_a, nums_b, quotient_digits)
         if fallback is not None:
             a, b = fallback
             return a, b, a // b
         raise ValueError(
-            "No remainder pair (a % b != 0, b != 0) found in the given number ranges."
+            f"No remainder pair (a % b != 0, b != 0{quotient_suffix}) "
+            "found in the given number ranges."
         )
 
     for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
-        if b != 0 and a % b == 0:
+        if b != 0 and a % b == 0 and _quotient_ok(a // b):
             return a, b, a // b
         a = random.choice(nums_a)
         b = random.choice(nums_b)
-    fallback = find_exact_division_pair(nums_a, nums_b)
+    fallback = find_exact_division_pair(nums_a, nums_b, quotient_digits)
     if fallback is not None:
         a, b = fallback
         return a, b, a // b
     raise ValueError(
-        "No exact-division pair (a % b == 0, b != 0) found in the given number ranges."
+        f"No exact-division pair (a % b == 0, b != 0{quotient_suffix}) "
+        "found in the given number ranges."
     )
 
 
@@ -2506,6 +2595,7 @@ def generate_ope_problems(
         dividend_mode: DividendMode | None = None,
         a_multiple: int | None = None,
         b_multiple: int | None = None,
+        quotient_digits: int | None = None,
     ) -> list[OpeProblem]:
     """
     Generate `order` arithmetic problems starting at `start_index`.
@@ -2532,6 +2622,11 @@ def generate_ope_problems(
     'mixed' chooses per div problem. OpeProblem.remainder is derived from
     the returned a/b/c as `a - b * c` regardless of remainder_mode, so it's
     always populated correctly (0 for an exact division).
+
+    quotient_digits (div only, enforced by _init() for the CLI) requires the
+    floor quotient (a // b) to have exactly that many digits; it is passed
+    straight through to calc_div and is orthogonal to remainder_mode (a div
+    problem is routed through calc_div when either is set).
 
     a_decimal_places/b_decimal_places (0 by default) do not change how
     nums_a/nums_b/CALC_FUNCTIONS are sampled or validated -- they are only
@@ -2579,9 +2674,14 @@ def generate_ope_problems(
             elif operator == 'sub' and carry_mode is not None:
                 borrow = random.choice((False, True)) if carry_mode == 'mixed' else carry_mode == 'required'
                 a, b, c = calc_sub(a, b, nums_a, nums_b, borrow)
-            elif operator == 'div' and remainder_mode is not None:
-                want_remainder = random.choice((False, True)) if remainder_mode == 'mixed' else remainder_mode == 'required'
-                a, b, c = calc_div(a, b, nums_a, nums_b, want_remainder)
+            elif operator == 'div' and (remainder_mode is not None or quotient_digits is not None):
+                if remainder_mode is None:
+                    want_remainder = None
+                elif remainder_mode == 'mixed':
+                    want_remainder = random.choice((False, True))
+                else:
+                    want_remainder = remainder_mode == 'required'
+                a, b, c = calc_div(a, b, nums_a, nums_b, want_remainder, quotient_digits)
             elif operator == 'div' and dividend_mode is not None:
                 if dividend_mode == 'mixed':
                     dividend_is_integer = random.choice((False, True))
@@ -4304,6 +4404,7 @@ def build_ope_pages(
             ini.remainder_mode, ini.result_max, ini.mixed_decimal_operand_order,
             ini.dividend_mode,
             a_multiple=ini.a_multiple, b_multiple=ini.b_multiple,
+            quotient_digits=ini.quotient_digits,
         )
         blank_page, filled_page = build_ope_page_pair(problems, ini.columns, ini.vertical, ini.intermediate)
         pages_problems.append(problems)

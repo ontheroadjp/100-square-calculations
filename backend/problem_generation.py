@@ -352,6 +352,7 @@ def _generate_ope_problems_latex(params: renderer_config.RendererRequest, num: i
         bool(params.get("mixed_decimal_operand_order", False)),
         params.get("dividend_mode"),
         a_multiple=params.get("a_multiple"), b_multiple=params.get("b_multiple"),
+        quotient_digits=params.get("quotient_digits"),
     )
 
     problems: list[OpeProblemData] = []

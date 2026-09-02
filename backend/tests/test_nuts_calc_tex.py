@@ -548,6 +548,69 @@ def test_cli_ope_rejects_combining_remainder_flags(run_tex_cli, tmp_path):
     assert not (tmp_path / "result.pdf").exists()
 
 
+def test_cli_ope_div_quotient_digits_forces_two_digit_quotient(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "div", "--no-remainder", "--quotient-digits", "2",
+        "--a-min", "20", "--a-max", "99", "--b-min", "2", "--b-max", "9",
+        "-r", "3", "-c", "3", "--csv", "--out-file", "result.pdf",
+    )
+
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    for row in (tmp_path / "result.csv").read_text().strip().splitlines():
+        _, _, a, operator, b, c, remainder = row.split(",")
+        assert operator == "div"
+        assert remainder == "0"
+        assert int(a) % int(b) == 0
+        assert len(str(int(c))) == 2
+
+
+def test_cli_ope_div_quotient_digits_combines_with_mixed_remainder(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "div", "--mixed-remainder", "--quotient-digits", "2",
+        "--a-min", "20", "--a-max", "99", "--b-min", "2", "--b-max", "9",
+        "-r", "5", "-c", "5", "--csv", "--out-file", "result.pdf",
+    )
+
+    assert result.returncode == 0, result.stderr
+    rows = [
+        row.split(",") for row in (tmp_path / "result.csv").read_text().strip().splitlines()
+    ]
+    assert {row[6] == "0" for row in rows} == {True, False}
+    for _, _, a, operator, b, c, _remainder in rows:
+        assert operator == "div"
+        assert len(str(int(c))) == 2
+
+
+@pytest.mark.parametrize(
+    "invalid_args",
+    [
+        ("-o", "add", "--quotient-digits", "2"),
+        ("-o", "div", "mul", "--quotient-digits", "2"),
+        ("-o", "div", "--quotient-digits", "2", "--use-parentheses"),
+        ("-o", "div", "--quotient-digits", "2", "--a-decimal-places", "1", "--b-decimal-places", "1"),
+        ("-o", "div", "--quotient-digits", "2", "--b-decimal-places", "1", "--integer-dividend"),
+        ("-o", "div", "--quotient-digits", "0"),
+    ],
+)
+def test_cli_ope_quotient_digits_rejects_invalid_combinations(run_tex_cli, tmp_path, invalid_args):
+    result = run_tex_cli("A4", "ope", *invalid_args, "--out-file", "result.pdf")
+
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_quotient_digits_empty_range_fails(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "div", "--quotient-digits", "2",
+        "--a-min", "2", "--a-max", "9", "--b-min", "2", "--b-max", "9",
+        "--out-file", "result.pdf",
+    )
+
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
 def test_cli_ope_vertical_add_sub_mul_produces_pdfs(run_tex_cli, tmp_path):
     result = run_tex_cli(
         "A4", "ope", "-o", "add", "sub", "mul", "--vertical",
