@@ -472,21 +472,6 @@ const grade2 = {
         };
       },
     },
-    {
-      id: 'g2-parentheses',
-      titleKey: 'menu_g2_parentheses_title',
-      descKey: 'menu_g2_parentheses_desc',
-      pointKey: 'menu_g2_parentheses_point',
-      difficultyKey: 'difficulty_standard',
-      examples: ['35-(12+8)', '52-(23+9)', '68-(15+22)'],
-      settings: [fixedSetting('parentheses', 'setting_parentheses_label', 'setting_option_present')],
-      supportLevel: 'full',
-      latexOnly: true,
-      buildParams: () => ({
-        command_type: 'ope', operator: ['add', 'sub'], terms: 3, use_parentheses: true,
-        a_min: 1, a_max: 90, b_min: 1, b_max: 90,
-      }),
-    },
   ],
 };
 
@@ -923,6 +908,28 @@ const grade4 = {
       buildParams: () => ({
         command_type: 'ope', operator: ['add', 'sub', 'mul', 'div'], mixed_operators: true, terms: 3,
         a_digits: 1, b_digits: 1,
+      }),
+    },
+    {
+      // 学習指導要領解説 算数編 第4学年 A「数量の関係を表す式」で（　）を用いた式と
+      // 「（　）の中を先に計算する」きまりが導入される。この項目は issue #330 で
+      // 2年生 four-operations の g2-parentheses を移設したもの(id・string キーを
+      // g4- へ付け替え、buildParams は不変)。括弧内・括弧外とも加減のみ・数値 90 以下で
+      // 括弧ルールの最も素朴な導入にあたるため difficultyKey は difficulty_basic に
+      // 引き下げた(移設前は difficulty_standard)。g4-parentheses(四則・除算含む)と
+      // g4-parentheses-mul-result-1000(加減乗・答え 1,000 まで)は difficulty_standard を維持。
+      id: 'g4-parentheses-addsub',
+      titleKey: 'menu_g4_parentheses_addsub_title',
+      descKey: 'menu_g4_parentheses_addsub_desc',
+      pointKey: 'menu_g4_parentheses_addsub_point',
+      difficultyKey: 'difficulty_basic',
+      examples: ['35-(12+8)', '52-(23+9)', '68-(15+22)'],
+      settings: [fixedSetting('parentheses', 'setting_parentheses_label', 'setting_option_present')],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['add', 'sub'], terms: 3, use_parentheses: true,
+        a_min: 1, a_max: 90, b_min: 1, b_max: 90,
       }),
     },
     {

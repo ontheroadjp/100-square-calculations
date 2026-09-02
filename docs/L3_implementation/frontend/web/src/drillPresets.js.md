@@ -184,6 +184,16 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 
 `strings.ja.json` の対応3キー(`menu_g3_parentheses_mul_result_1000_{title,desc,point}` → `menu_g4_…`)は文言そのままでリネームし、g4 ブロック(`menu_g4_parentheses_point` の直後)へ移動した。`menu_g3_addsub_mixed_result_1000_*` は3年生に残るため無変更。`docs/uiux/calculation_drill_menu_parameters_v1.md` は小学3年生の表から「括弧を含む足し算・引き算・かけ算」行を削除し、小学4年生の表(「括弧を含む四則混合計算」の直後)へ同等の行を追加した。`drillPresets.test.js` の該当テストを4年生・新 id へ retarget し、3年生 `four-operations` が括弧・かけ算を含む項目を持たないことを検証する #328 テストを追加した([[./drillPresets.test.js]] 参照)。`CATEGORY_ORDER`(`catalog.js`/`pcMakeFlow.js`)は両学年とも `four-operations` カテゴリを維持するため無変更。
 
+### 括弧の足し引きドリルを2年生から4年生へ移設し難易度を基礎へ(issue #330)
+
+`35-(12+8)` 形式の「（　）を用いた式・（　）の中を先に計算するきまり」は学習指導要領解説 算数編 第4学年 A「数量の関係を表す式」の内容であり、第2学年ではない(一部の教科書が第2学年で「たしてからひく」文脈として非形式的に先取りするが、この項目はその規約を「ルールをはじめて学ぶ」ドリルとして明示している)。issue #161 以前から2年生 `four-operations` にあった `g2-parentheses` を、`id`・`titleKey`/`descKey`/`pointKey` を `g2-`→`g4-` に付け替えて `g4-parentheses-addsub` として `grade4['four-operations']` の `g4-four-operations` 直後・`g4-parentheses` の直前へ移した。`examples`(`['35-(12+8)', '52-(23+9)', '68-(15+22)']`)・`settings`(`parentheses` 固定=present)・`supportLevel`(`full`)・`latexOnly`(`true`)・`buildParams` 本体(`operator:['add','sub'], terms:3, use_parentheses:true, a_min:1, a_max:90, b_min:1, b_max:90`)は一切変更していない。
+
+`difficultyKey` は移設前の `difficulty_standard` から `difficulty_basic` へ引き下げた。括弧内・括弧外とも加減のみ、数値 90 以下で、（　）ルールの最も素朴な導入にあたるため。4年生の括弧ドリル3項目は難易度が段階化される: `g4-parentheses-addsub`(基礎、加減のみ) < `g4-parentheses-mul-result-1000`(標準、加減乗・答え1,000まで)・`g4-parentheses`(標準、四則・除算含むが1桁)。いずれも `difficulty_advanced` は与えない。
+
+`g4-parentheses` へ統合せず独立項目として残した理由: `g4-parentheses` は除算を含む1桁オペランドの四則混合(`operator:['add','sub','mul','div'], a_digits:1`)、`g4-parentheses-mul-result-1000` は加減乗・答え1,000まで。いずれも括弧内に加減のみを置く本項目より難しく、本項目は括弧ルールの入口として最も易しい段階を担う。オペランド範囲指定は `a_min`/`a_max` 形式のままで、同じ4年生の `g4-parentheses` が使う `a_digits`/`b_digits` 形式とは異なる(`g4-parentheses-mul-result-1000` と同形式)。
+
+`strings.ja.json` の対応3キー(`menu_g2_parentheses_{title,desc,point}` → `menu_g4_parentheses_addsub_{title,desc,point}`)は文言そのままでリネームし、g4 ブロック(`menu_g4_four_operations_point` の直後)へ移動した。`docs/uiux/calculation_drill_menu_parameters_v1.md` は小学2年生の表から「括弧を含む足し引き」行を削除し、小学4年生の表(「整数の四則混合計算」の直後)へ難易度列を `基礎`・備考「括弧内を先に計算。＋と－のみ」とした同等の行を追加した。`drillPresets.test.js` に、2年生 `four-operations` が `g2-addsub-mixed` のみで括弧項目を持たないことを検証する #330 テストと、`g4-parentheses-addsub` が `difficulty_basic` かつ加減のみ・括弧ありの `buildParams` を返すことを検証する #330 テストを追加した([[./drillPresets.test.js]] 参照)。`CATEGORY_ORDER`(`catalog.js`/`pcMakeFlow.js`)は両学年とも `four-operations` カテゴリを維持するため無変更。
+
 ### 4年生の分数カテゴリ撤廃(issue #315)
 
 issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `fraction` カテゴリ(`g4-fraction-add`/`g4-fraction-sub` の2項目のみで構成)を撤廃し、両項目を内容無変更のまま `addition`/`subtraction` 配列の末尾へ移動した(`g4-fraction-add` は `g4-decimal-add` の後、`g4-fraction-sub` は `g4-decimal-sub` の後)。`id`/`titleKey`/`descKey`/`pointKey`/`settings`/`buildParams`/`examplesFor`、`g4-fraction-sub` の `proper_result` 判定コメントを含め一切変更していない。
