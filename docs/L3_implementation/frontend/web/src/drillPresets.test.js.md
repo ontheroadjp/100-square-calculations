@@ -30,6 +30,8 @@
 
 3年生・4年生の `four-operations` 混合計算(issue #161 / issue #328 / issue #340)について複数のテストを持つ。1つ目「grade 3 four-operations mix caps the answer at 1,000 without multiplication」は `g3-addsub-mixed-result-1000`(3年生に残る)の `buildParams()` が `operator:['add','sub'], terms:3, mixed_operators:true, a_min:1,a_max:999,b_min:1,b_max:999, result_max:1000` を返すことを検証する。2つ目「grade 4 four-operations consolidates parentheses drills to two tiers: basic ＋− and standard ＋−×÷ (#340)」は、issue #328 で追加し #340 で削除した「grade 4 parenthesized mix caps the answer at 1,000…」テスト(`g4-parentheses-mul-result-1000` を対象にしていた)を置き換えたもので、`presetsByGrade[4]['four-operations']` のうち id に `parentheses` を含む項目がちょうど `['g4-parentheses-addsub','g4-parentheses']`・`difficultyKey` が `['difficulty_basic','difficulty_standard']`(=基礎/標準)であること、両者の `buildParams().operator` が `['add','sub']` / `['add','sub','mul','div']` であること、標準側が `use_parentheses:true` を返すこと、および `g4-parentheses-mul-result-1000` がもう存在しないことを検証する。加えて #328 で「grade 3 four-operations no longer contains parentheses or multiplication (#328)」テストを追加し、`presetsByGrade[3]['four-operations']` の id 配列がちょうど `['g3-addsub-mixed-result-1000']` であること、および全項目の `buildParams()` が `use_parentheses` キーを持たず `operator` に `'mul'` を含まないことを検証する(学習指導要領解説 算数編 第4学年 A「数量の関係を表す式」が（）を用いた式・四則の混合した式・計算の順序のきまりを第4学年の内容とすることに対応)。
 
+issue #342 で「grade 4 four-operations consolidates parentheses drills to two tiers…(#340)」テストに `parenthesesItems[1].buildParams().nontrivial_division === true` の assertion を1行追加し、専用テスト「grade 4 standard parentheses drill forces a non-trivial division per problem (#342)」を追加した。後者は `g4-parentheses` の `buildParams()` が `{command_type:'ope', operator:['add','sub','mul','div'], mixed_operators:true, use_parentheses:true, nontrivial_division:true, a_digits:1, b_digits:1}` に deep-equal すること、`g4-parentheses-addsub` の `buildParams()` に `nontrivial_division` キーが**無い**こと(加減のみの基礎層は無変更)、`examples` がちょうど `['(8+4)÷3', '8÷(6-4)', '(9÷3)×5']` でありいずれも `÷` を含むことを検証する。
+
 括弧の足し引きドリルの2年生→4年生移設(issue #330)について2つのテストを持つ。「grade 2 four-operations no longer contains parentheses (#330)」は `presetsByGrade[2]['four-operations']` の id 配列がちょうど `['g2-addsub-mixed']` であること、および全項目の `buildParams()` が `use_parentheses` キーを持たないことを検証する。「grade 4 parentheses add/sub drill is a basic add/sub-only four-operations item (#330)」は `presetsByGrade[4]['four-operations']` に `g4-parentheses-addsub` が存在し、`difficultyKey` が `difficulty_basic`(移設前の `difficulty_standard` から引き下げ)、`buildParams()` が `command_type:'ope', operator:['add','sub'], terms:3, use_parentheses:true, a_min:1,a_max:90,b_min:1,b_max:90` を返すことを検証する(同 学習指導要領解説 第4学年 A「数量の関係を表す式」が（　）を用いた式・（　）の中を先に計算するきまりを第4学年の内容とすることに対応)。
 
 ## 重要な設計判断とその理由
@@ -47,7 +49,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- 35d7c0a refactor(#340): consolidate grade 4 parentheses drills to two tiers
+- 912657b fix(#342): guarantee non-trivial division in g4-parentheses (括弧を含む四則混合計算)
+- 960657f refactor(#340): consolidate grade 4 parentheses drills to two tiers (#341)
 - b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)
 - d37b593 fix(#330): move parentheses add/sub drill from grade 2 to grade 4 and set difficulty to basic (#338)
 - cbeb0a6 fix(#329): restrict grade 4 decimal×integer multiplication to an integer multiplier (#337)
@@ -56,4 +59,3 @@
 - f440b57 refactor(#320): replace grade 5 multiplication/division sections with a dedicated 小数 section (#321)
 - f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)
 - 697db43 refactor(#315): move grade 4 fraction add/sub into addition/subtraction categories (#316)
-- 40dfb0a feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication (#314)

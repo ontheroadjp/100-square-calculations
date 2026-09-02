@@ -1013,13 +1013,18 @@ const grade4 = {
       descKey: 'menu_g4_parentheses_desc',
       pointKey: 'menu_g4_parentheses_point',
       difficultyKey: 'difficulty_standard',
-      examples: ['(8+4)×5-6', '(9-3)×4+7', '(6+5)×3-8'],
+      // ＋−×÷ の四則混合 + かっこ。issue #342 で除算が確実に1つ以上現れ、かつ
+      // 割る数・商とも2以上(x÷1・x÷x のような自明な除算を排除)になるよう
+      // buildParams に nontrivial_division: true を追加した。examples は
+      // バックエンドが実際に出す形(3項・演算子2つ・葉以外の内部ノードを
+      // かっこで包む)に合わせ、いずれも non-trivial な除算を含む。
+      examples: ['(8+4)÷3', '8÷(6-4)', '(9÷3)×5'],
       settings: [fixedSetting('parentheses', 'setting_parentheses_label', 'setting_option_present')],
       supportLevel: 'full',
       latexOnly: true,
       buildParams: () => ({
         command_type: 'ope', operator: ['add', 'sub', 'mul', 'div'], mixed_operators: true,
-        use_parentheses: true, a_digits: 1, b_digits: 1,
+        use_parentheses: true, nontrivial_division: true, a_digits: 1, b_digits: 1,
       }),
     },
   ],

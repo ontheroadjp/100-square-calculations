@@ -209,6 +209,16 @@ issue #328・#330 の移設の結果、4年生 `four-operations` には括弧ド
 
 削除に伴い、`strings.ja.json` の `menu_g4_parentheses_mul_result_1000_{title,desc,point}` の3キーと、他に参照がなくなった `setting_option_addsubmul_mixed` キーを削除した(orphan setting option 削除の先例: issue #329)。`drillPresets.test.js` は #328 で retarget した「grade 4 parenthesized mix caps the answer at 1,000…」テストを削除し、4年生 `four-operations` の括弧項目がちょうど `['g4-parentheses-addsub','g4-parentheses']`(難易度 `difficulty_basic`/`difficulty_standard`)であること・`g4-parentheses-mul-result-1000` が存在しないことを検証する #340 テストへ置き換えた([[./drillPresets.test.js]] 参照)。`docs/uiux/calculation_drill_menu_parameters_v1.md` は小学4年生の表から「括弧を含む足し算・引き算・かけ算」行を削除する(「括弧を含む四則混合計算」行はパラメータ無変更のため据え置き)。バックエンド変更なし。`CATEGORY_ORDER` 無変更。
 
+### g4-parentheses の除算を保証し non-trivial 化(issue #342)
+
+統合後の標準 `g4-parentheses`(＋−×÷・1桁・`mixed_operators`)は「四則混合」と銘打っているのに、実測で除算が現れる問題は約19%、しかもその約65%が `x÷1` や `x÷x` という自明な除算だった(バックエンドの木リトライが、除算を避ける／÷1・x÷x で通る木を圧倒的に引きやすいため)。3つの static examples(`(8+4)×5-6` など)も除算を1つも含まず、かつ生成器が実際に出す形(3項・演算子2つ)ではなく4項・演算子3つで不整合だった。
+
+対応: `buildParams` に `nontrivial_division: true` を追加。バックエンド([[../../../../backend/nuts_calc_tex.py]] の `--nontrivial-division`、issue #342)が「除算ノードを必ず1つ以上含み、全除算ノードで割る数・商とも2以上」になるまで木を再抽選する。frontend で立てるのはこのプリセットだけ。`examples` は生成器の実際の出力形(3項・演算子2つ・葉以外の内部ノードをかっこで包む)に合わせ、いずれも non-trivial な除算を含む `['(8+4)÷3', '8÷(6-4)', '(9÷3)×5']` に差し替えた。`operator`/`mixed_operators`/`use_parentheses`/`a_digits`/`b_digits`/`difficultyKey`/`settings`/文言は無変更。
+
+オペランド範囲は広げていない(#340 と同じ理由: 1桁に留めることで割り切れる素直な除算 ÷2〜÷9 を保つ)。厳格化したリトライ受理条件でも 1桁・3項では平均約33回・最大約250回で収束し `MAX_OPERAND_RETRY_ATTEMPTS`(1000)に遠く届かないことを実測済み。`g4-parentheses` は live preview 非対応(`isLivePreviewSupported()` が `use_parentheses` を除外)のため、ユーザーが detail 画面で見るのはこの static `examples` のみ。
+
+`drillPresets.test.js` は #340 の統合テストに `nontrivial_division: true` を追加し、`g4-parentheses` の `buildParams` 全体の deep-equal・`g4-parentheses-addsub` にはこのキーが付かないこと・examples が新しい3値であることを検証する #342 テストを追加した([[./drillPresets.test.js]] 参照)。`strings.ja.json` 無変更。`docs/uiux/calculation_drill_menu_parameters_v1.md` の4年生「括弧を含む四則混合計算」行は example を `(8+4)÷3` に更新し備考に「除算を必ず含み、割る数・商とも2以上」を追記する。
+
 ### 4年生の分数カテゴリ撤廃(issue #315)
 
 issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `fraction` カテゴリ(`g4-fraction-add`/`g4-fraction-sub` の2項目のみで構成)を撤廃し、両項目を内容無変更のまま `addition`/`subtraction` 配列の末尾へ移動した(`g4-fraction-add` は `g4-decimal-add` の後、`g4-fraction-sub` は `g4-decimal-sub` の後)。`id`/`titleKey`/`descKey`/`pointKey`/`settings`/`buildParams`/`examplesFor`、`g4-fraction-sub` の `proper_result` 判定コメントを含め一切変更していない。
@@ -246,7 +256,8 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 
 ## 変更履歴（git log より自動生成）
 
-- 35d7c0a refactor(#340): consolidate grade 4 parentheses drills to two tiers
+- 912657b fix(#342): guarantee non-trivial division in g4-parentheses (括弧を含む四則混合計算)
+- 960657f refactor(#340): consolidate grade 4 parentheses drills to two tiers (#341)
 - b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)
 - d37b593 fix(#330): move parentheses add/sub drill from grade 2 to grade 4 and set difficulty to basic (#338)
 - cbeb0a6 fix(#329): restrict grade 4 decimal×integer multiplication to an integer multiplier (#337)
@@ -255,4 +266,3 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 - f440b57 refactor(#320): replace grade 5 multiplication/division sections with a dedicated 小数 section (#321)
 - f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)
 - 697db43 refactor(#315): move grade 4 fraction add/sub into addition/subtraction categories (#316)
-- 40dfb0a feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication (#314)

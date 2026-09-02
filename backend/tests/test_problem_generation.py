@@ -198,6 +198,44 @@ def test_generate_problems_use_parentheses_with_terms_range() -> None:
     assert all(len(problem["operands"]) == 4 for problem in problems)
 
 
+# The frontend g4-parentheses preset's request body (issue #342).
+_G4_PARENTHESES_PARAMS = {
+    "paper_size": "A4", "command_type": "ope",
+    "operator": ["add", "sub", "mul", "div"], "mixed_operators": True,
+    "use_parentheses": True, "a_digits": 1, "b_digits": 1,
+}
+
+
+def _tree_div_nodes(node: dict) -> list[dict]:
+    """Every division node in a serialized problem tree (leaves have left=None)."""
+    if node["left"] is None:
+        return []
+    found = _tree_div_nodes(node["left"]) + _tree_div_nodes(node["right"])
+    return found + [node] if node["operator"] == "div" else found
+
+
+def test_generate_problems_nontrivial_division_every_problem_has_a_genuine_division() -> None:
+    params = {**_G4_PARENTHESES_PARAMS, "num": 200, "nontrivial_division": True}
+    problems = problem_generation.generate_problems(params, "latex")
+    assert len(problems) == 200
+    for problem in problems:
+        assert "div" in problem["operators"]
+        div_nodes = _tree_div_nodes(problem["tree"])
+        assert div_nodes
+        for node in div_nodes:
+            assert node["right"]["value"] >= 2
+            assert node["left"]["value"] // node["right"]["value"] >= 2
+
+
+def test_generate_problems_without_nontrivial_division_is_unchanged() -> None:
+    # Regression guard: the default use_parentheses path is untouched by #342.
+    params = {**_G4_PARENTHESES_PARAMS, "num": 10}
+    problems = problem_generation.generate_problems(params, "latex")
+    assert len(problems) == 10
+    for problem in problems:
+        assert set(problem) == {"index", "operands", "operators", "tree", "result"}
+
+
 def test_generate_problems_missing_value_returns_solvable_equations() -> None:
     params = {
         "paper_size": "A4", "command_type": "ope", "num": 20,

@@ -51,6 +51,7 @@ class RendererRequest(TypedDict, total=False):
     intermediate: bool
     vertical: bool
     use_parentheses: bool
+    nontrivial_division: bool
     missing_value: bool
     terms: int
     terms_min: int

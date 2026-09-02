@@ -776,6 +776,104 @@ def test_generate_tree_ope_problems_raises_when_no_valid_tree_is_possible() -> N
         )
 
 
+# --- nontrivial_division (issue #342) -------------------------------------
+
+# The frontend g4-parentheses preset's generator inputs: single-digit
+# operands, 3-leaf trees, all four operators, per-node operator mixing.
+G4_PARENTHESES_NUMS = list(range(1, 10))
+NONTRIVIAL_DIVISION_SAMPLE_SIZE = 300
+
+
+def _collect_div_operator_nodes(node: "tex_module.ExprTreeNode") -> list["tex_module.ExprTreeNode"]:
+    """Every division node in `node` (for asserting nontrivial_division invariants)."""
+    if node.is_leaf:
+        return []
+    found = _collect_div_operator_nodes(node.left) + _collect_div_operator_nodes(node.right)
+    return found + [node] if node.operator == 'div' else found
+
+
+def test_tree_has_only_nontrivial_divisions_rejects_trivial_and_missing_divisions() -> None:
+    leaf = tex_module.ExprTreeNode
+
+    div_by_one = tex_module.ExprTreeNode(operator='div', left=leaf(value=8), right=leaf(value=1))
+    tex_module.evaluate_expr_tree(div_by_one)
+    assert tex_module.tree_has_only_nontrivial_divisions(div_by_one) is False
+
+    div_by_self = tex_module.ExprTreeNode(operator='div', left=leaf(value=6), right=leaf(value=6))
+    tex_module.evaluate_expr_tree(div_by_self)
+    assert tex_module.tree_has_only_nontrivial_divisions(div_by_self) is False
+
+    no_div = tex_module.ExprTreeNode(operator='add', left=leaf(value=3), right=leaf(value=5))
+    tex_module.evaluate_expr_tree(no_div)
+    assert tex_module.tree_has_only_nontrivial_divisions(no_div) is False
+
+    # (8 + 4) / 3 = 4 -> divisor 3, quotient 4: genuine.
+    genuine = tex_module.ExprTreeNode(
+        operator='div',
+        left=tex_module.ExprTreeNode(operator='add', left=leaf(value=8), right=leaf(value=4)),
+        right=leaf(value=3),
+    )
+    tex_module.evaluate_expr_tree(genuine)
+    assert tex_module.tree_has_only_nontrivial_divisions(genuine) is True
+
+    # One genuine div node and one trivial (/1) div node -> whole tree rejected.
+    mixed_trivial = tex_module.ExprTreeNode(
+        operator='div',
+        left=tex_module.ExprTreeNode(operator='div', left=leaf(value=8), right=leaf(value=4)),
+        right=leaf(value=1),
+    )
+    tex_module.evaluate_expr_tree(mixed_trivial)
+    assert tex_module.tree_has_only_nontrivial_divisions(mixed_trivial) is False
+
+
+def test_generate_tree_ope_problems_nontrivial_division_guarantees_a_division() -> None:
+    problems = tex_module.generate_tree_ope_problems(
+        G4_PARENTHESES_NUMS, G4_PARENTHESES_NUMS, ['add', 'sub', 'mul', 'div'], mixed=True,
+        terms_min=3, terms_max=3, order=NONTRIVIAL_DIVISION_SAMPLE_SIZE, start_index=1,
+        nontrivial_division=True,
+    )
+    # A full sample with no ValueError also proves the stricter filter
+    # converges well within MAX_OPERAND_RETRY_ATTEMPTS for this config.
+    assert len(problems) == NONTRIVIAL_DIVISION_SAMPLE_SIZE
+    for problem in problems:
+        assert 'div' in problem.operators
+
+
+def test_generate_tree_ope_problems_nontrivial_division_rejects_trivial_divisions() -> None:
+    problems = tex_module.generate_tree_ope_problems(
+        G4_PARENTHESES_NUMS, G4_PARENTHESES_NUMS, ['add', 'sub', 'mul', 'div'], mixed=True,
+        terms_min=3, terms_max=3, order=NONTRIVIAL_DIVISION_SAMPLE_SIZE, start_index=1,
+        nontrivial_division=True,
+    )
+    for problem in problems:
+        div_nodes = _collect_div_operator_nodes(problem.tree)
+        assert div_nodes, f"expected a division node in {problem.operators}"
+        for node in div_nodes:
+            assert node.right.value >= tex_module.NONTRIVIAL_DIVISOR_MIN
+            assert node.left.value // node.right.value >= tex_module.NONTRIVIAL_QUOTIENT_MIN
+
+
+def test_generate_tree_ope_problems_nontrivial_division_is_noop_without_mixed() -> None:
+    # With a single shared operator the flag must not become a div-only
+    # filter (shared 'add' would then exhaust the retry budget).
+    problems = tex_module.generate_tree_ope_problems(
+        [5], [3], ['add'], mixed=False, terms_min=3, terms_max=3,
+        order=4, start_index=1, nontrivial_division=True,
+    )
+    assert [problem.result for problem in problems] == [11] * 4
+
+
+def test_generate_tree_ope_problems_nontrivial_division_is_noop_without_div_operator() -> None:
+    problems = tex_module.generate_tree_ope_problems(
+        G4_PARENTHESES_NUMS, G4_PARENTHESES_NUMS, ['add', 'mul'], mixed=True,
+        terms_min=3, terms_max=3, order=GENERATION_SAMPLE_SIZE, start_index=1,
+        nontrivial_division=True,
+    )
+    assert len(problems) == GENERATION_SAMPLE_SIZE
+    for problem in problems:
+        assert set(problem.operators) <= {'add', 'mul'}
+
+
 def test_build_tree_ope_bottom_answer_tex_lists_results() -> None:
     tree1 = tex_module.ExprTreeNode(
         operator='add', left=tex_module.ExprTreeNode(value=3), right=tex_module.ExprTreeNode(value=5),

@@ -150,6 +150,20 @@ python3 nuts_calc_tex.py A4 ope -o add \
   --result-max 1000 --out-file addition-up-to-1000.pdf
 ```
 
+For parenthesized `ope` expressions with `--mixed-operators` and a division
+operator, add `--nontrivial-division` to guarantee at least one division per
+problem and reject trivial divisions (every division node must have a divisor
+of at least 2 and a quotient of at least 2, ruling out `x÷1` and `x÷x`). It is
+rejected without `--use-parentheses`, without `--mixed-operators`, or without a
+`div`/`mix` operator, and is a no-op for any other combination. The grade-4
+"括弧を含む四則混合計算" Web menu drill uses it.
+
+```bash
+python3 nuts_calc_tex.py A4 ope -o add sub mul div --use-parentheses \
+  --mixed-operators --nontrivial-division --a-digits 1 --b-digits 1 \
+  --out-file parentheses-with-division.pdf
+```
+
 For `ope -o div`, use `--remainder`, `--no-remainder`, or `--mixed-remainder` to
 require, forbid, or mix a nonzero division remainder (the default, and
 `--no-remainder`, behave the same as before this flag existed). Since plain

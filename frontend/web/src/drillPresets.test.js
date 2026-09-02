@@ -576,6 +576,30 @@ test('grade 4 four-operations consolidates parentheses drills to two tiers: basi
   assert.ok(!items.some((candidate) => candidate.id === 'g4-parentheses-mul-result-1000'));
 });
 
+test('grade 4 standard parentheses drill forces a non-trivial division per problem (#342)', () => {
+  const items = presetsByGrade[4]['four-operations'];
+  const standard = items.find((candidate) => candidate.id === 'g4-parentheses');
+  const basic = items.find((candidate) => candidate.id === 'g4-parentheses-addsub');
+
+  assert.deepEqual(standard.buildParams(), {
+    command_type: 'ope',
+    operator: ['add', 'sub', 'mul', 'div'],
+    mixed_operators: true,
+    use_parentheses: true,
+    nontrivial_division: true,
+    a_digits: 1,
+    b_digits: 1,
+  });
+
+  // the add/sub-only basic tier must NOT gain the division flag
+  assert.ok(!('nontrivial_division' in basic.buildParams()));
+
+  // static examples match the generator output shape (3 operands / 2
+  // operators, parenthesised) and every one shows a division
+  assert.deepEqual(standard.examples, ['(8+4)÷3', '8÷(6-4)', '(9÷3)×5']);
+  assert.ok(standard.examples.every((example) => example.includes('÷')));
+});
+
 test('grade 3 four-operations no longer contains parentheses or multiplication (#328)', () => {
   const items = presetsByGrade[3]['four-operations'];
 

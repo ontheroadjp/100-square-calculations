@@ -708,6 +708,44 @@ def test_cli_ope_use_parentheses_rejects_non_ope_command(run_tex_cli, tmp_path):
     assert not (tmp_path / "result.pdf").exists()
 
 
+def test_cli_ope_nontrivial_division_produces_pdfs(run_tex_cli, tmp_path):
+    # issue #342: guarantee a non-trivial division per problem for the
+    # g4-parentheses config (parentheses + per-node mixing + all four ops).
+    result = run_tex_cli(
+        "A4", "ope", "-o", "add", "sub", "mul", "div",
+        "--use-parentheses", "--mixed-operators", "--nontrivial-division",
+        "--a-digits", "1", "--b-digits", "1",
+        "-r", "2", "-c", "2", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
+@pytest.mark.parametrize(
+    "invalid_args",
+    [
+        # missing --use-parentheses
+        ("-o", "div", "--mixed-operators", "--nontrivial-division"),
+        # missing --mixed-operators
+        ("-o", "div", "--use-parentheses", "--nontrivial-division"),
+        # no division operator
+        ("-o", "add", "mul", "--use-parentheses", "--mixed-operators", "--nontrivial-division"),
+    ],
+)
+def test_cli_ope_nontrivial_division_rejects_invalid_combinations(run_tex_cli, tmp_path, invalid_args):
+    result = run_tex_cli("A4", "ope", *invalid_args, "--out-file", "result.pdf")
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_nontrivial_division_rejects_non_ope_command(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "99", "-a", "2", "--nontrivial-division", "--out-file", "result.pdf",
+    )
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
 def test_cli_ope_use_parentheses_csv_rows_contain_real_problem_data(run_tex_cli, tmp_path):
     result = run_tex_cli(
         "A4", "ope", "-o", "sub", "mul", "--use-parentheses",

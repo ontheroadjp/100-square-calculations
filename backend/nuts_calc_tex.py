@@ -674,6 +674,16 @@ def _init() -> argparse.Namespace:
             'chosen per problem'
         )
     )
+    parser.add_argument('--nontrivial-division'
+        , default = False
+        , action = 'store_true'
+        , help = (
+            'With --use-parentheses and --mixed-operators and a division '
+            'operator (-o ... div, or -o mix): guarantee at least one '
+            'division per problem and reject trivial divisions (require '
+            'divisor >= 2 and quotient >= 2). No-op without that combination.'
+        )
+    )
     parser.add_argument('-r', '--rows'
         , type = int
         , default = None
@@ -879,6 +889,16 @@ def _init() -> argparse.Namespace:
             failure("--missing-value cannot be combined with --intermediate.")
         if args.use_parentheses:
             failure("--missing-value cannot be combined with --use-parentheses.")
+
+    if args.nontrivial_division:
+        if args.command != 'ope':
+            failure("--nontrivial-division is only supported for the 'ope' command.")
+        if not args.use_parentheses:
+            failure("--nontrivial-division requires --use-parentheses.")
+        if not args.mixed_operators:
+            failure("--nontrivial-division requires --mixed-operators.")
+        if not (set(args.operator) & {'div', 'mix'}):
+            failure("--nontrivial-division requires a division operator (-o div ... or -o mix).")
 
     if args.terms is not None:
         # Overrides --terms-min/--terms-max unconditionally, mirroring how
@@ -2914,6 +2934,14 @@ def paren_stage_div(x: int, y: int) -> int | None:
     return x // y if y != 0 and x % y == 0 else None
 
 
+# --nontrivial-division: a "meaningful" division node has a divisor of at
+# least 2 (rules out x/1) and a quotient of at least 2 (rules out x/x). Used
+# only by generate_tree_ope_problems when the opt-in nontrivial_division
+# flag is in effect (issue #342).
+NONTRIVIAL_DIVISOR_MIN = 2
+NONTRIVIAL_QUOTIENT_MIN = 2
+
+
 # Shared per-step validity check (positive subtraction result, exact
 # division) reused by ope --use-parentheses's tree evaluation
 # (evaluate_expr_tree) and plain multi-term ope's chained/grouped
@@ -3056,10 +3084,35 @@ def flatten_tree(node: ExprTreeNode) -> tuple[list[int], list[str]]:
     return left_operands + right_operands, [node.operator] + left_operators + right_operators
 
 
+def tree_has_only_nontrivial_divisions(root: ExprTreeNode) -> bool:
+    """
+    True iff `root` has at least one division node and every division node
+    divides by >= NONTRIVIAL_DIVISOR_MIN with a quotient of
+    >= NONTRIVIAL_QUOTIENT_MIN (i.e. no x/1 and no x/x).
+
+    Call only after evaluate_expr_tree() has filled in every node's `value`
+    (both `node.left.value` and `node.right.value` are read here). Used by
+    generate_tree_ope_problems's opt-in nontrivial_division retry filter
+    (issue #342).
+    """
+    def div_nodes(node: ExprTreeNode) -> list[ExprTreeNode]:
+        if node.is_leaf:
+            return []
+        found = div_nodes(node.left) + div_nodes(node.right)
+        return found + [node] if node.operator == 'div' else found
+
+    nodes = div_nodes(root)
+    return bool(nodes) and all(
+        node.right.value >= NONTRIVIAL_DIVISOR_MIN
+        and node.left.value // node.right.value >= NONTRIVIAL_QUOTIENT_MIN
+        for node in nodes
+    )
+
+
 def generate_tree_ope_problems(
         nums_a: list[int], nums_b: list[int], operators: list[str], mixed: bool,
         terms_min: int, terms_max: int, order: int, start_index: int,
-        result_max: int | None = None,
+        result_max: int | None = None, nontrivial_division: bool = False,
     ) -> list[TreeOpeProblem]:
     """
     Generate `order` parenthesized N-term problems starting at `start_index`,
@@ -3076,8 +3129,20 @@ def generate_tree_ope_problems(
     trees have strictly more nodes that can each independently fail
     validity, so the odds of exhausting the budget are worse than the
     former fixed-3-term case.
+
+    `nontrivial_division` (issue #342) additionally rejects any drawn tree
+    that does not contain at least one division node whose divisor and
+    quotient are both >= 2 (see tree_has_only_nontrivial_divisions). It is a
+    no-op unless `mixed` is True and a division operator is available
+    (`'div'` in the effective operator set), so the plain `--use-parentheses`
+    path -- which never sets it -- is unaffected. Measured to converge well
+    within MAX_OPERAND_RETRY_ATTEMPTS for the frontend g4-parentheses config
+    (single-digit operands, 3-leaf trees).
     """
     effective_operators = MIX_OPERATORS if 'mix' in operators else operators
+    enforce_nontrivial_division = (
+        nontrivial_division and mixed and 'div' in effective_operators
+    )
     problems = []
     for offset in range(order):
         leaf_count = random.randint(terms_min, terms_max)
@@ -3087,7 +3152,11 @@ def generate_tree_ope_problems(
             assign_tree_operands(tree, nums_a, nums_b)
             assign_tree_operators(tree, effective_operators, mixed, shared_operator)
             result = evaluate_expr_tree(tree)
-            if result is not None and (result_max is None or result <= result_max):
+            if (
+                result is not None
+                and (result_max is None or result <= result_max)
+                and (not enforce_nontrivial_division or tree_has_only_nontrivial_divisions(tree))
+            ):
                 operands, tree_operators = flatten_tree(tree)
                 problems.append(TreeOpeProblem(
                     index=start_index + offset, operands=operands,
@@ -3217,6 +3286,7 @@ def build_tree_ope_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page
         problems = generate_tree_ope_problems(
             nums_a, nums_b, ini.operator, ini.mixed_operators,
             ini.terms_min, ini.terms_max, order, start_index, ini.result_max,
+            ini.nontrivial_division,
         )
         blank_page, filled_page = build_tree_ope_page_pair(problems, ini.columns)
         pages_problems.append(problems)

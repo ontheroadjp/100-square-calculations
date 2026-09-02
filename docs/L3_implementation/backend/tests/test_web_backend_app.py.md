@@ -27,7 +27,9 @@ Flask test client の単体・結合テストであり、実 HTTP server や実 
 
 ## 変更履歴（git log より自動生成）
 
-- 56b66ad refactor(#297): delete the legacy /generate-pdf subprocess rendering path
+- 912657b fix(#342): guarantee non-trivial division in g4-parentheses (括弧を含む四則混合計算)
+- b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)
+- 7bbec1b refactor(#297): delete the legacy /generate-pdf subprocess rendering path (#325)
 - f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)
 - c03270f feat(#301): rebalance drill-sheet typography and rework hissan layout (#302)
 - e6e0e98 fix(#298): honor descend / shuffle in _generate_squ_pdf (3-layer renderer) (#299)
@@ -35,5 +37,3 @@ Flask test client の単体・結合テストであり、実 HTTP server や実 
 - 6417a2f refactor(#291): add a hardcoded 3-layer-vs-legacy renderer switch and drop the per-command subprocess fallthrough (#294)
 - 0b35732 refactor(#290): extract the 3-layer-model PDF glue from app.py into three_layer_renderer.py (#293)
 - 32162b8 feat(#286): wire presentation page options (#288)
-- ea4c269 feat(#285): migrate mixed reducibility PDF generation (#289)
-- 1bdac41 feat(#284): migrate multi-term mixed PDF generation (#287)

@@ -1888,6 +1888,65 @@ def test_generate_pdf_ope_tree_supports_terms_family_via_presentation_api(client
     assert response.data.startswith(b"%PDF")
 
 
+def test_generate_pdf_ope_tree_nontrivial_division_compiles(client, monkeypatch) -> None:
+    """issue #342: the g4-parentheses request body (use_parentheses +
+    mixed_operators + nontrivial_division + all four operators) must route
+    through the presentation API and build a PDF."""
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+
+    def fake_compile(self, tex_source, out_pdf_path):
+        with open(out_pdf_path, "wb") as f:
+            f.write(b"%PDF-1.4 fake")
+
+    monkeypatch.setattr(
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+    monkeypatch.setattr(
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf",
+        json={
+            "paper_size": "A4", "command_type": "ope", "use_parentheses": True,
+            "mixed_operators": True, "nontrivial_division": True,
+            "operator": ["add", "sub", "mul", "div"], "a_digits": 1, "b_digits": 1,
+        },
+    )
+    assert response.status_code == 200
+    assert response.data.startswith(b"%PDF")
+
+
+def test_generate_problems_ope_tree_nontrivial_division(client) -> None:
+    """issue #342: /generate-problems for the g4-parentheses body yields
+    problems that every contain a division with divisor >= 2 and quotient >= 2."""
+    response = client.post(
+        "/generate-problems",
+        json={
+            "paper_size": "A4", "command_type": "ope", "num": 40,
+            "use_parentheses": True, "mixed_operators": True, "nontrivial_division": True,
+            "operator": ["add", "sub", "mul", "div"], "a_digits": 1, "b_digits": 1,
+        },
+    )
+    assert response.status_code == 200
+    problems = response.get_json()["problems"]
+    assert len(problems) == 40
+
+    def div_nodes(node):
+        if node["left"] is None:
+            return []
+        found = div_nodes(node["left"]) + div_nodes(node["right"])
+        return found + [node] if node["operator"] == "div" else found
+
+    for problem in problems:
+        assert "div" in problem["operators"]
+        nodes = div_nodes(problem["tree"])
+        assert nodes
+        for node in nodes:
+            assert node["right"]["value"] >= 2
+            assert node["left"]["value"] // node["right"]["value"] >= 2
+
+
 def test_generate_pdf_ope_tree_maps_compile_failure_to_500(client, monkeypatch) -> None:
     monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
 
