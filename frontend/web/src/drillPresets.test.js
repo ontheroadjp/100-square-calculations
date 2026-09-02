@@ -474,8 +474,8 @@ test('grade 3 four-operations mix caps the answer at 1,000 without multiplicatio
   });
 });
 
-test('grade 3 parenthesized mix caps the answer at 1,000 and multiplication operands at 2 digits', () => {
-  const item = presetsByGrade[3]['four-operations'].find((candidate) => candidate.id === 'g3-parentheses-mul-result-1000');
+test('grade 4 parenthesized mix caps the answer at 1,000 and multiplication operands at 2 digits', () => {
+  const item = presetsByGrade[4]['four-operations'].find((candidate) => candidate.id === 'g4-parentheses-mul-result-1000');
 
   assert.ok(item);
   assert.deepEqual(item.buildParams(), {
@@ -490,6 +490,17 @@ test('grade 3 parenthesized mix caps the answer at 1,000 and multiplication oper
     b_max: 99,
     result_max: 1000,
   });
+});
+
+test('grade 3 four-operations no longer contains parentheses or multiplication (#328)', () => {
+  const items = presetsByGrade[3]['four-operations'];
+
+  assert.deepEqual(items.map((candidate) => candidate.id), ['g3-addsub-mixed-result-1000']);
+  for (const item of items) {
+    const params = item.buildParams();
+    assert.ok(!('use_parentheses' in params), `${item.id} must not use parentheses in grade 3`);
+    assert.ok(!params.operator.includes('mul'), `${item.id} must not include multiplication in grade 3`);
+  }
 });
 
 test('grade 3 fraction items live under addition/subtraction, not a separate fraction category', () => {

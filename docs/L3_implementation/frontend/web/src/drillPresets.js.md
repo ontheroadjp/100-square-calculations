@@ -174,11 +174,18 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 
 このブランチが main から分岐した後に issue #157/#160(全項目への `pointKey` 必須化)が main へ先に merge されたため、`g3-add-result-10000`/`g3-sub-result-10000`/`g3-addsub-mixed-result-1000`/`g3-parentheses-mul-result-1000` の4新規項目には `pointKey` と対応する `strings.ja.json` の文言を追加で用意し、`g3-fraction-add`/`g3-fraction-sub` は main 側で追加された既存の `pointKey`(`menu_g3_fraction_add_point`/`menu_g3_fraction_sub_point`)を維持したまま移動した(マージコンフリクト解消、`frontend/web/src/drillPresets.js` 全体で issue #161 と #157/#160 の変更を統合)。
 
-3年生に新設した `four-operations` カテゴリ(`frontend/web/src/drillPresets.js:558-592`)は2項目を持つ:
-- `g3-addsub-mixed-result-1000`: 加減算のみの3項混合(`terms:3, mixed_operators:true`)で `a_min:1, a_max:999, b_min:1, b_max:999, result_max: 1000`。2年生の対応項目(`g2-addsub-mixed`、issue #311 で「3つの数の足し引き」へ改称・演算モード選択化)と異なり `result_max` を持ち、演算モードは足し引き混合固定(掛け算は含まない)。
-- `g3-parentheses-mul-result-1000`: 加減乗の3項混合に `use_parentheses: true` を加え、掛け算オペランドを2桁までに揃えるため `a_min:1, a_max:99, b_min:1, b_max:99`(2年生の `g2-parentheses` と同様に `a_min`/`a_max` 形式を使う。4年生の `g4-parentheses` が使う `a_digits`/`b_digits` 形式とは異なる)、`result_max: 1000` で答えの上限も揃える。
+3年生に新設した `four-operations` カテゴリは現在1項目を持つ(issue #328 で `g3-parentheses-mul-result-1000` を4年生へ移設。下記「括弧・かけ算を含む混合計算を3年生から4年生へ移設(issue #328)」参照):
+- `g3-addsub-mixed-result-1000`: 加減算のみの3項混合(`terms:3, mixed_operators:true`)で `a_min:1, a_max:999, b_min:1, b_max:999, result_max: 1000`。2年生の対応項目(`g2-addsub-mixed`、issue #311 で「3つの数の足し引き」へ改称・演算モード選択化)と異なり `result_max` を持ち、演算モードは足し引き混合固定(掛け算は含まない)。学習指導要領解説 算数編 第3学年は □ を用いた式と同一演算3項の加減しか扱わないため、この項目のみが3年生 `four-operations` として妥当。
 
-`catalog.js` の `CATEGORY_ORDER` は既に `four-operations` を `fraction` の直後(実質最後尾側)に固定しているため、3年生に `four-operations` カテゴリキーを追加するだけで学年ページ最下部にセクションが自動的に現れる(`catalog.js` 自体は無変更)。
+`catalog.js` の `CATEGORY_ORDER` は既に `four-operations` を `fraction` の直後(実質最後尾側)に固定しているため、3年生に `four-operations` カテゴリキーを追加するだけで学年ページ最下部にセクションが自動的に現れる(`catalog.js` 自体は無変更)。3年生・4年生とも `four-operations` カテゴリキーを保持するため、issue #328 の項目移設後もこの点は変わらない。
+
+### 括弧・かけ算を含む混合計算を3年生から4年生へ移設(issue #328)
+
+`(45+38)×12-56` 形式の「括弧・四則混合・演算の順序」は学習指導要領解説 算数編 第4学年 A「数量の関係を表す式」(（）を用いた式・四則の混合した式・計算の順序のきまり)の内容で、第3学年ではない。issue #161 で3年生 `four-operations` に新設した `g3-parentheses-mul-result-1000` を、`id`・`titleKey`/`descKey`/`pointKey` を `g3-`→`g4-` に付け替えて `g4-parentheses-mul-result-1000` として `grade4['four-operations']` の `g4-parentheses` 直後へ移した。`examples`・`settings`(`operators` 固定=addsubmul_mixed、`parentheses` 固定=present)・`supportLevel`・`latexOnly`・`buildParams` 本体(`operator:['add','sub','mul'], terms:3, mixed_operators:true, use_parentheses:true, a_min:1, a_max:99, b_min:1, b_max:99, result_max:1000`)は一切変更していない。
+
+`g4-parentheses` へ統合せず独立項目として残した理由: `g4-parentheses` は除算を含む1桁オペランドの四則混合(`operator:['add','sub','mul','div'], a_digits:1`)で、統合すると除算を外すか答えの上限(`result_max:1000`)・2桁オペランドという緩やかな段階を失う。第4学年は四則混合を段階的に導入するため、除算なし・答え1,000以下・2桁までの本項目は `g4-parentheses` への橋渡しとして独立させる価値がある。オペランド範囲指定は移設後も `a_min`/`a_max` 形式のままで、同じ4年生の `g4-parentheses` が使う `a_digits`/`b_digits` 形式とは異なる(2年生 `g2-parentheses` と同形式)。
+
+`strings.ja.json` の対応3キー(`menu_g3_parentheses_mul_result_1000_{title,desc,point}` → `menu_g4_…`)は文言そのままでリネームし、g4 ブロック(`menu_g4_parentheses_point` の直後)へ移動した。`menu_g3_addsub_mixed_result_1000_*` は3年生に残るため無変更。`docs/uiux/calculation_drill_menu_parameters_v1.md` は小学3年生の表から「括弧を含む足し算・引き算・かけ算」行を削除し、小学4年生の表(「括弧を含む四則混合計算」の直後)へ同等の行を追加した。`drillPresets.test.js` の該当テストを4年生・新 id へ retarget し、3年生 `four-operations` が括弧・かけ算を含む項目を持たないことを検証する #328 テストを追加した([[./drillPresets.test.js]] 参照)。`CATEGORY_ORDER`(`catalog.js`/`pcMakeFlow.js`)は両学年とも `four-operations` カテゴリを維持するため無変更。
 
 ### 4年生の分数カテゴリ撤廃(issue #315)
 

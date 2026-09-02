@@ -708,24 +708,6 @@ const grade3 = {
         a_min: 1, a_max: 999, b_min: 1, b_max: 999, result_max: 1000,
       }),
     },
-    {
-      id: 'g3-parentheses-mul-result-1000',
-      titleKey: 'menu_g3_parentheses_mul_result_1000_title',
-      descKey: 'menu_g3_parentheses_mul_result_1000_desc',
-      pointKey: 'menu_g3_parentheses_mul_result_1000_point',
-      difficultyKey: 'difficulty_standard',
-      examples: ['(45+38)×12-56', '(23+17)×8+15', '(90-34)×5-20'],
-      settings: [
-        fixedSetting('operators', 'setting_operators_label', 'setting_option_addsubmul_mixed'),
-        fixedSetting('parentheses', 'setting_parentheses_label', 'setting_option_present'),
-      ],
-      supportLevel: 'full',
-      latexOnly: true,
-      buildParams: () => ({
-        command_type: 'ope', operator: ['add', 'sub', 'mul'], terms: 3, mixed_operators: true,
-        use_parentheses: true, a_min: 1, a_max: 99, b_min: 1, b_max: 99, result_max: 1000,
-      }),
-    },
   ],
 };
 
@@ -977,6 +959,24 @@ const grade4 = {
       buildParams: () => ({
         command_type: 'ope', operator: ['add', 'sub', 'mul', 'div'], mixed_operators: true,
         use_parentheses: true, a_digits: 1, b_digits: 1,
+      }),
+    },
+    {
+      id: 'g4-parentheses-mul-result-1000',
+      titleKey: 'menu_g4_parentheses_mul_result_1000_title',
+      descKey: 'menu_g4_parentheses_mul_result_1000_desc',
+      pointKey: 'menu_g4_parentheses_mul_result_1000_point',
+      difficultyKey: 'difficulty_standard',
+      examples: ['(45+38)×12-56', '(23+17)×8+15', '(90-34)×5-20'],
+      settings: [
+        fixedSetting('operators', 'setting_operators_label', 'setting_option_addsubmul_mixed'),
+        fixedSetting('parentheses', 'setting_parentheses_label', 'setting_option_present'),
+      ],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['add', 'sub', 'mul'], terms: 3, mixed_operators: true,
+        use_parentheses: true, a_min: 1, a_max: 99, b_min: 1, b_max: 99, result_max: 1000,
       }),
     },
   ],
