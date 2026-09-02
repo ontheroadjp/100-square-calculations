@@ -256,7 +256,8 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 
 ## 変更履歴（git log より自動生成）
 
-- 35d7c0a refactor(#340): consolidate grade 4 parentheses drills to two tiers
+- 912657b fix(#342): guarantee non-trivial division in g4-parentheses (括弧を含む四則混合計算)
+- 960657f refactor(#340): consolidate grade 4 parentheses drills to two tiers (#341)
 - b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)
 - d37b593 fix(#330): move parentheses add/sub drill from grade 2 to grade 4 and set difficulty to basic (#338)
 - cbeb0a6 fix(#329): restrict grade 4 decimal×integer multiplication to an integer multiplier (#337)
@@ -265,4 +266,3 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 - f440b57 refactor(#320): replace grade 5 multiplication/division sections with a dedicated 小数 section (#321)
 - f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)
 - 697db43 refactor(#315): move grade 4 fraction add/sub into addition/subtraction categories (#316)
-- 40dfb0a feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication (#314)

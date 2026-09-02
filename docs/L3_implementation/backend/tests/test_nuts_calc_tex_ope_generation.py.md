@@ -23,8 +23,13 @@
 
 ## 変更履歴（git log より自動生成）
 
-- 8fdd41d fix(#113): allow nuts_calc_tex.py --carry-borrow with decimal operands
+- 912657b fix(#342): guarantee non-trivial division in g4-parentheses (括弧を含む四則混合計算)
+- b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)
+- c03270f feat(#301): rebalance drill-sheet typography and rework hissan layout (#302)
+- a704907 feat(#269): render the written-calculation (hissan) content format via shared TeX components (#281)
+- 8cce41a feat(#268): render the staged arrow-chain content format via a shared TeX component (#278)
+- 64a8412 feat(#265): render the boxed-blank equation format via a shared TeX component (#276)
+- 4088bf0 feat(#264): render equation content formats via shared TeX components (#275)
+- bc0eef5 #113 nuts_calc_tex.py: allow --carry-borrow with decimal operands (#164)
 - 1a32b29 #153 Add reusable result ceilings and grade-2 addition up to 1,000 (#158)
 - bd8f170 #92 nuts_calc_tex.py: fix borrow-required subtraction to respect configured digit range (#103)
-- eae5107 #91 nuts_calc_tex.py: add remainder control to division (none/required/mixed) (#102)
-- 25532c5 #88 Restructure into backend/+frontend/{spa,web} and add a static frontend/web implementation (#89)

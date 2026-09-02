@@ -553,7 +553,8 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴（git log より自動生成）
 
-- a88a90b feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint
+- 912657b fix(#342): guarantee non-trivial division in g4-parentheses (括弧を含む四則混合計算)
+- b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)
 - f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)
 - 40dfb0a feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication (#314)
 - c03270f feat(#301): rebalance drill-sheet typography and rework hissan layout (#302)
@@ -562,4 +563,3 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - 3c55ae3 feat(#226): migrate ope --intermediate to the internal presentation API
 - 9b643c3 feat(#270): render the hundred-square grid table via shared TeX components (#280)
 - a704907 feat(#269): render the written-calculation (hissan) content format via shared TeX components (#281)
-- 8cce41a feat(#268): render the staged arrow-chain content format via a shared TeX component (#278)
