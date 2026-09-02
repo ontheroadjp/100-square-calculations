@@ -14,6 +14,8 @@
 
 1年生の引き算(issue #307)について対称に、`g1-sub-10` が `type: 'fixed'` の `carryMode` 設定(`valueLabelKey: 'setting_option_none'`)を持ち `buildParams()` が `carry_mode: 'none'`/`result_max: 10` を返すこと(旧 `10-6` 型を生成しない)、`g1-sub-20` が `type: 'choice'` の `carryMode`(options `none`/`required`/`mixed`)を持ち、`required` は 10〜19 の被減数(`a_min: 10`、`carry_mode: 'required'`)、`none`/`mixed` は被減数を 2..19 に広げた混在レンジを `result_max: 20` で返すこと(`mixed` と無引数呼び出しは `carry_mode` を省略)を検証する。
 
+1年生の「何十±何十」「2桁±1桁（繰り上がり・繰り下がりなし）」ドリル(issue #331)について「grade 1 no-carry / no-borrow drills within 100 for 何十±何十 and 2桁±1桁」テストを追加した。`presetsByGrade[1].addition`/`.subtraction` の id 配列がちょうど `['g1-add-10','g1-add-20','g1-add-tens','g1-add-100']` / `['g1-sub-10','g1-sub-20','g1-sub-tens','g1-sub-100']` であること、`g1-{add,sub}-tens` が `difficulty_basic`、`g1-{add,sub}-100` が `difficulty_standard`、4件とも `supportLevel: 'full'`/`latexOnly: true`/`examplesFor` 未定義で、`settings` が `type: 'fixed'`・`id: 'carryMode'`・`valueLabelKey: 'setting_option_none'`・options 値 `['none','required','mixed']` の1件のみ(add は `labelKey: 'setting_carry_label'`、sub は `'setting_borrow_label'`)であること、`buildParams()` が `*-tens` は `{command_type:'ope', operator:[...], carry_mode:'none', a_min:10, a_max:90, b_min:10, b_max:90, a_multiple:10, b_multiple:10, result_max:100}`、`*-100` は `{... carry_mode:'none', a_min:10, a_max:99, b_min:1, b_max:9, result_max:100}` を返すこと、`a_multiple`/`b_multiple` が `*-tens` にのみ現れることを検証する。あわせて issue #176 の「self-documenting result_max」テストに4件の `buildParams().result_max === 100` を追記した。
+
 6年生の整数×分数・分数×分数・整数÷分数・分数÷分数(4項目、issue #114)について、`supportLevel` が `'full'` であること、および `reduction` 設定の `required`/`none`/`mixed` の各値と未設定時のフォールバック(`'mixed'`)が `buildParams(state).reducible_mode` へそのまま反映されることを検証する。分数×整数・分数÷整数は issue #327 で5年生へ移設したため、この #114 テストの id リストから外し(6年生に残る4項目のみ)、別途「分数×整数 / 分数÷整数 live in the grade 5 fraction category, not grade 6(issue #327)」テストで、`g6-fraction-mul-int`/`g6-fraction-div-int` が `presetsByGrade[6].fraction` に存在しないこと、および `g5-fraction-mul-int`/`g5-fraction-div-int` が `presetsByGrade[5].fraction` に存在し `supportLevel: 'full'`・`latexOnly: true`・`buildParams` の形(`command_type: 'mixed'`、`operator`、`a_kind: ['fraction']`、`b_kind: ['int']`)・`reducible_mode` 配線を満たすことを検証する。
 
 1年生「3つの数の足し引き」(`g1-three-terms`、issue #309)について、`operators` choice が `add`/`sub`/`addsub` をこの順で持ち(`sub` = `setting_option_sub_only` を `add` と `addsub` の間に）既定が `addsub` であること、`buildParams({operators})` が `add`→`operator:['add']`、`sub`→`operator:['sub']`(いずれも `mixed_operators` なし)、`addsub` と無引数→`operator:['add','sub'], mixed_operators:true` を返すこと(3モードとも `terms:3, a_min:1,a_max:9,b_min:1,b_max:9`)、および `examplesFor` が `add`→加算のみ・`sub`→減算のみの例題を返し `addsub`・無引数は静的 `examples` と一致することを検証する。
@@ -45,7 +47,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- c20041c fix(#330): move parentheses add/sub drill from grade 2 to grade 4 and set difficulty to basic
+- a88a90b feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint
+- d37b593 fix(#330): move parentheses add/sub drill from grade 2 to grade 4 and set difficulty to basic (#338)
 - cbeb0a6 fix(#329): restrict grade 4 decimal×integer multiplication to an integer multiplier (#337)
 - 5d42151 fix(#328): move parenthesized mixed-operation drill from grade 3 to grade 4 (#336)
 - d31e15c fix(#327): reassign fraction-by-integer mul/div drills from grade 6 to grade 5 (#335)
@@ -54,4 +57,3 @@
 - 697db43 refactor(#315): move grade 4 fraction add/sub into addition/subtraction categories (#316)
 - 40dfb0a feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication (#314)
 - 7334a3a feat(#311): rename grade 2 three-term drill and add operator-mode selection (#312)
-- 3278705 feat(#309): add subtraction-only mode to grade 1 three-term drill (#310)

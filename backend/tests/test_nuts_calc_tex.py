@@ -366,6 +366,52 @@ def test_cli_ope_carry_modes_reject_invalid_operators(run_tex_cli, tmp_path, inv
     assert not (tmp_path / "result.pdf").exists()
 
 
+@pytest.mark.parametrize("operator", ["add", "sub"])
+def test_cli_ope_operand_multiple_generates_carry_free_tens_pdf(run_tex_cli, tmp_path, operator):
+    # issue #331: --a-multiple/--b-multiple restrict both operands to 何十
+    # (multiples of 10); with --no-carry-borrow the tens digits never carry
+    # or borrow either.
+    result = run_tex_cli(
+        "A4", "ope", "-o", operator,
+        "--a-min", "10", "--a-max", "90", "--b-min", "10", "--b-max", "90",
+        "--a-multiple", "10", "--b-multiple", "10", "--no-carry-borrow",
+        "--result-max", "100",
+        "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf",
+    )
+
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    for row in (tmp_path / "result.csv").read_text().strip().splitlines():
+        _, _, a, row_operator, b, result_value, _ = row.split(",")
+        assert row_operator == operator
+        assert int(a) % 10 == 0 and int(b) % 10 == 0
+        assert int(result_value) <= 100
+        if operator == "add":
+            assert not addition_has_carry(int(a), int(b))
+            assert int(result_value) == int(a) + int(b)
+        else:
+            assert not subtraction_has_borrow(int(a), int(b))
+            assert int(result_value) == int(a) - int(b) > 0
+
+
+@pytest.mark.parametrize(
+    "invalid_args",
+    [
+        ("-o", "mul", "--a-multiple", "10"),
+        ("-o", "div", "--b-multiple", "10"),
+        ("--use-parentheses", "--a-multiple", "10"),
+        ("--missing-value", "--a-multiple", "10"),
+        ("-o", "add", "--a-multiple", "1"),
+        ("-o", "add", "--a-min", "1", "--a-max", "9", "--a-multiple", "10"),
+    ],
+)
+def test_cli_ope_operand_multiple_rejects_invalid_combinations(run_tex_cli, tmp_path, invalid_args):
+    result = run_tex_cli("A4", "ope", *invalid_args, "--out-file", "result.pdf")
+
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
 @pytest.mark.parametrize(
     ("carry_flag", "range_args", "expected_carry"),
     [

@@ -96,6 +96,9 @@ VERTICAL_DEFAULT_ROWS_BY_PAPER_SIZE = {
     'a4l': 2,
 }
 MAX_OPERAND_RETRY_ATTEMPTS = 1000
+# Smallest N accepted by --a-multiple/--b-multiple. N < 2 (every integer is a
+# multiple of 1) would be a no-op, so it is rejected rather than silently ignored.
+MIN_OPERAND_MULTIPLE = 2
 TERM_COUNT_FLOOR_DEFAULT = 2
 TERM_COUNT_FLOOR_PARENTHESES = 3
 MAX_OPE_TERMS = 12
@@ -361,6 +364,24 @@ def _init() -> argparse.Namespace:
         , type = int
         , default = 9
         , help = 'Maximum value of the second term of the formula'
+    )
+    parser.add_argument('--a-multiple'
+        , type = int
+        , default = None
+        , help = (
+            "Restrict the first term to exact multiples of this value "
+            "(two-term 'ope' add/sub only); applied after "
+            "--a-min/--a-max/--a-digits. Use --a-multiple 10 --b-multiple 10 "
+            "for 何十±何十."
+        )
+    )
+    parser.add_argument('--b-multiple'
+        , type = int
+        , default = None
+        , help = (
+            "Restrict the second term to exact multiples of this value "
+            "(two-term 'ope' add/sub only)."
+        )
     )
     parser.add_argument('--result-max'
         , type = int
@@ -902,6 +923,38 @@ def _init() -> argparse.Namespace:
                 "--carry-borrow/--no-carry-borrow/--mixed-carry-borrow cannot be combined with "
                 "--use-parentheses/--missing-value/--terms family."
             )
+
+    for multiple_flag, multiple_value in (
+            ('--a-multiple', args.a_multiple), ('--b-multiple', args.b_multiple),
+        ):
+        if multiple_value is None:
+            continue
+        if (
+                args.command != 'ope' or not args.operator
+                or not set(args.operator) <= {'add', 'sub'}
+            ):
+            failure("--a-multiple/--b-multiple only support two-term 'ope' add/sub operators.")
+        if args.use_parentheses or args.missing_value or terms_options_given:
+            failure(
+                "--a-multiple/--b-multiple cannot be combined with "
+                "--use-parentheses/--missing-value/--terms family."
+            )
+        if multiple_value < MIN_OPERAND_MULTIPLE:
+            failure(f"{multiple_flag} must be at least {MIN_OPERAND_MULTIPLE}.")
+    if args.a_multiple is not None and not any(
+            value % args.a_multiple == 0 for value in range(args.a_min, args.a_max + 1)
+        ):
+        failure(
+            f"--a-multiple {args.a_multiple} has no multiple in the "
+            f"first-term range [{args.a_min}, {args.a_max}]."
+        )
+    if args.b_multiple is not None and not any(
+            value % args.b_multiple == 0 for value in range(args.b_min, args.b_max + 1)
+        ):
+        failure(
+            f"--b-multiple {args.b_multiple} has no multiple in the "
+            f"second-term range [{args.b_min}, {args.b_max}]."
+        )
 
     if args.remainder_mode is not None:
         if args.command != 'ope' or args.operator != ['div']:
@@ -2431,6 +2484,8 @@ def generate_ope_problems(
         result_max: int | None = None,
         mixed_decimal_operand_order: bool = False,
         dividend_mode: DividendMode | None = None,
+        a_multiple: int | None = None,
+        b_multiple: int | None = None,
     ) -> list[OpeProblem]:
     """
     Generate `order` arithmetic problems starting at `start_index`.
@@ -2443,6 +2498,14 @@ def generate_ope_problems(
     borrow-free or borrow-required subtraction per subtraction problem (see
     calc_sub for how borrow-required sampling behaves for a given nums_a/
     nums_b range).
+
+    a_multiple/b_multiple (add/sub only, enforced by _init() for the CLI)
+    restrict that operand to exact multiples of the given value by filtering
+    nums_a/nums_b up front; an empty filtered range raises ValueError. Like
+    carry_mode, the constraint is honored by operand-bound sampling but not
+    by calc_add/calc_sub's carry-conflict fallback -- unreachable in practice
+    whenever a compatible pair is abundant (e.g. 何十±何十 with carry_mode
+    'none'), which is the only configuration the web layer sends it with.
 
     remainder_mode='required' requires a nonzero division remainder;
     'none' forbids one (same as the pre-remainder-support default);
@@ -2471,6 +2534,18 @@ def generate_ope_problems(
     (it is exact by construction).
     """
     effective_operators = MIX_OPERATORS if 'mix' in operators else operators
+    if a_multiple is not None:
+        nums_a = [value for value in nums_a if value % a_multiple == 0]
+        if not nums_a:
+            raise ValueError(
+                f"a_multiple={a_multiple} leaves no valid first operand in the given range."
+            )
+    if b_multiple is not None:
+        nums_b = [value for value in nums_b if value % b_multiple == 0]
+        if not nums_b:
+            raise ValueError(
+                f"b_multiple={b_multiple} leaves no valid second operand in the given range."
+            )
     problems = []
     for offset in range(order):
         for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
@@ -4158,6 +4233,7 @@ def build_ope_pages(
             ini.a_decimal_places, ini.b_decimal_places, ini.carry_mode,
             ini.remainder_mode, ini.result_max, ini.mixed_decimal_operand_order,
             ini.dividend_mode,
+            a_multiple=ini.a_multiple, b_multiple=ini.b_multiple,
         )
         blank_page, filled_page = build_ope_page_pair(problems, ini.columns, ini.vertical, ini.intermediate)
         pages_problems.append(problems)

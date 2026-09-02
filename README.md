@@ -128,6 +128,18 @@ python3 nuts_calc_tex.py A4 ope -o add --carry-borrow --out-file carrying.pdf
 python3 nuts_calc_tex.py A4 ope -o add sub --mixed-carry-borrow --out-file mixed-carry.pdf
 ```
 
+For two-term `ope` add/sub, `--a-multiple N` / `--b-multiple N` restrict each
+operand to exact multiples of `N` (applied after `--a-min`/`--a-max`/`--a-digits`).
+Combine them with `--no-carry-borrow` for 何十±何十 practice. The command fails
+explicitly if the requested range contains no such multiple.
+
+```bash
+python3 nuts_calc_tex.py A4 ope -o add \
+  --a-min 10 --a-max 90 --b-min 10 --b-max 90 \
+  --a-multiple 10 --b-multiple 10 --no-carry-borrow \
+  --out-file tens-addition.pdf
+```
+
 Use `--result-max` to cap the final displayed answer for any `ope` expression
 shape. The command retries complete expressions and fails explicitly if the
 requested ranges cannot produce a result under the ceiling.

@@ -170,6 +170,44 @@ const grade1 = {
         };
       },
     },
+    {
+      id: 'g1-add-tens',
+      titleKey: 'menu_g1_add_tens_title',
+      descKey: 'menu_g1_add_tens_desc',
+      pointKey: 'menu_g1_add_tens_point',
+      difficultyKey: 'difficulty_basic',
+      examples: ['40+30', '20+50', '80+10'],
+      // 解説算数編 第1学年 A「加法及び減法」: 簡単な場合について2位数などについても
+      // 加法ができる。何十＋何十(繰り上がりなし)。a_multiple/b_multiple: 10 で両オペランド
+      // を10の倍数に、carry_mode 'none' で十の位も繰り上がらない範囲(和 <= 90)に限定する
+      // (backend --a-multiple/--b-multiple、issue #331)。繰り上がり設定は g1-add-10 と
+      // 同じ非活性の固定表示。
+      settings: [fixedSetting('carryMode', 'setting_carry_label', 'setting_option_none', NONE_REQUIRED_MIXED_OPTIONS)],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['add'], carry_mode: 'none',
+        a_min: 10, a_max: 90, b_min: 10, b_max: 90,
+        a_multiple: 10, b_multiple: 10, result_max: 100,
+      }),
+    },
+    {
+      id: 'g1-add-100',
+      titleKey: 'menu_g1_add_100_title',
+      descKey: 'menu_g1_add_100_desc',
+      pointKey: 'menu_g1_add_100_point',
+      difficultyKey: 'difficulty_standard',
+      examples: ['45+3', '62+7', '31+4'],
+      // 2桁＋1桁(繰り上がりなし)。carry_mode 'none' + b_max 9 で一の位が繰り上がらない
+      // (issue #331)。a_min 10 で第1項は必ず2桁。繰り上がり設定は非活性の固定表示。
+      settings: [fixedSetting('carryMode', 'setting_carry_label', 'setting_option_none', NONE_REQUIRED_MIXED_OPTIONS)],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['add'], carry_mode: 'none',
+        a_min: 10, a_max: 99, b_min: 1, b_max: 9, result_max: 100,
+      }),
+    },
   ],
   subtraction: [
     {
@@ -219,6 +257,42 @@ const grade1 = {
           a_min: aMin, a_max: 19, b_min: 1, b_max: 9, result_max: 20,
         };
       },
+    },
+    {
+      id: 'g1-sub-tens',
+      titleKey: 'menu_g1_sub_tens_title',
+      descKey: 'menu_g1_sub_tens_desc',
+      pointKey: 'menu_g1_sub_tens_point',
+      difficultyKey: 'difficulty_basic',
+      examples: ['70-40', '90-20', '50-30'],
+      // g1-add-tens の対称。何十－何十(繰り下がりなし)。a_multiple/b_multiple: 10 で両
+      // オペランドを10の倍数に、carry_mode 'none' で一の位から借りない範囲に限定する
+      // (backend --a-multiple/--b-multiple、issue #331)。繰り下がり設定は非活性の固定表示。
+      settings: [fixedSetting('carryMode', 'setting_borrow_label', 'setting_option_none', NONE_REQUIRED_MIXED_OPTIONS)],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['sub'], carry_mode: 'none',
+        a_min: 10, a_max: 90, b_min: 10, b_max: 90,
+        a_multiple: 10, b_multiple: 10, result_max: 100,
+      }),
+    },
+    {
+      id: 'g1-sub-100',
+      titleKey: 'menu_g1_sub_100_title',
+      descKey: 'menu_g1_sub_100_desc',
+      pointKey: 'menu_g1_sub_100_point',
+      difficultyKey: 'difficulty_standard',
+      examples: ['68-5', '87-2', '54-3'],
+      // 2桁－1桁(繰り下がりなし)。carry_mode 'none' + a_min 10/b_max 9 で一の位から
+      // そのまま引け、結果は正の2桁になる(issue #331)。繰り下がり設定は非活性の固定表示。
+      settings: [fixedSetting('carryMode', 'setting_borrow_label', 'setting_option_none', NONE_REQUIRED_MIXED_OPTIONS)],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['sub'], carry_mode: 'none',
+        a_min: 10, a_max: 99, b_min: 1, b_max: 9, result_max: 100,
+      }),
     },
   ],
   'four-operations': [

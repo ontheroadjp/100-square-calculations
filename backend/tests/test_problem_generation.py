@@ -70,6 +70,22 @@ def test_generate_problems_ope_ignores_a_value() -> None:
         assert 1 <= problem["b"] <= 9
 
 
+@pytest.mark.parametrize("operator", ["add", "sub"])
+def test_generate_problems_ope_operand_multiple_restricts_operands(operator: str) -> None:
+    # issue #331: the grade-1 何十±何十 preset reaches the in-process
+    # /generate-problems path with a_multiple/b_multiple + carry_mode 'none'.
+    params = {
+        "paper_size": "A4", "command_type": "ope", "num": 100, "operator": [operator],
+        "a_min": 10, "a_max": 90, "b_min": 10, "b_max": 90,
+        "a_multiple": 10, "b_multiple": 10, "carry_mode": "none", "result_max": 100,
+    }
+    problems = problem_generation.generate_problems(params)
+    assert len(problems) == 100
+    for problem in problems:
+        assert problem["a"] % 10 == 0 and problem["b"] % 10 == 0
+        assert problem["result"] <= 100
+
+
 def test_generate_problems_mixed_decimal_operand_order_mixes_both_orientations() -> None:
     import random
 

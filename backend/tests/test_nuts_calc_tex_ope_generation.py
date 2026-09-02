@@ -312,6 +312,50 @@ def test_generate_ope_problems_decimal_carry_matches_illustrative_example() -> N
     ) == "6.3"
 
 
+def test_generate_ope_problems_a_multiple_restricts_first_operand() -> None:
+    # issue #331: --a-multiple filters nums_a to exact multiples before sampling.
+    problems = tex_module.generate_ope_problems(
+        list(range(10, 100)), list(range(1, 10)), ['add'],
+        order=GENERATION_SAMPLE_SIZE, start_index=1, a_multiple=10,
+    )
+    assert problems
+    assert all(problem.a % 10 == 0 for problem in problems)
+
+
+@pytest.mark.parametrize("operator", ['add', 'sub'])
+def test_generate_ope_problems_tens_operands_stay_carry_free_and_bounded(operator: str) -> None:
+    # issue #331: the grade-1 何十±何十 config (both operands multiples of 10,
+    # carry_mode 'none', result_max 100) generates only 何十 pairs with no
+    # digit-wise carry/borrow and an answer within 100.
+    problems = tex_module.generate_ope_problems(
+        list(range(10, 91)), list(range(10, 91)), [operator],
+        order=GENERATION_SAMPLE_SIZE, start_index=1,
+        carry_mode='none', result_max=100, a_multiple=10, b_multiple=10,
+    )
+    assert problems
+    for problem in problems:
+        assert problem.a % 10 == 0 and problem.b % 10 == 0
+        assert problem.c <= 100
+        if operator == 'add':
+            assert not tex_module.addition_has_carry(problem.a, problem.b)
+        else:
+            assert problem.c > 0
+            assert not tex_module.subtraction_has_borrow(problem.a, problem.b)
+
+
+@pytest.mark.parametrize("multiple_kwargs", [{"a_multiple": 10}, {"b_multiple": 10}])
+def test_generate_ope_problems_raises_when_multiple_filter_empties_range(
+        multiple_kwargs: dict[str, int],
+    ) -> None:
+    # issue #331: a multiple with no representative in [min, max] fails fast
+    # rather than looping on an empty operand list.
+    with pytest.raises(ValueError):
+        tex_module.generate_ope_problems(
+            list(range(1, 10)), list(range(1, 10)), ['add'],
+            order=1, start_index=1, **multiple_kwargs,
+        )
+
+
 def test_calc_sub_result_is_always_positive() -> None:
     nums_a = list(range(1, 10))
     nums_b = list(range(1, 10))

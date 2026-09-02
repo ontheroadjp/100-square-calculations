@@ -349,6 +349,7 @@ def _generate_ope_problems_latex(params: renderer_config.RendererRequest, num: i
         params.get("carry_mode"), params.get("remainder_mode"), params.get("result_max"),
         bool(params.get("mixed_decimal_operand_order", False)),
         params.get("dividend_mode"),
+        a_multiple=params.get("a_multiple"), b_multiple=params.get("b_multiple"),
     )
 
     problems: list[OpeProblemData] = []
