@@ -497,6 +497,35 @@ test('grade 3 four-operations no longer contains parentheses or multiplication (
   }
 });
 
+test('grade 2 four-operations no longer contains parentheses (#330)', () => {
+  const items = presetsByGrade[2]['four-operations'];
+
+  assert.deepEqual(items.map((candidate) => candidate.id), ['g2-addsub-mixed']);
+  for (const item of items) {
+    const params = item.buildParams();
+    assert.ok(!('use_parentheses' in params), `${item.id} must not use parentheses in grade 2`);
+  }
+});
+
+test('grade 4 parentheses add/sub drill is a basic add/sub-only four-operations item (#330)', () => {
+  const item = presetsByGrade[4]['four-operations'].find((candidate) => candidate.id === 'g4-parentheses-addsub');
+
+  assert.ok(item, 'g4-parentheses-addsub must exist in grade 4 four-operations');
+  // moved from grade 2 (g2-parentheses) and downgraded standard -> basic: it is
+  // the plain introduction of the （ ）"compute-inside-first" rule (#330).
+  assert.equal(item.difficultyKey, 'difficulty_basic');
+  assert.deepEqual(item.buildParams(), {
+    command_type: 'ope',
+    operator: ['add', 'sub'],
+    terms: 3,
+    use_parentheses: true,
+    a_min: 1,
+    a_max: 90,
+    b_min: 1,
+    b_max: 90,
+  });
+});
+
 test('grade 3 fraction items live under addition/subtraction, not a separate fraction category', () => {
   assert.equal(presetsByGrade[3].fraction, undefined);
   assert.ok(presetsByGrade[3].addition.some((item) => item.id === 'g3-fraction-add'));

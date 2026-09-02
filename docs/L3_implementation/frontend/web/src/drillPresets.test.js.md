@@ -28,6 +28,8 @@
 
 3年生・4年生の `four-operations` 混合計算(issue #161 / issue #328)について2つのテストを持つ。1つ目「grade 3 four-operations mix caps the answer at 1,000 without multiplication」は `g3-addsub-mixed-result-1000`(3年生に残る)の `buildParams()` が `operator:['add','sub'], terms:3, mixed_operators:true, a_min:1,a_max:999,b_min:1,b_max:999, result_max:1000` を返すことを検証する。2つ目「grade 4 parenthesized mix caps the answer at 1,000 and multiplication operands at 2 digits」は issue #328 で3年生から4年生へ移設した項目を対象に retarget され、`presetsByGrade[4]['four-operations']` の `g4-parentheses-mul-result-1000` の `buildParams()` が `operator:['add','sub','mul'], terms:3, mixed_operators:true, use_parentheses:true, a_min:1,a_max:99,b_min:1,b_max:99, result_max:1000` を返すことを検証する(移設前は `presetsByGrade[3]` / `g3-parentheses-mul-result-1000` を対象にしていた)。加えて #328 で「grade 3 four-operations no longer contains parentheses or multiplication (#328)」テストを追加し、`presetsByGrade[3]['four-operations']` の id 配列がちょうど `['g3-addsub-mixed-result-1000']` であること、および全項目の `buildParams()` が `use_parentheses` キーを持たず `operator` に `'mul'` を含まないことを検証する(学習指導要領解説 算数編 第4学年 A「数量の関係を表す式」が（）を用いた式・四則の混合した式・計算の順序のきまりを第4学年の内容とすることに対応)。
 
+括弧の足し引きドリルの2年生→4年生移設(issue #330)について2つのテストを持つ。「grade 2 four-operations no longer contains parentheses (#330)」は `presetsByGrade[2]['four-operations']` の id 配列がちょうど `['g2-addsub-mixed']` であること、および全項目の `buildParams()` が `use_parentheses` キーを持たないことを検証する。「grade 4 parentheses add/sub drill is a basic add/sub-only four-operations item (#330)」は `presetsByGrade[4]['four-operations']` に `g4-parentheses-addsub` が存在し、`difficultyKey` が `difficulty_basic`(移設前の `difficulty_standard` から引き下げ)、`buildParams()` が `command_type:'ope', operator:['add','sub'], terms:3, use_parentheses:true, a_min:1,a_max:90,b_min:1,b_max:90` を返すことを検証する(同 学習指導要領解説 第4学年 A「数量の関係を表す式」が（　）を用いた式・（　）の中を先に計算するきまりを第4学年の内容とすることに対応)。
+
 ## 重要な設計判断とその理由
 
 難易度は単なる文字列型ではなくUIの文言・CSS・互換分類と結び付く列挙値であるため、文字列であることだけでなく既知キーとの一致を検証する。
@@ -43,7 +45,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- 53c92fe fix(#329): restrict g4-decimal-mul-int to 小数×整数 (integer multiplier only)
+- c20041c fix(#330): move parentheses add/sub drill from grade 2 to grade 4 and set difficulty to basic
+- cbeb0a6 fix(#329): restrict grade 4 decimal×integer multiplication to an integer multiplier (#337)
 - 5d42151 fix(#328): move parenthesized mixed-operation drill from grade 3 to grade 4 (#336)
 - d31e15c fix(#327): reassign fraction-by-integer mul/div drills from grade 6 to grade 5 (#335)
 - f440b57 refactor(#320): replace grade 5 multiplication/division sections with a dedicated 小数 section (#321)
@@ -52,4 +55,3 @@
 - 40dfb0a feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication (#314)
 - 7334a3a feat(#311): rename grade 2 three-term drill and add operator-mode selection (#312)
 - 3278705 feat(#309): add subtraction-only mode to grade 1 three-term drill (#310)
-- 571563e feat(#307): add borrow-mode settings to grade 1 subtraction drills (#308)
