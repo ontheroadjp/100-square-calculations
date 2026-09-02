@@ -24,7 +24,8 @@ issue #110 で `drillCatalog.js`(旧絞り込み/検索UIのアダプター)を�
 
 ## 変更履歴（git log より自動生成）
 
-- 53c92fe fix(#329): restrict g4-decimal-mul-int to 小数×整数 (integer multiplier only)
+- c20041c fix(#330): move parentheses add/sub drill from grade 2 to grade 4 and set difficulty to basic
+- cbeb0a6 fix(#329): restrict grade 4 decimal×integer multiplication to an integer multiplier (#337)
 - 5d42151 fix(#328): move parenthesized mixed-operation drill from grade 3 to grade 4 (#336)
 - d31e15c fix(#327): reassign fraction-by-integer mul/div drills from grade 6 to grade 5 (#335)
 - f440b57 refactor(#320): replace grade 5 multiplication/division sections with a dedicated 小数 section (#321)
@@ -33,4 +34,3 @@ issue #110 で `drillCatalog.js`(旧絞り込み/検索UIのアダプター)を�
 - 7334a3a feat(#311): rename grade 2 three-term drill and add operator-mode selection (#312)
 - 3278705 feat(#309): add subtraction-only mode to grade 1 three-term drill (#310)
 - 571563e feat(#307): add borrow-mode settings to grade 1 subtraction drills (#308)
-- 2f6add1 feat(#305): add carry-mode settings to grade 1 addition drills (#306)
