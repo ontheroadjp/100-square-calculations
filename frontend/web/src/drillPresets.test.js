@@ -555,6 +555,28 @@ test('grade 3 four-operations mix caps the answer at 1,000 without multiplicatio
   });
 });
 
+test('grade 3 division includes an exact two-digit-quotient drill faithful to the Course of Study (issue #332)', () => {
+  const item = presetsByGrade[3].division.find((candidate) => candidate.id === 'g3-div-2digit-quotient');
+
+  assert.ok(item, 'g3-div-2digit-quotient must exist in grade 3 division');
+  assert.equal(item.difficultyKey, 'difficulty_standard');
+  assert.equal(item.supportLevel, 'full');
+  assert.equal(item.latexOnly, true);
+  assert.equal(item.titleKey, 'menu_g3_div_2digit_quotient_title');
+
+  const remainder = item.settings.find((setting) => setting.id === 'remainderMode');
+  assert.equal(remainder.type, 'fixed');
+  assert.equal(remainder.valueLabelKey, 'setting_option_none');
+
+  // Full 1-digit divisor range (b 2..9); the backend --quotient-digits flag
+  // (mapped from quotient_digits) enforces the 2-digit quotient, not the a/b
+  // ranges. Distinct from g3-div-kuku (single-digit 九九 quotients).
+  assert.deepEqual(item.buildParams(), {
+    command_type: 'ope', operator: ['div'], remainder_mode: 'none',
+    a_min: 20, a_max: 99, b_min: 2, b_max: 9, quotient_digits: 2,
+  });
+});
+
 test('grade 4 four-operations consolidates parentheses drills to two tiers: basic ＋− and standard ＋−×÷ (#340)', () => {
   const items = presetsByGrade[4]['four-operations'];
   const parenthesesItems = items.filter((candidate) => candidate.id.includes('parentheses'));

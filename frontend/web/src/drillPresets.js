@@ -736,6 +736,21 @@ const grade3 = {
       }),
     },
     {
+      id: 'g3-div-2digit-quotient',
+      titleKey: 'menu_g3_div_2digit_quotient_title',
+      descKey: 'menu_g3_div_2digit_quotient_desc',
+      pointKey: 'menu_g3_div_2digit_quotient_point',
+      difficultyKey: 'difficulty_standard',
+      examples: ['48÷4', '96÷8', '69÷3'],
+      settings: [fixedSetting('remainderMode', 'setting_remainder_label', 'setting_option_none', NONE_REQUIRED_MIXED_OPTIONS)],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['div'], remainder_mode: 'none',
+        a_min: 20, a_max: 99, b_min: 2, b_max: 9, quotient_digits: 2,
+      }),
+    },
+    {
       id: 'g3-div-remainder',
       titleKey: 'menu_g3_div_remainder_title',
       descKey: 'menu_g3_div_remainder_desc',

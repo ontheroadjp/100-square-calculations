@@ -139,6 +139,21 @@ def test_generate_problems_mixed_dividend_previews_both_dividend_kinds() -> None
     assert {p["a_decimal_places"] for p in problems} == {0, 1}
 
 
+def test_generate_problems_quotient_digits_previews_two_digit_quotient_division() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "ope", "num": 15,
+        "a_min": 20, "a_max": 99, "b_min": 2, "b_max": 9,
+        "operator": ["div"], "remainder_mode": "none", "quotient_digits": 2,
+    }
+    problems = problem_generation.generate_problems(params, "latex")
+    assert len(problems) == 15
+    for problem in problems:
+        assert problem["operator"] == "div"
+        assert problem["remainder"] == 0
+        assert problem["a"] == problem["b"] * problem["result"]
+        assert 10 <= problem["result"] <= 99
+
+
 def test_generate_problems_intermediate_includes_memo() -> None:
     params = {
         "paper_size": "A4", "command_type": "ope", "num": 5,

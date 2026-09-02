@@ -43,6 +43,7 @@ class RendererRequest(TypedDict, total=False):
     operator: list[str]
     carry_mode: Literal["required", "none", "mixed"]
     remainder_mode: Literal["required", "none", "mixed"]
+    quotient_digits: int
     reducible_mode: Literal["required", "none", "mixed"]
     dividend_mode: Literal["integer", "decimal", "mixed"]
     descend: bool

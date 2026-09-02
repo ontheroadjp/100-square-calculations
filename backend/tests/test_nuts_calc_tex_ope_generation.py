@@ -452,6 +452,59 @@ def test_find_remainder_division_pair_returns_none_when_impossible() -> None:
     assert tex_module.find_remainder_division_pair([2, 4], [1]) is None
 
 
+def test_calc_div_quotient_digits_restricts_quotient_width() -> None:
+    nums_a = list(range(20, 100))
+    nums_b = list(range(2, 10))
+    for _ in range(GENERATION_SAMPLE_SIZE):
+        a, b, c = tex_module.calc_div(20, 2, nums_a, nums_b, quotient_digits=2)
+        assert a % b == 0
+        assert c == a // b
+        assert 10 <= c <= 99
+
+
+def test_calc_div_quotient_digits_combines_with_remainder() -> None:
+    nums_a = list(range(20, 100))
+    nums_b = list(range(2, 10))
+    for _ in range(GENERATION_SAMPLE_SIZE):
+        a, b, c = tex_module.calc_div(20, 3, nums_a, nums_b, remainder=True, quotient_digits=2)
+        assert a % b != 0
+        assert c == a // b
+        assert 10 <= c <= 99
+
+
+def test_calc_div_quotient_digits_uses_deterministic_fallback(
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+    # 96 / 8 = 12 is the only exact pair in these ranges (50 % 8 != 0), and
+    # its quotient is 2-digit, so the deterministic fallback must return it.
+    monkeypatch.setattr(tex_module, "MAX_OPERAND_RETRY_ATTEMPTS", 0)
+    a, b, c = tex_module.calc_div(50, 8, [50, 96], [8], quotient_digits=2)
+    assert (a, b, c) == (96, 8, 12)
+
+
+def test_calc_div_quotient_digits_raises_when_impossible() -> None:
+    with pytest.raises(ValueError):
+        tex_module.calc_div(8, 4, [8], [4], quotient_digits=2)
+
+
+def test_find_exact_division_pair_honors_quotient_digits() -> None:
+    pair = tex_module.find_exact_division_pair(list(range(20, 100)), list(range(2, 10)), 2)
+    assert pair is not None
+    a, b = pair
+    assert a % b == 0
+    assert 10 <= a // b <= 99
+    assert tex_module.find_exact_division_pair([8], [4], 2) is None
+
+
+def test_find_remainder_division_pair_honors_quotient_digits() -> None:
+    pair = tex_module.find_remainder_division_pair(list(range(20, 100)), list(range(2, 10)), 2)
+    assert pair is not None
+    a, b = pair
+    assert a % b != 0
+    assert 10 <= a // b <= 99
+    assert tex_module.find_remainder_division_pair([7], [3], 2) is None
+
+
 @pytest.mark.parametrize(
     ("remainder_mode", "expect_remainder"),
     [('required', True), ('none', False)],
@@ -486,6 +539,31 @@ def test_generate_ope_problems_default_remainder_mode_is_always_exact() -> None:
         order=GENERATION_SAMPLE_SIZE, start_index=1,
     )
     assert all(problem.remainder == 0 for problem in problems)
+
+
+def test_generate_ope_problems_quotient_digits_forces_two_digit_quotient() -> None:
+    problems = tex_module.generate_ope_problems(
+        list(range(20, 100)), list(range(2, 10)), ['div'],
+        order=GENERATION_SAMPLE_SIZE, start_index=1, quotient_digits=2,
+    )
+    assert len(problems) == GENERATION_SAMPLE_SIZE
+    for problem in problems:
+        assert problem.operator == 'div'
+        assert problem.remainder == 0
+        assert problem.a % problem.b == 0
+        assert 10 <= problem.c <= 99
+
+
+def test_generate_ope_problems_quotient_digits_combines_with_mixed_remainder() -> None:
+    problems = tex_module.generate_ope_problems(
+        list(range(20, 100)), list(range(2, 10)), ['div'],
+        order=2000, start_index=1, remainder_mode='mixed', quotient_digits=2,
+    )
+    observed = {problem.remainder != 0 for problem in problems}
+    assert observed == {False, True}
+    for problem in problems:
+        assert 10 <= problem.c <= 99
+        assert problem.remainder == problem.a - problem.b * problem.c
 
 
 def test_generate_ope_problems_assigns_sequential_indices() -> None:
