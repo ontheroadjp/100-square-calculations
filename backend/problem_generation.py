@@ -42,6 +42,8 @@ class OpeProblemData(TypedDict, total=False):
     b: int
     result: int
     remainder: int
+    remainder_decimal_places: int
+    result_decimal_places: int
     a_decimal_places: int
     b_decimal_places: int
     intermediate_memo: str
@@ -353,6 +355,7 @@ def _generate_ope_problems_latex(params: renderer_config.RendererRequest, num: i
         params.get("dividend_mode"),
         a_multiple=params.get("a_multiple"), b_multiple=params.get("b_multiple"),
         quotient_digits=params.get("quotient_digits"),
+        decimal_remainder=bool(params.get("decimal_remainder", False)),
     )
 
     problems: list[OpeProblemData] = []
@@ -364,9 +367,15 @@ def _generate_ope_problems_latex(params: renderer_config.RendererRequest, num: i
             "b": ope_problem.b,
             "result": ope_problem.c,
             "remainder": ope_problem.remainder,
+            "remainder_decimal_places": ope_problem.remainder_decimal_places,
             "a_decimal_places": ope_problem.a_decimal_places,
             "b_decimal_places": ope_problem.b_decimal_places,
         }
+        # Only the --decimal-remainder div mode (issue #333) sets an explicit
+        # answer-display override; every other problem leaves it None and the
+        # response mirrors the pre-#333 shape.
+        if ope_problem.result_decimal_places is not None:
+            problem["result_decimal_places"] = ope_problem.result_decimal_places
         if intermediate:
             problem["intermediate_memo"] = nuts_calc_tex.build_intermediate_memo(ope_problem.a, ope_problem.b)
         problems.append(problem)

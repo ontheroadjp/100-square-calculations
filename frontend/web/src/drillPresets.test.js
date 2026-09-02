@@ -577,6 +577,37 @@ test('grade 3 division includes an exact two-digit-quotient drill faithful to th
   });
 });
 
+test('grade 4 division includes a 小数÷整数 decimal-remainder drill (issue #333)', () => {
+  const item = presetsByGrade[4].division.find((candidate) => candidate.id === 'g4-decimal-div-int-remainder');
+
+  assert.ok(item, 'g4-decimal-div-int-remainder must exist in grade 4 division');
+  assert.equal(item.difficultyKey, 'difficulty_standard');
+  assert.equal(item.supportLevel, 'full');
+  assert.equal(item.latexOnly, true);
+  assert.equal(item.titleKey, 'menu_g4_decimal_div_int_remainder_title');
+
+  // Two fixed pills: 除数：整数 and 余り：あり (the drill is always あまり --
+  // 商を一の位まで求めてあまりを出す).
+  const divisor = item.settings.find((setting) => setting.id === 'divisor');
+  assert.equal(divisor.type, 'fixed');
+  assert.equal(divisor.valueLabelKey, 'setting_option_integer');
+  const remainder = item.settings.find((setting) => setting.id === 'remainder');
+  assert.equal(remainder.type, 'fixed');
+  assert.equal(remainder.valueLabelKey, 'setting_option_required');
+
+  // decimal_remainder (snake_case = nuts_calc_tex.py --decimal-remainder) drives
+  // the non-exact division; a decimal dividend (a_decimal_places: 1) over a
+  // whole-number divisor (b 2..9). No displayFormat setting: the backend rejects
+  // --vertical --decimal-remainder, so this id must NOT be in DISPLAY_FORMAT_ITEM_IDS.
+  assert.deepEqual(item.buildParams(), {
+    command_type: 'ope', operator: ['div'],
+    a_digits: 2, b_min: 2, b_max: 9, a_decimal_places: 1,
+    decimal_remainder: true,
+  });
+  assert.ok(!DISPLAY_FORMAT_ITEM_IDS.includes(item.id));
+  assert.ok(!item.settings.some((setting) => setting.id === 'displayFormat'));
+});
+
 test('grade 4 four-operations consolidates parentheses drills to two tiers: basic ＋− and standard ＋−×÷ (#340)', () => {
   const items = presetsByGrade[4]['four-operations'];
   const parenthesesItems = items.filter((candidate) => candidate.id.includes('parentheses'));

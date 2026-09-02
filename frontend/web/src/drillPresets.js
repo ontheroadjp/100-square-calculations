@@ -865,6 +865,31 @@ const grade4 = {
         ...displayFormatParam(state),
       }),
     },
+    {
+      // 小数÷整数 with a nonzero decimal remainder (issue #333): 商を一の位
+      // まで求めて、あまりを小数で出す (Course of Study 第4学年「小数」除法).
+      // わり進み・商のがい数 are deferred to #326 follow-ups. No displayFormat
+      // (setting) here: nuts_calc_tex.py rejects --vertical --decimal-remainder
+      // (longdivision cannot lay out a decimal remainder), so this id is
+      // intentionally absent from drillPresets.test.js's DISPLAY_FORMAT_ITEM_IDS.
+      id: 'g4-decimal-div-int-remainder',
+      titleKey: 'menu_g4_decimal_div_int_remainder_title',
+      descKey: 'menu_g4_decimal_div_int_remainder_desc',
+      pointKey: 'menu_g4_decimal_div_int_remainder_point',
+      difficultyKey: 'difficulty_standard',
+      examples: ['7.6÷3', '9.4÷4', '8.5÷6'],
+      settings: [
+        fixedSetting('divisor', 'setting_divisor_label', 'setting_option_integer'),
+        fixedSetting('remainder', 'setting_remainder_label', 'setting_option_required'),
+      ],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['div'],
+        a_digits: 2, b_min: 2, b_max: 9, a_decimal_places: 1,
+        decimal_remainder: true,
+      }),
+    },
   ],
   addition: [
     {

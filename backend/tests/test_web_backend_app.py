@@ -153,6 +153,34 @@ def test_generate_problems_ope_div_quotient_digits_end_to_end(client, monkeypatc
         assert 10 <= problem["result"] <= 99
 
 
+def test_generate_problems_ope_div_decimal_remainder_end_to_end(client, monkeypatch) -> None:
+    # Full app -> problem_generation -> nuts_calc_tex path (no pdflatex needed):
+    # the decimal_remainder key must reach generate_ope_problems and preview a
+    # decimal dividend / whole-number divisor with a nonzero decimal remainder
+    # (issue #333). Mirrors the g4-decimal-div-int-remainder preset body.
+    monkeypatch.delenv(renderer_config.RENDERER_ENV_VAR, raising=False)
+    response = client.post(
+        "/generate-problems",
+        json={
+            "paper_size": "A4", "command_type": "ope", "num": 12,
+            "operator": ["div"], "a_digits": 2, "b_min": 2, "b_max": 9,
+            "a_decimal_places": 1, "decimal_remainder": True,
+        },
+    )
+    assert response.status_code == 200
+    problems = response.get_json()["problems"]
+    assert len(problems) == 12
+    for problem in problems:
+        assert problem["operator"] == "div"
+        assert problem["a_decimal_places"] == 1
+        assert problem["b_decimal_places"] == 0
+        assert problem["remainder_decimal_places"] == 1
+        assert problem["result_decimal_places"] == 0
+        assert problem["result"] >= 1
+        assert problem["remainder"] != 0
+        assert problem["a"] == problem["result"] * problem["b"] * 10 + problem["remainder"]
+
+
 def test_generate_pdf_com_requires_a_value(client) -> None:
     response = client.post("/generate-pdf", json={"paper_size": "A4", "command_type": "com"})
     assert response.status_code == 500
@@ -429,6 +457,46 @@ def test_generate_pdf_ope_forwards_operand_multiple(client, monkeypatch) -> None
     assert response.status_code == 200
     assert captured.get("a_multiple") == 10
     assert captured.get("b_multiple") == 10
+
+
+def test_generate_pdf_ope_forwards_decimal_remainder(client, monkeypatch) -> None:
+    """
+    issue #333: frontend/web's g4-decimal-div-int-remainder preset sends
+    decimal_remainder in the /generate-pdf body; three_layer_renderer.
+    _generate_ope_pdf must forward it to generate_ope_problems.
+    """
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+
+    captured = {}
+    original_generate_ope_problems = three_layer_renderer.nuts_calc_tex.generate_ope_problems
+
+    def spy_generate_ope_problems(*args, **kwargs):
+        captured.update(kwargs)
+        return original_generate_ope_problems(*args, **kwargs)
+
+    monkeypatch.setattr(three_layer_renderer.nuts_calc_tex, "generate_ope_problems", spy_generate_ope_problems)
+
+    def fake_compile(self, tex_source, out_pdf_path):
+        with open(out_pdf_path, "wb") as f:
+            f.write(b"%PDF-1.4 fake")
+
+    monkeypatch.setattr(
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+    monkeypatch.setattr(
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf",
+        json={
+            "paper_size": "A4", "command_type": "ope", "operator": ["div"],
+            "a_digits": 2, "b_min": 2, "b_max": 9,
+            "a_decimal_places": 1, "decimal_remainder": True,
+        },
+    )
+    assert response.status_code == 200
+    assert captured.get("decimal_remainder") is True
 
 
 def test_generate_pdf_squ_forwards_descend_and_shuffle(client, monkeypatch) -> None:

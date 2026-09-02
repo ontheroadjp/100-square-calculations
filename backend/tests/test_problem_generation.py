@@ -154,6 +154,35 @@ def test_generate_problems_quotient_digits_previews_two_digit_quotient_division(
         assert 10 <= problem["result"] <= 99
 
 
+def test_generate_problems_decimal_remainder_previews_decimal_remainder_division() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "ope", "num": 15,
+        "a_digits": 2, "b_min": 2, "b_max": 9,
+        "operator": ["div"], "a_decimal_places": 1, "decimal_remainder": True,
+    }
+    problems = problem_generation.generate_problems(params, "latex")
+    assert len(problems) == 15
+    for problem in problems:
+        assert problem["operator"] == "div"
+        assert problem["a_decimal_places"] == 1
+        assert problem["b_decimal_places"] == 0
+        assert problem["remainder_decimal_places"] == 1
+        assert problem["result_decimal_places"] == 0
+        assert problem["result"] >= 1
+        assert problem["remainder"] != 0
+        assert problem["a"] == problem["result"] * problem["b"] * 10 + problem["remainder"]
+
+
+def test_generate_problems_without_decimal_remainder_omits_result_decimal_places() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "ope", "num": 8,
+        "a_digits": 2, "b_min": 2, "b_max": 9, "operator": ["div"], "a_decimal_places": 1,
+    }
+    problems = problem_generation.generate_problems(params, "latex")
+    assert all("result_decimal_places" not in problem for problem in problems)
+    assert all(problem["remainder_decimal_places"] == 0 for problem in problems)
+
+
 def test_generate_problems_intermediate_includes_memo() -> None:
     params = {
         "paper_size": "A4", "command_type": "ope", "num": 5,

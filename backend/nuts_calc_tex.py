@@ -443,6 +443,16 @@ def _init() -> argparse.Namespace:
             '--remainder/--no-remainder/--mixed-remainder.'
         )
     )
+    parser.add_argument('--decimal-remainder'
+        , dest = 'decimal_remainder'
+        , action = 'store_true'
+        , help = (
+            'Divide a decimal dividend (--a-decimal-places >= 1) by a whole-number '
+            'divisor (--b-decimal-places 0), giving the quotient to the ones place '
+            'and a nonzero decimal remainder aligned to the dividend (ope -o div '
+            'only). E.g. 7.6 / 3 = 2 \\cdots 1.6. Grade-4 "小数のあまりのある割り算".'
+        )
+    )
     dividend_group = parser.add_mutually_exclusive_group()
     dividend_group.add_argument('--integer-dividend'
         , dest = 'dividend_mode'
@@ -1029,6 +1039,51 @@ def _init() -> argparse.Namespace:
                 f"--quotient-digits {args.quotient_digits}: no remainder-division pair with a "
                 f"{args.quotient_digits}-digit quotient exists in the ranges "
                 f"[{args.a_min}, {args.a_max}] / [{args.b_min}, {args.b_max}]."
+            )
+
+    if args.decimal_remainder:
+        if args.command != 'ope' or args.operator != ['div']:
+            failure("--decimal-remainder only supports 'ope -o div'.")
+        if args.use_parentheses or args.missing_value or terms_options_given:
+            failure(
+                "--decimal-remainder cannot be combined with "
+                "--use-parentheses/--missing-value/--terms family."
+            )
+        # The mutual-exclusion checks come before the decimal-operand
+        # requirement so each conflicting flag reports itself precisely (the
+        # --remainder family's own integer-operand rejection above would
+        # otherwise pre-empt the --remainder pairing with a vaguer message).
+        if args.remainder_mode is not None:
+            failure(
+                "--decimal-remainder cannot be combined with "
+                "--remainder/--no-remainder/--mixed-remainder."
+            )
+        if args.quotient_digits is not None:
+            failure("--decimal-remainder cannot be combined with --quotient-digits.")
+        if args.dividend_mode is not None:
+            failure(
+                "--decimal-remainder cannot be combined with "
+                "--integer-dividend/--decimal-dividend/--mixed-dividend."
+            )
+        if args.intermediate:
+            failure("--decimal-remainder cannot be combined with --intermediate.")
+        if args.vertical:
+            failure("--decimal-remainder cannot be combined with --vertical.")
+        if args.mixed_decimal_operand_order:
+            failure("--decimal-remainder cannot be combined with --mixed-decimal-operand-order.")
+        if args.a_decimal_places <= MIN_DECIMAL_PLACES or args.b_decimal_places != MIN_DECIMAL_PLACES:
+            failure(
+                "--decimal-remainder requires a decimal dividend (--a-decimal-places >= 1) "
+                "and a whole-number divisor (--b-decimal-places 0)."
+            )
+        nums_a_probe = list(range(args.a_min, args.a_max + 1))
+        nums_b_probe = list(range(args.b_min, args.b_max + 1))
+        if find_decimal_remainder_division_pair(
+                nums_a_probe, nums_b_probe, args.a_decimal_places) is None:
+            failure(
+                "--decimal-remainder: no decimal-dividend / whole-number-divisor pair "
+                "with a quotient >= 1 and a nonzero remainder exists in the scaled "
+                f"ranges [{args.a_min}, {args.a_max}] / [{args.b_min}, {args.b_max}]."
             )
 
     if args.dividend_mode is not None:
@@ -2201,6 +2256,16 @@ class OpeProblem:
     remainder (0 by default) is only meaningful for operator == 'div': `c` is
     always the floor quotient (a // b), and remainder is `a - b * c` (0 for
     an exact division). Every other operator leaves it at the default.
+
+    remainder_decimal_places / result_decimal_places (issue #333) let the
+    --decimal-remainder div mode override how the answer is displayed without
+    touching the shared arithmetic: the quotient `c` is a whole number
+    (result_decimal_places=0) while the remainder carries the dividend's
+    decimal places (remainder_decimal_places=a_decimal_places). Both defaults
+    reproduce the pre-#333 behavior exactly -- result_decimal_places=None means
+    "recompute from the operands via ope_result_decimal_places" and
+    remainder_decimal_places=0 means format_decimal_value(remainder, 0) ==
+    str(remainder).
     """
     index: int
     a: int
@@ -2210,6 +2275,8 @@ class OpeProblem:
     a_decimal_places: int = MIN_DECIMAL_PLACES
     b_decimal_places: int = MIN_DECIMAL_PLACES
     remainder: int = 0
+    remainder_decimal_places: int = MIN_DECIMAL_PLACES
+    result_decimal_places: int | None = None
 
 
 def format_decimal_value(raw: int, places: int) -> str:
@@ -2243,6 +2310,24 @@ def ope_result_decimal_places(operator: str, a_places: int, b_places: int) -> in
     if operator == 'div':
         return max(0, a_places - b_places)
     return a_places
+
+
+def ope_problem_result_decimal_places(problem: OpeProblem) -> int:
+    """
+    Decimal places for displaying `problem.c` (the answer), for every place
+    the quotient/result is typeset -- horizontal slot, bottom answer key, CSV.
+
+    Uses the problem's explicit `result_decimal_places` override when set
+    (issue #333's --decimal-remainder mode records 0 so the quotient prints
+    as a whole number), otherwise derives it from the operands via
+    `ope_result_decimal_places` -- byte-identical to the pre-#333 call for
+    every problem that leaves the override at its `None` default.
+    """
+    if problem.result_decimal_places is not None:
+        return problem.result_decimal_places
+    return ope_result_decimal_places(
+        problem.operator, problem.a_decimal_places, problem.b_decimal_places,
+    )
 
 
 def addition_has_carry(a: int, b: int) -> bool:
@@ -2467,6 +2552,46 @@ def find_remainder_division_pair(
     return None
 
 
+def _decimal_remainder_division_ok(a: int, b: int, divisor_scale: int) -> bool:
+    """
+    Whether dividing the decimal dividend a / divisor_scale by the whole
+    number b, taken only to the ones place, yields a textbook "小数のあまりの
+    ある割り算" (issue #333):
+    - the dividend genuinely has a fractional part (a % divisor_scale != 0),
+      so the drill never degenerates to "9.0 / 6" whole-number division;
+    - the whole-number quotient is at least 1 (dividend >= divisor), so it
+      never prints "2.7 / 3 = 0 \\cdots 2.7";
+    - the remainder is nonzero (a % divisor != 0), which is the point of the
+      drill.
+    """
+    if b == 0 or a % divisor_scale == 0:
+        return False
+    divisor = b * divisor_scale
+    return a >= divisor and a % divisor != 0
+
+
+def find_decimal_remainder_division_pair(
+        nums_a: list[int], nums_b: list[int], a_decimal_places: int,
+    ) -> tuple[int, int] | None:
+    """
+    Deterministically find one (raw a, b) pair for which
+    _decimal_remainder_division_ok holds: dividing the decimal dividend
+    a / 10**a_decimal_places by the whole number b down to the ones place
+    gives a quotient >= 1 and a nonzero decimal remainder.
+
+    `a` is the raw scaled integer (see OpeProblem). Mirrors
+    find_remainder_division_pair's role as calc_div_decimal_remainder's
+    fallback (issue #333); a plain scan stays cheap because a qualifying pair
+    is the common case.
+    """
+    divisor_scale = 10 ** a_decimal_places
+    for b in nums_b:
+        for a in nums_a:
+            if _decimal_remainder_division_ok(a, b, divisor_scale):
+                return a, b
+    return None
+
+
 def calc_div(
         a: int, b: int, nums_a: list[int], nums_b: list[int],
         remainder: bool | None = None,
@@ -2576,6 +2701,48 @@ def calc_div_integer_dividend(
     )
 
 
+def calc_div_decimal_remainder(
+        a: int, b: int, nums_a: list[int], nums_b: list[int],
+        a_decimal_places: int,
+    ) -> tuple[int, int, int]:
+    """
+    Retry with freshly-sampled operands until dividing the decimal dividend
+    a / 10**a_decimal_places by the whole number b, taken only to the ones
+    place, leaves a nonzero remainder.
+
+    `a` stays the raw scaled integer and `b` the whole-number divisor (scale
+    0); the returned `c` is the whole-number quotient a // (b * 10**a_decimal_places),
+    always >= 1. The caller (generate_ope_problems) derives the decimal
+    remainder itself as a - c * b * 10**a_decimal_places and renders it with
+    a_decimal_places digits (issue #333). Mirrors calc_div_integer_dividend's
+    structure -- random sampling then a deterministic
+    find_decimal_remainder_division_pair fallback -- since the grade-4
+    "小数のあまりのある割り算" drill can pass a narrow operand range.
+    """
+    divisor_scale = 10 ** a_decimal_places
+
+    def _accept(cand_a: int, cand_b: int) -> tuple[int, int, int] | None:
+        if not _decimal_remainder_division_ok(cand_a, cand_b, divisor_scale):
+            return None
+        return cand_a, cand_b, cand_a // (cand_b * divisor_scale)
+
+    for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
+        hit = _accept(a, b)
+        if hit is not None:
+            return hit
+        a = random.choice(nums_a)
+        b = random.choice(nums_b)
+
+    fallback = find_decimal_remainder_division_pair(nums_a, nums_b, a_decimal_places)
+    if fallback is not None:
+        fallback_a, fallback_b = fallback
+        return fallback_a, fallback_b, fallback_a // (fallback_b * divisor_scale)
+    raise ValueError(
+        "No decimal-dividend / whole-number-divisor pair with a nonzero "
+        "remainder found in the given number ranges."
+    )
+
+
 CALC_FUNCTIONS: dict[str, Callable[[int, int, list[int], list[int]], tuple[int, int, int]]] = {
     'add': calc_add,
     'sub': calc_sub,
@@ -2596,6 +2763,7 @@ def generate_ope_problems(
         a_multiple: int | None = None,
         b_multiple: int | None = None,
         quotient_digits: int | None = None,
+        decimal_remainder: bool = False,
     ) -> list[OpeProblem]:
     """
     Generate `order` arithmetic problems starting at `start_index`.
@@ -2647,6 +2815,15 @@ def generate_ope_problems(
     pre-#317 decimal dividend, and 'mixed' chooses per problem. An
     integer-dividend problem records a_decimal_places=0 and a 0 remainder
     (it is exact by construction).
+
+    decimal_remainder (div only, requires a decimal a_decimal_places and a
+    whole-number b_decimal_places -- enforced by _init(); mutually exclusive
+    with remainder_mode/quotient_digits/dividend_mode) routes every div
+    problem through calc_div_decimal_remainder: the quotient c is taken only
+    to the ones place and the leftover a - c*b*10**a_decimal_places is a
+    nonzero decimal remainder. The problem records result_decimal_places=0
+    (whole-number quotient) and remainder_decimal_places=a_decimal_places,
+    so build_ope_slot_content_tex prints "7.6 / 3 = 2 \\cdots 1.6" (issue #333).
     """
     effective_operators = MIX_OPERATORS if 'mix' in operators else operators
     if a_multiple is not None:
@@ -2693,24 +2870,39 @@ def generate_ope_problems(
                     )
                 else:
                     a, b, c = calc_div(a, b, nums_a, nums_b, None)
+            elif operator == 'div' and decimal_remainder:
+                a, b, c = calc_div_decimal_remainder(
+                    a, b, nums_a, nums_b, a_decimal_places,
+                )
             else:
                 a, b, c = CALC_FUNCTIONS[operator](a, b, nums_a, nums_b)
+            decimal_remainder_active = operator == 'div' and decimal_remainder
             problem_a_decimal_places = 0 if dividend_is_integer else a_decimal_places
             problem_b_decimal_places = b_decimal_places
             if mixed_decimal_operand_order and operator == 'mul' and random.choice((False, True)):
                 a, b = b, a
                 problem_a_decimal_places, problem_b_decimal_places = b_decimal_places, a_decimal_places
-            result_decimal_places = ope_result_decimal_places(
-                operator, problem_a_decimal_places, problem_b_decimal_places,
-            )
+            if decimal_remainder_active:
+                # Quotient is taken only to the ones place; the leftover is a
+                # decimal aligned to the dividend (issue #333).
+                result_decimal_places = 0
+                remainder_decimal_places = a_decimal_places
+                remainder = a - c * b * 10 ** a_decimal_places
+            else:
+                result_decimal_places = ope_result_decimal_places(
+                    operator, problem_a_decimal_places, problem_b_decimal_places,
+                )
+                remainder_decimal_places = 0
+                remainder = a - b * c if operator == 'div' and not dividend_is_integer else 0
             if result_max is not None and c > result_max * 10 ** result_decimal_places:
                 continue
-            remainder = a - b * c if operator == 'div' and not dividend_is_integer else 0
             problems.append(OpeProblem(
                 index=start_index + offset, a=a, b=b, operator=operator, c=c,
                 a_decimal_places=problem_a_decimal_places,
                 b_decimal_places=problem_b_decimal_places,
                 remainder=remainder,
+                remainder_decimal_places=remainder_decimal_places,
+                result_decimal_places=0 if decimal_remainder_active else None,
             ))
             break
         else:
@@ -2748,14 +2940,23 @@ def build_ope_slot_content_tex(problem: OpeProblem, show_answer: bool) -> str:
 
     Emits via the shared \\horizontaleq/\\opspace equation components
     (issue #264) instead of a raw `$...$` f-string.
+
+    A problem's result_decimal_places / remainder_decimal_places (both at
+    their pre-#333 defaults for every non---decimal-remainder problem, so
+    output is byte-identical) override how the quotient and the ``\\cdots``
+    remainder tail are formatted: the grade-4 "小数のあまりのある割り算" mode
+    prints "7.6 / 3 = 2 \\cdots 1.6" (whole-number quotient, decimal remainder).
     """
     symbol = OPERATOR_TEX_SYMBOLS[problem.operator]
     a_tex = format_decimal_value(problem.a, problem.a_decimal_places)
     b_tex = format_decimal_value(problem.b, problem.b_decimal_places)
     if show_answer:
-        c_places = ope_result_decimal_places(problem.operator, problem.a_decimal_places, problem.b_decimal_places)
+        c_places = ope_problem_result_decimal_places(problem)
         result_tex = format_decimal_value(problem.c, c_places)
-        remainder_tex = f" \\cdots {problem.remainder}" if problem.remainder else ""
+        remainder_tex = (
+            f" \\cdots {format_decimal_value(problem.remainder, problem.remainder_decimal_places)}"
+            if problem.remainder else ""
+        )
     else:
         result_tex = BLANK_ANSWER_TEX
         remainder_tex = f" \\cdots {BLANK_ANSWER_TEX}" if problem.remainder else ""
@@ -2921,12 +3122,12 @@ def build_ope_page_pair(problems: list[OpeProblem], columns: int, vertical: bool
 def build_ope_bottom_answer_tex(problems: list[OpeProblem]) -> str:
     parts = []
     for problem in problems:
-        c_places = ope_result_decimal_places(problem.operator, problem.a_decimal_places, problem.b_decimal_places)
+        c_places = ope_problem_result_decimal_places(problem)
         answer = format_decimal_value(problem.c, c_places)
         if problem.remainder:
             # See build_horizontal_block_tex's docstring for why this uses
             # "..." rather than "あまり" (plain pdflatex, no CJK support).
-            answer += f" ... {problem.remainder}"
+            answer += f" ... {format_decimal_value(problem.remainder, problem.remainder_decimal_places)}"
         parts.append(f"({problem.index}) {answer}")
     return ' \\quad '.join(parts)
 
@@ -2937,24 +3138,30 @@ def build_ope_csv_rows(pages_problems: list[list[OpeProblem]]) -> list[list[obje
 
     a/b/c stay plain int when a_decimal_places/b_decimal_places are both 0
     (the pre-decimal-support default); with decimal places, they are
-    formatted decimal strings. remainder is always a plain int (0 for every
-    non-div problem and every exact division), appended as a trailing
-    column so pre-remainder-support CSV consumers that only read the first
-    six columns are unaffected.
+    formatted decimal strings. remainder is a plain int for every integer
+    division (0 for every non-div problem and every exact division); the
+    --decimal-remainder mode (issue #333) emits it as a formatted decimal
+    string aligned to the dividend, mirroring how `c` is formatted. It stays
+    a trailing column so pre-remainder-support CSV consumers that only read
+    the first six columns are unaffected.
     """
     rows: list[list[object]] = []
     for page_number, problems in enumerate(pages_problems, start=1):
         for problem in problems:
+            remainder_value: object = (
+                format_decimal_value(problem.remainder, problem.remainder_decimal_places)
+                if problem.remainder_decimal_places else problem.remainder
+            )
             if problem.a_decimal_places == MIN_DECIMAL_PLACES and problem.b_decimal_places == MIN_DECIMAL_PLACES:
                 a_value: object = problem.a
                 b_value: object = problem.b
                 c_value: object = problem.c
             else:
-                c_places = ope_result_decimal_places(problem.operator, problem.a_decimal_places, problem.b_decimal_places)
+                c_places = ope_problem_result_decimal_places(problem)
                 a_value = format_decimal_value(problem.a, problem.a_decimal_places)
                 b_value = format_decimal_value(problem.b, problem.b_decimal_places)
                 c_value = format_decimal_value(problem.c, c_places)
-            rows.append([page_number, problem.index, a_value, problem.operator, b_value, c_value, problem.remainder])
+            rows.append([page_number, problem.index, a_value, problem.operator, b_value, c_value, remainder_value])
     return rows
 
 
@@ -4405,6 +4612,7 @@ def build_ope_pages(
             ini.dividend_mode,
             a_multiple=ini.a_multiple, b_multiple=ini.b_multiple,
             quotient_digits=ini.quotient_digits,
+            decimal_remainder=ini.decimal_remainder,
         )
         blank_page, filled_page = build_ope_page_pair(problems, ini.columns, ini.vertical, ini.intermediate)
         pages_problems.append(problems)

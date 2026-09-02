@@ -228,3 +228,48 @@ def test_build_ope_csv_rows_formats_decimal_values() -> None:
         a_decimal_places=1, b_decimal_places=0,
     )
     assert tex_module.build_ope_csv_rows([[problem]]) == [[1, 1, "5.0", "mul", "8", "40.0", 0]]
+
+
+def _decimal_remainder_problem() -> "tex_module.OpeProblem":
+    # 7.6 / 3 = 2 ... 1.6 (issue #333): whole-number quotient, decimal remainder.
+    return tex_module.OpeProblem(
+        index=1, a=76, b=3, operator="div", c=2,
+        a_decimal_places=1, b_decimal_places=0,
+        remainder=16, remainder_decimal_places=1, result_decimal_places=0,
+    )
+
+
+def test_build_ope_slot_content_tex_renders_decimal_remainder_tail() -> None:
+    problem = _decimal_remainder_problem()
+    filled = tex_module.build_ope_slot_content_tex(problem, show_answer=True)
+    blank = tex_module.build_ope_slot_content_tex(problem, show_answer=False)
+    assert filled == (
+        "\\horizontaleq{7.6 \\opspace \\div \\opspace 3 \\opspace = \\opspace 2 \\cdots 1.6}"
+    )
+    # quotient prints as a whole number "2", not "0.2"
+    assert "0.2" not in filled
+    assert "1.6" not in blank and " \\cdots " in blank
+
+
+def test_build_ope_bottom_answer_tex_renders_decimal_remainder() -> None:
+    assert tex_module.build_ope_bottom_answer_tex([_decimal_remainder_problem()]) == "(1) 2 ... 1.6"
+
+
+def test_build_ope_csv_rows_formats_decimal_remainder() -> None:
+    assert tex_module.build_ope_csv_rows([[_decimal_remainder_problem()]]) == [
+        [1, 1, "7.6", "div", "3", "2", "1.6"],
+    ]
+
+
+def test_ope_problem_result_decimal_places_defaults_match_ope_result_decimal_places() -> None:
+    # No override -> byte-identical to the pre-#333 derivation for every operator.
+    for operator, a_dp, b_dp in [("add", 2, 2), ("mul", 1, 1), ("div", 1, 0), ("div", 2, 1)]:
+        problem = tex_module.OpeProblem(
+            index=1, a=1, b=1, operator=operator, c=1,
+            a_decimal_places=a_dp, b_decimal_places=b_dp,
+        )
+        assert tex_module.ope_problem_result_decimal_places(problem) == (
+            tex_module.ope_result_decimal_places(operator, a_dp, b_dp)
+        )
+    # Explicit override wins.
+    assert tex_module.ope_problem_result_decimal_places(_decimal_remainder_problem()) == 0
