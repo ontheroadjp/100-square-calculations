@@ -127,6 +127,93 @@ test('grade 1 and grade 2 basic drills declare a self-documenting result_max eve
 
   const g2SubTwoDigit = grade2.subtraction.find((candidate) => candidate.id === 'g2-sub-2digit');
   assert.equal(g2SubTwoDigit.buildParams({ carryMode: 'mixed' }).result_max, 100);
+
+  // issue #331: the four grade-1 no-carry/no-borrow drills within 100 join the
+  // same "Nまでの" self-documentation family.
+  for (const id of ['g1-add-tens', 'g1-add-100']) {
+    assert.equal(grade1.addition.find((candidate) => candidate.id === id).buildParams().result_max, 100);
+  }
+  for (const id of ['g1-sub-tens', 'g1-sub-100']) {
+    assert.equal(grade1.subtraction.find((candidate) => candidate.id === id).buildParams().result_max, 100);
+  }
+});
+
+test('grade 1 no-carry / no-borrow drills within 100 for 何十±何十 and 2桁±1桁 (issue #331)', () => {
+  const grade1 = presetsByGrade[1];
+
+  assert.deepEqual(
+    grade1.addition.map((item) => item.id),
+    ['g1-add-10', 'g1-add-20', 'g1-add-tens', 'g1-add-100'],
+    'grade 1 addition order',
+  );
+  assert.deepEqual(
+    grade1.subtraction.map((item) => item.id),
+    ['g1-sub-10', 'g1-sub-20', 'g1-sub-tens', 'g1-sub-100'],
+    'grade 1 subtraction order',
+  );
+
+  const cases = [
+    {
+      category: 'addition', id: 'g1-add-tens', difficulty: 'difficulty_basic', borrowLabel: 'setting_carry_label',
+      params: {
+        command_type: 'ope', operator: ['add'], carry_mode: 'none',
+        a_min: 10, a_max: 90, b_min: 10, b_max: 90, a_multiple: 10, b_multiple: 10, result_max: 100,
+      },
+    },
+    {
+      category: 'addition', id: 'g1-add-100', difficulty: 'difficulty_standard', borrowLabel: 'setting_carry_label',
+      params: {
+        command_type: 'ope', operator: ['add'], carry_mode: 'none',
+        a_min: 10, a_max: 99, b_min: 1, b_max: 9, result_max: 100,
+      },
+    },
+    {
+      category: 'subtraction', id: 'g1-sub-tens', difficulty: 'difficulty_basic', borrowLabel: 'setting_borrow_label',
+      params: {
+        command_type: 'ope', operator: ['sub'], carry_mode: 'none',
+        a_min: 10, a_max: 90, b_min: 10, b_max: 90, a_multiple: 10, b_multiple: 10, result_max: 100,
+      },
+    },
+    {
+      category: 'subtraction', id: 'g1-sub-100', difficulty: 'difficulty_standard', borrowLabel: 'setting_borrow_label',
+      params: {
+        command_type: 'ope', operator: ['sub'], carry_mode: 'none',
+        a_min: 10, a_max: 99, b_min: 1, b_max: 9, result_max: 100,
+      },
+    },
+  ];
+
+  for (const { category, id, difficulty, borrowLabel, params } of cases) {
+    const item = grade1[category].find((candidate) => candidate.id === id);
+    const context = `grade 1 / ${category} / ${id}`;
+
+    assert.ok(item, `${context}: item must exist`);
+    assert.equal(item.difficultyKey, difficulty, `${context}: difficultyKey`);
+    assert.equal(item.supportLevel, 'full', `${context}: supportLevel`);
+    assert.equal(item.latexOnly, true, `${context}: latexOnly`);
+    assert.equal(item.examplesFor, undefined, `${context}: no examplesFor (fixed setting only)`);
+
+    assert.equal(item.settings.length, 1, `${context}: exactly one setting`);
+    const [setting] = item.settings;
+    assert.equal(setting.type, 'fixed', `${context}: setting is fixed/inactive`);
+    assert.equal(setting.id, 'carryMode', `${context}: setting id`);
+    assert.equal(setting.labelKey, borrowLabel, `${context}: setting labelKey`);
+    assert.equal(setting.valueLabelKey, 'setting_option_none', `${context}: shows なし`);
+    assert.deepEqual(
+      setting.options.map((option) => option.value),
+      ['none', 'required', 'mixed'],
+      `${context}: renders the full なし/あり/まぜる control disabled`,
+    );
+
+    assert.deepEqual(item.buildParams(), params, `${context}: buildParams`);
+    assert.equal(item.buildParams().carry_mode, 'none', `${context}: carry_mode none`);
+  }
+
+  // Only the 何十 items carry the multiples-of-10 constraint.
+  assert.equal(grade1.addition.find((i) => i.id === 'g1-add-tens').buildParams().a_multiple, 10);
+  assert.equal(grade1.addition.find((i) => i.id === 'g1-add-tens').buildParams().b_multiple, 10);
+  assert.equal('a_multiple' in grade1.addition.find((i) => i.id === 'g1-add-100').buildParams(), false);
+  assert.equal('a_multiple' in grade1.subtraction.find((i) => i.id === 'g1-sub-100').buildParams(), false);
 });
 
 test('grade 1 addition drills expose a 繰り上がり setting (issue #305)', () => {

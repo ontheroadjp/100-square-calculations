@@ -30,6 +30,8 @@ class RendererRequest(TypedDict, total=False):
     b_min: int
     b_max: int
     result_max: int
+    a_multiple: int
+    b_multiple: int
     numerator_digits: int
     denominator_digits: int
     a_decimal_places: int

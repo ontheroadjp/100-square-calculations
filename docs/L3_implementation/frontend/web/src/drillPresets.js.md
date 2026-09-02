@@ -77,6 +77,15 @@ issue #98 時点では `drillCatalog.js` が本ファイルを消費する側と
 
 `examplesFor` は `examplesByChoice(['carryMode'], …)` で3モード分の例題を出し分ける(`mixed` キーは静的 `examples` と一致)。`menu_g1_sub_20_desc` も「繰り下がりのある、10〜19の数からの引き算」から「20までの数の引き算…繰り下がりは『なし』『あり』『まぜる』から選べます」へ改訂した([[./strings.ja.json]] 参照)。
 
+### 1年生の「何十±何十」「2桁±1桁（繰り上がり・繰り下がりなし）」ドリル追加(issue #331)
+
+学習指導要領解説 算数編 第1学年 A「加法及び減法」が「簡単な場合について，2位数などについても加法及び減法ができるようにする」として **何十±何十** と **2位数±1位数（繰り上がり・繰り下がりなし）** を挙げていることに対応し、`g1-add-20`/`g1-sub-20` と `g2-add-2digit`（筆算・繰り上がりあり）の間のギャップを埋めるドリルを4件追加した。`addition` は `[g1-add-10, g1-add-20, g1-add-tens, g1-add-100]`、`subtraction` は `[g1-sub-10, g1-sub-20, g1-sub-tens, g1-sub-100]` の順。難易度列はメニュー順ではなく「その学年で初めて学習するときの相対的な位置づけ」なので、基礎（`*-tens`）が標準（`g1-add-20`）の後に並んでいてよい。
+
+- **`g1-add-tens` / `g1-sub-tens`（「何十のたし算/ひき算」、`difficulty_basic`）**: `buildParams()` は引数を取らず `{command_type:'ope', operator:['add'|'sub'], carry_mode:'none', a_min:10, a_max:90, b_min:10, b_max:90, a_multiple:10, b_multiple:10, result_max:100}` を返す。`a_multiple`/`b_multiple`（issue #331 で backend に新設した `--a-multiple`/`--b-multiple` の JSON キー）で両オペランドを10の倍数に、`carry_mode:'none'` で十の位も繰り上がらない範囲（和 ≤ 90 / 差 ≥ 0）に限定する。何十±何十 は plain `ope` の min/max レンジだけでは「10の倍数のみ」を表現できず（union にならない）、backend 変更なしでは分離不能だったため、reviewer 判断で本 issue のスコープに backend capability 追加を含めた（[[../../../../backend/nuts_calc_tex.py]] の `### ope --a-multiple/--b-multiple`）。
+- **`g1-add-100` / `g1-sub-100`（「100までの足し算/引き算（くり上がりなし）」、`difficulty_standard`）**: `buildParams()` は `{command_type:'ope', operator:['add'|'sub'], carry_mode:'none', a_min:10, a_max:99, b_min:1, b_max:9, result_max:100}`。2桁±1桁で `carry_mode:'none'` + `b_max:9` により一の位が繰り上がらず、`a_min:10` で第1項は必ず2桁、結果は正の2桁。
+- 4件とも `g1-add-10`/`g1-sub-10` と同じく非活性の `fixedSetting('carryMode', 'setting_carry_label'|'setting_borrow_label', 'setting_option_none', NONE_REQUIRED_MIXED_OPTIONS)` を1つだけ持ち、`examplesFor` は持たない（静的 `examples` のみ）。`supportLevel:'full'`、`latexOnly:true`。`result_max:100` は数学的には冗長だが issue #176 で確立した「Nまでの」系の自己文書化方針に従い明示する。
+- live preview（`presetDetail.js` → `POST /generate-problems`）は `isLivePreviewSupported`（`command_type==='ope'` かつ `use_parentheses`/`missing_value` なし）で自動的に対象になり、`a_multiple`/`b_multiple` は [[../../../../backend/problem_generation.py]] がそのまま転送する。`presetDetail.js` 側の変更は不要。文言は [[./strings.ja.json]] に12キー追加。
+
 ### 1年生「3つの数の足し引き」の演算モードに「引き算のみ」を追加(issue #309)
 
 `g1-three-terms`(`drillPresets.js:226-278`)の `operators` choice は元々 `add`(足し算のみ)/ `addsub`(足し引き混合、既定)の2値だった。両者の間に `sub`(引き算のみ、`setting_option_sub_only` = 「引き算のみ」)を追加し、既定は `addsub` のまま。`buildParams(state)` は `operatorByChoice = { add: ['add'], sub: ['sub'], addsub: ['add', 'sub'] }` で選択値を演算子配列へ写し、`operator.length > 1`(= `addsub`)のときだけ `mixed_operators: true` を付ける(単一演算子の `add`/`sub` は `mixed_operators` を出さない — [[../../../../backend/nuts_calc_tex.py]] の `--mixed-operators` は2演算子必須のため)。3モードとも `command_type: 'ope', terms: 3, a_min:1, a_max:9, b_min:1, b_max:9`。

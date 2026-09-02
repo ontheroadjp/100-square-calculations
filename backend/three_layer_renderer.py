@@ -868,6 +868,7 @@ def _generate_ope_pdf(data: renderer_config.RendererRequest, output_dir: str) ->
             a_decimal_places, b_decimal_places,
             data.get('carry_mode'), data.get('remainder_mode'), data.get('result_max'),
             dividend_mode=data.get('dividend_mode'),
+            a_multiple=data.get('a_multiple'), b_multiple=data.get('b_multiple'),
         ),
         nuts_calc_tex.build_ope_bottom_answer_tex,
     )

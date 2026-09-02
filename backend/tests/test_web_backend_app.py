@@ -367,6 +367,47 @@ def test_generate_pdf_kuku_forwards_descend_and_shuffle(client, monkeypatch) -> 
     assert captured == {"descend": True, "shuffle": True}
 
 
+def test_generate_pdf_ope_forwards_operand_multiple(client, monkeypatch) -> None:
+    """
+    issue #331: frontend/web's grade-1 何十±何十 presets send a_multiple/
+    b_multiple in the /generate-pdf body; three_layer_renderer._generate_ope_pdf
+    must forward them to generate_ope_problems.
+    """
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+
+    captured = {}
+    original_generate_ope_problems = three_layer_renderer.nuts_calc_tex.generate_ope_problems
+
+    def spy_generate_ope_problems(*args, **kwargs):
+        captured.update(kwargs)
+        return original_generate_ope_problems(*args, **kwargs)
+
+    monkeypatch.setattr(three_layer_renderer.nuts_calc_tex, "generate_ope_problems", spy_generate_ope_problems)
+
+    def fake_compile(self, tex_source, out_pdf_path):
+        with open(out_pdf_path, "wb") as f:
+            f.write(b"%PDF-1.4 fake")
+
+    monkeypatch.setattr(
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+    monkeypatch.setattr(
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf",
+        json={
+            "paper_size": "A4", "command_type": "ope", "operator": ["add"],
+            "a_min": 10, "a_max": 90, "b_min": 10, "b_max": 90,
+            "a_multiple": 10, "b_multiple": 10, "carry_mode": "none", "result_max": 100,
+        },
+    )
+    assert response.status_code == 200
+    assert captured.get("a_multiple") == 10
+    assert captured.get("b_multiple") == 10
+
+
 def test_generate_pdf_squ_forwards_descend_and_shuffle(client, monkeypatch) -> None:
     """
     _generate_squ_pdf must forward descend/shuffle from the request to

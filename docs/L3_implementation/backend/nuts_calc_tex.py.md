@@ -16,6 +16,13 @@
 - `generate_ope_problems()` は `required` なら各加算で繰り上がり、各減算で繰り下がりを必須にし、`none` なら両方を禁止する。`mixed` は加算を無条件抽選して繰り上がりあり/なしを混ぜ、減算ごとに繰り下がりなし/ありを抽選する(繰り下がりあり時の実際のサンプリング挙動は `calc_sub` 参照、`nuts_calc_tex.py:1151-1196`)。
 - **`--result-max` は `ope` の全式形式に共通する最終結果上限**: 1以上の整数を受け取り、通常2項の add/sub/mul/div/mix、かっこ付きN項式、平坦なN項式、虫食い算のいずれでも最終結果が上限以下になるまで式全体を再抽選する。通常2項の小数計算だけは内部整数 `c` ではなく、`ope_result_decimal_places()` で解釈した表示値を基準に判定する。条件を `MAX_OPERAND_RETRY_ATTEMPTS` 内に満たせなければ `ValueError` とし、上限を無視した問題は生成しない。`ope` 以外または1未満の値は `_init()` で拒否する(`nuts_calc_tex.py:193-196,620-624,1341-1404,1769-1810,1991-2033,2135-2166`)。
 
+### `ope --a-multiple`/`--b-multiple`(issue #331)
+
+- 各オペランドを「指定値 N の正確な倍数」に制限する `type=int`・既定 `None` のオプション。`--carry-borrow` 系と同じスコープ(2項 `ope` かつ `-o` が `add`/`sub` のみ、かっこ・虫食い算・多項との併用は不可)を `_init()` が強制し、加えて `N >= MIN_OPERAND_MULTIPLE`(=2。N=1 は「全整数が1の倍数」で no-op になるため黙って無視せず拒否する)と、解決後の `[a_min, a_max]`/`[b_min, b_max]` に倍数が1つも無い場合の fail-fast を検証する。バリデーションは `--a-digits`→`a_min`/`a_max` 解決の後段に置かれているため、`--a-digits 2 --a-multiple 10` は `{10,20,…,90}` に正しく解決される(`nuts_calc_tex.py` の `_init()` 内 `--a-multiple/--b-multiple` バリデーションブロック)。
+- `generate_ope_problems(..., a_multiple=None, b_multiple=None)` は本体先頭で `nums_a`/`nums_b` を `value % N == 0` で絞り込み、絞り込み後が空なら `ValueError`(CLI 以外の直呼び出し=`problem_generation`/`three_layer_renderer` 経路のための防御。`app.py` がこれを HTTP 500 + メッセージに変換する)。`--result-max`・`--carry-borrow` 系・`--a-decimal-places` とは独立に合成でき、フィルタは生の整数オペランド値に対して働く。
+- **繰り上がり/繰り下がり衝突フォールバックとの関係**: `calc_add`/`calc_sub` の桁幅保存フォールバック(`build_addition_fallback`/`build_borrow_fallback`)は `nums_a`/`nums_b` を参照せず代表値を合成するため、理論上は倍数でないオペランドを返し得る。ただし発火は 1000 回の抽選失敗後のみで、Web 層が本オプションを送る唯一の設定(何十±何十 かつ `carry_mode='none'`、成立ペアが潤沢)では到達不能。`backend/tests/test_nuts_calc_tex_ope_generation.py` の生成不変条件テスト(`≡ 0 (mod N)`・繰り上がり/繰り下がりなし・`c <= result_max` を大量サンプルで検証)がこれを担保する。
+- 呼び出し元スレッド: CLI は `build_ope_pages` が `ini.a_multiple`/`ini.b_multiple` をキーワードで転送。in-process の `/generate-problems` は [[problem_generation.py]] の `_generate_ope_problems_latex`、`/generate-pdf` は [[three_layer_renderer.py]] の `_generate_ope_pdf` が `params`/`data` から `a_multiple`/`b_multiple` を転送する。JSON キーは snake_case の `a_multiple`/`b_multiple`([[renderer_config.py]] の `RendererRequest`)。
+
 ### `ope --remainder`/`--no-remainder`/`--mixed-remainder`(issue #91)
 
 - 3フラグは `carry_group` と同じ形の argparse 排他グループで、内部では `remainder_mode: RemainderMode = Literal['required', 'none', 'mixed']` に正規化する。`ope -o div` の単独指定のみ対応し(`args.operator != ['div']` を拒否)、かっこ・虫食い算・多項・`--intermediate`・小数(`--a-decimal-places`/`--b-decimal-places`)との併用は `_init()` が拒否する。フラグ未指定時は `remainder_mode=None` で、issue #91 以前と完全に同じ「常に割り切れる」挙動を保つ。
@@ -311,7 +318,7 @@
     - **既知の制限(罫線のスタイル)**: `longdivision` パッケージ(vendor版)が描く枠は、英語圏教科書に典型的な「丸みのある括弧+上部の横線」スタイル(`\smash{\big)}` ベース)で、日本の教科書に典型的な「直角に近い逆L字」の罫線とは見た目が異なる。パッケージの `style` オプション(`default`/`standard`/`tikz`/`german`/`brazilian`)のうち `tikz`(要 `\usepackage{tikz}`、現状のプリアンブルには含めていない)を試したところ、`arc` によるやや滑らかな曲線にはなるが、依然として英語圏スタイルの範疇に留まることを実機確認した。日本式の罫線が必要な場合はパッケージの `style` 切り替えでは不十分で、自前の罫線描画(TikZ等)が要る規模の変更になる。issue #134 では対応しないと決定した(新規 issue も起票しない)。
   - `mix` の場合、各問題は生成時点で具体的な演算子(add/sub/mul/div のいずれか)に確定しているため、`build_vertical_calc_tex` は追加の分岐なしに機能する。
 - `build_ope_page_pair`(`nuts_calc_tex.py:508-528`): `vertical`/`intermediate` フラグに応じて上記のブロックビルダーと `Page.layout`(`vertical` なら `'tabular'`、それ以外は `'inline'`)を選び、同一の問題リストから blank/filled の `Page` ペアを作る(blank/filled は同じ問題を使い、表示のみが異なる)。
-- `build_ope_pages`(`nuts_calc_tex.py:557-578`): `ini.a_min`〜`ini.b_max` から候補集合を作り、ページごとに `rows*columns` 問を生成してページペアを積み上げる。`--with-bottom-answer` 指定時は `build_ope_bottom_answer_tex` で `(index) c` の一覧を blank ページ末尾に追加する。
+- `build_ope_pages`(`nuts_calc_tex.py:557-578`): `ini.a_min`〜`ini.b_max` から候補集合を作り、ページごとに `rows*columns` 問を生成してページペアを積み上げる。`--with-bottom-answer` 指定時は `build_ope_bottom_answer_tex` で `(index) c` の一覧を blank ページ末尾に追加する。`generate_ope_problems` 呼び出しには `a_multiple=ini.a_multiple, b_multiple=ini.b_multiple` を転送する(issue #331、上記 `ope --a-multiple`/`--b-multiple` セクション参照)。
 - `build_ope_csv_rows`(`nuts_calc_tex.py:535-540`): 1問1行、`[page_number, index, a, operator, b, c, remainder]` の列で CSV を書き出す(ヘッダー行なし、Phase 1 と同じ方針。`remainder` 列は issue #91 で追加、詳細は前述の `ope --remainder` セクション参照)。
 
 ### `com` コマンド(Phase 3)
