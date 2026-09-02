@@ -5,6 +5,7 @@ These exercise the pure-Python generation/rendering-data functions directly
 test_nuts_calc_tex.py.
 """
 
+import random
 import sys
 from pathlib import Path
 
@@ -505,6 +506,49 @@ def test_find_remainder_division_pair_honors_quotient_digits() -> None:
     assert tex_module.find_remainder_division_pair([7], [3], 2) is None
 
 
+def test_find_decimal_remainder_division_pair_requires_quotient_and_nonzero_remainder() -> None:
+    pair = tex_module.find_decimal_remainder_division_pair(
+        list(range(10, 100)), list(range(2, 10)), 1,
+    )
+    assert pair is not None
+    a, b = pair
+    divisor = b * 10
+    assert a % 10 != 0              # dividend genuinely has a tenths digit
+    assert a >= divisor            # quotient to the ones place is >= 1
+    assert a % divisor != 0        # nonzero remainder
+
+    # dividend 0.1..0.9 < divisor 2..9 -> no quotient >= 1
+    assert tex_module.find_decimal_remainder_division_pair([1, 9], [2, 9], 1) is None
+    # every dividend a whole number -> rejected (no genuine decimal remainder)
+    assert tex_module.find_decimal_remainder_division_pair([20, 30], [3], 1) is None
+
+
+def test_calc_div_decimal_remainder_takes_quotient_to_ones_place() -> None:
+    nums_a = list(range(10, 100))
+    nums_b = list(range(2, 10))
+    for _ in range(GENERATION_SAMPLE_SIZE):
+        a, b, c = tex_module.calc_div_decimal_remainder(76, 3, nums_a, nums_b, 1)
+        assert a % 10 != 0
+        assert c == a // (b * 10)
+        assert c >= 1
+        remainder = a - c * b * 10
+        assert 0 < remainder < b * 10
+
+
+def test_calc_div_decimal_remainder_uses_deterministic_fallback(
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+    monkeypatch.setattr(tex_module, "MAX_OPERAND_RETRY_ATTEMPTS", 0)
+    # 39 / 3 to the ones place: quotient 1, remainder 0.9 (39 % 30 != 0).
+    a, b, c = tex_module.calc_div_decimal_remainder(30, 3, [30, 39], [3], 1)
+    assert (a, b, c) == (39, 3, 1)
+
+
+def test_calc_div_decimal_remainder_raises_when_impossible() -> None:
+    with pytest.raises(ValueError):
+        tex_module.calc_div_decimal_remainder(20, 3, [20, 30], [3], 1)
+
+
 @pytest.mark.parametrize(
     ("remainder_mode", "expect_remainder"),
     [('required', True), ('none', False)],
@@ -564,6 +608,44 @@ def test_generate_ope_problems_quotient_digits_combines_with_mixed_remainder() -
     for problem in problems:
         assert 10 <= problem.c <= 99
         assert problem.remainder == problem.a - problem.b * problem.c
+
+
+def test_generate_ope_problems_decimal_remainder_yields_whole_quotient_and_decimal_remainder() -> None:
+    problems = tex_module.generate_ope_problems(
+        list(range(10, 100)), list(range(2, 10)), ['div'],
+        order=GENERATION_SAMPLE_SIZE, start_index=1,
+        a_decimal_places=1, b_decimal_places=0, decimal_remainder=True,
+    )
+    assert len(problems) == GENERATION_SAMPLE_SIZE
+    for problem in problems:
+        assert problem.operator == 'div'
+        assert problem.a_decimal_places == 1
+        assert problem.b_decimal_places == 0
+        assert problem.a % 10 != 0
+        assert problem.result_decimal_places == 0          # quotient prints as a whole number
+        assert problem.remainder_decimal_places == 1       # remainder aligns to the dividend
+        assert problem.c >= 1
+        assert problem.remainder != 0
+        assert 0 < problem.remainder < problem.b * 10
+        # dividend == quotient*divisor + remainder, all at the 1/10 scale
+        assert problem.a == problem.c * problem.b * 10 + problem.remainder
+
+
+def test_generate_ope_problems_without_decimal_remainder_is_unchanged() -> None:
+    kwargs = dict(a_decimal_places=1, b_decimal_places=0)
+    random.seed(5)
+    baseline = tex_module.generate_ope_problems(
+        list(range(10, 100)), list(range(2, 10)), ['div'], 40, 1, **kwargs,
+    )
+    random.seed(5)
+    with_flag_off = tex_module.generate_ope_problems(
+        list(range(10, 100)), list(range(2, 10)), ['div'], 40, 1,
+        decimal_remainder=False, **kwargs,
+    )
+    assert [(p.a, p.b, p.c, p.remainder, p.result_decimal_places) for p in baseline] == [
+        (p.a, p.b, p.c, p.remainder, p.result_decimal_places) for p in with_flag_off
+    ]
+    assert all(p.result_decimal_places is None and p.remainder_decimal_places == 0 for p in baseline)
 
 
 def test_generate_ope_problems_assigns_sequential_indices() -> None:

@@ -611,6 +611,63 @@ def test_cli_ope_quotient_digits_empty_range_fails(run_tex_cli, tmp_path):
     assert not (tmp_path / "result.pdf").exists()
 
 
+def test_cli_ope_div_decimal_remainder_generates_decimal_remainder(run_tex_cli, tmp_path):
+    result = run_tex_cli(
+        "A4", "ope", "-o", "div", "--decimal-remainder", "--a-decimal-places", "1",
+        "--a-min", "20", "--a-max", "99", "--b-min", "2", "--b-max", "9",
+        "-r", "5", "-c", "4", "--csv", "--with-bottom-answer", "--out-file", "result.pdf",
+    )
+
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    for row in (tmp_path / "result.csv").read_text().strip().splitlines():
+        _, _, a, operator, b, c, remainder = row.split(",")
+        assert operator == "div"
+        # dividend is a genuine one-decimal number
+        assert re.fullmatch(r"\d+\.\d", a)
+        # quotient is a whole number (>= 1) taken only to the ones place
+        assert re.fullmatch(r"\d+", c) and int(c) >= 1
+        # remainder is a nonzero decimal aligned to the dividend
+        assert re.fullmatch(r"\d+\.\d", remainder) and float(remainder) != 0.0
+        assert float(a) == int(c) * int(b) + float(remainder)
+
+
+@pytest.mark.parametrize(
+    "invalid_args",
+    [
+        ("-o", "add", "--decimal-remainder", "--a-decimal-places", "1"),
+        ("-o", "div", "mul", "--decimal-remainder", "--a-decimal-places", "1"),
+        ("-o", "div", "--decimal-remainder"),  # no --a-decimal-places
+        ("-o", "div", "--decimal-remainder", "--a-decimal-places", "1", "--b-decimal-places", "1"),
+        ("-o", "div", "--decimal-remainder", "--a-decimal-places", "1", "--remainder"),
+        ("-o", "div", "--decimal-remainder", "--a-decimal-places", "1", "--no-remainder"),
+        ("-o", "div", "--decimal-remainder", "--a-decimal-places", "1", "--quotient-digits", "2"),
+        ("-o", "div", "--decimal-remainder", "--a-decimal-places", "1", "--vertical"),
+        ("-o", "div", "--decimal-remainder", "--a-decimal-places", "1", "--use-parentheses"),
+        ("-o", "div", "--decimal-remainder", "--a-decimal-places", "1", "--missing-value"),
+        ("-o", "div", "--decimal-remainder", "--a-decimal-places", "1", "--intermediate"),
+    ],
+)
+def test_cli_ope_decimal_remainder_rejects_invalid_combinations(run_tex_cli, tmp_path, invalid_args):
+    result = run_tex_cli("A4", "ope", *invalid_args, "--out-file", "result.pdf")
+
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_decimal_remainder_empty_range_fails(run_tex_cli, tmp_path):
+    # dividend 0.1..0.9 is always smaller than divisor 2..9, so no pair has a
+    # quotient >= 1 -- the fail-fast probe must reject.
+    result = run_tex_cli(
+        "A4", "ope", "-o", "div", "--decimal-remainder", "--a-decimal-places", "1",
+        "--a-min", "1", "--a-max", "9", "--b-min", "2", "--b-max", "9",
+        "--out-file", "result.pdf",
+    )
+
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
 def test_cli_ope_vertical_add_sub_mul_produces_pdfs(run_tex_cli, tmp_path):
     result = run_tex_cli(
         "A4", "ope", "-o", "add", "sub", "mul", "--vertical",

@@ -190,6 +190,28 @@ python3 nuts_calc_tex.py A4 ope -o div --no-remainder --quotient-digits 2 \
   --a-min 20 --a-max 99 --b-min 2 --b-max 9 --out-file division-2digit-quotient.pdf
 ```
 
+For `ope -o div`, `--decimal-remainder` divides a decimal dividend
+(`--a-decimal-places` >= 1) by a whole-number divisor (`--b-decimal-places 0`),
+taking the quotient only to the ones place and leaving a nonzero decimal
+remainder aligned to the dividend — the grade-4 「小数のあまりのある割り算」
+(e.g. `7.6 ÷ 3 = 2 ⋯ 1.6`, rendered with the same `\cdots` shorthand as the
+integer remainder). Every problem has a whole-number quotient of at least 1, a
+dividend with a genuine fractional part, and a nonzero remainder. It is rejected
+for any other command or operator, without a decimal dividend, with a decimal
+divisor, and when combined with
+`--remainder`/`--no-remainder`/`--mixed-remainder`, `--quotient-digits`,
+`--integer-dividend`/`--decimal-dividend`/`--mixed-dividend`, `--vertical`,
+`--intermediate`, `--mixed-decimal-operand-order`, or
+`--use-parentheses`/`--missing-value`/the `--terms` family. The command fails
+explicitly if the operand ranges contain no qualifying pair. わり進み (dividing
+past the ones place) and 商のがい数 (a rounded quotient) are separate grade-4
+skills tracked as follow-ups under issue #326.
+
+```bash
+python3 nuts_calc_tex.py A4 ope -o div --decimal-remainder --a-decimal-places 1 \
+  --a-digits 2 --b-min 2 --b-max 9 --out-file decimal-remainder.pdf
+```
+
 For `frac -o mul`/`div` and two-term `mixed -o mul`/`div` (with one `fraction`
 and one `int` operand kind), use `--require-reducible`, `--no-reducible`, or
 `--mixed-reducible` to require, forbid, or mix whether the raw (pre-
