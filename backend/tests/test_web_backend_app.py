@@ -181,6 +181,34 @@ def test_generate_problems_ope_div_decimal_remainder_end_to_end(client, monkeypa
         assert problem["a"] == problem["result"] * problem["b"] * 10 + problem["remainder"]
 
 
+def test_generate_problems_ope_div_decimal_remainder_decimal_divisor_end_to_end(client, monkeypatch) -> None:
+    # Grade 5 "小数のわり算" (issue #334): a decimal divisor (b_decimal_places: 1)
+    # reaches generate_ope_problems and is scaled up to a whole number before
+    # dividing. Mirrors the g5-decimal-div-remainder preset body.
+    monkeypatch.delenv(renderer_config.RENDERER_ENV_VAR, raising=False)
+    response = client.post(
+        "/generate-problems",
+        json={
+            "paper_size": "A4", "command_type": "ope", "num": 12,
+            "operator": ["div"], "a_digits": 2, "b_digits": 2,
+            "a_decimal_places": 1, "b_decimal_places": 1, "decimal_remainder": True,
+        },
+    )
+    assert response.status_code == 200
+    problems = response.get_json()["problems"]
+    assert len(problems) == 12
+    for problem in problems:
+        assert problem["operator"] == "div"
+        assert problem["a_decimal_places"] == 1
+        assert problem["b_decimal_places"] == 1
+        assert problem["remainder_decimal_places"] == 1
+        assert problem["result_decimal_places"] == 0
+        assert problem["result"] >= 1
+        assert problem["remainder"] != 0
+        # shift == 10 ** (1 - 1) == 1
+        assert problem["a"] == problem["result"] * problem["b"] + problem["remainder"]
+
+
 def test_generate_pdf_com_requires_a_value(client) -> None:
     response = client.post("/generate-pdf", json={"paper_size": "A4", "command_type": "com"})
     assert response.status_code == 500
@@ -493,6 +521,23 @@ def test_generate_pdf_ope_forwards_decimal_remainder(client, monkeypatch) -> Non
             "paper_size": "A4", "command_type": "ope", "operator": ["div"],
             "a_digits": 2, "b_min": 2, "b_max": 9,
             "a_decimal_places": 1, "decimal_remainder": True,
+        },
+    )
+    assert response.status_code == 200
+    assert captured.get("decimal_remainder") is True
+
+    # issue #334: the grade-5 g5-decimal-div-remainder preset additionally
+    # sends a decimal b_decimal_places; decimal_remainder must still reach
+    # generate_ope_problems, and the render must succeed with a decimal divisor
+    # (b_decimal_places is forwarded positionally by _generate_ope_pdf, like
+    # every other decimal drill).
+    captured.clear()
+    response = client.post(
+        "/generate-pdf",
+        json={
+            "paper_size": "A4", "command_type": "ope", "operator": ["div"],
+            "a_digits": 2, "b_digits": 2,
+            "a_decimal_places": 1, "b_decimal_places": 1, "decimal_remainder": True,
         },
     )
     assert response.status_code == 200

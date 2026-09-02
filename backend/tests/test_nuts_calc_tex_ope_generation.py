@@ -549,6 +549,49 @@ def test_calc_div_decimal_remainder_raises_when_impossible() -> None:
         tex_module.calc_div_decimal_remainder(20, 3, [20, 30], [3], 1)
 
 
+def test_find_decimal_remainder_division_pair_supports_decimal_divisor() -> None:
+    # 除数が小数 (grade 5): both operands scale-1 decimals. The divisor is
+    # scaled up to the whole number b before dividing (issue #334).
+    pair = tex_module.find_decimal_remainder_division_pair(
+        list(range(10, 100)), list(range(11, 100)), 1, 1,
+    )
+    assert pair is not None
+    a, b = pair
+    assert a % 10 != 0             # dividend genuinely has a tenths digit
+    assert b % 10 != 0             # divisor genuinely has a tenths digit
+    assert a >= b                  # shift is 1 here, so divisor in a's scale is b
+    assert a % b != 0              # nonzero remainder
+
+    # a divisor range containing only disguised whole numbers (2.0, 3.0, ...)
+    # is left to the grade-4 whole-divisor drill.
+    assert tex_module.find_decimal_remainder_division_pair(
+        list(range(10, 100)), [20, 30, 40], 1, 1,
+    ) is None
+
+
+def test_calc_div_decimal_remainder_supports_decimal_divisor() -> None:
+    nums_a = list(range(10, 100))
+    nums_b = list(range(11, 100))
+    for _ in range(GENERATION_SAMPLE_SIZE):
+        # 7.6 / 2.3 -> 3 ... 0.7 (2.3 * 3 = 6.9, 7.6 - 6.9 = 0.7).
+        a, b, c = tex_module.calc_div_decimal_remainder(76, 23, nums_a, nums_b, 1, 1)
+        assert a % 10 != 0
+        assert b % 10 != 0
+        shift = 10 ** (1 - 1)
+        assert c == a // (b * shift)
+        assert c >= 1
+        remainder = a - c * b * shift
+        assert 0 < remainder < b * shift
+
+
+def test_calc_div_decimal_remainder_decimal_divisor_more_dividend_places() -> None:
+    # 7.65 / 2.3 -> 3 ... 0.75 aligned to the 2-place original dividend.
+    a, b, c = tex_module.calc_div_decimal_remainder(765, 23, [765], [23], 2, 1)
+    shift = 10 ** (2 - 1)
+    assert (a, b, c) == (765, 23, 3)
+    assert a - c * b * shift == 75  # rendered as 0.75 at a_decimal_places=2
+
+
 @pytest.mark.parametrize(
     ("remainder_mode", "expect_remainder"),
     [('required', True), ('none', False)],
@@ -629,6 +672,52 @@ def test_generate_ope_problems_decimal_remainder_yields_whole_quotient_and_decim
         assert 0 < problem.remainder < problem.b * 10
         # dividend == quotient*divisor + remainder, all at the 1/10 scale
         assert problem.a == problem.c * problem.b * 10 + problem.remainder
+
+
+def test_generate_ope_problems_decimal_remainder_supports_decimal_divisor() -> None:
+    # 除数が小数 (grade 5): a_decimal_places == b_decimal_places == 1.
+    problems = tex_module.generate_ope_problems(
+        list(range(10, 100)), list(range(11, 100)), ['div'],
+        order=GENERATION_SAMPLE_SIZE, start_index=1,
+        a_decimal_places=1, b_decimal_places=1, decimal_remainder=True,
+    )
+    assert len(problems) == GENERATION_SAMPLE_SIZE
+    for problem in problems:
+        assert problem.operator == 'div'
+        assert problem.a_decimal_places == 1
+        assert problem.b_decimal_places == 1               # divisor stays a decimal
+        assert problem.a % 10 != 0 and problem.b % 10 != 0
+        assert problem.result_decimal_places == 0          # quotient prints as a whole number
+        assert problem.remainder_decimal_places == 1       # remainder aligns to the original dividend
+        assert problem.c >= 1
+        assert problem.remainder != 0
+        shift = 10 ** (1 - 1)
+        assert 0 < problem.remainder < problem.b * shift
+        assert problem.a == problem.c * problem.b * shift + problem.remainder
+
+
+def test_generate_ope_problems_decimal_remainder_b_places_zero_matches_issue_333() -> None:
+    # b_decimal_places defaulting to 0 must reproduce the merged issue #333
+    # behavior byte-for-byte (same operands, same quotient, same remainder).
+    common = dict(
+        a_decimal_places=1, b_decimal_places=0, decimal_remainder=True,
+    )
+    random.seed(7)
+    explicit = tex_module.generate_ope_problems(
+        list(range(10, 100)), list(range(2, 10)), ['div'], 40, 1, **common,
+    )
+    random.seed(7)
+    default_b = tex_module.generate_ope_problems(
+        list(range(10, 100)), list(range(2, 10)), ['div'], 40, 1,
+        a_decimal_places=1, decimal_remainder=True,
+    )
+    assert [
+        (p.a, p.b, p.c, p.remainder, p.remainder_decimal_places, p.result_decimal_places)
+        for p in explicit
+    ] == [
+        (p.a, p.b, p.c, p.remainder, p.remainder_decimal_places, p.result_decimal_places)
+        for p in default_b
+    ]
 
 
 def test_generate_ope_problems_without_decimal_remainder_is_unchanged() -> None:

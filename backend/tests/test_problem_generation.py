@@ -173,6 +173,29 @@ def test_generate_problems_decimal_remainder_previews_decimal_remainder_division
         assert problem["a"] == problem["result"] * problem["b"] * 10 + problem["remainder"]
 
 
+def test_generate_problems_decimal_remainder_previews_decimal_divisor_division() -> None:
+    # Grade 5 "小数のわり算": a decimal divisor (b_decimal_places: 1) is scaled
+    # up to a whole number before dividing (issue #334).
+    params = {
+        "paper_size": "A4", "command_type": "ope", "num": 15,
+        "a_digits": 2, "b_min": 11, "b_max": 99,
+        "operator": ["div"], "a_decimal_places": 1, "b_decimal_places": 1,
+        "decimal_remainder": True,
+    }
+    problems = problem_generation.generate_problems(params, "latex")
+    assert len(problems) == 15
+    for problem in problems:
+        assert problem["operator"] == "div"
+        assert problem["a_decimal_places"] == 1
+        assert problem["b_decimal_places"] == 1
+        assert problem["remainder_decimal_places"] == 1
+        assert problem["result_decimal_places"] == 0
+        assert problem["result"] >= 1
+        assert problem["remainder"] != 0
+        # shift == 10 ** (1 - 1) == 1
+        assert problem["a"] == problem["result"] * problem["b"] + problem["remainder"]
+
+
 def test_generate_problems_without_decimal_remainder_omits_result_decimal_places() -> None:
     params = {
         "paper_size": "A4", "command_type": "ope", "num": 8,

@@ -1152,6 +1152,33 @@ const grade5 = {
         return { ...base, a_decimal_places: 1, dividend_mode: 'mixed' };
       },
     },
+    {
+      // 小数÷小数 with a nonzero decimal remainder (issue #334): わる数を
+      // 整数に直して商を一の位まで求め、あまりを小数で出す (Course of Study
+      // 第5学年「小数のわり算」). あまりの小数点はわられる数の *もとの* 位置
+      // にそろえる。#317 の割り切れる g5-decimal-div とは別メニュー。
+      // わり進み は将来の別フラグ、商のがい数 は別途計画中の概数計算ドリルへ。
+      // No displayFormat: nuts_calc_tex.py rejects --vertical --decimal-remainder,
+      // so this id is intentionally absent from drillPresets.test.js's
+      // DISPLAY_FORMAT_ITEM_IDS (same as g4-decimal-div-int-remainder).
+      id: 'g5-decimal-div-remainder',
+      titleKey: 'menu_g5_decimal_div_remainder_title',
+      descKey: 'menu_g5_decimal_div_remainder_desc',
+      pointKey: 'menu_g5_decimal_div_remainder_point',
+      difficultyKey: 'difficulty_standard',
+      examples: ['7.6÷2.3', '9.5÷2.8', '8.3÷1.5'],
+      settings: [
+        fixedSetting('divisor', 'setting_divisor_label', 'setting_option_decimal'),
+        fixedSetting('remainder', 'setting_remainder_label', 'setting_option_required'),
+      ],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'ope', operator: ['div'],
+        a_digits: 2, b_digits: 2, a_decimal_places: 1, b_decimal_places: 1,
+        decimal_remainder: true,
+      }),
+    },
   ],
   'four-operations': [
     {

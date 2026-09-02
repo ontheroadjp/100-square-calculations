@@ -632,13 +632,39 @@ def test_cli_ope_div_decimal_remainder_generates_decimal_remainder(run_tex_cli, 
         assert float(a) == int(c) * int(b) + float(remainder)
 
 
+def test_cli_ope_div_decimal_remainder_supports_decimal_divisor(run_tex_cli, tmp_path):
+    # Grade 5 "小数のわり算": a decimal divisor, scaled up to a whole number
+    # before dividing (issue #334). The quotient is a whole number and the
+    # remainder is a one-decimal number aligned to the original dividend.
+    result = run_tex_cli(
+        "A4", "ope", "-o", "div", "--decimal-remainder",
+        "--a-decimal-places", "1", "--b-decimal-places", "1",
+        "--a-min", "10", "--a-max", "99", "--b-min", "11", "--b-max", "99",
+        "-r", "5", "-c", "4", "--csv", "--with-bottom-answer", "--out-file", "result.pdf",
+    )
+
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    for row in (tmp_path / "result.csv").read_text().strip().splitlines():
+        _, _, a, operator, b, c, remainder = row.split(",")
+        assert operator == "div"
+        assert re.fullmatch(r"\d+\.\d", a)          # decimal dividend
+        assert re.fullmatch(r"\d+\.\d", b)          # decimal divisor
+        assert re.fullmatch(r"\d+", c) and int(c) >= 1
+        assert re.fullmatch(r"\d+\.\d", remainder) and float(remainder) != 0.0
+        # dividend == quotient * divisor + remainder, remainder aligned to the
+        # original dividend (1 decimal place).
+        assert round(float(a) - (int(c) * float(b) + float(remainder)), 9) == 0.0
+
+
 @pytest.mark.parametrize(
     "invalid_args",
     [
         ("-o", "add", "--decimal-remainder", "--a-decimal-places", "1"),
         ("-o", "div", "mul", "--decimal-remainder", "--a-decimal-places", "1"),
         ("-o", "div", "--decimal-remainder"),  # no --a-decimal-places
-        ("-o", "div", "--decimal-remainder", "--a-decimal-places", "1", "--b-decimal-places", "1"),
+        # divisor may not carry more decimal places than the dividend (issue #334).
+        ("-o", "div", "--decimal-remainder", "--a-decimal-places", "1", "--b-decimal-places", "2"),
         ("-o", "div", "--decimal-remainder", "--a-decimal-places", "1", "--remainder"),
         ("-o", "div", "--decimal-remainder", "--a-decimal-places", "1", "--no-remainder"),
         ("-o", "div", "--decimal-remainder", "--a-decimal-places", "1", "--quotient-digits", "2"),
@@ -661,6 +687,21 @@ def test_cli_ope_decimal_remainder_empty_range_fails(run_tex_cli, tmp_path):
     result = run_tex_cli(
         "A4", "ope", "-o", "div", "--decimal-remainder", "--a-decimal-places", "1",
         "--a-min", "1", "--a-max", "9", "--b-min", "2", "--b-max", "9",
+        "--out-file", "result.pdf",
+    )
+
+    assert result.returncode == 1
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_ope_decimal_remainder_disguised_whole_divisor_range_fails(run_tex_cli, tmp_path):
+    # A decimal-divisor range that only contains a disguised whole number
+    # (2.0) belongs to the grade-4 whole-divisor drill -- the fail-fast probe
+    # must reject it (issue #334).
+    result = run_tex_cli(
+        "A4", "ope", "-o", "div", "--decimal-remainder",
+        "--a-decimal-places", "1", "--b-decimal-places", "1",
+        "--a-min", "10", "--a-max", "99", "--b-min", "20", "--b-max", "20",
         "--out-file", "result.pdf",
     )
 
