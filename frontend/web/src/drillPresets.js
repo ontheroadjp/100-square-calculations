@@ -990,8 +990,9 @@ const grade4 = {
       // 2年生 four-operations の g2-parentheses を移設したもの(id・string キーを
       // g4- へ付け替え、buildParams は不変)。括弧内・括弧外とも加減のみ・数値 90 以下で
       // 括弧ルールの最も素朴な導入にあたるため difficultyKey は difficulty_basic に
-      // 引き下げた(移設前は difficulty_standard)。g4-parentheses(四則・除算含む)と
-      // g4-parentheses-mul-result-1000(加減乗・答え 1,000 まで)は difficulty_standard を維持。
+      // 引き下げた(移設前は difficulty_standard)。4年生の括弧ドリルは2段階: 基礎
+      // g4-parentheses-addsub(＋−) と 標準 g4-parentheses(＋−×÷)。issue #340 で
+      // 冗長な中間層 g4-parentheses-mul-result-1000 を削除した。
       id: 'g4-parentheses-addsub',
       titleKey: 'menu_g4_parentheses_addsub_title',
       descKey: 'menu_g4_parentheses_addsub_desc',
@@ -1019,24 +1020,6 @@ const grade4 = {
       buildParams: () => ({
         command_type: 'ope', operator: ['add', 'sub', 'mul', 'div'], mixed_operators: true,
         use_parentheses: true, a_digits: 1, b_digits: 1,
-      }),
-    },
-    {
-      id: 'g4-parentheses-mul-result-1000',
-      titleKey: 'menu_g4_parentheses_mul_result_1000_title',
-      descKey: 'menu_g4_parentheses_mul_result_1000_desc',
-      pointKey: 'menu_g4_parentheses_mul_result_1000_point',
-      difficultyKey: 'difficulty_standard',
-      examples: ['(45+38)×12-56', '(23+17)×8+15', '(90-34)×5-20'],
-      settings: [
-        fixedSetting('operators', 'setting_operators_label', 'setting_option_addsubmul_mixed'),
-        fixedSetting('parentheses', 'setting_parentheses_label', 'setting_option_present'),
-      ],
-      supportLevel: 'full',
-      latexOnly: true,
-      buildParams: () => ({
-        command_type: 'ope', operator: ['add', 'sub', 'mul'], terms: 3, mixed_operators: true,
-        use_parentheses: true, a_min: 1, a_max: 99, b_min: 1, b_max: 99, result_max: 1000,
       }),
     },
   ],

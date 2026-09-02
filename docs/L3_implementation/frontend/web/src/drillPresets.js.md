@@ -187,21 +187,27 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 
 ### 括弧・かけ算を含む混合計算を3年生から4年生へ移設(issue #328)
 
-`(45+38)×12-56` 形式の「括弧・四則混合・演算の順序」は学習指導要領解説 算数編 第4学年 A「数量の関係を表す式」(（）を用いた式・四則の混合した式・計算の順序のきまり)の内容で、第3学年ではない。issue #161 で3年生 `four-operations` に新設した `g3-parentheses-mul-result-1000` を、`id`・`titleKey`/`descKey`/`pointKey` を `g3-`→`g4-` に付け替えて `g4-parentheses-mul-result-1000` として `grade4['four-operations']` の `g4-parentheses` 直後へ移した。`examples`・`settings`(`operators` 固定=addsubmul_mixed、`parentheses` 固定=present)・`supportLevel`・`latexOnly`・`buildParams` 本体(`operator:['add','sub','mul'], terms:3, mixed_operators:true, use_parentheses:true, a_min:1, a_max:99, b_min:1, b_max:99, result_max:1000`)は一切変更していない。
+`(45+38)×12-56` 形式の「括弧・四則混合・演算の順序」は学習指導要領解説 算数編 第4学年 A「数量の関係を表す式」(（）を用いた式・四則の混合した式・計算の順序のきまり)の内容で、第3学年ではない。issue #161 で3年生 `four-operations` に新設した `g3-parentheses-mul-result-1000` を、`id`・`titleKey`/`descKey`/`pointKey` を `g3-`→`g4-` に付け替えて `g4-parentheses-mul-result-1000` として `grade4['four-operations']` の `g4-parentheses` 直後へ移した(この `g4-parentheses-mul-result-1000` 項目自体は後続の issue #340 で削除された。下記「4年生の括弧ドリルを2段階へ統合(issue #340)」参照)。移設時点では `examples`・`settings`・`supportLevel`・`latexOnly`・`buildParams` 本体を一切変更していない。3年生から括弧・かけ算を含む項目を除いた点(下記)は #340 後も有効。
 
-`g4-parentheses` へ統合せず独立項目として残した理由: `g4-parentheses` は除算を含む1桁オペランドの四則混合(`operator:['add','sub','mul','div'], a_digits:1`)で、統合すると除算を外すか答えの上限(`result_max:1000`)・2桁オペランドという緩やかな段階を失う。第4学年は四則混合を段階的に導入するため、除算なし・答え1,000以下・2桁までの本項目は `g4-parentheses` への橋渡しとして独立させる価値がある。オペランド範囲指定は移設後も `a_min`/`a_max` 形式のままで、同じ4年生の `g4-parentheses` が使う `a_digits`/`b_digits` 形式とは異なる(2年生 `g2-parentheses` と同形式)。
-
-`strings.ja.json` の対応3キー(`menu_g3_parentheses_mul_result_1000_{title,desc,point}` → `menu_g4_…`)は文言そのままでリネームし、g4 ブロック(`menu_g4_parentheses_point` の直後)へ移動した。`menu_g3_addsub_mixed_result_1000_*` は3年生に残るため無変更。`docs/uiux/calculation_drill_menu_parameters_v1.md` は小学3年生の表から「括弧を含む足し算・引き算・かけ算」行を削除し、小学4年生の表(「括弧を含む四則混合計算」の直後)へ同等の行を追加した。`drillPresets.test.js` の該当テストを4年生・新 id へ retarget し、3年生 `four-operations` が括弧・かけ算を含む項目を持たないことを検証する #328 テストを追加した([[./drillPresets.test.js]] 参照)。`CATEGORY_ORDER`(`catalog.js`/`pcMakeFlow.js`)は両学年とも `four-operations` カテゴリを維持するため無変更。
+`strings.ja.json` の対応3キー(`menu_g3_parentheses_mul_result_1000_{title,desc,point}` → `menu_g4_…`)は #328 では文言そのままでリネームした(#340 で当該3キーごと削除)。`menu_g3_addsub_mixed_result_1000_*` は3年生に残るため無変更。`docs/uiux/calculation_drill_menu_parameters_v1.md` は小学3年生の表から「括弧を含む足し算・引き算・かけ算」行を削除した(#328)。`drillPresets.test.js` の該当テストを4年生・新 id へ retarget し、3年生 `four-operations` が括弧・かけ算を含む項目を持たないことを検証する #328 テストを追加した([[./drillPresets.test.js]] 参照)。`CATEGORY_ORDER`(`catalog.js`/`pcMakeFlow.js`)は両学年とも `four-operations` カテゴリを維持するため無変更。
 
 ### 括弧の足し引きドリルを2年生から4年生へ移設し難易度を基礎へ(issue #330)
 
 `35-(12+8)` 形式の「（　）を用いた式・（　）の中を先に計算するきまり」は学習指導要領解説 算数編 第4学年 A「数量の関係を表す式」の内容であり、第2学年ではない(一部の教科書が第2学年で「たしてからひく」文脈として非形式的に先取りするが、この項目はその規約を「ルールをはじめて学ぶ」ドリルとして明示している)。issue #161 以前から2年生 `four-operations` にあった `g2-parentheses` を、`id`・`titleKey`/`descKey`/`pointKey` を `g2-`→`g4-` に付け替えて `g4-parentheses-addsub` として `grade4['four-operations']` の `g4-four-operations` 直後・`g4-parentheses` の直前へ移した。`examples`(`['35-(12+8)', '52-(23+9)', '68-(15+22)']`)・`settings`(`parentheses` 固定=present)・`supportLevel`(`full`)・`latexOnly`(`true`)・`buildParams` 本体(`operator:['add','sub'], terms:3, use_parentheses:true, a_min:1, a_max:90, b_min:1, b_max:90`)は一切変更していない。
 
-`difficultyKey` は移設前の `difficulty_standard` から `difficulty_basic` へ引き下げた。括弧内・括弧外とも加減のみ、数値 90 以下で、（　）ルールの最も素朴な導入にあたるため。4年生の括弧ドリル3項目は難易度が段階化される: `g4-parentheses-addsub`(基礎、加減のみ) < `g4-parentheses-mul-result-1000`(標準、加減乗・答え1,000まで)・`g4-parentheses`(標準、四則・除算含むが1桁)。いずれも `difficulty_advanced` は与えない。
+`difficultyKey` は移設前の `difficulty_standard` から `difficulty_basic` へ引き下げた。括弧内・括弧外とも加減のみ、数値 90 以下で、（　）ルールの最も素朴な導入にあたるため。issue #340 の統合後、4年生の括弧ドリルは2項目で難易度が段階化される: `g4-parentheses-addsub`(基礎、加減のみ) < `g4-parentheses`(標準、四則・除算含むが1桁)。いずれも `difficulty_advanced` は与えない(下記「4年生の括弧ドリルを2段階へ統合(issue #340)」参照)。
 
-`g4-parentheses` へ統合せず独立項目として残した理由: `g4-parentheses` は除算を含む1桁オペランドの四則混合(`operator:['add','sub','mul','div'], a_digits:1`)、`g4-parentheses-mul-result-1000` は加減乗・答え1,000まで。いずれも括弧内に加減のみを置く本項目より難しく、本項目は括弧ルールの入口として最も易しい段階を担う。オペランド範囲指定は `a_min`/`a_max` 形式のままで、同じ4年生の `g4-parentheses` が使う `a_digits`/`b_digits` 形式とは異なる(`g4-parentheses-mul-result-1000` と同形式)。
+`g4-parentheses` へ統合せず独立項目として残した理由: `g4-parentheses` は除算を含む1桁オペランドの四則混合(`operator:['add','sub','mul','div'], a_digits:1`)で、括弧内に加減のみを置く本項目より難しく、本項目は括弧ルールの入口として最も易しい段階を担う。オペランド範囲指定は `a_min`/`a_max` 形式のままで、同じ4年生の `g4-parentheses` が使う `a_digits`/`b_digits` 形式とは異なる(移設元の2年生 `g2-parentheses` と同形式)。
 
 `strings.ja.json` の対応3キー(`menu_g2_parentheses_{title,desc,point}` → `menu_g4_parentheses_addsub_{title,desc,point}`)は文言そのままでリネームし、g4 ブロック(`menu_g4_four_operations_point` の直後)へ移動した。`docs/uiux/calculation_drill_menu_parameters_v1.md` は小学2年生の表から「括弧を含む足し引き」行を削除し、小学4年生の表(「整数の四則混合計算」の直後)へ難易度列を `基礎`・備考「括弧内を先に計算。＋と－のみ」とした同等の行を追加した。`drillPresets.test.js` に、2年生 `four-operations` が `g2-addsub-mixed` のみで括弧項目を持たないことを検証する #330 テストと、`g4-parentheses-addsub` が `difficulty_basic` かつ加減のみ・括弧ありの `buildParams` を返すことを検証する #330 テストを追加した([[./drillPresets.test.js]] 参照)。`CATEGORY_ORDER`(`catalog.js`/`pcMakeFlow.js`)は両学年とも `four-operations` カテゴリを維持するため無変更。
+
+### 4年生の括弧ドリルを2段階へ統合(issue #340)
+
+issue #328・#330 の移設の結果、4年生 `four-operations` には括弧ドリルが3項目あった: `g4-parentheses-addsub`(基礎、＋−)・`g4-parentheses-mul-result-1000`(標準、＋−×・答え1,000まで・2桁)・`g4-parentheses`(標準、＋−×÷・1桁)。後ろの2つは同一の学習内容(（　）を先に → ×÷ → ＋−)を教えており、違いは ÷ の有無とオペランドの大きさという難易度の調整つまみに過ぎず、学習指導要領 第4学年 A「数量の関係を表す式」の別ステップではない(÷ の練習は `g4-div-1digit`/`g4-div-2digit` が別途担当)。標準の名前(「括弧を含む足し算・引き算・かけ算」と「括弧を含む四則混合計算」)も紛らわしかった。
+
+そこで冗長な中間層 `g4-parentheses-mul-result-1000` オブジェクトを `grade4['four-operations']` から丸ごと削除し、2段階に統合した: 基礎 `g4-parentheses-addsub`(＋−) と 標準 `g4-parentheses`(＋−×÷)。`g4-parentheses` の `buildParams`(`operator:['add','sub','mul','div'], mixed_operators:true, use_parentheses:true, a_digits:1, b_digits:1`)・`examples`・`settings`・文言は一切変更していない(純粋な削除)。オペランド範囲を広げなかった理由: （　）+ 計算の順序のきまりという単元スキルは1桁オペランドで完全に練習でき(例 `(8+4)×5-6`)、`g4-parentheses` は ÷ を含むため1桁に留めると割り切れる素直な除算(÷2〜÷9)を保てる。2桁化 + ÷ はバックエンドが割り切れる2桁÷2桁を探索する必要が生じ、不自然な数とリトライ増を招くだけで単元上の意義がない。大きい数の練習は `g4-four-operations` と4年生の除算ドリルが既に担当する。
+
+削除に伴い、`strings.ja.json` の `menu_g4_parentheses_mul_result_1000_{title,desc,point}` の3キーと、他に参照がなくなった `setting_option_addsubmul_mixed` キーを削除した(orphan setting option 削除の先例: issue #329)。`drillPresets.test.js` は #328 で retarget した「grade 4 parenthesized mix caps the answer at 1,000…」テストを削除し、4年生 `four-operations` の括弧項目がちょうど `['g4-parentheses-addsub','g4-parentheses']`(難易度 `difficulty_basic`/`difficulty_standard`)であること・`g4-parentheses-mul-result-1000` が存在しないことを検証する #340 テストへ置き換えた([[./drillPresets.test.js]] 参照)。`docs/uiux/calculation_drill_menu_parameters_v1.md` は小学4年生の表から「括弧を含む足し算・引き算・かけ算」行を削除する(「括弧を含む四則混合計算」行はパラメータ無変更のため据え置き)。バックエンド変更なし。`CATEGORY_ORDER` 無変更。
 
 ### 4年生の分数カテゴリ撤廃(issue #315)
 
@@ -240,7 +246,8 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 
 ## 変更履歴（git log より自動生成）
 
-- a88a90b feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint
+- 35d7c0a refactor(#340): consolidate grade 4 parentheses drills to two tiers
+- b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)
 - d37b593 fix(#330): move parentheses add/sub drill from grade 2 to grade 4 and set difficulty to basic (#338)
 - cbeb0a6 fix(#329): restrict grade 4 decimal×integer multiplication to an integer multiplier (#337)
 - 5d42151 fix(#328): move parenthesized mixed-operation drill from grade 3 to grade 4 (#336)
@@ -249,4 +256,3 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 - f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)
 - 697db43 refactor(#315): move grade 4 fraction add/sub into addition/subtraction categories (#316)
 - 40dfb0a feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication (#314)
-- 7334a3a feat(#311): rename grade 2 three-term drill and add operator-mode selection (#312)

@@ -555,22 +555,25 @@ test('grade 3 four-operations mix caps the answer at 1,000 without multiplicatio
   });
 });
 
-test('grade 4 parenthesized mix caps the answer at 1,000 and multiplication operands at 2 digits', () => {
-  const item = presetsByGrade[4]['four-operations'].find((candidate) => candidate.id === 'g4-parentheses-mul-result-1000');
+test('grade 4 four-operations consolidates parentheses drills to two tiers: basic ＋− and standard ＋−×÷ (#340)', () => {
+  const items = presetsByGrade[4]['four-operations'];
+  const parenthesesItems = items.filter((candidate) => candidate.id.includes('parentheses'));
 
-  assert.ok(item);
-  assert.deepEqual(item.buildParams(), {
-    command_type: 'ope',
-    operator: ['add', 'sub', 'mul'],
-    terms: 3,
-    mixed_operators: true,
-    use_parentheses: true,
-    a_min: 1,
-    a_max: 99,
-    b_min: 1,
-    b_max: 99,
-    result_max: 1000,
-  });
+  assert.deepEqual(
+    parenthesesItems.map((candidate) => candidate.id),
+    ['g4-parentheses-addsub', 'g4-parentheses'],
+  );
+  // difficulty_basic renders as 基礎, difficulty_standard as 標準 (strings.ja.json).
+  assert.deepEqual(
+    parenthesesItems.map((candidate) => candidate.difficultyKey),
+    ['difficulty_basic', 'difficulty_standard'],
+  );
+  assert.deepEqual(parenthesesItems[0].buildParams().operator, ['add', 'sub']);
+  assert.deepEqual(parenthesesItems[1].buildParams().operator, ['add', 'sub', 'mul', 'div']);
+  assert.equal(parenthesesItems[1].buildParams().use_parentheses, true);
+
+  // the redundant middle tier removed in #340 must be gone
+  assert.ok(!items.some((candidate) => candidate.id === 'g4-parentheses-mul-result-1000'));
 });
 
 test('grade 3 four-operations no longer contains parentheses or multiplication (#328)', () => {
