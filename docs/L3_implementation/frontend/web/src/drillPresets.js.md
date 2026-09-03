@@ -6,7 +6,7 @@
 
 ## 動作の概要
 
-`GRADES`(`[1,2,3,4,5,6]`)・`UNGRADED`(`'ungraded'`)・`presetsByGrade` を export する。`presetsByGrade[grade]` は `{ <categoryId>: menuItem[] }` の形で、`categoryId` は `addition`/`subtraction`/`multiplication`/`division`/`decimal`/`fraction`/`four-operations`/`number-sense` のいずれか(該当する学年にのみ出現)。`decimal` は5年生専用で、`multiplication`/`division` カテゴリを廃止した代わりに小数×小数・整数と小数の割り算をまとめる(issue #320、下記セクション参照)。`fraction` は3年生(issue #161で撤廃)・4年生(issue #315で撤廃)を除く5〜6年生に残る。カテゴリキーは `catalog.js` の固定 `CATEGORY_ORDER`(`addition, subtraction, multiplication, division, decimal, fraction, four-operations, number-sense`)による学年ページのセクション見出し順序付けにのみ使われ、`drillCatalog.js` の絞り込み分類(`numberType`/`operationGroup`)には影響しない(`Object.values(categories)` でカテゴリキーを捨ててフラット化するため)。
+`GRADES`(`[1,2,3,4,5,6]`)・`UNGRADED`(`'ungraded'`)・`presetsByGrade` を export する。`presetsByGrade[grade]` は `{ <categoryId>: menuItem[] }` の形で、`categoryId` は `review`/`addition`/`subtraction`/`multiplication`/`division`/`decimal`/`fraction`/`four-operations`/`number-sense` のいずれか(該当する学年にのみ出現)。`review`(総合問題)は3年生専用の試作で、その学年の複数単元を1枚に混ぜるワークシート(issue #140、下記セクション参照)。`decimal` は5年生専用で、`multiplication`/`division` カテゴリを廃止した代わりに小数×小数・整数と小数の割り算をまとめる(issue #320、下記セクション参照)。`fraction` は3年生(issue #161で撤廃)・4年生(issue #315で撤廃)を除く5〜6年生に残る。カテゴリキーは `catalog.js` の固定 `CATEGORY_ORDER`(`review, addition, subtraction, multiplication, division, decimal, fraction, four-operations, number-sense`)による学年ページのセクション見出し順序付けにのみ使われ、`drillCatalog.js` の絞り込み分類(`numberType`/`operationGroup`)には影響しない(`Object.values(categories)` でカテゴリキーを捨ててフラット化するため)。
 
 各 `menuItem` は以下を持つ:
 - `id`/`titleKey`/`descKey`/`pointKey`: 全データモデル中で `id` は一意。`pointKey`(issue #157)は `presetDetail.js` のページヘッダーに表示する、保護者向けの平易な指導ポイント文言(60件、[[./pageHeader.js]] 参照)。既存の `descKey` はもともと旧 `drillCatalog.js` 向けの機械的な説明文で、同ファイルが issue #110 で削除された現在は本データモデル上のフィールドとしてのみ残る(`drillPresets.test.js` が全項目に `descKey` が存在することを検証しているため、フィールド自体は残置)。`pointKey` とは用途・文体が異なる別系統のキーとして併存する。
@@ -187,6 +187,16 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 
 `catalog.js` の `CATEGORY_ORDER` は既に `four-operations` を `fraction` の直後(実質最後尾側)に固定しているため、3年生に `four-operations` カテゴリキーを追加するだけで学年ページ最下部にセクションが自動的に現れる(`catalog.js` 自体は無変更)。3年生・4年生とも `four-operations` カテゴリキーを保持するため、issue #328 の項目移設後もこの点は変わらない。
 
+### 3年生の総合問題(複数ソース混在ワークシート)(issue #140)
+
+3年生に `review` カテゴリを新設し、1項目 `g3-review`(`titleKey: 'menu_g3_review_title'`「3年の総合問題」)を置いた。学習指導要領 第3学年 A「数と計算」の複数単元 ―― 3〜4桁のたし算・ひき算、2〜3位数×1位数のかけ算、あまりのあるわり算(九九の範囲)、小数(1/10の位)のたし算・ひき算、同分母・真分数のたし算・ひき算 ―― を1枚に混在させる「総まとめ」。学年の総まとめとして `CATEGORY_ORDER`(`catalog.js`/`pcMakeFlow.js`)の**先頭**に `'review'` を置き、3年生ページでは他カテゴリより上に表示する。
+
+- `settings: []`(設定なし)、`supportLevel: 'full'`、`latexOnly: true`。`examples` は静的(`presetDetail.js` のライブプレビューは `command_type === 'ope'` のみ対象のため `review` は静的例題のまま)。
+- `buildParams()` は引数を取らず `{ command_type: 'review', shuffle: true, sources: [...5件...] }` を返す。`sources` 各要素は `{ command_type: 'ope'|'frac', num: 1, ...そのドリルのオプション }`。`num` は**相対ウェイト**で、backend の [[../../../../backend/three_layer_renderer.py]] `_generate_review_pdf` がプリント全体の問題数(`presetDetail.js` の 10/20/30 選択 = `rows*columns`)へウェイト按分する。5件を等ウェイト(`num:1`×5)にしているため、どの問題数でも5単元が均等になる。
+- `sources` の内訳: `ope` add/sub(`carry_mode:'mixed'`, `a/b_min 100`/`max 9999`)、`ope` mul(`a 10..999`, `b 2..9`)、`ope` div(`remainder_mode:'mixed'`, `a 10..81`, `b 2..9`)、`ope` add/sub 小数(`a/b_decimal_places:1`, `a/b 1..99`)、`frac` add/sub(`numerator_digits:1`, `denominator_digits:1`, `same_denominator:true`, `proper_operands:true`, `proper_result:true`)。
+- `command_type: 'review'` は `POST /generate-problems`(データのみ)非対応。CLI(`nuts_calc_tex.py`)にも `review` サブコマンドは無い(合成は backend の presentation 層専用)。
+- `drillPresets.test.js` の `KNOWN_CATEGORIES` に `'review'` を追加した([[./drillPresets.test.js]] 参照)。`catalog.js`/`pcMakeFlow.js` は `CATEGORY_ORDER` 先頭に `'review'` を1語足すだけ([[./catalog.js]]/[[./pcMakeFlow.js]] 参照)。文言3キーは [[./strings.ja.json]] に追加。
+
 ### 括弧・かけ算を含む混合計算を3年生から4年生へ移設(issue #328)
 
 `(45+38)×12-56` 形式の「括弧・四則混合・演算の順序」は学習指導要領解説 算数編 第4学年 A「数量の関係を表す式」(（）を用いた式・四則の混合した式・計算の順序のきまり)の内容で、第3学年ではない。issue #161 で3年生 `four-operations` に新設した `g3-parentheses-mul-result-1000` を、`id`・`titleKey`/`descKey`/`pointKey` を `g3-`→`g4-` に付け替えて `g4-parentheses-mul-result-1000` として `grade4['four-operations']` の `g4-parentheses` 直後へ移した(この `g4-parentheses-mul-result-1000` 項目自体は後続の issue #340 で削除された。下記「4年生の括弧ドリルを2段階へ統合(issue #340)」参照)。移設時点では `examples`・`settings`・`supportLevel`・`latexOnly`・`buildParams` 本体を一切変更していない。3年生から括弧・かけ算を含む項目を除いた点(下記)は #340 後も有効。
@@ -318,7 +328,8 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 
 ## 変更履歴（git log より自動生成）
 
-- 1542a1d feat(#351): add grade-3 3x2 multiplication drill and broaden g6 fraction/decimal mixed to four operations
+- a116853 feat(#140): add the grade-3 multi-source review (総合問題) worksheet
+- a249fb2 feat(#351): add grade-3 3x2 multiplication drill and broaden g6 fraction/decimal mixed to four operations (#353)
 - 7203e9e feat(#349): redesign decimal-division drills around a remainder setting and add a divide-through mode (#352)
 - ffd182f feat(#346): add the 概数 (approx) rounding / estimation drill (#348)
 - e493735 feat(#334): extend --decimal-remainder to a decimal divisor and add the grade 5 小数のわり算 (あまり) drill (#347)
@@ -327,4 +338,3 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 - 36de01d fix(#342): guarantee a non-trivial division in every g4-parentheses problem (#343)
 - 960657f refactor(#340): consolidate grade 4 parentheses drills to two tiers (#341)
 - b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)
-- d37b593 fix(#330): move parentheses add/sub drill from grade 2 to grade 4 and set difficulty to basic (#338)

@@ -828,6 +828,53 @@ const grade3 = {
       }),
     },
   ],
+  // 総合問題 (multi-source review worksheet, issue #140). One sheet mixing the
+  // grade-3 学習指導要領 第3学年 A「数と計算」units: 3-4桁のたし算・ひき算,
+  // 2-3位数×1位数のかけ算, あまりのあるわり算(九九の範囲), 小数(1/10の位)の
+  // たし算・ひき算, 同分母・真分数のたし算・ひき算. Each `sources` entry's `num`
+  // is a relative weight the backend scales to fill the chosen problem count
+  // (10/20/30), so an even split stays even at every size.
+  review: [
+    {
+      id: 'g3-review',
+      titleKey: 'menu_g3_review_title',
+      descKey: 'menu_g3_review_desc',
+      pointKey: 'menu_g3_review_point',
+      difficultyKey: 'difficulty_standard',
+      examples: ['4823+1956', '317×6', '55÷8', '3.4+2.8', '3/7+2/7'],
+      settings: [],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'review',
+        shuffle: true,
+        sources: [
+          {
+            command_type: 'ope', num: 1, operator: ['add', 'sub'], carry_mode: 'mixed',
+            a_min: 100, a_max: 9999, b_min: 100, b_max: 9999,
+          },
+          {
+            command_type: 'ope', num: 1, operator: ['mul'],
+            a_min: 10, a_max: 999, b_min: 2, b_max: 9,
+          },
+          {
+            command_type: 'ope', num: 1, operator: ['div'], remainder_mode: 'mixed',
+            a_min: 10, a_max: 81, b_min: 2, b_max: 9,
+          },
+          {
+            command_type: 'ope', num: 1, operator: ['add', 'sub'],
+            a_min: 1, a_max: 99, b_min: 1, b_max: 99,
+            a_decimal_places: 1, b_decimal_places: 1,
+          },
+          {
+            command_type: 'frac', num: 1, operator: ['add', 'sub'],
+            numerator_digits: 1, denominator_digits: 1,
+            same_denominator: true, proper_operands: true, proper_result: true,
+          },
+        ],
+      }),
+    },
+  ],
 };
 
 // ---------------------------------------------------------------------

@@ -4,7 +4,7 @@ import { GRADES, UNGRADED, presetsByGrade } from './drillPresets.js';
 
 const KNOWN_CATEGORIES = new Set([
   'addition', 'subtraction', 'multiplication', 'division',
-  'decimal', 'fraction', 'four-operations', 'number-sense',
+  'decimal', 'fraction', 'four-operations', 'review', 'number-sense',
 ]);
 
 const KNOWN_SUPPORT_LEVELS = new Set(['full', 'partial', 'none']);

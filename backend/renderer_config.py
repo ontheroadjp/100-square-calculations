@@ -18,6 +18,31 @@ from pathlib import Path
 from typing import Literal, TypedDict
 
 
+class ReviewSource(TypedDict, total=False):
+    """One entry of ``RendererRequest.sources`` for ``command_type == 'review'``
+    (issue #140): a single drill's generation config plus how many of its
+    problems to place on the combined worksheet.
+    """
+
+    command_type: str
+    num: int
+    operator: list[str]
+    a_min: int
+    a_max: int
+    b_min: int
+    b_max: int
+    a_decimal_places: int
+    b_decimal_places: int
+    carry_mode: Literal["required", "none", "mixed"]
+    remainder_mode: Literal["required", "none", "mixed"]
+    result_max: int
+    numerator_digits: int
+    denominator_digits: int
+    same_denominator: bool
+    proper_operands: bool
+    proper_result: bool
+
+
 class RendererRequest(TypedDict, total=False):
     paper_size: str
     command_type: str
@@ -82,6 +107,8 @@ class RendererRequest(TypedDict, total=False):
     csv: bool
     debug: bool
     num: int  # problem_generation.py only: number of problems to generate (no PDF)
+    sources: list[ReviewSource]  # command_type == 'review' only: per-source generation configs (issue #140)
+    review_seed: int  # command_type == 'review' only: deterministic shuffle seed
 
 
 BACKEND_DIR = Path(__file__).resolve().parent

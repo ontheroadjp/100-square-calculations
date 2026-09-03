@@ -12,6 +12,7 @@
 
 `app.py` の `generate_pdf()` に存在していたディスパッチラダーと **同じ分岐順** で `command_type` / variant を判定する:
 
+0. `command_type` 完全一致: `review`(issue #140、`app.py` 由来のラダー外・新規。ラダー先頭に置く)
 1. `command_type` 完全一致: `com` / `lcm` / `divfrac` / `approx` / `gcd` / `evenodd` / `99` / `aBc` / `pi` / `100`
 2. `_is_plain_mixed_pdf_request` → `_is_multi_term_mixed_pdf_request`
 3. `_is_plain_ope_pdf_request` → `_is_tree_ope_pdf_request` → `_is_multi_term_ope_pdf_request` → `_is_missing_value_ope_pdf_request` → `_is_vertical_ope_pdf_request` → `_is_intermediate_ope_pdf_request`
@@ -54,6 +55,16 @@
 - `_is_vertical_ope_pdf_request` / `_generate_vertical_ope_pdf`(issue #227、コンテンツフォーマットパターン6): `ope --vertical`(筆算 / hissan)。述語は `_is_plain_ope_pdf_request` と同型で `vertical` を「必須」にしただけ。多行の xlop(add/sub/mul)/longdivision(div)出力のため `build_presentation_document_tex(..., grid_layout='tabular')` を指定する。`div` かつ除数が小数(`b_decimal_places > nuts_calc_tex.MIN_DECIMAL_PLACES`)の場合は `nuts_calc_tex.py` の `_init()` と同一メッセージの `ValueError` を送出(app.py は `_init()` を経由しないため再実装)。`plain 2-term ope` と同じく `decimal`/`carry`/`remainder`/`result_max` も渡す。`build_vertical_ope_slot_content_tex`。
 - `_is_intermediate_ope_pdf_request` / `_generate_intermediate_ope_pdf`(issue #226、コンテンツフォーマットパターン5): `ope --intermediate`(段階的暗算チェーン)。述語は `command_type == 'ope'` かつ `intermediate` が真で `vertical`/`use_parentheses`/`missing_value`/`mixed_operators`/`terms`系のいずれも非併用の場合のみ真。`--intermediate` は単一 `mul` 演算子・単一桁の第2オペランドのみ許すため、`operator != ['mul']` の場合と `b_max > nuts_calc_tex.INTERMEDIATE_SINGLE_DIGIT_MAX`(9)の場合は subprocess 経路と同じ文言の `ValueError` を送出する。`carry`/`remainder`/`decimal` は `mul` 限定 variant では無意味なため渡さない。`build_intermediate_ope_slot_content_tex`。
 
+### review
+
+`_generate_review_pdf`(issue #140、`command_type == 'review'`): 複数の別ドリルの問題を1枚に混在させる「総合問題」ワークシート。ラダー先頭でディスパッチする(`app.py` 由来のラダー外の新規ビルダー)。
+
+- `_resolve_review_sources(data)`: `data['sources']`(非空リスト)を検証する。各要素は dict で、`command_type` は `_REVIEW_SOURCE_GENERATORS` のキー(現状 `ope` / `frac` のみ。他は `_REVIEW_UNSUPPORTED_SOURCE_ERROR` の `ValueError`)、`num` は int かつ 1 以上。
+- `_distribute_review_counts(weights, order)`: `num` を相対ウェイトとして扱い、`order`(= `rows * columns`、既定 10×2=20)を最大剰余法でウェイト比按分する。ウェイト合計が `order` に一致する場合は各ソースがウェイトそのままを受け取る。frontend/web の問題数選択(10/20/30)でグリッド数が変わってもプリント常に満杯になるようにするための設計。
+- `_review_ope_problems` / `_review_frac_problems`: ソース1件分の生成器。`_generate_ope_pdf` / `_generate_frac_pdf` のパラメータ解決を、`review` が使うオプションだけに絞った版(`ope` は `a_min`/`a_max`/`b_min`/`b_max` を明示前提で digit-shorthand 非対応、`carry_mode`/`remainder_mode`/`a_decimal_places` 等; `frac` は `numerator_digits`/`denominator_digits`/`same_denominator`/`proper_operands`/`proper_result`)。`nuts_calc_tex.generate_ope_problems` / `generate_fraction_problems` を `start_index=1` で呼び、結果を `nuts_calc_tex.ReviewProblem(index, kind, payload)` で包んで返す。
+- `_generate_review_pdf`: 各ソースを按分後の個数だけ生成 → 連結 → `shuffle` が真なら `random.Random(data.get('review_seed'))` でシャッフル(seed 指定時は決定的)→ ページ内で `start_index = (page_number-1)*order + 1` から 1..N 採番 → `nuts_calc_tex.build_presentation_document_tex(content_format=nuts_calc_tex.build_review_slot_content_tex, content_area_layout=ContentAreaLayout(rows, columns), grid_layout='inline')` でレンダリング。`build_review_slot_content_tex` が各 `ReviewProblem.kind` で既存の番号なし `build_ope_slot_content_tex` / `build_fraction_slot_content_tex` へディスパッチする(番号ボックスは Layer 2 が付与)。`page` 複数・`with_name_field` は他ビルダー同様に反映。bottom-answer / merge は非対応。
+- 合成ロジックを `nuts_calc_tex.py` ではなくここに置いたのは CLI(`nuts_calc_tex.py` の positional `command` choices と `_init()`)を無改変に保つため。どのドリルを何問混ぜるかの「レシピ」は呼び出し側(`frontend/web` の学年別プリセット `g3-review`)が持つ。
+
 ## 重要な設計判断とその理由
 
 - **Flask 非依存・dict 駆動(import 副作用なし)**: 3層モデルへ移行予定の CLI(`nuts_calc_tex.py`)からの再利用を可能にするため。`generated_pdfs` ディレクトリ生成は `app.py` に残す。
@@ -66,10 +77,10 @@
 
 - 呼び出し元: `backend/app.py` の `generate_pdf()`(`POST /generate-pdf`)のみ。`output_filepath, output_filename = three_layer_renderer.render_worksheet_pdf(data, PDF_OUTPUT_DIR)` を無条件で呼び、その `(filepath, filename)` を `send_file` する(issue #297 で legacy 分岐を削除)。マッチなしの `ValueError`・ビルダーの `RuntimeError` はそれぞれ `generate_pdf()` の `except` 節が HTTP 500 に変換する。
 - 呼び出し先:
-  - `backend/nuts_calc_tex.py`: 内部プレゼンテーション API(`build_presentation_document_tex` / `PresentationPage` / `ContentAreaLayout` / `DEFAULT_PAGE_SHELL` / `get_latex_engine_adapter`)、各 command の `generate_*_problems` / `build_*_slot_content_tex` / `build_*_bottom_answer_tex`、定数(`DEFAULT_ROWS` / `MIN_ROWS_OR_COLUMNS` / `MIN_FRACTION_DIGITS` / `MAX_FRACTION_DIGITS` / `MIN_DECIMAL_PLACES` / `MAX_DECIMAL_PLACES` / `TERM_COUNT_FLOOR_DEFAULT` / `INTERMEDIATE_SINGLE_DIGIT_MAX` / `MIN_COMPLEMENT_TARGET` / `MIN_MULTIPLES_COUNT` / `DEFAULT_MULTIPLES_COUNT` / `MIXED_OPERAND_KINDS` / `MIX_OPERATORS` / `COMPARE_REL_BLANK_TEX` / `BLANK_ANSWER_TEX` 等)、`resolve_term_range`、`failure`。
+  - `backend/nuts_calc_tex.py`: 内部プレゼンテーション API(`build_presentation_document_tex` / `PresentationPage` / `ContentAreaLayout` / `DEFAULT_PAGE_SHELL` / `get_latex_engine_adapter`)、各 command の `generate_*_problems` / `build_*_slot_content_tex` / `build_*_bottom_answer_tex`、`review` 用の `ReviewProblem` / `build_review_slot_content_tex`(issue #140)、定数(`DEFAULT_ROWS` / `MIN_ROWS_OR_COLUMNS` / `MIN_FRACTION_DIGITS` / `MAX_FRACTION_DIGITS` / `MIN_DECIMAL_PLACES` / `MAX_DECIMAL_PLACES` / `TERM_COUNT_FLOOR_DEFAULT` / `INTERMEDIATE_SINGLE_DIGIT_MAX` / `MIN_COMPLEMENT_TARGET` / `MIN_MULTIPLES_COUNT` / `DEFAULT_MULTIPLES_COUNT` / `MIXED_OPERAND_KINDS` / `MIX_OPERATORS` / `COMPARE_REL_BLANK_TEX` / `BLANK_ANSWER_TEX` 等)、`resolve_term_range`、`failure`。
   - `backend/problem_generation.py`: `validate_com_target` / `validate_kuku_a_value` / `validate_pi_start` / `validate_squ_start`、`resolve_digit_count_range`、`resolve_hundred_square_axes`、`DEFAULT_A_MIN` / `DEFAULT_A_MAX` / `DEFAULT_B_MIN` / `DEFAULT_B_MAX` / `DEFAULT_OPERATOR`。
   - `backend/renderer_config.py`: `RendererRequest`(型注釈のみ)。
-  - 標準ライブラリ: `math.lcm` / `math.gcd`、`shutil.which`、`contextlib.redirect_stdout`、`io.StringIO`、`os.path.join`、`uuid.uuid4`。
+  - 標準ライブラリ: `math.lcm` / `math.gcd`、`random.Random`(`review` のシャッフル、`review_seed` で決定的)、`shutil.which`、`contextlib.redirect_stdout`、`io.StringIO`、`os.path.join`、`uuid.uuid4`。
 
 ## 注意事項・既知の制限
 
@@ -77,10 +88,12 @@
 - 内部 API 経路は `nuts_calc_tex.get_latex_engine_adapter()` を各 `_generate_*_pdf` から直接呼ぶため、`NUTS_CALC_TEX_ENGINE` 環境変数が不正な場合の失敗経路が subprocess command と異なる(素の `ValueError` が `app.py` のルートで HTTP 500 に変換される)。
 - `lcm`/`gcd`/`divfrac`/`approx`/`evenodd`/`99`/`aBc`/`pi`/`squ`/`multiples`/`divisors`/`frac`/`simplify`/`frac2dec`/`dec2frac`/`compare`/`commondenom` は専用述語を介さず `command_type` の単純一致でディスパッチする(`ope` と異なり別コンテンツフォーマットパターンを要求する移行済みバリアントがないため)。`approx` の `kind` 分岐は `nuts_calc_tex` 側(`generate_approx_problems`)が持ち、3層レンダラーは単一の slot formatter を渡すだけ。`compare` は option flag を持つが issue #224 の scope が既定オプション限定で generator も非既定値を許容するため bare exact-match 分岐にしている。
 - `ope` は plain / tree / flat multi-term / `--missing-value` / `--vertical` / `--intermediate` の各 variant を個別述語で振り分ける。いずれの述語にも当たらない `ope`(無効な variant 併用など。例: `use_parentheses` + `vertical`)は終端の `_UNSUPPORTED_REQUEST_ERROR` で `ValueError` → HTTP 500 になる(#291 以前は `None` 返しで subprocess 経路へフォールバックし、そこで CLI が拒否していた)。CLI の `100`(`build_hundred_square_pages` / `--csv`)は無変更で残存する。
+- `review`(issue #140)は `command_type` 完全一致でディスパッチする、`app.py` 由来のラダー外の新規ビルダー。合成対象のソース `command_type` は現状 `ope` / `frac` のみ(`_REVIEW_SOURCE_GENERATORS`)で、それ以外のソースは `ValueError` → HTTP 500。CLI に `review` サブコマンドは無い(合成は本モジュール専用、`nuts_calc_tex.py` 無改変)。`POST /generate-problems` も `review` 非対応。
 
 ## 変更履歴（git log より自動生成）
 
-- ebbe3c0 feat(#349): redesign decimal-division drills around a 余り setting and add --divide-through
+- a116853 feat(#140): add the grade-3 multi-source review (総合問題) worksheet
+- 7203e9e feat(#349): redesign decimal-division drills around a remainder setting and add a divide-through mode (#352)
 - ffd182f feat(#346): add the 概数 (approx) rounding / estimation drill (#348)
 - 9da1116 feat(#333): add grade 4 decimal-remainder division drill and --decimal-remainder flag (#345)
 - b2df846 feat(#332): add grade 3 two-digit-quotient division drill and --quotient-digits flag (#344)
@@ -89,4 +102,3 @@
 - 7bbec1b refactor(#297): delete the legacy /generate-pdf subprocess rendering path (#325)
 - f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)
 - e6e0e98 fix(#298): honor descend / shuffle in _generate_squ_pdf (3-layer renderer) (#299)
-- eb3afe8 feat(#292): honor the reverse equation side-swap in the 3-layer renderer for 99/squ/pi (#295)

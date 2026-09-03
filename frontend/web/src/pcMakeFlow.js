@@ -12,6 +12,7 @@ const API_BASE = 'http://127.0.0.1:5000';
 // driven by in-place state instead of a URL, per issue #101's "own dedicated
 // layout/interaction pass" requirement.
 const CATEGORY_ORDER = [
+  'review',
   'addition', 'subtraction', 'multiplication', 'division',
   'decimal', 'fraction', 'four-operations', 'number-sense',
 ];

@@ -42,6 +42,8 @@ issue #342 で「grade 4 four-operations consolidates parentheses drills to two 
 
 3年生「3桁×2桁」ドリル追加と6年生「分数・小数の混合計算」四則化(issue #351)について、専用テストは追加せず既存の網羅テストに委ねる。`g3-mul-3x2` は `DISPLAY_FORMAT_ITEM_IDS` 列挙に `g3-mul-2x2` の直後で追加され(18→19項目)、テスト名も `exactly the enumerated 19 items carry a displayFormat setting (issue #134)` へ更新した。この19項目リストを使う4テスト(厳密一致・既定 horizontal・`written`→`vertical: true`・无効化条件)が `g3-mul-3x2` も自動的にカバーする。`g6-fraction-decimal-mixed` の四則化(`operator: ['add','sub','mul','div']` + `mixed_operators: true` + `terms: 3` + `a_kind`/`b_kind` に `'int'` 追加)は専用テストを持たず、`buildParams(defaultState) returns a request body with paper_size-ready fields` と `menu item ids are unique` の全項目走査で検証される。
 
+3年生の総合問題(issue #140)について専用テストは追加せず、既存の網羅テストに委ねる。`KNOWN_CATEGORIES` セットに `'review'` を追加し、`g3-review`(`presetsByGrade[3].review`)が「every category key is one of the known category ids」「every menu item has the required shape」「menu item ids are unique」「buildParams(defaultState) returns a request body …」等の全項目走査でカバーされる。`settings: []` のため設定関連テストの対象にはならない。
+
 括弧の足し引きドリルの2年生→4年生移設(issue #330)について2つのテストを持つ。「grade 2 four-operations no longer contains parentheses (#330)」は `presetsByGrade[2]['four-operations']` の id 配列がちょうど `['g2-addsub-mixed']` であること、および全項目の `buildParams()` が `use_parentheses` キーを持たないことを検証する。「grade 4 parentheses add/sub drill is a basic add/sub-only four-operations item (#330)」は `presetsByGrade[4]['four-operations']` に `g4-parentheses-addsub` が存在し、`difficultyKey` が `difficulty_basic`(移設前の `difficulty_standard` から引き下げ)、`buildParams()` が `command_type:'ope', operator:['add','sub'], terms:3, use_parentheses:true, a_min:1,a_max:90,b_min:1,b_max:90` を返すことを検証する(同 学習指導要領解説 第4学年 A「数量の関係を表す式」が（　）を用いた式・（　）の中を先に計算するきまりを第4学年の内容とすることに対応)。
 
 ## 重要な設計判断とその理由
@@ -59,7 +61,8 @@ issue #342 で「grade 4 four-operations consolidates parentheses drills to two 
 
 ## 変更履歴（git log より自動生成）
 
-- 1542a1d feat(#351): add grade-3 3x2 multiplication drill and broaden g6 fraction/decimal mixed to four operations
+- a116853 feat(#140): add the grade-3 multi-source review (総合問題) worksheet
+- a249fb2 feat(#351): add grade-3 3x2 multiplication drill and broaden g6 fraction/decimal mixed to four operations (#353)
 - 7203e9e feat(#349): redesign decimal-division drills around a remainder setting and add a divide-through mode (#352)
 - ffd182f feat(#346): add the 概数 (approx) rounding / estimation drill (#348)
 - e493735 feat(#334): extend --decimal-remainder to a decimal divisor and add the grade 5 小数のわり算 (あまり) drill (#347)
@@ -68,4 +71,3 @@ issue #342 で「grade 4 four-operations consolidates parentheses drills to two 
 - 36de01d fix(#342): guarantee a non-trivial division in every g4-parentheses problem (#343)
 - 960657f refactor(#340): consolidate grade 4 parentheses drills to two tiers (#341)
 - b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)
-- d37b593 fix(#330): move parentheses add/sub drill from grade 2 to grade 4 and set difficulty to basic (#338)

@@ -2,7 +2,7 @@
 
 ## 目的・役割
 
-`catalog.html`(学年別カテゴリ画面)のページエントリ。issue #99 で `docs/uiux/wireframe_v1.png` の画面②(学年ごとのカテゴリ・ドリル一覧)に合わせて全面書き換えした。旧絞り込みフォーム(`numberType`/`grade`/`level`/`forms`)は撤去し、`drillCatalog.js` の `buildDrillCatalog`/`filterDrillCatalog`(旧5分類の `operationGroup` タクソノミー)を経由せず、`drillPresets.js` の `presetsByGrade[grade]`(たし算/ひき算/かけ算/わり算/小数/分数/四則混合/数の性質のカテゴリマップ。`小数` は5年生専用、issue #320)を直接消費する。
+`catalog.html`(学年別カテゴリ画面)のページエントリ。issue #99 で `docs/uiux/wireframe_v1.png` の画面②(学年ごとのカテゴリ・ドリル一覧)に合わせて全面書き換えした。旧絞り込みフォーム(`numberType`/`grade`/`level`/`forms`)は撤去し、`drillCatalog.js` の `buildDrillCatalog`/`filterDrillCatalog`(旧5分類の `operationGroup` タクソノミー)を経由せず、`drillPresets.js` の `presetsByGrade[grade]`(総合/たし算/ひき算/かけ算/わり算/小数/分数/四則混合/数の性質のカテゴリマップ。`総合` は3年生専用の試作、issue #140。`小数` は5年生専用、issue #320)を直接消費する。
 
 ## 動作の概要
 
@@ -11,7 +11,7 @@
 - ページヘッダーは共通コンポーネント `pageHeaderHtml(title, description)`([[./pageHeader.js]] 参照、issue #157)を呼び出して描画する。`title` には `t(\`grade_full_${grade}\`)`(例: 「小学1年生」)、`description` には学年ごとの指導ポイント文言 `t(\`grade_point_${grade}\`)` を渡す。アイコンとタイトルの `<h1>` を同じ `<a>` に包むことで、アイコン・タイトルどちらをクリックしても `index.html` に戻る単一のクリック領域になっている(issue #126、「戻る」というテキストラベルは廃止)。旧実装は `<a class="back-button">戻るテキスト</a>` と `<h1 class="catalog-heading">` を別要素として横に並べていた。
 - issue #130: grade が確定すると `#catalog` コンテナに `grade-${grade}` クラスを付与する(`frontend/web/src/catalog.js`)。`_catalog.scss`([[./styles/_catalog.scss]] 参照)の `.grade-1`〜`.grade-6` が定義する `--color-primary`/`--color-primary-hover` カスタムプロパティをこのクラス経由でスコープし、ヘッダー背景・カテゴリ見出しの左ボーダー・ドリルカードのhover枠線(`_drillList.scss`)を学年別の `$color-grade-N` に切り替える。grade が無効/欠落の空状態では付与されないため、既定の固定色のまま表示される。
 - `GET /renderer-info` を fetch して `activeRenderer` を確定する(失敗時は `reportlab` にフォールバック)。
-- `CATEGORY_ORDER`(`addition`/`subtraction`/`multiplication`/`division`/`decimal`/`fraction`/`four-operations`/`number-sense` の固定順。`decimal` は5年生専用の小数セクションで `fraction` の直前、issue #320)でループし、`presetsByGrade[grade]` に存在するカテゴリだけを、各アイテムを `canUseItem(item, activeRenderer)`(`!item.latexOnly || activeRenderer === 'latex'`。`drillCatalog.js` 内の同名関数と同じロジックをこのファイル内に複製)でフィルタしたうえで描画する。`presetsByGrade` のオブジェクトキー挿入順は学年ごとに異なる(例: grade4 は division が addition より先)ため、表示順は `CATEGORY_ORDER` で固定している。
+- `CATEGORY_ORDER`(`review`/`addition`/`subtraction`/`multiplication`/`division`/`decimal`/`fraction`/`four-operations`/`number-sense` の固定順。`review`(総合問題、issue #140)は学年の総まとめとして先頭に置く。`decimal` は5年生専用の小数セクションで `fraction` の直前、issue #320)でループし、`presetsByGrade[grade]` に存在するカテゴリだけを、各アイテムを `canUseItem(item, activeRenderer)`(`!item.latexOnly || activeRenderer === 'latex'`。`drillCatalog.js` 内の同名関数と同じロジックをこのファイル内に複製)でフィルタしたうえで描画する。`presetsByGrade` のオブジェクトキー挿入順は学年ごとに異なる(例: grade4 は division が addition より先)ため、表示順は `CATEGORY_ORDER` で固定している。
 - `drillCardHtml`: ドリルカード1件を、タイトル・`item.difficultyKey` を使う難易度バッジ・`item.examples[0]` を `formatExample()`(`+`/`-`/`×`/`÷` の前後にスペースを挿入。`/` は分数の区切りとして扱いスペースを入れない)で整形した例題1件、を `<a href="preset.html?grade=<grade>&drillId=<id>&format=default">` として描画する。`DIFFICULTY_BADGE_CLASS` は `difficulty_basic`/`difficulty_standard`/`difficulty_basic_standard`/`difficulty_advanced` をそれぞれ対応するCSSクラスへ変換し、未知のキーは標準バッジへフォールバックする(`frontend/web/src/catalog.js:21-26,39-46`)。カード全体がリンク。
 - URL契約(`preset.html?grade=N&drillId=ID&format=default`)は #97/#98 時点から変更していないため、`preset.js`/`presetDetail.js`/`drillCatalog.js` は無変更のまま連携する。
 
@@ -44,9 +44,10 @@
 - 絞り込みフォーム(`numberType`/`level`/`forms`、issue #97 で追加した「問題の形式」チェックボックスを含む)は issue #99 で完全に撤去した。カテゴリ・学年を横断した検索・絞り込みの導線は現在存在しない。
 - `grade` パラメータが `GRADES`(1〜6)に含まれない場合(欠落・範囲外・`ungraded` など)は一律で空状態を表示する。
 
-## 変更履歴(git log より自動生成)
+## 変更履歴（git log より自動生成）
 
-- c7260fa refactor(#320): replace grade 5 multiplication/division sections with a 小数 section
+- a116853 feat(#140): add the grade-3 multi-source review (総合問題) worksheet
+- f440b57 refactor(#320): replace grade 5 multiplication/division sections with a dedicated 小数 section (#321)
 - 9b366c1 #157 Add per-grade/per-drill header descriptions via a shared page header component (#160)
 - 85e58b1 #146 Add an advanced difficulty badge to the web UI (#147)
 - d43d1bc #130 frontend/web: make catalog page accent color switch dynamically per grade (#131)
