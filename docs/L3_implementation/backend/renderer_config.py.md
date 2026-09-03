@@ -42,14 +42,10 @@ issue #186 時点では `RENDERER_SCRIPTS` に `"reportlab"` エントリが残�
 - レンダラー選択は env 変数のみで、リクエストごとの指定はできない(issue #36 のスコープ)。`GET /renderer-info` はこの env 変数由来のレンダラー名を読み取り専用で公開するだけで、切り替え手段ではない。
 - issue #297 以降、本モジュールは PDF もデータも生成しない。`POST /generate-pdf` の PDF 生成は `backend/three_layer_renderer.py`、`POST /generate-problems` のデータ生成は `backend/problem_generation.py` が担う。
 
-## 変更履歴(git log より自動生成)
-
-- a88a90b feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint
-- 7bbec1b refactor(#297): delete the legacy /generate-pdf subprocess rendering path (#325)
-
 ## 変更履歴（git log より自動生成）
 
-- ebbe3c0 feat(#349): redesign decimal-division drills around a 余り setting and add --divide-through
+- a116853 feat(#140): add the grade-3 multi-source review (総合問題) worksheet
+- 7203e9e feat(#349): redesign decimal-division drills around a remainder setting and add a divide-through mode (#352)
 - ffd182f feat(#346): add the 概数 (approx) rounding / estimation drill (#348)
 - 9da1116 feat(#333): add grade 4 decimal-remainder division drill and --decimal-remainder flag (#345)
 - b2df846 feat(#332): add grade 3 two-digit-quotient division drill and --quotient-digits flag (#344)

@@ -24,3 +24,7 @@
 
 - 実 HTTP server は起動しない(`render_worksheet_pdf` を直接呼ぶ)。`POST /generate-pdf` 経由の HTTP レベルは `test_web_backend_app.py` の担当(現時点で `review` 専用ケースは未追加、必要になれば追記する)。
 - 問題生成自体の乱数は seed で固定しない(他ビルダー同様)。`review_seed` はシャッフル順のみを決定的にする。
+
+## 変更履歴（git log より自動生成）
+
+- a116853 feat(#140): add the grade-3 multi-source review (総合問題) worksheet

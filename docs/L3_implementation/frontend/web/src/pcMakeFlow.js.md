@@ -41,9 +41,10 @@ wireframe の PC レイアウトはドリル設定とプレビューが同一画
 - 右上のユーザー名/プレミアム会員バッジ(wireframe 上に存在)は、ログイン・課金機能自体がアプリに存在しないため未実装。`.pc-flow-topbar-actions`(空の `<div>`)として領域だけ確保しており、将来ログイン機能が実装された際にここへ追加する想定(ユーザー確認済み)。
 - カラム2〜4は `grade`/`item` が未選択の間、`pc_select_grade_prompt`/`pc_select_drill_prompt`/`pc_preview_placeholder` のプレースホルダー文言を表示する。
 
-## 変更履歴(git log より自動生成)
+## 変更履歴（git log より自動生成）
 
-- c7260fa refactor(#320): replace grade 5 multiplication/division sections with a 小数 section
+- a116853 feat(#140): add the grade-3 multi-source review (総合問題) worksheet
+- f440b57 refactor(#320): replace grade 5 multiplication/division sections with a dedicated 小数 section (#321)
 - a4104ca feat(#303): render fixed drill settings as an inactive segmented control (#304)
 - 85e58b1 #146 Add an advanced difficulty badge to the web UI (#147)
 - 1bb0f69 #126 frontend/web: add missing wireframe icons and unify page headers (#127)

@@ -44,9 +44,10 @@
 - 絞り込みフォーム(`numberType`/`level`/`forms`、issue #97 で追加した「問題の形式」チェックボックスを含む)は issue #99 で完全に撤去した。カテゴリ・学年を横断した検索・絞り込みの導線は現在存在しない。
 - `grade` パラメータが `GRADES`(1〜6)に含まれない場合(欠落・範囲外・`ungraded` など)は一律で空状態を表示する。
 
-## 変更履歴(git log より自動生成)
+## 変更履歴（git log より自動生成）
 
-- c7260fa refactor(#320): replace grade 5 multiplication/division sections with a 小数 section
+- a116853 feat(#140): add the grade-3 multi-source review (総合問題) worksheet
+- f440b57 refactor(#320): replace grade 5 multiplication/division sections with a dedicated 小数 section (#321)
 - 9b366c1 #157 Add per-grade/per-drill header descriptions via a shared page header component (#160)
 - 85e58b1 #146 Add an advanced difficulty badge to the web UI (#147)
 - d43d1bc #130 frontend/web: make catalog page accent color switch dynamically per grade (#131)
