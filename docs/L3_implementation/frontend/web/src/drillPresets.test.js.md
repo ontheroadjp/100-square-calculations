@@ -59,7 +59,8 @@ issue #342 で「grade 4 four-operations consolidates parentheses drills to two 
 
 ## 変更履歴（git log より自動生成）
 
-- ebbe3c0 feat(#349): redesign decimal-division drills around a 余り setting and add --divide-through
+- 1542a1d feat(#351): add grade-3 3x2 multiplication drill and broaden g6 fraction/decimal mixed to four operations
+- 7203e9e feat(#349): redesign decimal-division drills around a remainder setting and add a divide-through mode (#352)
 - ffd182f feat(#346): add the 概数 (approx) rounding / estimation drill (#348)
 - e493735 feat(#334): extend --decimal-remainder to a decimal divisor and add the grade 5 小数のわり算 (あまり) drill (#347)
 - 9da1116 feat(#333): add grade 4 decimal-remainder division drill and --decimal-remainder flag (#345)
@@ -68,4 +69,3 @@ issue #342 で「grade 4 four-operations consolidates parentheses drills to two 
 - 960657f refactor(#340): consolidate grade 4 parentheses drills to two tiers (#341)
 - b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)
 - d37b593 fix(#330): move parentheses add/sub drill from grade 2 to grade 4 and set difficulty to basic (#338)
-- cbeb0a6 fix(#329): restrict grade 4 decimal×integer multiplication to an integer multiplier (#337)
