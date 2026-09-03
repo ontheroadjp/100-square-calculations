@@ -606,7 +606,8 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴（git log より自動生成）
 
-- ca9967c feat(#346): add the 概数 (approx) rounding / estimation drill
+- ebbe3c0 feat(#349): redesign decimal-division drills around a 余り setting and add --divide-through
+- ffd182f feat(#346): add the 概数 (approx) rounding / estimation drill (#348)
 - e493735 feat(#334): extend --decimal-remainder to a decimal divisor and add the grade 5 小数のわり算 (あまり) drill (#347)
 - 9da1116 feat(#333): add grade 4 decimal-remainder division drill and --decimal-remainder flag (#345)
 - b2df846 feat(#332): add grade 3 two-digit-quotient division drill and --quotient-digits flag (#344)
@@ -615,4 +616,3 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)
 - 40dfb0a feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication (#314)
 - c03270f feat(#301): rebalance drill-sheet typography and rework hissan layout (#302)
-- eb3afe8 feat(#292): honor the reverse equation side-swap in the 3-layer renderer for 99/squ/pi (#295)

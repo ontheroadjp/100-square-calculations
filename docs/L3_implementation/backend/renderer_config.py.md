@@ -49,7 +49,8 @@ issue #186 時点では `RENDERER_SCRIPTS` に `"reportlab"` エントリが残�
 
 ## 変更履歴（git log より自動生成）
 
-- ca9967c feat(#346): add the 概数 (approx) rounding / estimation drill
+- ebbe3c0 feat(#349): redesign decimal-division drills around a 余り setting and add --divide-through
+- ffd182f feat(#346): add the 概数 (approx) rounding / estimation drill (#348)
 - 9da1116 feat(#333): add grade 4 decimal-remainder division drill and --decimal-remainder flag (#345)
 - b2df846 feat(#332): add grade 3 two-digit-quotient division drill and --quotient-digits flag (#344)
 - 36de01d fix(#342): guarantee a non-trivial division in every g4-parentheses problem (#343)

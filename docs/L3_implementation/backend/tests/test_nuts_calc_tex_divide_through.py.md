@@ -25,3 +25,5 @@
 CLI テストは `pdflatex` が無いと丸ごと skip されるため、純 Python テスト(ヘルパー・`generate_ope_problems`)がエンジン非依存の主カバレッジ。`lualatex` 専用の描画確認は追加していない(`--decimal-remainder` と同じ方針)。
 
 ## 変更履歴（git log より自動生成）
+
+- ebbe3c0 feat(#349): redesign decimal-division drills around a 余り setting and add --divide-through

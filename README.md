@@ -205,15 +205,24 @@ not a disguised whole number, and a nonzero remainder. It is rejected for any
 other command or operator, without a decimal dividend, when `--b-decimal-places`
 exceeds `--a-decimal-places`, and when combined with
 `--remainder`/`--no-remainder`/`--mixed-remainder`, `--quotient-digits`,
-`--integer-dividend`/`--decimal-dividend`/`--mixed-dividend`, `--vertical`,
-`--intermediate`, `--mixed-decimal-operand-order`, or
+`--integer-dividend`/`--decimal-dividend`/`--mixed-dividend`, `--divide-through`,
+`--vertical`, `--intermediate`, `--mixed-decimal-operand-order`, or
 `--use-parentheses`/`--missing-value`/the `--terms` family. The command fails
 explicitly if the operand ranges contain no qualifying pair.
 
-わり進み (dividing past the ones place) is not implemented; it is a possible
-future `ope -o div` flag covering pure division mechanics (e.g. `8.5 ÷ 2 =
-4.25`). 商のがい数 (a rounded quotient) is not implemented here either; it is
-deferred to a planned separate 概数計算 drill (not an `ope -o div` flag).
+For `ope -o div`, `--divide-through` continues the division past the ones place
+until the quotient terminates (わり進み), showing it to as many decimal places as
+it needs (at most 4). With a whole-number divisor this is the grade-4
+「小数のわり算」 (e.g. `9.0 ÷ 4 = 2.25`); with a decimal divisor the divisor is
+scaled up to a whole number first — the grade-5 「小数のわり算」 (e.g.
+`9.0 ÷ 2.5 = 3.6`). No remainder is shown (the division is exact once divided
+through). Every problem has a quotient of at least 1, is not already exact at the
+operands' own decimal places, and terminates within the place bound; pairs whose
+quotient never terminates (e.g. `÷ 3`, `÷ 7`) are rejected. It is rejected for any
+other command or operator, when `--b-decimal-places` exceeds `--a-decimal-places`,
+and when combined with the same flag set as `--decimal-remainder` (including
+`--decimal-remainder` itself). 商のがい数 (a rounded quotient) is a separate
+概数計算 drill (`approx --kind quotient`), not an `ope -o div` flag.
 
 ```bash
 python3 nuts_calc_tex.py A4 ope -o div --decimal-remainder --a-decimal-places 1 \
@@ -222,6 +231,9 @@ python3 nuts_calc_tex.py A4 ope -o div --decimal-remainder --a-decimal-places 1 
 python3 nuts_calc_tex.py A4 ope -o div --decimal-remainder \
   --a-decimal-places 1 --b-decimal-places 1 --a-digits 2 --b-digits 2 \
   --out-file decimal-remainder-decimal-divisor.pdf
+
+python3 nuts_calc_tex.py A4 ope -o div --divide-through --a-decimal-places 1 \
+  --a-digits 2 --b-min 2 --b-max 9 --out-file divide-through.pdf
 ```
 
 For `frac -o mul`/`div` and two-term `mixed -o mul`/`div` (with one `fraction`

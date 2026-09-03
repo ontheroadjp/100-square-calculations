@@ -309,7 +309,8 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 
 ## 変更履歴（git log より自動生成）
 
-- ca9967c feat(#346): add the 概数 (approx) rounding / estimation drill
+- ebbe3c0 feat(#349): redesign decimal-division drills around a 余り setting and add --divide-through
+- ffd182f feat(#346): add the 概数 (approx) rounding / estimation drill (#348)
 - e493735 feat(#334): extend --decimal-remainder to a decimal divisor and add the grade 5 小数のわり算 (あまり) drill (#347)
 - 9da1116 feat(#333): add grade 4 decimal-remainder division drill and --decimal-remainder flag (#345)
 - b2df846 feat(#332): add grade 3 two-digit-quotient division drill and --quotient-digits flag (#344)
@@ -318,4 +319,3 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 - b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)
 - d37b593 fix(#330): move parentheses add/sub drill from grade 2 to grade 4 and set difficulty to basic (#338)
 - cbeb0a6 fix(#329): restrict grade 4 decimal×integer multiplication to an integer multiplier (#337)
-- 5d42151 fix(#328): move parenthesized mixed-operation drill from grade 3 to grade 4 (#336)
