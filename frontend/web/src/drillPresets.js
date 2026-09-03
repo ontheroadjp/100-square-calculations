@@ -748,6 +748,21 @@ const grade3 = {
         ...displayFormatParam(state),
       }),
     },
+    {
+      id: 'g3-mul-3x2',
+      titleKey: 'menu_g3_mul_3x2_title',
+      descKey: 'menu_g3_mul_3x2_desc',
+      pointKey: 'menu_g3_mul_3x2_point',
+      difficultyKey: 'difficulty_standard',
+      examples: ['326×24', '415×37', '208×46'],
+      settings: [displayFormatSetting()],
+      supportLevel: 'full',
+      latexOnly: false,
+      buildParams: (state) => ({
+        command_type: 'ope', operator: ['mul'], a_digits: 3, b_digits: 2,
+        ...displayFormatParam(state),
+      }),
+    },
   ],
   division: [
     {
@@ -1647,12 +1662,13 @@ const grade6 = {
       descKey: 'menu_g6_fraction_decimal_mixed_desc',
       pointKey: 'menu_g6_fraction_decimal_mixed_point',
       difficultyKey: 'difficulty_standard',
-      examples: ['3/4+0.5', '0.25+1/8', '2/5+0.6'],
-      settings: [fixedSetting('numberKind', 'setting_number_kind_label', 'setting_option_fraction_decimal_mixed')],
+      examples: ['2/3+0.5×4', '0.75-1/4÷2', '3+1/5×0.9'],
+      settings: [fixedSetting('numberKind', 'setting_number_kind_label', 'setting_option_fraction_decimal_int_mixed')],
       supportLevel: 'full',
       latexOnly: true,
       buildParams: () => ({
-        command_type: 'mixed', operator: ['add'], a_kind: ['fraction', 'decimal'], b_kind: ['fraction', 'decimal'],
+        command_type: 'mixed', operator: ['add', 'sub', 'mul', 'div'], mixed_operators: true, terms: 3,
+        a_kind: ['fraction', 'decimal', 'int'], b_kind: ['fraction', 'decimal', 'int'],
         numerator_digits: 1, denominator_digits: 1, decimal_places: 1,
       }),
     },
