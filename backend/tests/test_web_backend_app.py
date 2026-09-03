@@ -955,6 +955,99 @@ def test_generate_pdf_divfrac_maps_compile_failure_to_500(client, monkeypatch) -
     assert "lualatex failed while building the worksheet" in response.get_json()["error"]
 
 
+# --- approx (概数 rounding / estimation, issue #346) --------------------------
+
+@pytest.mark.parametrize(
+    ("request_fields", "expected_marker"),
+    [
+        ({"kind": "round"}, "\\fallingdotseq"),
+        ({"kind": "estimate", "operator": ["mul"]}, "\\times"),
+        ({"kind": "quotient"}, "\\div"),
+    ],
+)
+def test_generate_pdf_approx_uses_presentation_api(client, monkeypatch, request_fields, expected_marker) -> None:
+    monkeypatch.setattr(three_layer_renderer.shutil, "which", lambda binary_name: "/usr/bin/" + binary_name)
+
+    def fake_compile(self, tex_source, out_pdf_path):
+        assert expected_marker in tex_source
+        assert "\\usepackage{amssymb}" in tex_source
+        assert three_layer_renderer.nuts_calc_tex.BLANK_ANSWER_TEX in tex_source
+        with open(out_pdf_path, "wb") as f:
+            f.write(b"%PDF-1.4 fake")
+
+    monkeypatch.setattr(
+        three_layer_renderer.nuts_calc_tex.LuaLatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+    monkeypatch.setattr(
+        three_layer_renderer.nuts_calc_tex.PdflatexEngineAdapter, "compile", fake_compile, raising=False
+    )
+
+    response = client.post(
+        "/generate-pdf", json={"paper_size": "A4", "command_type": "approx", **request_fields}
+    )
+
+    assert response.status_code == 200
+    assert response.data.startswith(b"%PDF")
+
+
+def test_generate_pdf_approx_maps_invalid_combination_to_500(client) -> None:
+    response = client.post(
+        "/generate-pdf",
+        json={"paper_size": "A4", "command_type": "approx", "kind": "estimate"},
+    )
+    assert response.status_code == 500
+    assert "exactly one -o/--operator" in response.get_json()["error"]
+
+
+def test_generate_problems_approx_round_end_to_end(client, monkeypatch) -> None:
+    monkeypatch.delenv(renderer_config.RENDERER_ENV_VAR, raising=False)
+    response = client.post(
+        "/generate-problems",
+        json={
+            "paper_size": "A4", "command_type": "approx", "num": 12,
+            "kind": "round", "sig_digits": 2, "a_min": 10000, "a_max": 99999,
+        },
+    )
+    assert response.status_code == 200
+    problems = response.get_json()["problems"]
+    assert len(problems) == 12
+    for problem in problems:
+        assert problem["kind"] == "round"
+        # 5-digit source, kept to 2 significant digits -> rounded to the nearest 1000.
+        assert int(problem["answer_plain"]) % 1000 == 0
+        assert abs(int(problem["answer_plain"]) - int(problem["expr_plain"])) <= 500
+
+
+def test_generate_problems_approx_estimate_end_to_end(client, monkeypatch) -> None:
+    monkeypatch.delenv(renderer_config.RENDERER_ENV_VAR, raising=False)
+    response = client.post(
+        "/generate-problems",
+        json={
+            "paper_size": "A4", "command_type": "approx", "num": 10,
+            "kind": "estimate", "operator": ["mul"], "a_min": 100, "a_max": 999, "b_min": 100, "b_max": 999,
+        },
+    )
+    assert response.status_code == 200
+    problems = response.get_json()["problems"]
+    assert len(problems) == 10
+    for problem in problems:
+        assert problem["kind"] == "estimate"
+        assert " * " in problem["expr_plain"]
+        rounded_a, rest = problem["answer_plain"].split(" * ")
+        rounded_b, result = rest.split(" = ")
+        assert int(rounded_a) * int(rounded_b) == int(result)
+
+
+def test_generate_problems_approx_missing_operator_maps_to_500(client, monkeypatch) -> None:
+    monkeypatch.delenv(renderer_config.RENDERER_ENV_VAR, raising=False)
+    response = client.post(
+        "/generate-problems",
+        json={"paper_size": "A4", "command_type": "approx", "num": 4, "kind": "estimate"},
+    )
+    assert response.status_code == 500
+    assert "exactly one -o/--operator" in response.get_json()["error"]
+
+
 def test_generate_pdf_gcd_uses_presentation_api_not_subprocess(client, monkeypatch) -> None:
     """
     The 'gcd' command_type must build its PDF via the internal presentation
