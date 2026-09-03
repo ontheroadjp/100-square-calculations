@@ -946,6 +946,7 @@ def _generate_ope_pdf(data: renderer_config.RendererRequest, output_dir: str) ->
             a_multiple=data.get('a_multiple'), b_multiple=data.get('b_multiple'),
             quotient_digits=data.get('quotient_digits'),
             decimal_remainder=bool(data.get('decimal_remainder', False)),
+            divide_through=bool(data.get('divide_through', False)),
         ),
         nuts_calc_tex.build_ope_bottom_answer_tex,
     )

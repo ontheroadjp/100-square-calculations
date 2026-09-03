@@ -356,6 +356,7 @@ def _generate_ope_problems_latex(params: renderer_config.RendererRequest, num: i
         a_multiple=params.get("a_multiple"), b_multiple=params.get("b_multiple"),
         quotient_digits=params.get("quotient_digits"),
         decimal_remainder=bool(params.get("decimal_remainder", False)),
+        divide_through=bool(params.get("divide_through", False)),
     )
 
     problems: list[OpeProblemData] = []
@@ -371,9 +372,10 @@ def _generate_ope_problems_latex(params: renderer_config.RendererRequest, num: i
             "a_decimal_places": ope_problem.a_decimal_places,
             "b_decimal_places": ope_problem.b_decimal_places,
         }
-        # Only the --decimal-remainder div mode (issue #333) sets an explicit
-        # answer-display override; every other problem leaves it None and the
-        # response mirrors the pre-#333 shape.
+        # The --decimal-remainder div mode (issue #333) and the --divide-through
+        # mode (issue #349) each set an explicit answer-display override; every
+        # other problem leaves it None and the response mirrors the pre-#333
+        # shape.
         if ope_problem.result_decimal_places is not None:
             problem["result_decimal_places"] = ope_problem.result_decimal_places
         if intermediate:

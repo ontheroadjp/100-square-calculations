@@ -150,9 +150,11 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 
 `displayFormatSetting()`/`displayFormatParam(state)`(`drillPresets.js:68-82` 付近)は、`carrySetting`/`carryModeField` と同じヘルパーパターンで「出題形式」(選択肢: 式/筆算、既定 `'horizontal'`)設定を追加する。`displayFormatParam(state)` は `'written'` 選択時のみ `{ vertical: true }` を返し(`nuts_calc_tex.py` の `--vertical`)、それ以外は `{}`(何も配線しない)。
 
-対象は次の18項目に限定し、機械的な「`--vertical` と併用可能かどうか」の判定だけで対象範囲を決めていない(ユーザー指示による明示的な列挙): `g2-add-2digit`/`g2-add-result-1000`/`g2-sub-2digit`/`g2-sub-result-1000`/`g3-add-result-10000`/`g3-decimal-addsub`/`g3-sub-result-10000`/`g3-decimal-sub`/`g3-mul-2x1`/`g3-mul-3x1`/`g3-mul-2x2`/`g4-decimal-add`/`g4-decimal-sub`/`g4-decimal-mul-int`/`g4-div-1digit`/`g4-div-2digit`/`g4-decimal-div-int`/`g5-decimal-mul`(`drillPresets.test.js` の `DISPLAY_FORMAT_ITEM_IDS` で厳密に一致検証)。全項目が無条件で `command_type: 'ope'` を返すため(`--vertical` は `ope` コマンドのみ実装、[[../../../../backend/nuts_calc_tex.py]] 参照)、`disabledWhen`/`resolveValue` は不要。
+`displayFormatSetting(disabledWhen)`(issue #349)は任意で述語 `disabledWhen(state)` を受け取り、渡されたときは `disabledWhen` と `resolveValue`(無効時 `'horizontal'` に解決)を設定へ足す。`presetDetail.js` の汎用 `isSettingDisabled`/`resolveSettingValue` がこれを解釈する(`g2-kuku` の `dan`→`questionOrder` と同じ仕組み)。
 
-同じく `g5-decimal-div`(issue #317 で「小数÷小数」から「整数と小数の割り算」へ改称)は対象から除外した。vendor済み `longdivision` パッケージの `\intlongdivision` が整数の除数しか受け付けないため、除数の小数点をシフトして整数化する回避策(教科書的な標準手法)を検討したが、「出題形式:筆算のときも式と同じ数値表現である必要がある」というユーザー方針により不採用、issue #180(agenda)で対応方針を検討中(実装は保留)。
+対象は次の18項目に限定し、機械的な「`--vertical` と併用可能かどうか」の判定だけで対象範囲を決めていない(ユーザー指示による明示的な列挙): `g2-add-2digit`/`g2-add-result-1000`/`g2-sub-2digit`/`g2-sub-result-1000`/`g3-add-result-10000`/`g3-decimal-addsub`/`g3-sub-result-10000`/`g3-decimal-sub`/`g3-mul-2x1`/`g3-mul-3x1`/`g3-mul-2x2`/`g4-decimal-add`/`g4-decimal-sub`/`g4-decimal-mul-int`/`g4-div-1digit`/`g4-div-2digit`/`g4-decimal-div-int`/`g5-decimal-mul`(`drillPresets.test.js` の `DISPLAY_FORMAT_ITEM_IDS` で厳密に一致検証)。ほとんどの項目は無条件で `command_type: 'ope'` を返すため `disabledWhen`/`resolveValue` は不要だが、**`g4-decimal-div-int` のみ例外**(issue #349): 統合された小数÷整数ドリルは 余り設定が「なし」以外(あり/わり進み)のとき筆算をレイアウトできないため、`displayFormatSetting((state) => (state?.remainderMode ?? 'none') !== 'none')` として筆算トグルを無効化する。`DISPLAY_FORMAT_ITEM_IDS` には引き続き含まれる(設定自体は持つ)。
+
+`g5-decimal-div`(issue #349 で「整数と小数の割り算」から「小数のわり算」へ戻した)は 18 項目から除外したまま。vendor済み `longdivision` パッケージの `\intlongdivision` が整数の除数しか受け付けないため、除数が小数の 5年ドリルはどの余り設定でも筆算を出せない(issue #180(agenda)で対応方針を検討中、実装は保留)。よって `displayFormat` 設定自体を持たない。
 
 ### 九九(`g2-kuku`)の段選択
 
@@ -259,6 +261,20 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 
 `strings.ja.json` に `menu_g5_decimal_div_remainder_{title,desc,point}` の3キーを `menu_g5_decimal_div_point` の直後へ追加([[./strings.ja.json]] 参照)。`docs/uiux/calculation_drill_menu_parameters_v1.md` の小学5年生表に「小数のわり算（あまり）」行を「整数と小数の割り算」の直後へ追加。`drillPresets.test.js` に grade5 `decimal` の順序リスト更新と、`buildParams()` の deep-equal(`b_decimal_places: 1`/`decimal_remainder: true` を含む)・2固定ピル・`DISPLAY_FORMAT_ITEM_IDS` に含まれないこと・`g5-decimal-div` が無変更であることを検証する #334 テストを追加([[./drillPresets.test.js]] 参照)。`CATEGORY_ORDER` は無変更。
 
+> **issue #349 で上記 #317 / #333 / #334 の4項目を2項目に統合した(下記「小数のわり算ドリルの余り設定への再編」参照)。** 現状: grade 4 division は `g4-decimal-div-int` の1項目、grade 5 `decimal` は `[g5-decimal-mul, g5-decimal-div]` の2項目。`g4-decimal-div-int-remainder` / `g5-decimal-div-remainder` / `DIVIDEND_TYPE_OPTIONS` は削除済み。
+
+### 小数のわり算ドリルの余り設定への再編とわり進みモード(issue #349)
+
+#318 監査(→ #326)の consolidation candidate B / C に対応。grade 4 の小数÷整数(割り切れる `g4-decimal-div-int` + あまり `g4-decimal-div-int-remainder`)と grade 5 の小数÷小数(#317 の被除数選択 `g5-decimal-div` + あまり `g5-decimal-div-remainder`)を、**それぞれ「余り」設定を持つ1項目**に統合した。他の全わり算ドリル(`g4-div-1digit` 等)が余りを「なし/あり/まぜる」の単一設定で持つのに合わせる。
+
+- **共有ヘルパー**: `DECIMAL_DIV_REMAINDER_OPTIONS`(`OPT_NONE` / `OPT_REQUIRED` / `{ value: 'divide_through', labelKey: 'setting_option_divide_through' }` = なし/あり/わり進み)+ `decimalDivRemainderSetting(labelKey)`(`id: 'remainderMode'`, `type: 'choice'`, 既定 `'none'`)。`carrySetting`/`remainderSetting` の なし/あり/まぜる とは別の3択(backend に「両方まぜる」モードは無い)。
+- **`examplesByChoice(settingIds, byCombo, defaultValue = 'mixed')`**: 第3引数を追加。既定値キーが `'mixed'` 以外(ここでは `'none'`)の設定に対応する。`byCombo.none` が静的 `examples` と一致する(#135 テストの規約)。
+- **`g4-decimal-div-int`**(grade 4 `division`): `settings: [fixedSetting('divisor', …, 'setting_option_integer'), decimalDivRemainderSetting('setting_remainder_label'), displayFormatSetting((state) => (state?.remainderMode ?? 'none') !== 'none')]`。`buildParams(state)` は `base = { command_type: 'ope', operator: ['div'], a_digits: 2, b_min: 2, b_max: 9, a_decimal_places: 1 }` を共通に、`required` → `{ ...base, decimal_remainder: true }`、`divide_through` → `{ ...base, divide_through: true }`、`none` → `{ ...base, ...displayFormatParam(state) }`(筆算可)。旧 `g4-decimal-div-int` の `b_digits: 1` を `b_min: 2, b_max: 9` に統一した(÷1 の自明なわり算を排除、旧あまり項目と同レンジ)。
+- **`g5-decimal-div`**(grade 5 `decimal`): `settings: [fixedSetting('divisor', …, 'setting_option_decimal'), decimalDivRemainderSetting('setting_remainder_label')]`。`displayFormat` は無し(小数除数は筆算不可、#180)。`base = { command_type: 'ope', operator: ['div'], a_digits: 2, b_digits: 2, a_decimal_places: 1, b_decimal_places: 1 }`、`required`/`divide_through` は g4 と同じフラグを足すだけ、`none` は `base` そのまま(#317 以前の割り切れる小数÷小数と同一)。
+- **#317 の被除数(`dividendType`)設定は削除**(学習指導要領準拠の設計判断): 第5学年 A(3)「小数の除法」の中心は小数÷小数で、余り=なし が割り切れる小数÷小数をカバーする。被除数×余りはバックエンド上不整合になる(`--integer-dividend` は `--decimal-remainder`/`--divide-through` と相互排他、かつ整数商を強制する)。タイトルは `menu_g5_decimal_div_title` を「整数と小数の割り算」→「小数のわり算」に戻した。`DIVIDEND_TYPE_OPTIONS` と孤立文言(`setting_dividend_label` 等)を削除([[./strings.ja.json]] 参照)。
+- **わり進み**は backend の新フラグ `divide_through`(`--divide-through`)に委ねる(renderer-owned drill logic)。商が有限小数で終わるまで割り進み、必要な桁数で商を出す(あまり無し)。詳細は [[../../../backend/nuts_calc_tex.py]] の `### ope --divide-through`、転送経路は [[../../../backend/renderer_config.py]] / [[../../../backend/problem_generation.py]] / [[../../../backend/three_layer_renderer.py]]。
+- `DISPLAY_FORMAT_ITEM_IDS` は無変更(`g4-decimal-div-int` は元から含まれ設定を持ち続ける。`g5-decimal-div` は元から非対象)。`docs/uiux/calculation_drill_menu_parameters_v1.md` の grade 4/5 の該当行を統合。テストは #317/#333/#334 のテストを統合項目のテストに書き換え、grade5 `decimal` 順序リストを `['g5-decimal-mul', 'g5-decimal-div']` に更新([[./drillPresets.test.js]] 参照)。
+
 ### 概数（がい数）ドリルの新設(issue #346)
 
 学習指導要領解説 算数編 第4学年 A(2)「概数」(四捨五入・切り上げ・切り捨て、和差積商の見積もり=概算)と第5学年「四捨五入して商を概数で表す」に対応する2項目を追加した。バックエンドは専用コマンド `approx`([[../../../backend/nuts_calc_tex.py]] の `### approx (概数)` 参照)。
@@ -293,7 +309,8 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 
 ## 変更履歴（git log より自動生成）
 
-- ca9967c feat(#346): add the 概数 (approx) rounding / estimation drill
+- ebbe3c0 feat(#349): redesign decimal-division drills around a 余り setting and add --divide-through
+- ffd182f feat(#346): add the 概数 (approx) rounding / estimation drill (#348)
 - e493735 feat(#334): extend --decimal-remainder to a decimal divisor and add the grade 5 小数のわり算 (あまり) drill (#347)
 - 9da1116 feat(#333): add grade 4 decimal-remainder division drill and --decimal-remainder flag (#345)
 - b2df846 feat(#332): add grade 3 two-digit-quotient division drill and --quotient-digits flag (#344)
@@ -302,4 +319,3 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 - b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)
 - d37b593 fix(#330): move parentheses add/sub drill from grade 2 to grade 4 and set difficulty to basic (#338)
 - cbeb0a6 fix(#329): restrict grade 4 decimal×integer multiplication to an integer multiplier (#337)
-- 5d42151 fix(#328): move parenthesized mixed-operation drill from grade 3 to grade 4 (#336)

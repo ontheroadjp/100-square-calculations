@@ -484,58 +484,63 @@ test('grade 4 decimal×integer multiplication is integer-multiplier only (issue 
   assert.ok(item.examples.every((example) => /^\d+\.\d+×\d+$/.test(example)));
 });
 
-test('grade 5 groups 小数×小数 / 整数と小数の割り算 under a dedicated decimal category, not multiplication/division (issue #320)', () => {
+test('grade 5 groups 小数×小数 / 小数のわり算 under a dedicated decimal category, not multiplication/division (issue #320)', () => {
   assert.equal(presetsByGrade[5].multiplication, undefined);
   assert.equal(presetsByGrade[5].division, undefined);
   assert.deepEqual(
     presetsByGrade[5].decimal.map((item) => item.id),
-    ['g5-decimal-mul', 'g5-decimal-div', 'g5-decimal-div-remainder'],
+    ['g5-decimal-mul', 'g5-decimal-div'],
   );
   // The 小数の四則混合計算 drill stays in four-operations.
   assert.ok(presetsByGrade[5]['four-operations'].some((item) => item.id === 'g5-decimal-four-ops'));
 });
 
-test('grade 5 decimal division offers 整数÷小数 / 小数÷小数 / まぜる dividend selection (issue #317)', () => {
+test('grade 5 小数÷小数 is one drill with a なし / あり / わり進み 余り setting (issue #349)', () => {
   const item = presetsByGrade[5].decimal.find((candidate) => candidate.id === 'g5-decimal-div');
   assert.ok(item, 'g5-decimal-div must exist');
   assert.equal(item.titleKey, 'menu_g5_decimal_div_title');
+  assert.equal(item.difficultyKey, 'difficulty_standard');
+  assert.equal(item.latexOnly, true);
 
-  const dividendType = item.settings.find((setting) => setting.id === 'dividendType');
-  assert.ok(dividendType, 'g5-decimal-div must carry a dividendType setting');
-  assert.equal(dividendType.type, 'choice');
+  // 除数：小数 fixed pill + a なし/あり/わり進み 余り choice. The #317
+  // dividendType selection is gone.
+  assert.ok(!item.settings.some((setting) => setting.id === 'dividendType'));
+  const divisor = item.settings.find((setting) => setting.id === 'divisor');
+  assert.equal(divisor.type, 'fixed');
+  assert.equal(divisor.valueLabelKey, 'setting_option_decimal');
+  const remainder = item.settings.find((setting) => setting.id === 'remainderMode');
+  assert.equal(remainder.type, 'choice');
+  assert.equal(remainder.default, 'none');
   assert.deepEqual(
-    dividendType.options.map((option) => option.value),
-    ['integer_div_decimal', 'decimal_div_decimal', 'mixed'],
+    remainder.options.map((option) => option.value),
+    ['none', 'required', 'divide_through'],
   );
   assert.deepEqual(
-    dividendType.options.map((option) => option.labelKey),
-    ['setting_option_integer_div_decimal', 'setting_option_decimal_div_decimal', 'setting_option_mixed'],
+    remainder.options.map((option) => option.labelKey),
+    ['setting_option_none', 'setting_option_required', 'setting_option_divide_through'],
   );
-  assert.equal(dividendType.default, 'mixed');
 
-  // 整数÷小数: whole-number dividend (a_decimal_places 0), decimal divisor, --integer-dividend.
-  assert.deepEqual(item.buildParams({ dividendType: 'integer_div_decimal' }), {
-    command_type: 'ope', operator: ['div'], a_digits: 2, b_digits: 2,
-    b_decimal_places: 1, a_decimal_places: 0, dividend_mode: 'integer',
-  });
-  // 小数÷小数: unchanged from before #317 (no dividend_mode flag).
-  assert.deepEqual(item.buildParams({ dividendType: 'decimal_div_decimal' }), {
-    command_type: 'ope', operator: ['div'], a_digits: 2, b_digits: 2,
-    b_decimal_places: 1, a_decimal_places: 1,
-  });
-  // まぜる (default): backend mixes the dividend kind per problem.
-  const mixedExpected = {
-    command_type: 'ope', operator: ['div'], a_digits: 2, b_digits: 2,
-    b_decimal_places: 1, a_decimal_places: 1, dividend_mode: 'mixed',
+  // No 筆算 toggle at all: longdivision cannot lay out a decimal divisor (#180).
+  assert.ok(!item.settings.some((setting) => setting.id === 'displayFormat'));
+  assert.ok(!DISPLAY_FORMAT_ITEM_IDS.includes(item.id));
+
+  const base = {
+    command_type: 'ope', operator: ['div'],
+    a_digits: 2, b_digits: 2, a_decimal_places: 1, b_decimal_places: 1,
   };
-  assert.deepEqual(item.buildParams({ dividendType: 'mixed' }), mixedExpected);
-  assert.deepEqual(item.buildParams(), mixedExpected);
-  assert.deepEqual(item.buildParams({}), mixedExpected);
+  // なし (default): exact 小数÷小数, no flag -- same as the pre-#317 params.
+  assert.deepEqual(item.buildParams({ remainderMode: 'none' }), base);
+  assert.deepEqual(item.buildParams(), base);
+  assert.deepEqual(item.buildParams({}), base);
+  // あり: nonzero decimal remainder (#334 behavior).
+  assert.deepEqual(item.buildParams({ remainderMode: 'required' }), { ...base, decimal_remainder: true });
+  // わり進み: divide past the ones place until the quotient terminates.
+  assert.deepEqual(item.buildParams({ remainderMode: 'divide_through' }), { ...base, divide_through: true });
 
-  // example chips track the chosen dividend kind.
-  assert.deepEqual(item.examplesFor({ dividendType: 'mixed' }), item.examples);
-  assert.ok(item.examplesFor({ dividendType: 'integer_div_decimal' }).every((example) => /^\d+÷\d+\.\d/.test(example)));
-  assert.ok(item.examplesFor({ dividendType: 'decimal_div_decimal' }).every((example) => /^\d+\.\d+÷\d+\.\d/.test(example)));
+  // example chips track the 余り setting; default matches the static examples.
+  assert.deepEqual(item.examplesFor(defaultSettingsState(item.settings)), item.examples);
+  assert.ok(item.examplesFor({ remainderMode: 'required' }).every((example) => /÷/.test(example)));
+  assert.ok(item.examplesFor({ remainderMode: 'divide_through' }).every((example) => /÷/.test(example)));
 });
 
 test('grade 3 four-operations mix caps the answer at 1,000 without multiplication', () => {
@@ -577,75 +582,64 @@ test('grade 3 division includes an exact two-digit-quotient drill faithful to th
   });
 });
 
-test('grade 4 division includes a 小数÷整数 decimal-remainder drill (issue #333)', () => {
-  const item = presetsByGrade[4].division.find((candidate) => candidate.id === 'g4-decimal-div-int-remainder');
+test('grade 4 小数÷整数 is one drill with a なし / あり / わり進み 余り setting (issue #349)', () => {
+  const item = presetsByGrade[4].division.find((candidate) => candidate.id === 'g4-decimal-div-int');
 
-  assert.ok(item, 'g4-decimal-div-int-remainder must exist in grade 4 division');
+  assert.ok(item, 'g4-decimal-div-int must exist in grade 4 division');
   assert.equal(item.difficultyKey, 'difficulty_standard');
   assert.equal(item.supportLevel, 'full');
   assert.equal(item.latexOnly, true);
-  assert.equal(item.titleKey, 'menu_g4_decimal_div_int_remainder_title');
+  assert.equal(item.titleKey, 'menu_g4_decimal_div_int_title');
+  // The former separate g4-decimal-div-int-remainder id is gone.
+  assert.ok(!presetsByGrade[4].division.some((candidate) => candidate.id === 'g4-decimal-div-int-remainder'));
 
-  // Two fixed pills: 除数：整数 and 余り：あり (the drill is always あまり --
-  // 商を一の位まで求めてあまりを出す).
+  // 除数：整数 fixed pill + a なし/あり/わり進み 余り choice + a 筆算 toggle.
   const divisor = item.settings.find((setting) => setting.id === 'divisor');
   assert.equal(divisor.type, 'fixed');
   assert.equal(divisor.valueLabelKey, 'setting_option_integer');
-  const remainder = item.settings.find((setting) => setting.id === 'remainder');
-  assert.equal(remainder.type, 'fixed');
-  assert.equal(remainder.valueLabelKey, 'setting_option_required');
+  const remainder = item.settings.find((setting) => setting.id === 'remainderMode');
+  assert.equal(remainder.type, 'choice');
+  assert.equal(remainder.default, 'none');
+  assert.deepEqual(
+    remainder.options.map((option) => option.value),
+    ['none', 'required', 'divide_through'],
+  );
+  assert.deepEqual(
+    remainder.options.map((option) => option.labelKey),
+    ['setting_option_none', 'setting_option_required', 'setting_option_divide_through'],
+  );
 
-  // decimal_remainder (snake_case = nuts_calc_tex.py --decimal-remainder) drives
-  // the non-exact division; a decimal dividend (a_decimal_places: 1) over a
-  // whole-number divisor (b 2..9). No displayFormat setting: the backend rejects
-  // --vertical --decimal-remainder, so this id must NOT be in DISPLAY_FORMAT_ITEM_IDS.
-  assert.deepEqual(item.buildParams(), {
+  // 筆算 is present but disabled once 余り != なし (longdivision cannot lay out
+  // a decimal remainder or a divided-through quotient).
+  const displayFormat = item.settings.find((setting) => setting.id === 'displayFormat');
+  assert.ok(displayFormat, 'g4-decimal-div-int keeps a displayFormat toggle');
+  assert.equal(displayFormat.disabledWhen({ remainderMode: 'none' }), false);
+  assert.equal(displayFormat.disabledWhen({ remainderMode: 'required' }), true);
+  assert.equal(displayFormat.disabledWhen({ remainderMode: 'divide_through' }), true);
+  assert.equal(displayFormat.resolveValue({ remainderMode: 'required', displayFormat: 'written' }), 'horizontal');
+  assert.equal(displayFormat.resolveValue({ remainderMode: 'none', displayFormat: 'written' }), 'written');
+  assert.ok(DISPLAY_FORMAT_ITEM_IDS.includes(item.id));
+
+  const base = {
     command_type: 'ope', operator: ['div'],
     a_digits: 2, b_min: 2, b_max: 9, a_decimal_places: 1,
-    decimal_remainder: true,
-  });
-  assert.ok(!DISPLAY_FORMAT_ITEM_IDS.includes(item.id));
-  assert.ok(!item.settings.some((setting) => setting.id === 'displayFormat'));
-});
+  };
+  // なし (default): exact quotient; 筆算 still forwards vertical: true.
+  assert.deepEqual(item.buildParams({ remainderMode: 'none' }), base);
+  assert.deepEqual(item.buildParams(), base);
+  assert.deepEqual(item.buildParams({ remainderMode: 'none', displayFormat: 'written' }), { ...base, vertical: true });
+  // あり: nonzero decimal remainder (#333 behavior), no vertical.
+  assert.deepEqual(item.buildParams({ remainderMode: 'required' }), { ...base, decimal_remainder: true });
+  assert.deepEqual(
+    item.buildParams({ remainderMode: 'required', displayFormat: 'written' }),
+    { ...base, decimal_remainder: true },
+  );
+  // わり進み: divide past the ones place until the quotient terminates.
+  assert.deepEqual(item.buildParams({ remainderMode: 'divide_through' }), { ...base, divide_through: true });
 
-test('grade 5 decimal category includes a 小数÷小数 decimal-remainder drill (issue #334)', () => {
-  const item = presetsByGrade[5].decimal.find((candidate) => candidate.id === 'g5-decimal-div-remainder');
-
-  assert.ok(item, 'g5-decimal-div-remainder must exist in grade 5 decimal');
-  assert.equal(item.difficultyKey, 'difficulty_standard');
-  assert.equal(item.supportLevel, 'full');
-  assert.equal(item.latexOnly, true);
-  assert.equal(item.titleKey, 'menu_g5_decimal_div_remainder_title');
-
-  // Two fixed pills: 除数：小数 and 余り：あり. The drill is always あまり --
-  // わる数を整数に直して商を一の位まで求め、あまりを小数で出す (grade 5
-  // 小数のわり算). Distinct from the untouched #317 exact-quotient g5-decimal-div.
-  const divisor = item.settings.find((setting) => setting.id === 'divisor');
-  assert.equal(divisor.type, 'fixed');
-  assert.equal(divisor.valueLabelKey, 'setting_option_decimal');
-  const remainder = item.settings.find((setting) => setting.id === 'remainder');
-  assert.equal(remainder.type, 'fixed');
-  assert.equal(remainder.valueLabelKey, 'setting_option_required');
-
-  // decimal_remainder (snake_case = nuts_calc_tex.py --decimal-remainder) over a
-  // decimal dividend (a_decimal_places: 1) AND a decimal divisor
-  // (b_decimal_places: 1) -- the backend scales the divisor up to a whole
-  // number before dividing (issue #334). No displayFormat setting: the backend
-  // rejects --vertical --decimal-remainder, so this id must NOT be in
-  // DISPLAY_FORMAT_ITEM_IDS.
-  assert.deepEqual(item.buildParams(), {
-    command_type: 'ope', operator: ['div'],
-    a_digits: 2, b_digits: 2, a_decimal_places: 1, b_decimal_places: 1,
-    decimal_remainder: true,
-  });
-  assert.ok(!DISPLAY_FORMAT_ITEM_IDS.includes(item.id));
-  assert.ok(!item.settings.some((setting) => setting.id === 'displayFormat'));
-
-  // g5-decimal-div (#317, exact quotient) is untouched: still a single
-  // dividendType choice setting, no decimal_remainder.
-  const exact = presetsByGrade[5].decimal.find((candidate) => candidate.id === 'g5-decimal-div');
-  assert.ok(exact.settings.some((setting) => setting.id === 'dividendType'));
-  assert.equal(exact.buildParams({ dividendType: 'decimal_div_decimal' }).decimal_remainder, undefined);
+  // example chips track the 余り setting; default matches the static examples.
+  assert.deepEqual(item.examplesFor(defaultSettingsState(item.settings)), item.examples);
+  assert.ok(item.examplesFor({ remainderMode: 'divide_through' }).every((example) => /÷/.test(example)));
 });
 
 test('grade 4 number-sense includes a 概数 drill with a round / estimate kind selector (issue #346)', () => {
