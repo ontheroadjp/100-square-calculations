@@ -6,7 +6,7 @@
 
 ## 動作の概要
 
-`GRADES`(`[1,2,3,4,5,6]`)・`UNGRADED`(`'ungraded'`)・`presetsByGrade` を export する。`presetsByGrade[grade]` は `{ <categoryId>: menuItem[] }` の形で、`categoryId` は `addition`/`subtraction`/`multiplication`/`division`/`decimal`/`fraction`/`four-operations`/`number-sense` のいずれか(該当する学年にのみ出現)。`decimal` は5年生専用で、`multiplication`/`division` カテゴリを廃止した代わりに小数×小数・整数と小数の割り算をまとめる(issue #320、下記セクション参照)。`fraction` は3年生(issue #161で撤廃)・4年生(issue #315で撤廃)を除く5〜6年生に残る。カテゴリキーは `catalog.js` の固定 `CATEGORY_ORDER`(`addition, subtraction, multiplication, division, decimal, fraction, four-operations, number-sense`)による学年ページのセクション見出し順序付けにのみ使われ、`drillCatalog.js` の絞り込み分類(`numberType`/`operationGroup`)には影響しない(`Object.values(categories)` でカテゴリキーを捨ててフラット化するため)。
+`GRADES`(`[1,2,3,4,5,6]`)・`UNGRADED`(`'ungraded'`)・`presetsByGrade` を export する。`presetsByGrade[grade]` は `{ <categoryId>: menuItem[] }` の形で、`categoryId` は `review`/`addition`/`subtraction`/`multiplication`/`division`/`decimal`/`fraction`/`four-operations`/`number-sense` のいずれか(該当する学年にのみ出現)。`review`(総合問題)は3年生専用の試作で、その学年の複数単元を1枚に混ぜるワークシート(issue #140、下記セクション参照)。`decimal` は5年生専用で、`multiplication`/`division` カテゴリを廃止した代わりに小数×小数・整数と小数の割り算をまとめる(issue #320、下記セクション参照)。`fraction` は3年生(issue #161で撤廃)・4年生(issue #315で撤廃)を除く5〜6年生に残る。カテゴリキーは `catalog.js` の固定 `CATEGORY_ORDER`(`review, addition, subtraction, multiplication, division, decimal, fraction, four-operations, number-sense`)による学年ページのセクション見出し順序付けにのみ使われ、`drillCatalog.js` の絞り込み分類(`numberType`/`operationGroup`)には影響しない(`Object.values(categories)` でカテゴリキーを捨ててフラット化するため)。
 
 各 `menuItem` は以下を持つ:
 - `id`/`titleKey`/`descKey`/`pointKey`: 全データモデル中で `id` は一意。`pointKey`(issue #157)は `presetDetail.js` のページヘッダーに表示する、保護者向けの平易な指導ポイント文言(60件、[[./pageHeader.js]] 参照)。既存の `descKey` はもともと旧 `drillCatalog.js` 向けの機械的な説明文で、同ファイルが issue #110 で削除された現在は本データモデル上のフィールドとしてのみ残る(`drillPresets.test.js` が全項目に `descKey` が存在することを検証しているため、フィールド自体は残置)。`pointKey` とは用途・文体が異なる別系統のキーとして併存する。
@@ -186,6 +186,16 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 - `g3-addsub-mixed-result-1000`: 加減算のみの3項混合(`terms:3, mixed_operators:true`)で `a_min:1, a_max:999, b_min:1, b_max:999, result_max: 1000`。2年生の対応項目(`g2-addsub-mixed`、issue #311 で「3つの数の足し引き」へ改称・演算モード選択化)と異なり `result_max` を持ち、演算モードは足し引き混合固定(掛け算は含まない)。学習指導要領解説 算数編 第3学年は □ を用いた式と同一演算3項の加減しか扱わないため、この項目のみが3年生 `four-operations` として妥当。
 
 `catalog.js` の `CATEGORY_ORDER` は既に `four-operations` を `fraction` の直後(実質最後尾側)に固定しているため、3年生に `four-operations` カテゴリキーを追加するだけで学年ページ最下部にセクションが自動的に現れる(`catalog.js` 自体は無変更)。3年生・4年生とも `four-operations` カテゴリキーを保持するため、issue #328 の項目移設後もこの点は変わらない。
+
+### 3年生の総合問題(複数ソース混在ワークシート)(issue #140)
+
+3年生に `review` カテゴリを新設し、1項目 `g3-review`(`titleKey: 'menu_g3_review_title'`「3年の総合問題」)を置いた。学習指導要領 第3学年 A「数と計算」の複数単元 ―― 3〜4桁のたし算・ひき算、2〜3位数×1位数のかけ算、あまりのあるわり算(九九の範囲)、小数(1/10の位)のたし算・ひき算、同分母・真分数のたし算・ひき算 ―― を1枚に混在させる「総まとめ」。学年の総まとめとして `CATEGORY_ORDER`(`catalog.js`/`pcMakeFlow.js`)の**先頭**に `'review'` を置き、3年生ページでは他カテゴリより上に表示する。
+
+- `settings: []`(設定なし)、`supportLevel: 'full'`、`latexOnly: true`。`examples` は静的(`presetDetail.js` のライブプレビューは `command_type === 'ope'` のみ対象のため `review` は静的例題のまま)。
+- `buildParams()` は引数を取らず `{ command_type: 'review', shuffle: true, sources: [...5件...] }` を返す。`sources` 各要素は `{ command_type: 'ope'|'frac', num: 1, ...そのドリルのオプション }`。`num` は**相対ウェイト**で、backend の [[../../../../backend/three_layer_renderer.py]] `_generate_review_pdf` がプリント全体の問題数(`presetDetail.js` の 10/20/30 選択 = `rows*columns`)へウェイト按分する。5件を等ウェイト(`num:1`×5)にしているため、どの問題数でも5単元が均等になる。
+- `sources` の内訳: `ope` add/sub(`carry_mode:'mixed'`, `a/b_min 100`/`max 9999`)、`ope` mul(`a 10..999`, `b 2..9`)、`ope` div(`remainder_mode:'mixed'`, `a 10..81`, `b 2..9`)、`ope` add/sub 小数(`a/b_decimal_places:1`, `a/b 1..99`)、`frac` add/sub(`numerator_digits:1`, `denominator_digits:1`, `same_denominator:true`, `proper_operands:true`, `proper_result:true`)。
+- `command_type: 'review'` は `POST /generate-problems`(データのみ)非対応。CLI(`nuts_calc_tex.py`)にも `review` サブコマンドは無い(合成は backend の presentation 層専用)。
+- `drillPresets.test.js` の `KNOWN_CATEGORIES` に `'review'` を追加した([[./drillPresets.test.js]] 参照)。`catalog.js`/`pcMakeFlow.js` は `CATEGORY_ORDER` 先頭に `'review'` を1語足すだけ([[./catalog.js]]/[[./pcMakeFlow.js]] 参照)。文言3キーは [[./strings.ja.json]] に追加。
 
 ### 括弧・かけ算を含む混合計算を3年生から4年生へ移設(issue #328)
 

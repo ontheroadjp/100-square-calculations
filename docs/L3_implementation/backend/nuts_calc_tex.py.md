@@ -451,6 +451,13 @@
 - CSV列: `evenodd` は `[page_number, index, a, label]` の固定4列。`multiples`/`divisors` はリスト長が可変のため、`build_multiples_csv_rows`/`build_divisors_csv_rows` はリストをスペース区切りの単一文字列に変換した `[page_number, index, a, "6 12 18 24"]` 形式にする(多項 `ope`/`mixed` の自己記述文字列カラムと同じ方針)。
 - `main()` のディスパッチは `squ`/`pi` と同じパターンで `evenodd_pages_problems`/`multiples_pages_problems`/`divisors_pages_problems` の3変数を追加し、`ini.command` の分岐と CSV 書き出し分岐の両方に対応する `elif` を追加した。
 
+### review 総合ワークシート用の共有部品(issue #140)
+
+複数の別ドリルの問題を1枚に混ぜる「総合問題」ワークシートのために、本ファイルには **追加のみ** の2部品がある。合成ロジック本体(どのドリルを何問混ぜ、シャッフルし、採番するか)は `backend/three_layer_renderer.py` の `_generate_review_pdf` にあり、CLI(positional `command` の choices・`_init()`)は無改変。
+
+- `ReviewProblem` データクラス(`index: int` / `kind: str` / `payload: object`): 下位ドリルの1問(`OpeProblem` / `FractionProblem` 等)を `payload` に、それを描く slot formatter を選ぶキーを `kind` に持つ。`index` は全ソース連結・シャッフル後に呼び出し側が振る 1..N のスロット番号なので、生成器ではなく `_generate_review_pdf` が設定する(frozen にしない)。
+- `build_review_slot_content_tex(problem, show_answer)`: `ContentFormat` 契約(`Callable[[problem, bool], str]`)を満たす番号なし Layer-3 content。`problem.kind` で分岐し、`'ope'` は `build_ope_slot_content_tex(problem.payload, ...)`、`'frac'` は `build_fraction_slot_content_tex(problem.payload, ...)` へ委譲する。未知の `kind` は `ValueError`。番号ボックスは Layer 2(`build_content_area_slot_tex`)が付けるため、他の `build_*_slot_content_tex` と同じく本文のみ返す。対応する `kind` は現状 `ope` / `frac` のみ(3年の試作レシピが必要とする範囲)。別学年のレシピが別ドリルを要れば、ここに1分岐と `_generate_review_pdf` の `_REVIEW_SOURCE_GENERATORS` に生成器を足す。
+
 ## 重要な設計判断とその理由
 
 ### `aBc` の4桁表示を常にゼロ埋めする理由(`nuts_calc.py` との差異)

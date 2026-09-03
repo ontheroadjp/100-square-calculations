@@ -9,13 +9,15 @@ mountNavShell();
 
 const API_BASE = 'http://127.0.0.1:5000';
 
-// Matches the doc's たし算/ひき算/かけ算/わり算/... ordering
+// 'review' (総合問題, issue #140) leads as a grade capstone, then the doc's
+// たし算/ひき算/かけ算/わり算/... ordering
 // (docs/uiux/calculation_drill_menu_parameters_v1.md). Object key order in
 // drillPresets.js's presetsByGrade varies per grade (e.g. grade4 lists
 // division before addition), so section order is driven by this fixed list
 // rather than Object.keys() insertion order. 'decimal' is grade 5's dedicated
 // 小数 section and sits directly above 'fraction'.
 const CATEGORY_ORDER = [
+  'review',
   'addition', 'subtraction', 'multiplication', 'division',
   'decimal', 'fraction', 'four-operations', 'number-sense',
 ];

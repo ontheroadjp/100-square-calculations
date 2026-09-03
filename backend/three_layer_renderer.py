@@ -1,8 +1,9 @@
 """Flask-agnostic PDF generation glue for the internal presentation API.
 
 This module owns the "3-layer model" worksheet-PDF pipeline (issue #183's
-``build_presentation_document_tex`` / ``PresentationPage``): the 26
-``_generate_*_pdf`` builders, the ``_is_*_request`` routing predicates, the
+``build_presentation_document_tex`` / ``PresentationPage``): the 27
+``_generate_*_pdf`` builders (including the multi-source ``review`` worksheet,
+issue #140), the ``_is_*_request`` routing predicates, the
 shared ``_resolve_page_count`` / ``_build_presentation_pages`` helpers, and the
 ``command_type`` -> builder dispatch. It was carved out of ``backend/app.py`` in
 issue #290 (a strangler-fig step under #174) so ``app.py`` is reduced to HTTP
@@ -26,6 +27,7 @@ import functools
 import io
 import math
 import os
+import random
 import shutil
 import uuid
 from collections.abc import Callable
@@ -2278,6 +2280,227 @@ _UNSUPPORTED_REQUEST_ERROR = (
 )
 
 
+# --- review (multi-source 総合 worksheet, issue #140) ------------------------
+#
+# A review worksheet interleaves problems from several distinct drills onto
+# one page. The composition (generate each source, concatenate, optionally
+# shuffle, renumber, render through one kind-dispatching content format)
+# lives here rather than in nuts_calc_tex.py so the CLI is untouched; the
+# recipe (which sources, how many of each) is the caller's -- frontend/web's
+# per-grade preset. Only the source command types the grade-3 prototype
+# recipe needs are supported; adding a later grade whose recipe needs
+# another drill means adding its generator here and its slot formatter to
+# nuts_calc_tex.build_review_slot_content_tex.
+
+
+def _review_ope_problems(
+    source: dict[str, object], count: int
+) -> list[nuts_calc_tex.ReviewProblem]:
+    """Generate `count` plain 2-term `ope` problems for one review source.
+
+    A trimmed counterpart to _generate_ope_pdf's parameter resolution:
+    review sources pass explicit a_min/a_max/b_min/b_max (no a_digits
+    shorthand) and only the options the grade-3 recipe uses.
+    """
+    a_min = int(source.get('a_min', problem_generation.DEFAULT_A_MIN))
+    a_max = int(source.get('a_max', problem_generation.DEFAULT_A_MAX))
+    b_min = int(source.get('b_min', problem_generation.DEFAULT_B_MIN))
+    b_max = int(source.get('b_max', problem_generation.DEFAULT_B_MAX))
+    operator = list(source.get('operator') or problem_generation.DEFAULT_OPERATOR)
+    a_decimal_places = int(source.get('a_decimal_places', nuts_calc_tex.MIN_DECIMAL_PLACES))
+    b_decimal_places = int(source.get('b_decimal_places', nuts_calc_tex.MIN_DECIMAL_PLACES))
+    problems = nuts_calc_tex.generate_ope_problems(
+        list(range(a_min, a_max + 1)),
+        list(range(b_min, b_max + 1)),
+        operator,
+        count,
+        1,
+        a_decimal_places,
+        b_decimal_places,
+        source.get('carry_mode'),
+        source.get('remainder_mode'),
+        source.get('result_max'),
+    )
+    return [
+        nuts_calc_tex.ReviewProblem(index=problem.index, kind='ope', payload=problem)
+        for problem in problems
+    ]
+
+
+def _review_frac_problems(
+    source: dict[str, object], count: int
+) -> list[nuts_calc_tex.ReviewProblem]:
+    """Generate `count` basic `frac` add/sub problems for one review source."""
+    numerator_digits = int(source.get('numerator_digits', 1))
+    denominator_digits = int(source.get('denominator_digits', 1))
+    operators = list(source.get('operator') or ['add'])
+    problems = nuts_calc_tex.generate_fraction_problems(
+        numerator_digits,
+        denominator_digits,
+        operators,
+        count,
+        1,
+        bool(source.get('same_denominator', False)),
+        bool(source.get('proper_operands', False)),
+        bool(source.get('proper_result', False)),
+    )
+    return [
+        nuts_calc_tex.ReviewProblem(index=problem.index, kind='frac', payload=problem)
+        for problem in problems
+    ]
+
+
+_REVIEW_SOURCE_GENERATORS: dict[
+    str, Callable[[dict[str, object], int], list[nuts_calc_tex.ReviewProblem]]
+] = {
+    'ope': _review_ope_problems,
+    'frac': _review_frac_problems,
+}
+
+_REVIEW_UNSUPPORTED_SOURCE_ERROR = (
+    "review worksheet source command_type {command_type!r} is not supported; "
+    "supported: {supported}."
+)
+
+
+def _resolve_review_sources(
+    data: renderer_config.RendererRequest,
+) -> list[dict[str, object]]:
+    """Validate `data['sources']` and return it as a list of source dicts."""
+    sources = data.get('sources')
+    if not isinstance(sources, list) or not sources:
+        raise ValueError("review worksheet requires a non-empty 'sources' list.")
+    resolved: list[dict[str, object]] = []
+    for source in sources:
+        if not isinstance(source, dict):
+            raise ValueError("each review 'sources' entry must be an object.")
+        command_type = source.get('command_type')
+        if command_type not in _REVIEW_SOURCE_GENERATORS:
+            raise ValueError(
+                _REVIEW_UNSUPPORTED_SOURCE_ERROR.format(
+                    command_type=command_type,
+                    supported=", ".join(sorted(_REVIEW_SOURCE_GENERATORS)),
+                )
+            )
+        num = source.get('num')
+        if not isinstance(num, int) or isinstance(num, bool) or num < 1:
+            raise ValueError("each review 'sources' entry needs an integer num >= 1.")
+        resolved.append(source)
+    return resolved
+
+
+def _distribute_review_counts(weights: list[int], order: int) -> list[int]:
+    """Split `order` grid slots across sources in proportion to `weights`.
+
+    `num` on each source is a relative weight, so the page grid is always
+    exactly filled whatever `rows * columns` is (e.g. the 10 / 20 / 30
+    problem-count choice in frontend/web). When the weights already sum to
+    `order` -- the documented common case -- every source gets exactly its
+    weight back. Leftover slots from integer division go to the largest
+    fractional remainders (largest-remainder method).
+    """
+    total_weight = sum(weights)
+    if total_weight <= 0:
+        # _resolve_review_sources already enforces num >= 1 per source, so
+        # this only guards a direct caller passing all-zero weights.
+        raise ValueError("review 'sources' need at least one positive num.")
+    exact = [order * weight / total_weight for weight in weights]
+    counts = [int(value) for value in exact]
+    leftover = order - sum(counts)
+    by_remainder = sorted(
+        range(len(weights)), key=lambda i: exact[i] - counts[i], reverse=True
+    )
+    for i in by_remainder[:leftover]:
+        counts[i] += 1
+    return counts
+
+
+def _generate_review_pdf(
+    data: renderer_config.RendererRequest, output_dir: str
+) -> tuple[str, str]:
+    """Build a multi-source 'review' (総合) worksheet PDF (issue #140).
+
+    Each `data['sources']` entry is generated by its own drill's data-layer
+    function, the results are concatenated, optionally shuffled
+    (deterministically when `review_seed` is given), renumbered 1..N per
+    page, and rendered onto one page grid via a `kind`-dispatching content
+    format (nuts_calc_tex.build_review_slot_content_tex). Basic-case only,
+    mirroring the other _generate_*_pdf builders: a blank page per `page`,
+    with_name_field honored, no bottom-answer / merge. Source `num` values
+    are relative weights (see _distribute_review_counts), so the grid is
+    always exactly filled for any rows * columns.
+    """
+    sources = _resolve_review_sources(data)
+
+    rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
+    columns = int(data.get('columns', 2))
+    if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
+        raise ValueError(
+            f"rows and columns must be at least {nuts_calc_tex.MIN_ROWS_OR_COLUMNS}."
+        )
+    order = rows * columns
+    counts = _distribute_review_counts([int(source['num']) for source in sources], order)
+
+    engine_adapter = nuts_calc_tex.get_latex_engine_adapter()
+    if shutil.which(engine_adapter.binary_name) is None:
+        raise ValueError(
+            f"{engine_adapter.binary_name} not found. Install a LaTeX distribution first "
+            "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
+        )
+
+    shuffle = bool(data.get('shuffle', False))
+    rng = random.Random(data.get('review_seed')) if shuffle else None
+
+    pages = []
+    for page_number in range(1, _resolve_page_count(data) + 1):
+        problems = []
+        for source, count in zip(sources, counts):
+            if count < 1:
+                continue
+            generator = _REVIEW_SOURCE_GENERATORS[source['command_type']]
+            problems.extend(generator(source, count))
+        if rng is not None:
+            rng.shuffle(problems)
+        start_index = (page_number - 1) * order + 1
+        for offset, problem in enumerate(problems):
+            problem.index = start_index + offset
+        pages.append(
+            nuts_calc_tex.PresentationPage(
+                problems=problems,
+                indices=[problem.index for problem in problems],
+                bottom_answer_tex=None,
+            )
+        )
+
+    tex_source = nuts_calc_tex.build_presentation_document_tex(
+        data['paper_size'],
+        pages=pages,
+        content_format=nuts_calc_tex.build_review_slot_content_tex,
+        page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        engine_adapter=engine_adapter,
+        show_answer=False,
+        with_name_field=bool(data.get('with_name_field', False)),
+    )
+
+    output_filename = f"worksheet_{uuid.uuid4()}.pdf"
+    output_filepath = os.path.join(output_dir, output_filename)
+
+    # See _generate_com_pdf's matching comment: engine_adapter.compile()
+    # raises SystemExit (via nuts_calc_tex.failure()) on a LaTeX compile
+    # error, which must be caught and converted here so this in-process
+    # request handler still returns a JSON response.
+    captured_stdout = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(captured_stdout):
+            engine_adapter.compile(tex_source, output_filepath)
+    except SystemExit as e:
+        error_reason = captured_stdout.getvalue().strip() or "PDF compilation failed"
+        raise RuntimeError(f'PDF generation failed: {error_reason}') from e
+
+    return output_filepath, output_filename
+
+
 def render_worksheet_pdf(
     data: renderer_config.RendererRequest, output_dir: str
 ) -> tuple[str, str]:
@@ -2298,6 +2521,8 @@ def render_worksheet_pdf(
     ``nuts_calc_tex.py``'s ``_init()`` (nuts_calc_tex.py:843-848) also rejects
     outright. Every other unmatched request has an unknown ``command_type``.
     """
+    if data.get('command_type') == 'review':
+        return _generate_review_pdf(data, output_dir)
     if data.get('command_type') == 'com':
         return _generate_com_pdf(data, output_dir)
     if data.get('command_type') == 'lcm':
