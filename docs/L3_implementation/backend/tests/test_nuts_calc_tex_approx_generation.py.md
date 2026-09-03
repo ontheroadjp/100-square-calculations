@@ -22,3 +22,7 @@ quotient 系のアサーションは Python 組込み `round()` ではなく `nu
 ## 注意事項・既知の制限
 
 純粋関数テストであり PDF コンパイルは行わない。実 PDF(両エンジンでの `≒` 描画)は [[test_nuts_calc_tex.py]] の pdflatex-gated `test_cli_approx_*`、Flask routing は [[test_web_backend_app.py]] の `test_generate_pdf_approx_*` / `test_generate_problems_approx_*` が担う。
+
+## 変更履歴（git log より自動生成）
+
+- ca9967c feat(#346): add the 概数 (approx) rounding / estimation drill

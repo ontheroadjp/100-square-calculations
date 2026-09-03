@@ -48,13 +48,13 @@
 
 ## 変更履歴（git log より自動生成）
 
-- 912657b fix(#342): guarantee non-trivial division in g4-parentheses (括弧を含む四則混合計算)
+- ca9967c feat(#346): add the 概数 (approx) rounding / estimation drill
+- e493735 feat(#334): extend --decimal-remainder to a decimal divisor and add the grade 5 小数のわり算 (あまり) drill (#347)
+- 9da1116 feat(#333): add grade 4 decimal-remainder division drill and --decimal-remainder flag (#345)
+- b2df846 feat(#332): add grade 3 two-digit-quotient division drill and --quotient-digits flag (#344)
+- 36de01d fix(#342): guarantee a non-trivial division in every g4-parentheses problem (#343)
 - b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)
 - f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)
 - 40dfb0a feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication (#314)
 - 37a5a80 #230 Split a_value/b_value's overloaded digit-count/direct-value semantics into a_digits/b_digits (#236)
 - 490f44b #171 compare: support int/decimal/fraction kind mixing, expose via POST /generate-problems (#192)
-- 19fc419 test: default nuts_calc_tex.py E2E fixture to pdflatex, not lualatex
-- 9393898 #186 renderers/engine: make latex+lualatex the default (and only reachable) configuration (#187)
-- 231bde1 #134 frontend/web: add 出題形式 (式/筆算) setting to add/sub/mul/div preset detail pages (#181)
-- 7b064ef #114 nuts_calc_tex.py: add reducibility control to frac/mixed multiplication and division (#165)

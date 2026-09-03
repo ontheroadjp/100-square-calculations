@@ -57,13 +57,13 @@ issue #342 で「grade 4 four-operations consolidates parentheses drills to two 
 
 ## 変更履歴（git log より自動生成）
 
-- 912657b fix(#342): guarantee non-trivial division in g4-parentheses (括弧を含む四則混合計算)
+- ca9967c feat(#346): add the 概数 (approx) rounding / estimation drill
+- e493735 feat(#334): extend --decimal-remainder to a decimal divisor and add the grade 5 小数のわり算 (あまり) drill (#347)
+- 9da1116 feat(#333): add grade 4 decimal-remainder division drill and --decimal-remainder flag (#345)
+- b2df846 feat(#332): add grade 3 two-digit-quotient division drill and --quotient-digits flag (#344)
+- 36de01d fix(#342): guarantee a non-trivial division in every g4-parentheses problem (#343)
 - 960657f refactor(#340): consolidate grade 4 parentheses drills to two tiers (#341)
 - b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)
 - d37b593 fix(#330): move parentheses add/sub drill from grade 2 to grade 4 and set difficulty to basic (#338)
 - cbeb0a6 fix(#329): restrict grade 4 decimal×integer multiplication to an integer multiplier (#337)
 - 5d42151 fix(#328): move parenthesized mixed-operation drill from grade 3 to grade 4 (#336)
-- d31e15c fix(#327): reassign fraction-by-integer mul/div drills from grade 6 to grade 5 (#335)
-- f440b57 refactor(#320): replace grade 5 multiplication/division sections with a dedicated 小数 section (#321)
-- f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)
-- 697db43 refactor(#315): move grade 4 fraction add/sub into addition/subtraction categories (#316)

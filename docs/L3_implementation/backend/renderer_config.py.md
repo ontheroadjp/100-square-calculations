@@ -46,3 +46,12 @@ issue #186 時点では `RENDERER_SCRIPTS` に `"reportlab"` エントリが残�
 
 - a88a90b feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint
 - 7bbec1b refactor(#297): delete the legacy /generate-pdf subprocess rendering path (#325)
+
+## 変更履歴（git log より自動生成）
+
+- ca9967c feat(#346): add the 概数 (approx) rounding / estimation drill
+- 9da1116 feat(#333): add grade 4 decimal-remainder division drill and --decimal-remainder flag (#345)
+- b2df846 feat(#332): add grade 3 two-digit-quotient division drill and --quotient-digits flag (#344)
+- 36de01d fix(#342): guarantee a non-trivial division in every g4-parentheses problem (#343)
+- b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)
+- 7bbec1b refactor(#297): delete the legacy /generate-pdf subprocess rendering path (#325)
