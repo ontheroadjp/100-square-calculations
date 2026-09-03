@@ -53,6 +53,23 @@ function remainderSetting(labelKey) {
   return { id: 'remainderMode', labelKey, type: 'choice', options: NONE_REQUIRED_MIXED_OPTIONS, default: 'mixed' };
 }
 
+// The 余り setting for the decimal-division drills (issue #349): なし
+// (割り切れる) / あり (小数のあまり) / わり進み (divide past the ones place
+// until the quotient terminates). A different 3-way set from carrySetting/
+// remainderSetting's なし/あり/まぜる -- nuts_calc_tex.py maps なし to no
+// flag, あり to --decimal-remainder, and わり進み to --divide-through, and
+// there is no "mix both" backend mode. Default なし so the drill starts as
+// the plain exact-quotient division.
+const DECIMAL_DIV_REMAINDER_OPTIONS = [
+  OPT_NONE,
+  OPT_REQUIRED,
+  { value: 'divide_through', labelKey: 'setting_option_divide_through' },
+];
+
+function decimalDivRemainderSetting(labelKey) {
+  return { id: 'remainderMode', labelKey, type: 'choice', options: DECIMAL_DIV_REMAINDER_OPTIONS, default: 'none' };
+}
+
 // options: optional sibling option list (same shape as a choice setting's
 // `options`). When present, the fixed setting renders as a full segmented
 // control with every option disabled and the one whose labelKey matches
@@ -90,13 +107,25 @@ const OPT_DISPLAY_WRITTEN = { value: 'written', labelKey: 'setting_option_displa
 // 出題形式(式/筆算, issue #134): only meaningful for a plain two-term `ope`
 // item, since nuts_calc_tex.py's --vertical is only implemented for that
 // command. Every item this is attached to already hardcodes
-// command_type: 'ope' unconditionally, so no disabledWhen/resolveValue
-// (unlike carrySetting/remainderSetting's dependents) is needed here.
-function displayFormatSetting() {
-  return {
+// command_type: 'ope' unconditionally.
+//
+// disabledWhen (optional, issue #349): a predicate on the settings state.
+// When it returns true the toggle is shown disabled and resolves to
+// 'horizontal' -- used by the merged 小数÷整数 drill, whose 筆算 form the
+// backend rejects once 余り != なし (longdivision cannot lay out a decimal
+// remainder or a divided-through quotient).
+function displayFormatSetting(disabledWhen = null) {
+  const setting = {
     id: 'displayFormat', labelKey: 'setting_display_format_label', type: 'choice',
     options: [OPT_DISPLAY_HORIZONTAL, OPT_DISPLAY_WRITTEN], default: 'horizontal',
   };
+  if (disabledWhen) {
+    setting.disabledWhen = disabledWhen;
+    setting.resolveValue = (state) => (
+      disabledWhen(state) ? 'horizontal' : (state?.displayFormat ?? 'horizontal')
+    );
+  }
+  return setting;
 }
 
 function displayFormatParam(state) {
@@ -106,15 +135,16 @@ function displayFormatParam(state) {
 // Builds an examplesFor(settingsState) for a menu item's example chips: looks
 // up the example set for the current combination of the given setting ids
 // (joined with "_", e.g. ['denominator', 'numberKind'] -> "same_fraction").
-// The all-'mixed' combination must always be present in byCombo; it is used
-// both for that combination and as the fallback for any unset/unrecognized
-// value, so it stays identical to the item's own static `examples` (every
-// affected setting here defaults to 'mixed').
-function examplesByChoice(settingIds, byCombo) {
-  const mixedKey = settingIds.map(() => 'mixed').join('_');
+// The all-`defaultValue` combination must always be present in byCombo; it
+// is used both for that combination and as the fallback for any unset/
+// unrecognized value, so it stays identical to the item's own static
+// `examples`. defaultValue is 'mixed' for most settings, but the decimal-
+// division 余り setting (issue #349) defaults to 'none'.
+function examplesByChoice(settingIds, byCombo, defaultValue = 'mixed') {
+  const fallbackKey = settingIds.map(() => defaultValue).join('_');
   return (settingsState) => {
-    const key = settingIds.map((id) => settingsState?.[id] ?? 'mixed').join('_');
-    return byCombo[key] ?? byCombo[mixedKey];
+    const key = settingIds.map((id) => settingsState?.[id] ?? defaultValue).join('_');
+    return byCombo[key] ?? byCombo[fallbackKey];
   };
 }
 
@@ -851,44 +881,41 @@ const grade4 = {
       }),
     },
     {
+      // 小数÷整数 (Course of Study 第4学年「小数」除法). One drill with a
+      // 余り setting (issue #349, consolidating the former g4-decimal-div-int
+      // + g4-decimal-div-int-remainder): なし = 割り切れる, あり = 商を一の位
+      // まで求めてあまりを小数で出す (--decimal-remainder), わり進み = 商が
+      // 終わるまで割り進む (--divide-through). 筆算 is only offered for なし --
+      // longdivision cannot lay out a decimal remainder or a divided-through
+      // quotient -- so displayFormat is disabled once 余り != なし.
       id: 'g4-decimal-div-int',
       titleKey: 'menu_g4_decimal_div_int_title',
       descKey: 'menu_g4_decimal_div_int_desc',
       pointKey: 'menu_g4_decimal_div_int_point',
       difficultyKey: 'difficulty_standard',
-      examples: ['8.4÷4', '7.35÷5', '9.6÷8'],
-      settings: [fixedSetting('divisor', 'setting_divisor_label', 'setting_option_integer'), displayFormatSetting()],
-      supportLevel: 'full',
-      latexOnly: true,
-      buildParams: (state) => ({
-        command_type: 'ope', operator: ['div'], a_digits: 2, b_digits: 1, a_decimal_places: 1,
-        ...displayFormatParam(state),
-      }),
-    },
-    {
-      // 小数÷整数 with a nonzero decimal remainder (issue #333): 商を一の位
-      // まで求めて、あまりを小数で出す (Course of Study 第4学年「小数」除法).
-      // わり進み・商のがい数 are deferred to #326 follow-ups. No displayFormat
-      // (setting) here: nuts_calc_tex.py rejects --vertical --decimal-remainder
-      // (longdivision cannot lay out a decimal remainder), so this id is
-      // intentionally absent from drillPresets.test.js's DISPLAY_FORMAT_ITEM_IDS.
-      id: 'g4-decimal-div-int-remainder',
-      titleKey: 'menu_g4_decimal_div_int_remainder_title',
-      descKey: 'menu_g4_decimal_div_int_remainder_desc',
-      pointKey: 'menu_g4_decimal_div_int_remainder_point',
-      difficultyKey: 'difficulty_standard',
-      examples: ['7.6÷3', '9.4÷4', '8.5÷6'],
+      examples: ['8.4÷4', '9.6÷8', '7.2÷6'],
+      examplesFor: examplesByChoice(['remainderMode'], {
+        none: ['8.4÷4', '9.6÷8', '7.2÷6'],
+        required: ['7.6÷3', '9.4÷4', '8.5÷6'],
+        divide_through: ['9.0÷4', '7.5÷4', '9.4÷8'],
+      }, 'none'),
       settings: [
         fixedSetting('divisor', 'setting_divisor_label', 'setting_option_integer'),
-        fixedSetting('remainder', 'setting_remainder_label', 'setting_option_required'),
+        decimalDivRemainderSetting('setting_remainder_label'),
+        displayFormatSetting((state) => (state?.remainderMode ?? 'none') !== 'none'),
       ],
       supportLevel: 'full',
       latexOnly: true,
-      buildParams: () => ({
-        command_type: 'ope', operator: ['div'],
-        a_digits: 2, b_min: 2, b_max: 9, a_decimal_places: 1,
-        decimal_remainder: true,
-      }),
+      buildParams: (state) => {
+        const base = {
+          command_type: 'ope', operator: ['div'],
+          a_digits: 2, b_min: 2, b_max: 9, a_decimal_places: 1,
+        };
+        const mode = state?.remainderMode ?? 'none';
+        if (mode === 'required') return { ...base, decimal_remainder: true };
+        if (mode === 'divide_through') return { ...base, divide_through: true };
+        return { ...base, ...displayFormatParam(state) };
+      },
     },
   ],
   addition: [
@@ -1147,18 +1174,6 @@ function denominatorParams(state) {
 
 const REDUCTION_OPTIONS = [OPT_NONE, OPT_REQUIRED, OPT_MIXED];
 
-// 被除数(g5-decimal-div, issue #317): the divisor is always a decimal (5年
-// 「小数のわり算」= 除数が小数); this picks the dividend's kind. 'integer' and
-// 'mixed' send nuts_calc_tex.py's --integer-dividend/--mixed-dividend so a
-// whole-number dividend (e.g. 96÷2.4) is generated with an exact integer
-// quotient, matching how the course of study introduces the unit. The
-// 小数÷小数 option keeps the pre-#317 params unchanged.
-const DIVIDEND_TYPE_OPTIONS = [
-  { value: 'integer_div_decimal', labelKey: 'setting_option_integer_div_decimal' },
-  { value: 'decimal_div_decimal', labelKey: 'setting_option_decimal_div_decimal' },
-  { value: 'mixed', labelKey: 'setting_option_mixed', hintKey: 'setting_mixed_hint' },
-];
-
 // ---------------------------------------------------------------------
 // Grade 5
 // ---------------------------------------------------------------------
@@ -1186,63 +1201,45 @@ const grade5 = {
       }),
     },
     {
+      // 小数÷小数 (Course of Study 第5学年「小数のわり算」= 除数が小数). One
+      // drill with a 余り setting (issue #349, consolidating the former
+      // #317 g5-decimal-div dividend-type drill + #334 g5-decimal-div-remainder):
+      // なし = わる数を整数に直して割り切れる, あり = 商を一の位まで求めて
+      // あまりを小数で出す (--decimal-remainder), わり進み = 商が終わるまで
+      // 割り進む (--divide-through). No displayFormat: longdivision's
+      // \intlongdivision needs an integer divisor, so 筆算 is unavailable for
+      // a decimal divisor at every 余り setting (#180); this id stays out of
+      // drillPresets.test.js's DISPLAY_FORMAT_ITEM_IDS. The #317 整数÷小数
+      // dividend-type selection is dropped: 余り=なし already covers the exact
+      // 小数÷小数 case, and 整数÷小数 (--integer-dividend) is mutually
+      // exclusive with both new modes in nuts_calc_tex.py.
       id: 'g5-decimal-div',
       titleKey: 'menu_g5_decimal_div_title',
       descKey: 'menu_g5_decimal_div_desc',
       pointKey: 'menu_g5_decimal_div_point',
       difficultyKey: 'difficulty_standard',
-      examples: ['72÷1.8', '7.2÷1.8', '96÷2.4'],
-      examplesFor: examplesByChoice(['dividendType'], {
-        integer_div_decimal: ['72÷1.8', '96÷2.4', '51÷1.7'],
-        decimal_div_decimal: ['7.2÷1.8', '9.6÷2.4', '8.4÷1.2'],
-        mixed: ['72÷1.8', '7.2÷1.8', '96÷2.4'],
-      }),
+      examples: ['7.2÷1.8', '9.6÷2.4', '8.4÷1.2'],
+      examplesFor: examplesByChoice(['remainderMode'], {
+        none: ['7.2÷1.8', '9.6÷2.4', '8.4÷1.2'],
+        required: ['7.6÷2.3', '9.5÷2.8', '8.3÷1.5'],
+        divide_through: ['9.0÷2.5', '9.6÷1.5', '8.7÷1.5'],
+      }, 'none'),
       settings: [
-        { id: 'dividendType', labelKey: 'setting_dividend_label', type: 'choice', options: DIVIDEND_TYPE_OPTIONS, default: 'mixed' },
+        fixedSetting('divisor', 'setting_divisor_label', 'setting_option_decimal'),
+        decimalDivRemainderSetting('setting_remainder_label'),
       ],
       supportLevel: 'full',
       latexOnly: true,
       buildParams: (state) => {
         const base = {
-          command_type: 'ope', operator: ['div'], a_digits: 2, b_digits: 2, b_decimal_places: 1,
+          command_type: 'ope', operator: ['div'],
+          a_digits: 2, b_digits: 2, a_decimal_places: 1, b_decimal_places: 1,
         };
-        const dividendType = state?.dividendType ?? 'mixed';
-        if (dividendType === 'integer_div_decimal') {
-          return { ...base, a_decimal_places: 0, dividend_mode: 'integer' };
-        }
-        if (dividendType === 'decimal_div_decimal') {
-          // Unchanged from before #317: 小数第1位 ÷ 小数第1位 = integer.
-          return { ...base, a_decimal_places: 1 };
-        }
-        return { ...base, a_decimal_places: 1, dividend_mode: 'mixed' };
+        const mode = state?.remainderMode ?? 'none';
+        if (mode === 'required') return { ...base, decimal_remainder: true };
+        if (mode === 'divide_through') return { ...base, divide_through: true };
+        return base;
       },
-    },
-    {
-      // 小数÷小数 with a nonzero decimal remainder (issue #334): わる数を
-      // 整数に直して商を一の位まで求め、あまりを小数で出す (Course of Study
-      // 第5学年「小数のわり算」). あまりの小数点はわられる数の *もとの* 位置
-      // にそろえる。#317 の割り切れる g5-decimal-div とは別メニュー。
-      // わり進み は将来の別フラグ、商のがい数 は別途計画中の概数計算ドリルへ。
-      // No displayFormat: nuts_calc_tex.py rejects --vertical --decimal-remainder,
-      // so this id is intentionally absent from drillPresets.test.js's
-      // DISPLAY_FORMAT_ITEM_IDS (same as g4-decimal-div-int-remainder).
-      id: 'g5-decimal-div-remainder',
-      titleKey: 'menu_g5_decimal_div_remainder_title',
-      descKey: 'menu_g5_decimal_div_remainder_desc',
-      pointKey: 'menu_g5_decimal_div_remainder_point',
-      difficultyKey: 'difficulty_standard',
-      examples: ['7.6÷2.3', '9.5÷2.8', '8.3÷1.5'],
-      settings: [
-        fixedSetting('divisor', 'setting_divisor_label', 'setting_option_decimal'),
-        fixedSetting('remainder', 'setting_remainder_label', 'setting_option_required'),
-      ],
-      supportLevel: 'full',
-      latexOnly: true,
-      buildParams: () => ({
-        command_type: 'ope', operator: ['div'],
-        a_digits: 2, b_digits: 2, a_decimal_places: 1, b_decimal_places: 1,
-        decimal_remainder: true,
-      }),
     },
   ],
   'four-operations': [

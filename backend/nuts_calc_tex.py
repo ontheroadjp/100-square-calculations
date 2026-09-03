@@ -207,6 +207,12 @@ CONTENT_FORMAT_HUNDRED_SQUARE_COLSEP_TEX = '6pt'
 CONTENT_FORMAT_HUNDRED_SQUARE_RULE_WIDTH_TEX = '0.4pt'
 MIN_DECIMAL_PLACES = 0
 MAX_DECIMAL_PLACES = 2
+# Upper bound on how many decimal places a --divide-through ("わり進み")
+# quotient may be carried to. Unlike MAX_DECIMAL_PLACES (which caps the
+# operands), this caps the derived answer: a pair whose exact quotient needs
+# more places than this is rejected so the worksheet never asks for an
+# unreasonably long division.
+MAX_DIVIDE_THROUGH_QUOTIENT_DECIMAL_PLACES = 4
 DEC2FRAC_MIN_DECIMAL_PLACES = 1
 MIXED_OPERAND_KINDS = ('int', 'decimal', 'fraction')
 DEFAULT_MULTIPLES_COUNT = 4
@@ -493,6 +499,20 @@ def _init() -> argparse.Namespace:
             'aligned to the original dividend (ope -o div only). E.g. 7.6 / 3 = '
             '2 \\cdots 1.6 (grade-4 "小数のあまりのある割り算") or 7.6 / 2.3 = '
             '3 \\cdots 0.7 (grade-5 "小数のわり算").'
+        )
+    )
+    parser.add_argument('--divide-through'
+        , dest = 'divide_through'
+        , action = 'store_true'
+        , help = (
+            'Continue an "ope -o div" division past the ones place until the '
+            'quotient terminates ("わり進み"), showing it to as many decimal '
+            'places as it needs (at most '
+            f'{MAX_DIVIDE_THROUGH_QUOTIENT_DECIMAL_PLACES}). E.g. 9.0 / 4 = '
+            '2.25 (grade-4 "小数のわり算") or 9.0 / 2.5 = 3.6 (grade-5 "小数の'
+            'わり算", divisor scaled up to a whole number first). Rejects the '
+            'same conflicting flags as --decimal-remainder, and pairs whose '
+            'quotient never terminates within the bound.'
         )
     )
     dividend_group = parser.add_mutually_exclusive_group()
@@ -1170,6 +1190,8 @@ def _init() -> argparse.Namespace:
             failure("--decimal-remainder cannot be combined with --vertical.")
         if args.mixed_decimal_operand_order:
             failure("--decimal-remainder cannot be combined with --mixed-decimal-operand-order.")
+        if args.divide_through:
+            failure("--decimal-remainder cannot be combined with --divide-through.")
         if args.a_decimal_places <= MIN_DECIMAL_PLACES:
             failure(
                 "--decimal-remainder requires a decimal dividend (--a-decimal-places >= 1)."
@@ -1195,6 +1217,57 @@ def _init() -> argparse.Namespace:
             failure(
                 "--decimal-remainder: no decimal-dividend / divisor pair with a "
                 "quotient >= 1 and a nonzero remainder exists in the scaled "
+                f"ranges [{args.a_min}, {args.a_max}] / [{args.b_min}, {args.b_max}]."
+            )
+
+    if args.divide_through:
+        if args.command != 'ope' or args.operator != ['div']:
+            failure("--divide-through only supports 'ope -o div'.")
+        if args.use_parentheses or args.missing_value or terms_options_given:
+            failure(
+                "--divide-through cannot be combined with "
+                "--use-parentheses/--missing-value/--terms family."
+            )
+        # Mirror --decimal-remainder: reject every conflicting flag before the
+        # operand checks so each conflict reports itself precisely.
+        if args.remainder_mode is not None:
+            failure(
+                "--divide-through cannot be combined with "
+                "--remainder/--no-remainder/--mixed-remainder."
+            )
+        if args.quotient_digits is not None:
+            failure("--divide-through cannot be combined with --quotient-digits.")
+        if args.dividend_mode is not None:
+            failure(
+                "--divide-through cannot be combined with "
+                "--integer-dividend/--decimal-dividend/--mixed-dividend."
+            )
+        if args.decimal_remainder:
+            failure("--divide-through cannot be combined with --decimal-remainder.")
+        if args.intermediate:
+            failure("--divide-through cannot be combined with --intermediate.")
+        if args.vertical:
+            failure("--divide-through cannot be combined with --vertical.")
+        if args.mixed_decimal_operand_order:
+            failure("--divide-through cannot be combined with --mixed-decimal-operand-order.")
+        # base_places = a_decimal_places - b_decimal_places is where an exact
+        # division would already terminate; it must not be negative (the
+        # divisor is scaled up to a whole number, and the dividend with it).
+        if args.b_decimal_places > args.a_decimal_places:
+            failure(
+                "--divide-through requires --b-decimal-places to be between 0 and "
+                "--a-decimal-places (the divisor may not have more decimal places "
+                "than the dividend)."
+            )
+        nums_a_probe = list(range(args.a_min, args.a_max + 1))
+        nums_b_probe = list(range(args.b_min, args.b_max + 1))
+        if find_divide_through_division_pair(
+                nums_a_probe, nums_b_probe,
+                args.a_decimal_places, args.b_decimal_places) is None:
+            failure(
+                "--divide-through: no dividend / divisor pair whose quotient "
+                f"terminates within {MAX_DIVIDE_THROUGH_QUOTIENT_DECIMAL_PLACES} "
+                "decimal places (and is not already exact) exists in the scaled "
                 f"ranges [{args.a_min}, {args.a_max}] / [{args.b_min}, {args.b_max}]."
             )
 
@@ -2883,6 +2956,120 @@ def calc_div_decimal_remainder(
     )
 
 
+def divide_through_quotient(
+        a: int, b: int, a_decimal_places: int, b_decimal_places: int = 0,
+        max_total_decimal_places: int = MAX_DIVIDE_THROUGH_QUOTIENT_DECIMAL_PLACES,
+    ) -> tuple[int, int] | None:
+    """
+    Divide the decimal dividend a / 10**a_decimal_places by the divisor
+    b / 10**b_decimal_places, carrying the quotient past the ones place until
+    it terminates ("わり進み", issue #349).
+
+    Returns ``(total_decimal_places, c)`` where ``c`` is the exact quotient
+    scaled to ``total_decimal_places`` digits (so
+    ``format_decimal_value(c, total_decimal_places)`` renders it), or ``None``
+    when the pair is not a genuine divide-through problem:
+
+    - the divisor is zero, or is a disguised whole number (``b`` such as
+      ``4.0`` -- left to the grade-4 whole-divisor drill);
+    - the quotient is below 1 (``a < b * 10**base_places``), so it never
+      prints ``0.xxx``;
+    - the division already terminates at ``base_places`` (``a % b == 0``);
+      that is the "なし" exact-quotient drill, not わり進み;
+    - the exact quotient needs more than ``max_total_decimal_places`` places
+      (a non-terminating quotient such as ``÷ 3`` / ``÷ 7``, or one that
+      simply runs too long).
+
+    The textbook technique scales both operands up by 10**b_decimal_places so
+    the divisor becomes the whole number ``b``; the dividend then sits at
+    scale 10**base_places with ``base_places = a_decimal_places -
+    b_decimal_places`` (>= 0, guaranteed by _init()). The true quotient is
+    ``a / (b * 10**base_places)``, so scaled to ``base_places + extra`` places
+    it is ``a * 10**extra / b`` (the 10**base_places cancels). A genuine
+    わり進み needs at least one place beyond ``base_places`` (``extra >= 1``).
+    """
+    if b == 0:
+        return None
+    if b_decimal_places > 0 and b % 10 ** b_decimal_places == 0:
+        return None
+    base_places = a_decimal_places - b_decimal_places
+    if a < b * 10 ** base_places:
+        return None
+    if a % b == 0:
+        return None
+    for extra in range(1, max_total_decimal_places - base_places + 1):
+        scaled = a * 10 ** extra
+        if scaled % b == 0:
+            return base_places + extra, scaled // b
+    return None
+
+
+def find_divide_through_division_pair(
+        nums_a: list[int], nums_b: list[int], a_decimal_places: int,
+        b_decimal_places: int = 0,
+        max_total_decimal_places: int = MAX_DIVIDE_THROUGH_QUOTIENT_DECIMAL_PLACES,
+    ) -> tuple[int, int] | None:
+    """
+    Deterministically find one raw ``(a, b)`` pair that ``divide_through_quotient``
+    accepts, or ``None``. Mirrors ``find_decimal_remainder_division_pair``'s
+    role as ``calc_div_divide_through``'s fallback; a plain scan stays cheap
+    because a qualifying pair is the common case in the drill's ranges.
+    """
+    for b in nums_b:
+        for a in nums_a:
+            if divide_through_quotient(
+                    a, b, a_decimal_places, b_decimal_places,
+                    max_total_decimal_places) is not None:
+                return a, b
+    return None
+
+
+def calc_div_divide_through(
+        a: int, b: int, nums_a: list[int], nums_b: list[int],
+        a_decimal_places: int, b_decimal_places: int = 0,
+        max_total_decimal_places: int = MAX_DIVIDE_THROUGH_QUOTIENT_DECIMAL_PLACES,
+    ) -> tuple[int, int, int, int]:
+    """
+    Retry with freshly-sampled operands until ``divide_through_quotient``
+    accepts the pair, then return ``(a, b, c, total_decimal_places)`` where
+    ``c`` is the exact quotient scaled to ``total_decimal_places`` digits.
+
+    Mirrors ``calc_div_decimal_remainder``'s structure -- random sampling then
+    a deterministic ``find_divide_through_division_pair`` fallback -- since the
+    drill can pass a narrow operand range. Unlike the other CALC helpers this
+    returns a 4-tuple: the quotient's decimal-place count is not derivable
+    from the operands (it is outside ``ope_result_decimal_places``), so the
+    caller needs it alongside ``c``.
+    """
+    def _accept(cand_a: int, cand_b: int) -> tuple[int, int, int, int] | None:
+        result = divide_through_quotient(
+            cand_a, cand_b, a_decimal_places, b_decimal_places,
+            max_total_decimal_places)
+        if result is None:
+            return None
+        total_decimal_places, c = result
+        return cand_a, cand_b, c, total_decimal_places
+
+    for _ in range(MAX_OPERAND_RETRY_ATTEMPTS):
+        hit = _accept(a, b)
+        if hit is not None:
+            return hit
+        a = random.choice(nums_a)
+        b = random.choice(nums_b)
+
+    fallback = find_divide_through_division_pair(
+        nums_a, nums_b, a_decimal_places, b_decimal_places,
+        max_total_decimal_places)
+    if fallback is not None:
+        hit = _accept(*fallback)
+        if hit is not None:
+            return hit
+    raise ValueError(
+        "No divide-through (terminating quotient) division pair found in the "
+        "given number ranges."
+    )
+
+
 CALC_FUNCTIONS: dict[str, Callable[[int, int, list[int], list[int]], tuple[int, int, int]]] = {
     'add': calc_add,
     'sub': calc_sub,
@@ -2904,6 +3091,7 @@ def generate_ope_problems(
         b_multiple: int | None = None,
         quotient_digits: int | None = None,
         decimal_remainder: bool = False,
+        divide_through: bool = False,
     ) -> list[OpeProblem]:
     """
     Generate `order` arithmetic problems starting at `start_index`.
@@ -2968,6 +3156,16 @@ def generate_ope_problems(
     divisor, issue #333) or "7.6 / 2.3 = 3 \\cdots 0.7" (decimal divisor,
     issue #334). With b_decimal_places == 0 the arithmetic is byte-for-byte
     the issue #333 behavior.
+
+    divide_through (div only; mutually exclusive with the same flags as
+    decimal_remainder -- enforced by _init(); Web callers forward it
+    leniently, so an earlier div branch wins and it is a silent no-op if a
+    conflicting flag is also set) routes every div problem through
+    calc_div_divide_through: the quotient is carried past the ones place until
+    it terminates ("わり進み", issue #349). The problem records
+    result_decimal_places = the exact number of places the quotient needs
+    (not derivable from the operands), and no remainder. E.g. "9.0 / 4 = 2.25"
+    or "9.0 / 2.5 = 3.6".
     """
     effective_operators = MIX_OPERATORS if 'mix' in operators else operators
     if a_multiple is not None:
@@ -2989,6 +3187,7 @@ def generate_ope_problems(
             b = random.choice(nums_b)
             operator = random.choice(effective_operators)
             dividend_is_integer = False
+            divide_through_places: int | None = None
             if operator == 'add':
                 carry = None if carry_mode in (None, 'mixed') else carry_mode == 'required'
                 a, b, c = calc_add(a, b, nums_a, nums_b, carry)
@@ -3018,6 +3217,10 @@ def generate_ope_problems(
                 a, b, c = calc_div_decimal_remainder(
                     a, b, nums_a, nums_b, a_decimal_places, b_decimal_places,
                 )
+            elif operator == 'div' and divide_through:
+                a, b, c, divide_through_places = calc_div_divide_through(
+                    a, b, nums_a, nums_b, a_decimal_places, b_decimal_places,
+                )
             else:
                 a, b, c = CALC_FUNCTIONS[operator](a, b, nums_a, nums_b)
             decimal_remainder_active = operator == 'div' and decimal_remainder
@@ -3037,6 +3240,15 @@ def generate_ope_problems(
                 result_decimal_places = 0
                 remainder_decimal_places = a_decimal_places
                 remainder = a - c * b * 10 ** (a_decimal_places - b_decimal_places)
+            elif divide_through_places is not None:
+                # わり進み (issue #349): the quotient is carried past the ones
+                # place until it terminates. calc_div_divide_through already
+                # scaled c to divide_through_places digits and returned that
+                # count, since it is outside ope_result_decimal_places. No
+                # remainder -- the division is exact once divided through.
+                result_decimal_places = divide_through_places
+                remainder_decimal_places = 0
+                remainder = 0
             else:
                 result_decimal_places = ope_result_decimal_places(
                     operator, problem_a_decimal_places, problem_b_decimal_places,
@@ -3051,7 +3263,11 @@ def generate_ope_problems(
                 b_decimal_places=problem_b_decimal_places,
                 remainder=remainder,
                 remainder_decimal_places=remainder_decimal_places,
-                result_decimal_places=0 if decimal_remainder_active else None,
+                result_decimal_places=(
+                    0 if decimal_remainder_active
+                    else divide_through_places if divide_through_places is not None
+                    else None
+                ),
             ))
             break
         else:
@@ -4762,6 +4978,7 @@ def build_ope_pages(
             a_multiple=ini.a_multiple, b_multiple=ini.b_multiple,
             quotient_digits=ini.quotient_digits,
             decimal_remainder=ini.decimal_remainder,
+            divide_through=ini.divide_through,
         )
         blank_page, filled_page = build_ope_page_pair(problems, ini.columns, ini.vertical, ini.intermediate)
         pages_problems.append(problems)
