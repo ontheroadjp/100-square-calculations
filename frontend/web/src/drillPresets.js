@@ -1068,6 +1068,71 @@ const grade4 = {
       }),
     },
   ],
+  'number-sense': [
+    {
+      // 概数 (issue #346): 学習指導要領 第4学年 A(2)。四捨五入/切り上げ/切り捨てで
+      // 概数にする (round) と、和差積商の見積もり=概算 (estimate) を1つのメニュー
+      // 項目に「しゅるい」設定でまとめる。第5学年「四捨五入して商を概数で表す」は
+      // 別項目 g5-approx-quotient。バックエンドは専用コマンド approx (kind)。
+      // approxOperator は kind=estimate のときだけ意味を持つ (round では無視される)。
+      // displayFormat (筆算) は無いので DISPLAY_FORMAT_ITEM_IDS には入れない。
+      id: 'g4-approx',
+      titleKey: 'menu_g4_approx_title',
+      descKey: 'menu_g4_approx_desc',
+      pointKey: 'menu_g4_approx_point',
+      difficultyKey: 'difficulty_standard',
+      examples: ['38472 → 38000', '5714 → 6000', '21605 → 22000'],
+      examplesFor: (state) => {
+        const kind = state?.approxKind ?? 'round';
+        if (kind === 'round') {
+          return ['38472 → 38000', '5714 → 6000', '21605 → 22000'];
+        }
+        const byOperator = {
+          add: ['312+489 → 300+500', '628+241 → 600+200', '175+832 → 200+800'],
+          sub: ['812-389 → 800-400', '735-168 → 700-200', '946-472 → 900-500'],
+          mul: ['312×489 → 300×500', '187×624 → 200×600', '763×218 → 800×200'],
+          div: ['792÷38 → 800÷40', '614÷29 → 600÷30', '547÷18 → 500÷20'],
+        };
+        return byOperator[state?.approxOperator ?? 'mul'] ?? byOperator.mul;
+      },
+      settings: [
+        {
+          id: 'approxKind', labelKey: 'setting_approx_kind_label', type: 'choice',
+          options: [
+            { value: 'round', labelKey: 'setting_option_approx_round' },
+            { value: 'estimate', labelKey: 'setting_option_approx_estimate' },
+          ],
+          default: 'round',
+        },
+        {
+          id: 'approxOperator', labelKey: 'setting_approx_operator_label', type: 'choice',
+          options: [
+            { value: 'add', labelKey: 'setting_option_approx_sum' },
+            { value: 'sub', labelKey: 'setting_option_approx_difference' },
+            { value: 'mul', labelKey: 'setting_option_approx_product' },
+            { value: 'div', labelKey: 'setting_option_approx_quotient' },
+          ],
+          default: 'mul',
+        },
+      ],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: (state) => {
+        const kind = state?.approxKind ?? 'round';
+        const operatorByChoice = { add: ['add'], sub: ['sub'], mul: ['mul'], div: ['div'] };
+        const operator = operatorByChoice[state?.approxOperator ?? 'mul'] ?? operatorByChoice.mul;
+        return {
+          command_type: 'approx',
+          kind,
+          // operator is only read for kind=estimate; nuts_calc_tex.py ignores it
+          // for kind=round. Operand ranges are omitted: resolve_approx_params()
+          // fills the per-kind APPROX_DEFAULT_* ranges (1000..99999 for round,
+          // 100..999 for estimate).
+          ...(kind === 'estimate' && { operator }),
+        };
+      },
+    },
+  ],
 };
 
 // DENOMINATOR_CHOICE_OPTIONS is declared near the top of this file (issue
@@ -1428,6 +1493,27 @@ const grade5 = {
       supportLevel: 'full',
       latexOnly: true,
       buildParams: () => ({ command_type: 'gcd', a_min: 4, a_max: 40, b_min: 4, b_max: 40 }),
+    },
+    {
+      // 四捨五入して商を概数で表す (issue #346): 学習指導要領 第5学年。第4学年で
+      // 学んだ概数 (g4-approx) を商の見積もりに応用する。バックエンドは
+      // approx --kind quotient (5.8 ÷ 7 ≒ 0.83)。#334 が ope -o div から意図的に
+      // 外した「商のがい数」をここで実装する。displayFormat 無し。
+      id: 'g5-approx-quotient',
+      titleKey: 'menu_g5_approx_quotient_title',
+      descKey: 'menu_g5_approx_quotient_desc',
+      pointKey: 'menu_g5_approx_quotient_point',
+      difficultyKey: 'difficulty_standard',
+      examples: ['5.8÷7 → 0.83', '9.4÷6 → 1.57', '7.3÷9 → 0.81'],
+      settings: [
+        fixedSetting('approxKind', 'setting_approx_kind_label', 'setting_option_approx_quotient_kind'),
+      ],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'approx', kind: 'quotient',
+        dividend_decimal_places: 1, quotient_decimal_places: 2,
+      }),
     },
   ],
 };

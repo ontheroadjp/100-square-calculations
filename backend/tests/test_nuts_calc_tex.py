@@ -2147,6 +2147,90 @@ def test_cli_divfrac_csv_rows_are_not_reduced(run_tex_cli, tmp_path):
         assert (a, b) == ("2", "4")
 
 
+# --- approx (概数 rounding / estimation, issue #346) --------------------------
+
+@pytest.mark.parametrize(
+    "extra_args",
+    [
+        ["--kind", "round"],
+        ["--kind", "round", "--round-method", "up", "--round-place", "3"],
+        ["--kind", "estimate", "-o", "mul"],
+        ["--kind", "estimate", "-o", "div"],
+        ["--kind", "quotient"],
+        ["--kind", "quotient", "--quotient-decimal-places", "1", "--dividend-decimal-places", "0"],
+    ],
+)
+def test_cli_approx_produces_blank_and_filled_pdfs(run_tex_cli, tmp_path, extra_args):
+    result = run_tex_cli("A4", "approx", *extra_args, "-r", "3", "-c", "2", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+    _assert_is_pdf(tmp_path / "result_read.pdf")
+
+
+def test_cli_approx_with_bottom_answer_produces_pdf(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "approx", "--kind", "estimate", "-o", "add", "-ww",
+                         "-r", "3", "-c", "2", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    _assert_is_pdf(tmp_path / "result.pdf")
+
+
+def test_cli_approx_round_csv_rows_are_correctly_rounded(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "approx", "--kind", "round", "--sig-digits", "2",
+                         "--a-min", "10000", "--a-max", "99999",
+                         "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    lines = (tmp_path / "result.csv").read_text().strip().splitlines()
+    assert len(lines) == 4
+    for line in lines:
+        _, _, kind, source, answer = line.split(",")
+        assert kind == "round"
+        rounded = int(answer)
+        # 5-digit source kept to 2 significant digits -> nearest 1000.
+        assert rounded % 1000 == 0
+        assert abs(rounded - int(source)) <= 500
+
+
+def test_cli_approx_quotient_csv_rows_round_the_quotient(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "approx", "--kind", "quotient", "--quotient-decimal-places", "2",
+                         "-r", "2", "-c", "2", "--csv", "--out-file", "result.pdf")
+    assert result.returncode == 0, result.stderr
+    lines = (tmp_path / "result.csv").read_text().strip().splitlines()
+    assert len(lines) == 4
+    for line in lines:
+        _, _, kind, expr, answer = line.split(",")
+        assert kind == "quotient"
+        dividend_str, divisor_str = expr.split(" / ")
+        exact = Fraction(dividend_str) / int(divisor_str)
+        # 四捨五入 to 2 places: the printed answer is within half a unit of exact.
+        assert abs(Fraction(answer) - exact) <= Fraction(1, 200)
+        assert len(answer.split(".")[1]) == 2
+
+
+@pytest.mark.parametrize(
+    ("extra_args", "message"),
+    [
+        (["--kind", "round", "--sig-digits", "2", "--round-place", "3"], "cannot be combined"),
+        (["--kind", "estimate", "-o", "add", "sub"], "exactly one -o/--operator"),
+        (["--kind", "quotient", "--sig-digits", "2"], "not supported for approx --kind quotient"),
+        (["--kind", "quotient", "--dividend-decimal-places", "5"], "--dividend-decimal-places must be between"),
+        (["--kind", "round", "--a-min", "3", "--a-max", "8", "--sig-digits", "3"], "leaves every value"),
+        (["--vertical"], "--vertical is not supported for the 'approx' command"),
+    ],
+)
+def test_cli_approx_rejects_invalid_combinations(run_tex_cli, tmp_path, extra_args, message):
+    result = run_tex_cli("A4", "approx", *extra_args, "--out-file", "result.pdf")
+    assert result.returncode == 1
+    assert message in result.stdout
+    assert not (tmp_path / "result.pdf").exists()
+
+
+def test_cli_approx_flags_rejected_outside_the_approx_command(run_tex_cli, tmp_path):
+    result = run_tex_cli("A4", "ope", "--kind", "estimate", "--out-file", "result.pdf")
+    assert result.returncode == 1
+    assert "only supported for the 'approx' command" in result.stdout
+    assert not (tmp_path / "result.pdf").exists()
+
+
 def test_cli_fails_clearly_when_pdflatex_missing(run_tex_cli, tmp_path, monkeypatch):
     # Simulate a PATH with no pdflatex, matching the environment-detection
     # error path (rather than the argparse validation path above).

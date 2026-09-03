@@ -648,6 +648,56 @@ test('grade 5 decimal category includes a 小数÷小数 decimal-remainder drill
   assert.equal(exact.buildParams({ dividendType: 'decimal_div_decimal' }).decimal_remainder, undefined);
 });
 
+test('grade 4 number-sense includes a 概数 drill with a round / estimate kind selector (issue #346)', () => {
+  const item = presetsByGrade[4]['number-sense'].find((candidate) => candidate.id === 'g4-approx');
+
+  assert.ok(item, 'g4-approx must exist in grade 4 number-sense');
+  assert.equal(item.difficultyKey, 'difficulty_standard');
+  assert.equal(item.supportLevel, 'full');
+  assert.equal(item.latexOnly, true);
+  assert.equal(item.titleKey, 'menu_g4_approx_title');
+
+  const kind = item.settings.find((setting) => setting.id === 'approxKind');
+  assert.equal(kind.type, 'choice');
+  assert.deepEqual(kind.options.map((option) => option.value), ['round', 'estimate']);
+  assert.equal(kind.default, 'round');
+
+  // kind=round sends no operator (nuts_calc_tex.py ignores it) and no operand
+  // ranges (resolve_approx_params fills the per-kind APPROX_DEFAULT_* ranges).
+  assert.deepEqual(item.buildParams({ approxKind: 'round' }), {
+    command_type: 'approx', kind: 'round',
+  });
+  // kind=estimate forwards the chosen operator as a single-element list.
+  assert.deepEqual(item.buildParams({ approxKind: 'estimate', approxOperator: 'div' }), {
+    command_type: 'approx', kind: 'estimate', operator: ['div'],
+  });
+  assert.deepEqual(item.buildParams(), { command_type: 'approx', kind: 'round' });
+
+  // No displayFormat (筆算) setting -- this is an arrow-style ≒ conversion.
+  assert.ok(!DISPLAY_FORMAT_ITEM_IDS.includes(item.id));
+  assert.ok(!item.settings.some((setting) => setting.id === 'displayFormat'));
+});
+
+test('grade 5 number-sense includes a 商をがい数で表す drill backed by approx --kind quotient (issue #346)', () => {
+  const item = presetsByGrade[5]['number-sense'].find((candidate) => candidate.id === 'g5-approx-quotient');
+
+  assert.ok(item, 'g5-approx-quotient must exist in grade 5 number-sense');
+  assert.equal(item.difficultyKey, 'difficulty_standard');
+  assert.equal(item.supportLevel, 'full');
+  assert.equal(item.latexOnly, true);
+  assert.equal(item.titleKey, 'menu_g5_approx_quotient_title');
+
+  const kind = item.settings.find((setting) => setting.id === 'approxKind');
+  assert.equal(kind.type, 'fixed');
+  assert.equal(kind.valueLabelKey, 'setting_option_approx_quotient_kind');
+
+  assert.deepEqual(item.buildParams(), {
+    command_type: 'approx', kind: 'quotient',
+    dividend_decimal_places: 1, quotient_decimal_places: 2,
+  });
+  assert.ok(!DISPLAY_FORMAT_ITEM_IDS.includes(item.id));
+});
+
 test('grade 4 four-operations consolidates parentheses drills to two tiers: basic ＋− and standard ＋−×÷ (#340)', () => {
   const items = presetsByGrade[4]['four-operations'];
   const parenthesesItems = items.filter((candidate) => candidate.id.includes('parentheses'));

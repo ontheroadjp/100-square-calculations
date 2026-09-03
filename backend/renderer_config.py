@@ -45,6 +45,12 @@ class RendererRequest(TypedDict, total=False):
     remainder_mode: Literal["required", "none", "mixed"]
     quotient_digits: int
     decimal_remainder: bool
+    kind: Literal["round", "estimate", "quotient"]
+    round_method: Literal["round", "up", "down"]
+    round_place: int
+    sig_digits: int
+    quotient_decimal_places: int
+    dividend_decimal_places: int
     reducible_mode: Literal["required", "none", "mixed"]
     dividend_mode: Literal["integer", "decimal", "mixed"]
     descend: bool

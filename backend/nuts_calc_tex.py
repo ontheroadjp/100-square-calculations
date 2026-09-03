@@ -215,6 +215,45 @@ EVEN_ODD_LABELS = {True: 'even', False: 'odd'}
 BORROWING_MINUENDS = tuple(range(10, 20))
 BORROWING_SUBTRAHENDS = tuple(range(1, 10))
 
+# `approx` (概数 rounding / estimation, issue #346). One command with a
+# `--kind` selecting the sub-skill: 'round' (四捨五入/切り上げ/切り捨て a whole
+# number to a place), 'estimate' (概算: round each operand of an expression
+# first, then compute), 'quotient' (divide, then round the quotient to a
+# decimal place -- 第5学年「四捨五入して商を概数で表す」).
+APPROX_KINDS = ('round', 'estimate', 'quotient')
+# 四捨五入 / 切り上げ / 切り捨て. Applied to a magnitude (every approx operand
+# is non-negative), so 'up'/'down' mean away-from-zero / toward-zero.
+APPROX_ROUND_METHODS = ('round', 'up', 'down')
+APPROX_ESTIMATE_OPERATORS = ('add', 'sub', 'mul', 'div')
+# 概算 rounds operands to a single leading digit by convention (312 x 489 ->
+# 300 x 500); 四捨五入して概数にする defaults to 上から2けた.
+APPROX_DEFAULT_SIG_DIGITS_ROUND = 2
+APPROX_DEFAULT_SIG_DIGITS_ESTIMATE = 1
+APPROX_DEFAULT_QUOTIENT_DECIMAL_PLACES = 2
+APPROX_MAX_QUOTIENT_DECIMAL_PLACES = 3
+APPROX_DEFAULT_DIVIDEND_DECIMAL_PLACES = 1
+# ≒ (U+2252). \fallingdotseq is amssymb's; the Layer-1 preamble loads
+# amssymb for it (build_page_shell_preamble_tex). Rendered inside the
+# \horizontaleq $...$ math wrapper, so it works under both pdflatex and
+# lualatex with no CJK dependency (cf. the あまり \cdots shorthand).
+APPROX_MARKER_TEX = '\\fallingdotseq'
+# Kind-specific operand-range defaults, applied in _init() only when
+# --a-min/--a-max (and, for 'quotient', --b-min/--b-max) are left at the
+# generic argparse defaults of 1..9 -- too small for a 概数 worksheet. The
+# web frontend always sends explicit ranges; these keep the bare CLI usable.
+APPROX_DEFAULT_ROUND_A_MIN = 1000
+APPROX_DEFAULT_ROUND_A_MAX = 99999
+APPROX_DEFAULT_ESTIMATE_MIN = 100
+APPROX_DEFAULT_ESTIMATE_MAX = 999
+APPROX_DEFAULT_QUOTIENT_A_MIN = 12
+APPROX_DEFAULT_QUOTIENT_A_MAX = 99
+APPROX_DEFAULT_QUOTIENT_B_MIN = 3
+APPROX_DEFAULT_QUOTIENT_B_MAX = 9
+# Bounded rejection sampling for estimate-division / non-terminating
+# quotient pairs (mirrors find_exact_division_pair's probe-then-generate
+# style without a full range scan).
+APPROX_PAIR_SAMPLE_ATTEMPTS = 200
+
 CarryMode = Literal['required', 'none', 'mixed']
 RemainderMode = Literal['required', 'none', 'mixed']
 ReducibleMode = Literal['required', 'none', 'mixed']
@@ -307,7 +346,7 @@ def _init() -> argparse.Namespace:
         , choices = [
             'ope', 'com', '100', '99', 'aBc', 'squ', 'pi', 'frac', 'mixed', 'compare',
             'evenodd', 'multiples', 'divisors', 'lcm', 'gcd',
-            'simplify', 'commondenom', 'frac2dec', 'dec2frac', 'divfrac',
+            'simplify', 'commondenom', 'frac2dec', 'dec2frac', 'divfrac', 'approx',
         ]
         , help = (
             'Type of formula to output (including "frac" for fraction arithmetic, "compare" for '
@@ -315,8 +354,9 @@ def _init() -> argparse.Namespace:
             'even/odd judgment, "multiples" for listing multiples, "divisors" for listing divisors, '
             '"lcm"/"gcd" for least-common-multiple/greatest-common-divisor pairs, "simplify" for '
             'fraction reduction, "commondenom" for common-denominator conversion, "frac2dec" for '
-            'fraction-to-decimal conversion, "dec2frac" for decimal-to-fraction conversion, and '
-            '"divfrac" for expressing a division as an unreduced fraction (a divided by b equals a/b))'
+            'fraction-to-decimal conversion, "dec2frac" for decimal-to-fraction conversion, '
+            '"divfrac" for expressing a division as an unreduced fraction (a divided by b equals a/b), '
+            'and "approx" for 概数 rounding/estimation drills (see --kind))'
         )
     )
     parser.add_argument('-a', '--a-value'
@@ -622,6 +662,61 @@ def _init() -> argparse.Namespace:
         , default = DEFAULT_MULTIPLES_COUNT
         , help = 'Number of multiples to list per problem (multiples only)'
     )
+    parser.add_argument('--kind'
+        , choices = list(APPROX_KINDS)
+        , default = 'round'
+        , help = (
+            "approx sub-skill: 'round' (四捨五入/切り上げ/切り捨て a whole number "
+            "to a place: 38472 -> 上から2けた -> 38000), 'estimate' (概算: round "
+            "each operand of an a op b expression, then compute: 312 x 489 "
+            "≒ 300 x 500 = 150000), 'quotient' (divide, then round the "
+            "quotient to a decimal place by 四捨五入: 5.8 / 7 ≒ 0.83). approx only."
+        )
+    )
+    parser.add_argument('--round-method'
+        , choices = list(APPROX_ROUND_METHODS)
+        , default = 'round'
+        , help = (
+            "approx rounding method: 'round' (四捨五入), 'up' (切り上げ), "
+            "'down' (切り捨て). approx --kind round/estimate only."
+        )
+    )
+    parser.add_argument('--round-place'
+        , type = int
+        , default = None
+        , help = (
+            'approx: round to the nearest 10**N (N >= 1: 1 = tens, 2 = '
+            'hundreds, ...). Mutually exclusive with --sig-digits. '
+            'approx --kind round/estimate only.'
+        )
+    )
+    parser.add_argument('--sig-digits'
+        , type = int
+        , default = None
+        , help = (
+            'approx: keep the leading N significant digits (上から N けた), '
+            'zeroing the rest. Mutually exclusive with --round-place. '
+            'approx --kind round/estimate only.'
+        )
+    )
+    parser.add_argument('--quotient-decimal-places'
+        , type = int
+        , default = None
+        , help = (
+            'approx --kind quotient: round the quotient to N decimal places '
+            f'by 四捨五入 (1-{APPROX_MAX_QUOTIENT_DECIMAL_PLACES}, default '
+            f'{APPROX_DEFAULT_QUOTIENT_DECIMAL_PLACES}). approx only.'
+        )
+    )
+    parser.add_argument('--dividend-decimal-places'
+        , type = int
+        , default = None
+        , help = (
+            'approx --kind quotient: decimal places of the dividend '
+            f'(0-{MAX_DECIMAL_PLACES}, default '
+            f'{APPROX_DEFAULT_DIVIDEND_DECIMAL_PLACES}, e.g. 5.8 / 7). approx only.'
+        )
+    )
     parser.add_argument('--descend'
         , default = False
         , action = 'store_true'
@@ -826,6 +921,8 @@ def _init() -> argparse.Namespace:
             failure(f"--multiples-count must be at least {MIN_MULTIPLES_COUNT}.")
     elif args.multiples_count != DEFAULT_MULTIPLES_COUNT:
         failure("--multiples-count is only supported for the 'multiples' command.")
+
+    _init_approx_options(args)
 
     if args.command in ('frac', 'compare', 'mixed', 'simplify', 'commondenom', 'frac2dec'):
         # All six commands create fraction operands; the digit options are
@@ -1450,6 +1547,10 @@ def build_page_shell_preamble_tex(
         "\\usepackage{array}\n"
         "\\usepackage[table]{xcolor}\n"
         "\\usepackage{fancyhdr}\n"
+        # amssymb: \fallingdotseq (≒) for the `approx` 概数 drill's
+        # approximation marker (issue #346). Base package, works under both
+        # pdflatex and lualatex; amsmath is deliberately still not loaded.
+        "\\usepackage{amssymb}\n"
         + engine_adapter.build_preamble_additions()
         + "\\pagestyle{fancy}\n"
         "\\fancyhf{}\n"
@@ -6526,6 +6627,590 @@ def build_divfrac_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page]
     return blank_pages, filled_pages, pages_problems
 
 
+# --- approx (概数 rounding / estimation, issue #346) --------------------------
+
+APPROX_OPERATOR_TEX = {'add': '+', 'sub': '-', 'mul': '\\times', 'div': '\\div'}
+APPROX_OPERATOR_PLAIN = {'add': '+', 'sub': '-', 'mul': '*', 'div': '/'}
+
+
+def _init_approx_options(args: argparse.Namespace) -> None:
+    """Validate the approx flag family and resolve its kind-specific defaults.
+
+    Called once from _init() after the other command-specific blocks. Rejects
+    the approx flag family outside the 'approx' command and the argparse-only
+    cross-flag conflicts (--vertical etc.), then delegates the parameter
+    validation / default-filling to the shared resolve_approx_params() and
+    writes the resolved values back onto `args` so build_approx_pages() can
+    read them directly.
+    """
+    approx_flag_names = (
+        '--kind/--round-method/--round-place/--sig-digits/'
+        '--quotient-decimal-places/--dividend-decimal-places'
+    )
+    approx_options_given = (
+        args.kind != 'round'
+        or args.round_method != 'round'
+        or args.round_place is not None
+        or args.sig_digits is not None
+        or args.quotient_decimal_places is not None
+        or args.dividend_decimal_places is not None
+    )
+    if args.command != 'approx':
+        if approx_options_given:
+            failure(f"{approx_flag_names} are only supported for the 'approx' command.")
+        return
+
+    if args.vertical:
+        failure("--vertical is not supported for the 'approx' command.")
+    if args.intermediate or args.use_parentheses or args.missing_value:
+        failure(
+            "--intermediate/--use-parentheses/--missing-value are not supported "
+            "for the 'approx' command."
+        )
+
+    operator: str | None = None
+    if args.kind == 'estimate':
+        if len(args.operator) != 1:
+            failure(
+                "approx --kind estimate requires exactly one -o/--operator from "
+                "add/sub/mul/div."
+            )
+        operator = args.operator[0]
+
+    try:
+        params = resolve_approx_params(
+            kind=args.kind, round_method=args.round_method,
+            round_place=args.round_place, sig_digits=args.sig_digits,
+            quotient_decimal_places=args.quotient_decimal_places,
+            dividend_decimal_places=args.dividend_decimal_places,
+            operator=operator,
+            a_min=args.a_min, a_max=args.a_max, b_min=args.b_min, b_max=args.b_max,
+        )
+    except ValueError as exc:
+        failure(str(exc))
+        return  # unreachable: failure() exits; keeps `params` defined for readers
+
+    args.sig_digits = params.sig_digits
+    args.round_place = params.round_place
+    args.quotient_decimal_places = params.quotient_decimal_places
+    args.dividend_decimal_places = params.dividend_decimal_places
+    args.a_min, args.a_max = params.a_min, params.a_max
+    args.b_min, args.b_max = params.b_min, params.b_max
+
+
+@dataclass(frozen=True)
+class ApproxParams:
+    """Normalised, validated `approx` parameter set (issue #346).
+
+    Produced by resolve_approx_params() for both the CLI (_init_approx_options)
+    and the in-process POST /generate-pdf & /generate-problems paths, so the
+    kind-specific defaults and feasibility checks live in exactly one place.
+    """
+    kind: str
+    round_method: str
+    sig_digits: int | None
+    round_place: int | None
+    operator: str | None
+    quotient_decimal_places: int
+    dividend_decimal_places: int
+    a_min: int
+    a_max: int
+    b_min: int
+    b_max: int
+
+
+def resolve_approx_params(
+    *,
+    kind: str,
+    round_method: str = 'round',
+    round_place: int | None = None,
+    sig_digits: int | None = None,
+    quotient_decimal_places: int | None = None,
+    dividend_decimal_places: int | None = None,
+    operator: str | None = None,
+    a_min: int = 1,
+    a_max: int = 9,
+    b_min: int = 1,
+    b_max: int = 9,
+) -> ApproxParams:
+    """Validate an `approx` parameter set and fill its kind-specific defaults.
+
+    Raises ValueError on any invalid combination: unknown kind/method,
+    --round-place/--sig-digits misuse, out-of-range decimal places, an
+    estimate operator that is missing or unsupported, inverted operand
+    ranges, or a rounding spec / range with no non-trivial problem. Operand
+    ranges left at the generic 1..9 default are replaced with the per-kind
+    APPROX_DEFAULT_* ranges.
+    """
+    if kind not in APPROX_KINDS:
+        raise ValueError(f"approx --kind must be one of {', '.join(APPROX_KINDS)}.")
+    if round_method not in APPROX_ROUND_METHODS:
+        raise ValueError(
+            f"approx --round-method must be one of {', '.join(APPROX_ROUND_METHODS)}."
+        )
+    if round_place is not None and sig_digits is not None:
+        raise ValueError("--round-place and --sig-digits cannot be combined.")
+    if round_place is not None and round_place < 1:
+        raise ValueError("--round-place must be at least 1.")
+    if sig_digits is not None and sig_digits < 1:
+        raise ValueError("--sig-digits must be at least 1.")
+
+    resolved_quotient_places = APPROX_DEFAULT_QUOTIENT_DECIMAL_PLACES
+    resolved_dividend_places = APPROX_DEFAULT_DIVIDEND_DECIMAL_PLACES
+    resolved_sig_digits = sig_digits
+    resolved_operator: str | None = None
+
+    if kind == 'quotient':
+        if round_place is not None or sig_digits is not None:
+            raise ValueError(
+                "--round-place/--sig-digits are not supported for approx --kind "
+                "quotient (use --quotient-decimal-places)."
+            )
+        if round_method != 'round':
+            raise ValueError(
+                "approx --kind quotient always rounds the quotient by 四捨五入; "
+                "--round-method is not supported."
+            )
+        resolved_quotient_places = (
+            APPROX_DEFAULT_QUOTIENT_DECIMAL_PLACES
+            if quotient_decimal_places is None else quotient_decimal_places
+        )
+        if not 1 <= resolved_quotient_places <= APPROX_MAX_QUOTIENT_DECIMAL_PLACES:
+            raise ValueError(
+                "--quotient-decimal-places must be between 1 and "
+                f"{APPROX_MAX_QUOTIENT_DECIMAL_PLACES}."
+            )
+        resolved_dividend_places = (
+            APPROX_DEFAULT_DIVIDEND_DECIMAL_PLACES
+            if dividend_decimal_places is None else dividend_decimal_places
+        )
+        if not MIN_DECIMAL_PLACES <= resolved_dividend_places <= MAX_DECIMAL_PLACES:
+            raise ValueError(
+                "--dividend-decimal-places must be between "
+                f"{MIN_DECIMAL_PLACES} and {MAX_DECIMAL_PLACES}."
+            )
+    else:
+        if quotient_decimal_places is not None:
+            raise ValueError("--quotient-decimal-places is only supported for approx --kind quotient.")
+        if dividend_decimal_places is not None:
+            raise ValueError("--dividend-decimal-places is only supported for approx --kind quotient.")
+        if round_place is None and sig_digits is None:
+            resolved_sig_digits = (
+                APPROX_DEFAULT_SIG_DIGITS_ROUND if kind == 'round'
+                else APPROX_DEFAULT_SIG_DIGITS_ESTIMATE
+            )
+        if kind == 'estimate':
+            if operator is None:
+                raise ValueError(
+                    "approx --kind estimate requires exactly one -o/--operator "
+                    "from add/sub/mul/div."
+                )
+            if operator not in APPROX_ESTIMATE_OPERATORS:
+                raise ValueError(
+                    "approx --kind estimate -o must be one of "
+                    f"{', '.join(APPROX_ESTIMATE_OPERATORS)}."
+                )
+            resolved_operator = operator
+
+    a_min, a_max, b_min, b_max = _resolve_approx_range_defaults(kind, a_min, a_max, b_min, b_max)
+
+    if a_min < 1 or b_min < 1:
+        raise ValueError("approx operand ranges (--a-min/--b-min) must be at least 1.")
+    if a_min > a_max or b_min > b_max:
+        raise ValueError("approx operand ranges must not be inverted (min must be <= max).")
+
+    _check_approx_feasible(
+        kind, round_method, resolved_sig_digits, round_place, resolved_operator,
+        resolved_quotient_places, resolved_dividend_places, a_min, a_max, b_min, b_max,
+    )
+
+    return ApproxParams(
+        kind=kind, round_method=round_method, sig_digits=resolved_sig_digits,
+        round_place=round_place, operator=resolved_operator,
+        quotient_decimal_places=resolved_quotient_places,
+        dividend_decimal_places=resolved_dividend_places,
+        a_min=a_min, a_max=a_max, b_min=b_min, b_max=b_max,
+    )
+
+
+def _resolve_approx_range_defaults(
+    kind: str, a_min: int, a_max: int, b_min: int, b_max: int
+) -> tuple[int, int, int, int]:
+    """Swap in per-kind operand ranges when --a-min/--a-max (and, for
+    'quotient'/'estimate', --b-min/--b-max) are still at the generic 1..9
+    default -- too small for a real 概数 worksheet. The web frontend always
+    sends explicit ranges, so this only affects the bare CLI."""
+    a_at_default = a_min == 1 and a_max == 9
+    b_at_default = b_min == 1 and b_max == 9
+    if kind == 'round':
+        if a_at_default:
+            a_min, a_max = APPROX_DEFAULT_ROUND_A_MIN, APPROX_DEFAULT_ROUND_A_MAX
+    elif kind == 'estimate':
+        if a_at_default:
+            a_min, a_max = APPROX_DEFAULT_ESTIMATE_MIN, APPROX_DEFAULT_ESTIMATE_MAX
+        if b_at_default:
+            b_min, b_max = APPROX_DEFAULT_ESTIMATE_MIN, APPROX_DEFAULT_ESTIMATE_MAX
+    else:  # quotient
+        if a_at_default:
+            a_min, a_max = APPROX_DEFAULT_QUOTIENT_A_MIN, APPROX_DEFAULT_QUOTIENT_A_MAX
+        if b_at_default:
+            b_min, b_max = APPROX_DEFAULT_QUOTIENT_B_MIN, APPROX_DEFAULT_QUOTIENT_B_MAX
+    return a_min, a_max, b_min, b_max
+
+
+def _check_approx_feasible(
+    kind: str, round_method: str, sig_digits: int | None, round_place: int | None,
+    operator: str | None, quotient_decimal_places: int, dividend_decimal_places: int,
+    a_min: int, a_max: int, b_min: int, b_max: int,
+) -> None:
+    """Raise ValueError rather than let generate_approx_problems loop forever on
+    a request with no non-trivial problem in the requested ranges."""
+    if kind == 'round':
+        if not _approx_round_range_is_nontrivial(a_min, a_max, round_method, sig_digits, round_place):
+            raise ValueError(
+                "approx --kind round: the rounding spec leaves every value in "
+                f"[{a_min}, {a_max}] unchanged. Widen the range or lower "
+                "--sig-digits/--round-place."
+            )
+    elif kind == 'estimate':
+        if find_approx_estimate_pair(
+            list(range(a_min, a_max + 1)), list(range(b_min, b_max + 1)),
+            operator, round_method, sig_digits, round_place,
+        ) is None:
+            raise ValueError(
+                f"approx --kind estimate -o {operator}: no operand pair in "
+                f"[{a_min}, {a_max}] / [{b_min}, {b_max}] produces a valid "
+                "rounded estimate."
+            )
+    else:  # quotient
+        if find_approx_quotient_pair(
+            list(range(a_min, a_max + 1)), list(range(b_min, b_max + 1)),
+            dividend_decimal_places, quotient_decimal_places,
+        ) is None:
+            raise ValueError(
+                "approx --kind quotient: no dividend / divisor pair in the scaled "
+                f"ranges [{a_min}, {a_max}] / [{b_min}, {b_max}] yields a nonzero "
+                "rounded quotient."
+            )
+
+
+def _approx_round_to_place(value: int, place: int, method: str) -> int:
+    """Round a non-negative integer to the nearest 10**place by `method`
+    ('round' = 四捨五入 half-up, 'up' = 切り上げ, 'down' = 切り捨て)."""
+    unit = 10 ** place
+    quotient, remainder = divmod(value, unit)
+    if remainder == 0 or method == 'down':
+        return quotient * unit
+    if method == 'up':
+        return (quotient + 1) * unit
+    return (quotient + (1 if remainder * 2 >= unit else 0)) * unit
+
+
+def _approx_round_value(
+    value: int, method: str, sig_digits: int | None, round_place: int | None
+) -> int:
+    """Round `value` per an approx rounding spec: an explicit --round-place, or
+    else keep the leading `sig_digits` digits (上から N けた). A value with no
+    more than `sig_digits` digits is returned unchanged."""
+    if round_place is not None:
+        return _approx_round_to_place(value, round_place, method)
+    place = len(str(value)) - (sig_digits or 1)
+    if place <= 0:
+        return value
+    return _approx_round_to_place(value, place, method)
+
+
+def _approx_round_range_is_nontrivial(
+    a_min: int, a_max: int, method: str, sig_digits: int | None, round_place: int | None
+) -> bool:
+    return any(
+        _approx_round_value(value, method, sig_digits, round_place) != value
+        for value in range(a_min, a_max + 1)
+    )
+
+
+def round_half_up_fraction(value: Fraction, decimal_places: int, method: str = 'round') -> int:
+    """Round a non-negative Fraction to `decimal_places` places, returning the
+    scaled integer numerator over 10**decimal_places. 'round' is 四捨五入 (half
+    away from zero); 'up'/'down' are 切り上げ/切り捨て. Exact -- no float."""
+    scaled = value * (10 ** decimal_places)
+    floor_part = scaled.numerator // scaled.denominator
+    remainder = scaled - floor_part  # Fraction in [0, 1)
+    if remainder == 0 or method == 'down':
+        return floor_part
+    if method == 'up':
+        return floor_part + 1
+    return floor_part + (1 if remainder * 2 >= 1 else 0)
+
+
+def _approx_estimate_operands(
+    a: int, b: int, operator: str, method: str,
+    sig_digits: int | None, round_place: int | None,
+) -> tuple[int, int, int, int, int] | None:
+    """Round both operands and compute the estimate for one `a op b` pair.
+    Returns `(a, b, a_rounded, b_rounded, result)` -- with a/b swapped for
+    'sub' so the difference stays non-negative -- or None when the pair has
+    no clean estimate ('div' whose rounded operands do not divide evenly)."""
+    a_rounded = _approx_round_value(a, method, sig_digits, round_place)
+    b_rounded = _approx_round_value(b, method, sig_digits, round_place)
+    if operator == 'add':
+        return a, b, a_rounded, b_rounded, a_rounded + b_rounded
+    if operator == 'sub':
+        if a_rounded < b_rounded:
+            a, b, a_rounded, b_rounded = b, a, b_rounded, a_rounded
+        return a, b, a_rounded, b_rounded, a_rounded - b_rounded
+    if operator == 'mul':
+        return a, b, a_rounded, b_rounded, a_rounded * b_rounded
+    if b_rounded == 0 or a_rounded == 0 or a_rounded % b_rounded != 0:
+        return None
+    return a, b, a_rounded, b_rounded, a_rounded // b_rounded
+
+
+def find_approx_estimate_pair(
+    nums_a: list[int], nums_b: list[int], operator: str, method: str,
+    sig_digits: int | None, round_place: int | None,
+) -> tuple[int, int] | None:
+    """Return the first `(a, b)` whose rounded operands yield a clean estimate,
+    or None if the ranges contain no such pair. Random probe first (the common
+    case succeeds immediately for add/sub/mul), then an exhaustive scan."""
+    for _ in range(APPROX_PAIR_SAMPLE_ATTEMPTS):
+        a = random.choice(nums_a)
+        b = random.choice(nums_b)
+        if _approx_estimate_operands(a, b, operator, method, sig_digits, round_place) is not None:
+            return a, b
+    for a in nums_a:
+        for b in nums_b:
+            if _approx_estimate_operands(a, b, operator, method, sig_digits, round_place) is not None:
+                return a, b
+    return None
+
+
+def _approx_quotient_scaled(
+    a: int, b: int, dividend_decimal_places: int, quotient_decimal_places: int
+) -> int:
+    """Scaled integer of `a` (a dividend already scaled by dividend_decimal_places)
+    divided by `b` and rounded to quotient_decimal_places places (四捨五入)."""
+    value = Fraction(a, b * (10 ** dividend_decimal_places))
+    return round_half_up_fraction(value, quotient_decimal_places, 'round')
+
+
+def find_approx_quotient_pair(
+    nums_a: list[int], nums_b: list[int],
+    dividend_decimal_places: int, quotient_decimal_places: int,
+) -> tuple[int, int] | None:
+    """Return the first `(a, b)` whose rounded quotient is nonzero, else None."""
+    for _ in range(APPROX_PAIR_SAMPLE_ATTEMPTS):
+        a = random.choice(nums_a)
+        b = random.choice(nums_b)
+        if _approx_quotient_scaled(a, b, dividend_decimal_places, quotient_decimal_places) > 0:
+            return a, b
+    for a in nums_a:
+        for b in nums_b:
+            if _approx_quotient_scaled(a, b, dividend_decimal_places, quotient_decimal_places) > 0:
+                return a, b
+    return None
+
+
+@dataclass
+class ApproxProblem:
+    """One generated `approx` (概数) problem, rendered as `expr ≒ answer`.
+
+    All three kinds normalise to a `(expr_tex, answer_tex)` pair around the
+    ≒ marker so the renderer stays kind-agnostic:
+    - round:    expr_tex "38472",          answer_tex "38000"
+    - estimate: expr_tex "312 \\times 489", answer_tex "300 \\times 500 = 150000"
+    - quotient: expr_tex "5.8 \\div 7",     answer_tex "0.83"
+    `expr_plain`/`answer_plain` are the ASCII-operator CSV forms.
+    """
+    index: int
+    kind: str
+    expr_tex: str
+    answer_tex: str
+    expr_plain: str
+    answer_plain: str
+
+
+def generate_approx_problems(
+    kind: str, round_method: str, sig_digits: int | None, round_place: int | None,
+    operator: str | None, quotient_decimal_places: int, dividend_decimal_places: int,
+    nums_a: list[int], nums_b: list[int], order: int, start_index: int,
+) -> list[ApproxProblem]:
+    """Generate `order` approx problems for one page, indexed from start_index."""
+    problems: list[ApproxProblem] = []
+    for offset in range(order):
+        index = start_index + offset
+        if kind == 'round':
+            problems.append(_generate_one_approx_round(index, round_method, sig_digits, round_place, nums_a))
+        elif kind == 'estimate':
+            problems.append(_generate_one_approx_estimate(
+                index, operator, round_method, sig_digits, round_place, nums_a, nums_b,
+            ))
+        else:
+            problems.append(_generate_one_approx_quotient(
+                index, quotient_decimal_places, dividend_decimal_places, nums_a, nums_b,
+            ))
+    return problems
+
+
+def _generate_one_approx_round(
+    index: int, round_method: str, sig_digits: int | None,
+    round_place: int | None, nums_a: list[int],
+) -> ApproxProblem:
+    value = random.choice(nums_a)
+    rounded = _approx_round_value(value, round_method, sig_digits, round_place)
+    return ApproxProblem(
+        index=index, kind='round',
+        expr_tex=str(value), answer_tex=str(rounded),
+        expr_plain=str(value), answer_plain=str(rounded),
+    )
+
+
+def _generate_one_approx_estimate(
+    index: int, operator: str | None, round_method: str, sig_digits: int | None,
+    round_place: int | None, nums_a: list[int], nums_b: list[int],
+) -> ApproxProblem:
+    if operator is None:
+        raise ValueError("approx --kind estimate requires an operator.")
+    resolved: tuple[int, int, int, int, int] | None = None
+    for _ in range(APPROX_PAIR_SAMPLE_ATTEMPTS):
+        a = random.choice(nums_a)
+        b = random.choice(nums_b)
+        resolved = _approx_estimate_operands(a, b, operator, round_method, sig_digits, round_place)
+        if resolved is not None:
+            break
+    if resolved is None:
+        pair = find_approx_estimate_pair(nums_a, nums_b, operator, round_method, sig_digits, round_place)
+        if pair is None:
+            raise ValueError(
+                f"approx --kind estimate -o {operator}: no valid rounded estimate "
+                "pair in the requested ranges."
+            )
+        resolved = _approx_estimate_operands(pair[0], pair[1], operator, round_method, sig_digits, round_place)
+    assert resolved is not None  # find_approx_estimate_pair only returns solvable pairs
+    raw_a, raw_b, rounded_a, rounded_b, result = resolved
+    op_tex = APPROX_OPERATOR_TEX[operator]
+    op_plain = APPROX_OPERATOR_PLAIN[operator]
+    return ApproxProblem(
+        index=index, kind='estimate',
+        expr_tex=f"{raw_a} {op_tex} {raw_b}",
+        answer_tex=f"{rounded_a} {op_tex} {rounded_b} = {result}",
+        expr_plain=f"{raw_a} {op_plain} {raw_b}",
+        answer_plain=f"{rounded_a} {op_plain} {rounded_b} = {result}",
+    )
+
+
+def _generate_one_approx_quotient(
+    index: int, quotient_decimal_places: int, dividend_decimal_places: int,
+    nums_a: list[int], nums_b: list[int],
+) -> ApproxProblem:
+    pair: tuple[int, int] | None = None
+    for _ in range(APPROX_PAIR_SAMPLE_ATTEMPTS):
+        a = random.choice(nums_a)
+        b = random.choice(nums_b)
+        if _approx_quotient_scaled(a, b, dividend_decimal_places, quotient_decimal_places) > 0:
+            pair = (a, b)
+            break
+    if pair is None:
+        pair = find_approx_quotient_pair(nums_a, nums_b, dividend_decimal_places, quotient_decimal_places)
+        if pair is None:
+            raise ValueError(
+                "approx --kind quotient: no dividend / divisor pair in the "
+                "requested ranges yields a nonzero rounded quotient."
+            )
+    a, b = pair
+    scaled = _approx_quotient_scaled(a, b, dividend_decimal_places, quotient_decimal_places)
+    dividend_display = format_decimal_value(a, dividend_decimal_places)
+    answer = format_decimal_value(scaled, quotient_decimal_places)
+    return ApproxProblem(
+        index=index, kind='quotient',
+        expr_tex=f"{dividend_display} \\div {b}",
+        answer_tex=answer,
+        expr_plain=f"{dividend_display} / {b}",
+        answer_plain=answer,
+    )
+
+
+def build_approx_equation_tex(lhs_tex: str, rhs_tex: str) -> str:
+    """Wrap one `approx` body as `lhs ≒ rhs` via the shared \\horizontaleq/
+    \\opspace components (pattern 1a). The ≒ marker is \\fallingdotseq
+    (amssymb, loaded by build_page_shell_preamble_tex); `rhs_tex` is the
+    shared BLANK_ANSWER_TEX marker in the blank variant."""
+    return f"\\horizontaleq{{{lhs_tex} \\opspace {APPROX_MARKER_TEX} \\opspace {rhs_tex}}}"
+
+
+def build_approx_slot_content_tex(problem: ApproxProblem, show_answer: bool) -> str:
+    """Number-free Layer-3 content for one `approx` problem (presentation API)."""
+    rhs_tex = problem.answer_tex if show_answer else BLANK_ANSWER_TEX
+    return build_approx_equation_tex(problem.expr_tex, rhs_tex)
+
+
+def build_approx_block_tex(problem: ApproxProblem, show_answer: bool) -> str:
+    """Render one `approx` problem: `n) $38472 ≒ 38000$` (blank hides the answer)."""
+    return f"{problem.index}) {build_approx_slot_content_tex(problem, show_answer)}"
+
+
+def build_approx_page_pair(problems: list[ApproxProblem], columns: int) -> tuple[Page, Page]:
+    """Build the (blank, filled) Page pair for one page's worth of `approx` problems."""
+    blank_page = Page(
+        blocks=[build_approx_block_tex(problem, show_answer=False) for problem in problems],
+        columns=columns,
+    )
+    filled_page = Page(
+        blocks=[build_approx_block_tex(problem, show_answer=True) for problem in problems],
+        columns=columns,
+    )
+    return blank_page, filled_page
+
+
+def build_approx_bottom_answer_tex(problems: list[ApproxProblem]) -> str:
+    return ' \\quad '.join(f"({problem.index}) ${problem.answer_tex}$" for problem in problems)
+
+
+def build_approx_csv_rows(pages_problems: list[list[ApproxProblem]]) -> list[list[object]]:
+    rows: list[list[object]] = []
+    for page_number, problems in enumerate(pages_problems, start=1):
+        for problem in problems:
+            rows.append([page_number, problem.index, problem.kind, problem.expr_plain, problem.answer_plain])
+    return rows
+
+
+def build_approx_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page], list[list[ApproxProblem]]]:
+    """Generate real `approx` problems and their blank/filled Page pairs for every page."""
+    nums_a = list(range(ini.a_min, ini.a_max + 1))
+    nums_b = list(range(ini.b_min, ini.b_max + 1))
+    order = ini.rows * ini.columns
+    operator = ini.operator[0] if ini.kind == 'estimate' else None
+    quotient_decimal_places = (
+        ini.quotient_decimal_places if ini.kind == 'quotient'
+        else APPROX_DEFAULT_QUOTIENT_DECIMAL_PLACES
+    )
+    dividend_decimal_places = (
+        ini.dividend_decimal_places if ini.kind == 'quotient'
+        else APPROX_DEFAULT_DIVIDEND_DECIMAL_PLACES
+    )
+
+    blank_pages: list[Page] = []
+    filled_pages: list[Page] = []
+    pages_problems: list[list[ApproxProblem]] = []
+    for page_number in range(1, ini.page + 1):
+        start_index = (page_number - 1) * order + 1
+        problems = generate_approx_problems(
+            ini.kind, ini.round_method, ini.sig_digits, ini.round_place,
+            operator, quotient_decimal_places, dividend_decimal_places,
+            nums_a, nums_b, order, start_index,
+        )
+        blank_page, filled_page = build_approx_page_pair(problems, ini.columns)
+        pages_problems.append(problems)
+        blank_pages.append(blank_page)
+        filled_pages.append(filled_page)
+
+    if ini.with_bottom_answer:
+        for problems, blank_page in zip(pages_problems, blank_pages):
+            blank_page.bottom_answer_tex = build_approx_bottom_answer_tex(problems)
+
+    return blank_pages, filled_pages, pages_problems
+
+
 def main(ini: argparse.Namespace) -> None:
     try:
         engine_adapter = get_latex_engine_adapter()
@@ -6560,6 +7245,7 @@ def main(ini: argparse.Namespace) -> None:
     frac2dec_pages_problems: list[list[Frac2DecProblem]] | None = None
     dec2frac_pages_problems: list[list[Dec2FracProblem]] | None = None
     divfrac_pages_problems: list[list[DivFracProblem]] | None = None
+    approx_pages_problems: list[list[ApproxProblem]] | None = None
     if ini.command == 'ope' and ini.use_parentheses:
         blank_pages, filled_pages, tree_ope_pages_problems = build_ope_pages(ini)
     elif ini.command == 'ope' and ini.missing_value:
@@ -6604,6 +7290,8 @@ def main(ini: argparse.Namespace) -> None:
         blank_pages, filled_pages, dec2frac_pages_problems = build_dec2frac_pages(ini)
     elif ini.command == 'divfrac':
         blank_pages, filled_pages, divfrac_pages_problems = build_divfrac_pages(ini)
+    elif ini.command == 'approx':
+        blank_pages, filled_pages, approx_pages_problems = build_approx_pages(ini)
     else:
         blank_pages, filled_pages, fraction_pages_problems = build_fraction_pages(ini)
 
@@ -6676,6 +7364,8 @@ def main(ini: argparse.Namespace) -> None:
             rows = build_dec2frac_csv_rows(dec2frac_pages_problems)
         elif divfrac_pages_problems is not None:
             rows = build_divfrac_csv_rows(divfrac_pages_problems)
+        elif approx_pages_problems is not None:
+            rows = build_approx_csv_rows(approx_pages_problems)
         else:
             rows = build_fraction_csv_rows(fraction_pages_problems)
         write_csv(rows, outfile_csv)

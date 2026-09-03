@@ -964,3 +964,64 @@ def test_generate_problems_divfrac_ignores_a_value() -> None:
     for problem in problems:
         assert 1 <= problem["a"] <= 9
         assert 1 <= problem["b"] <= 9
+
+
+# --- approx (概数, issue #346) ------------------------------------------
+
+@pytest.mark.parametrize(
+    ("kind", "extra"),
+    [
+        ("round", {}),
+        ("estimate", {"operator": ["mul"]}),
+        ("quotient", {}),
+    ],
+)
+def test_generate_problems_approx_returns_expr_answer_pairs(kind, extra) -> None:
+    params = {"paper_size": "A4", "command_type": "approx", "num": 6, "kind": kind, **extra}
+    problems = problem_generation.generate_problems(params)
+    assert len(problems) == 6
+    for problem in problems:
+        assert set(problem) == {"index", "kind", "expr_tex", "answer_tex", "expr_plain", "answer_plain"}
+        assert problem["kind"] == kind
+        assert problem["expr_plain"] and problem["answer_plain"]
+
+
+def test_generate_problems_approx_round_answers_are_rounded_to_significant_digits() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "approx", "num": 10,
+        "kind": "round", "sig_digits": 2, "a_min": 1000, "a_max": 99999,
+    }
+    problems = problem_generation.generate_problems(params, "latex")
+    for problem in problems:
+        source = int(problem["expr_plain"])
+        assert int(problem["answer_plain"]) == nuts_calc_tex._approx_round_value(source, "round", 2, None)
+
+
+def test_generate_problems_approx_quotient_rounds_the_quotient() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "approx", "num": 10,
+        "kind": "quotient", "quotient_decimal_places": 2, "dividend_decimal_places": 1,
+    }
+    problems = problem_generation.generate_problems(params, "latex")
+    for problem in problems:
+        dividend_str, divisor_str = problem["expr_plain"].split(" / ")
+        # 四捨五入 (half away from zero), not Python round()'s banker's rounding.
+        expected_scaled = nuts_calc_tex.round_half_up_fraction(
+            Fraction(dividend_str) / int(divisor_str), 2, "round"
+        )
+        assert problem["answer_plain"] == nuts_calc_tex.format_decimal_value(expected_scaled, 2)
+
+
+def test_generate_problems_approx_estimate_requires_an_operator() -> None:
+    params = {"paper_size": "A4", "command_type": "approx", "num": 1, "kind": "estimate"}
+    with pytest.raises(ValueError, match="exactly one -o/--operator"):
+        problem_generation.generate_problems(params, "latex")
+
+
+def test_generate_problems_approx_rejects_conflicting_rounding_spec() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "approx", "num": 1,
+        "kind": "round", "sig_digits": 2, "round_place": 3,
+    }
+    with pytest.raises(ValueError, match="cannot be combined"):
+        problem_generation.generate_problems(params, "latex")

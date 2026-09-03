@@ -38,6 +38,8 @@ issue #342 で「grade 4 four-operations consolidates parentheses drills to two 
 
 5年生「小数のわり算（あまり）」ドリル追加(issue #334)について「grade 5 decimal category includes a 小数÷小数 decimal-remainder drill (issue #334)」テストを持つ。`presetsByGrade[5].decimal` に `g5-decimal-div-remainder` が存在し、`difficultyKey === 'difficulty_standard'`・`supportLevel === 'full'`・`latexOnly === true`・`titleKey === 'menu_g5_decimal_div_remainder_title'`、`settings` に `divisor`(fixed・`valueLabelKey: 'setting_option_decimal'`)と `remainder`(fixed・`valueLabelKey: 'setting_option_required'`)の 2 固定ピルがあること、`buildParams()` が `{command_type:'ope', operator:['div'], a_digits:2, b_digits:2, a_decimal_places:1, b_decimal_places:1, decimal_remainder:true}` に deep-equal すること、この id が `DISPLAY_FORMAT_ITEM_IDS` に含まれ**ない**こと・`displayFormat` 設定を持たないこと、および `g5-decimal-div`(#317)が `dividendType` choice を保ち `decimal_remainder` を送らない(無変更)ことを検証する。合わせて「grade 5 groups ...(issue #320)」テストの `presetsByGrade[5].decimal` の id 順序リストを `['g5-decimal-mul', 'g5-decimal-div', 'g5-decimal-div-remainder']` へ更新した。`DISPLAY_FORMAT_ITEM_IDS` の列挙は無変更(新 id は displayFormat 非対象)。
 
+概数ドリル追加(issue #346)について2つのテストを持つ。「grade 4 number-sense includes a 概数 drill with a round / estimate kind selector (issue #346)」は `presetsByGrade[4]['number-sense']` に `g4-approx` が存在し(4年生に `number-sense` カテゴリが新設されたことを含意)、`difficulty_standard`・`supportLevel: 'full'`・`latexOnly: true`・`titleKey: 'menu_g4_approx_title'`、`approxKind` choice が `['round','estimate']` を持ち既定 `round` であること、`buildParams({approxKind:'round'})` が `{command_type:'approx', kind:'round'}`(operator もオペランドレンジも送らず backend の `resolve_approx_params` の kind 別既定に委ねる)、`buildParams({approxKind:'estimate', approxOperator:'div'})` が `{command_type:'approx', kind:'estimate', operator:['div']}`、無引数が `{command_type:'approx', kind:'round'}` を返すこと、この id が `DISPLAY_FORMAT_ITEM_IDS` に含まれず `displayFormat` 設定を持たないことを検証する。「grade 5 number-sense includes a 商をがい数で表す drill backed by approx --kind quotient (issue #346)」は `presetsByGrade[5]['number-sense']` に `g5-approx-quotient` が存在し、`approxKind` が `type: 'fixed'`・`valueLabelKey: 'setting_option_approx_quotient_kind'`、`buildParams()` が `{command_type:'approx', kind:'quotient', dividend_decimal_places:1, quotient_decimal_places:2}` に deep-equal すること、`DISPLAY_FORMAT_ITEM_IDS` に含まれないことを検証する。`DISPLAY_FORMAT_ITEM_IDS` の列挙とそれを使う 4 テストは無変更(新 id は displayFormat 非対象)。
+
 括弧の足し引きドリルの2年生→4年生移設(issue #330)について2つのテストを持つ。「grade 2 four-operations no longer contains parentheses (#330)」は `presetsByGrade[2]['four-operations']` の id 配列がちょうど `['g2-addsub-mixed']` であること、および全項目の `buildParams()` が `use_parentheses` キーを持たないことを検証する。「grade 4 parentheses add/sub drill is a basic add/sub-only four-operations item (#330)」は `presetsByGrade[4]['four-operations']` に `g4-parentheses-addsub` が存在し、`difficultyKey` が `difficulty_basic`(移設前の `difficulty_standard` から引き下げ)、`buildParams()` が `command_type:'ope', operator:['add','sub'], terms:3, use_parentheses:true, a_min:1,a_max:90,b_min:1,b_max:90` を返すことを検証する(同 学習指導要領解説 第4学年 A「数量の関係を表す式」が（　）を用いた式・（　）の中を先に計算するきまりを第4学年の内容とすることに対応)。
 
 ## 重要な設計判断とその理由
@@ -55,13 +57,13 @@ issue #342 で「grade 4 four-operations consolidates parentheses drills to two 
 
 ## 変更履歴（git log より自動生成）
 
-- 912657b fix(#342): guarantee non-trivial division in g4-parentheses (括弧を含む四則混合計算)
+- ca9967c feat(#346): add the 概数 (approx) rounding / estimation drill
+- e493735 feat(#334): extend --decimal-remainder to a decimal divisor and add the grade 5 小数のわり算 (あまり) drill (#347)
+- 9da1116 feat(#333): add grade 4 decimal-remainder division drill and --decimal-remainder flag (#345)
+- b2df846 feat(#332): add grade 3 two-digit-quotient division drill and --quotient-digits flag (#344)
+- 36de01d fix(#342): guarantee a non-trivial division in every g4-parentheses problem (#343)
 - 960657f refactor(#340): consolidate grade 4 parentheses drills to two tiers (#341)
 - b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)
 - d37b593 fix(#330): move parentheses add/sub drill from grade 2 to grade 4 and set difficulty to basic (#338)
 - cbeb0a6 fix(#329): restrict grade 4 decimal×integer multiplication to an integer multiplier (#337)
 - 5d42151 fix(#328): move parenthesized mixed-operation drill from grade 3 to grade 4 (#336)
-- d31e15c fix(#327): reassign fraction-by-integer mul/div drills from grade 6 to grade 5 (#335)
-- f440b57 refactor(#320): replace grade 5 multiplication/division sections with a dedicated 小数 section (#321)
-- f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)
-- 697db43 refactor(#315): move grade 4 fraction add/sub into addition/subtraction categories (#316)

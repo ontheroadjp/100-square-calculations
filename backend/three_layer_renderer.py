@@ -446,6 +446,81 @@ def _generate_divfrac_pdf(data: renderer_config.RendererRequest, output_dir: str
     return output_filepath, output_filename
 
 
+def _generate_approx_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
+    """Build an 'approx' (概数 rounding / estimation, issue #346) PDF via the
+    internal presentation API.
+
+    `approx` is not a digit-count-shorthand command: operand ranges come
+    straight from a_min/a_max (and b_min/b_max for estimate/quotient), and
+    nuts_calc_tex.resolve_approx_params() fills the same kind-specific
+    defaults and runs the same feasibility checks the CLI's _init() does,
+    raising ValueError (mapped to HTTP 500 by app.py) on an invalid request.
+    """
+    operator_field = data.get('operator') or []
+    params = nuts_calc_tex.resolve_approx_params(
+        kind=str(data.get('kind', 'round')),
+        round_method=str(data.get('round_method', 'round')),
+        round_place=data.get('round_place'),
+        sig_digits=data.get('sig_digits'),
+        quotient_decimal_places=data.get('quotient_decimal_places'),
+        dividend_decimal_places=data.get('dividend_decimal_places'),
+        operator=operator_field[0] if operator_field else None,
+        a_min=int(data.get('a_min', problem_generation.DEFAULT_A_MIN)),
+        a_max=int(data.get('a_max', problem_generation.DEFAULT_A_MAX)),
+        b_min=int(data.get('b_min', problem_generation.DEFAULT_B_MIN)),
+        b_max=int(data.get('b_max', problem_generation.DEFAULT_B_MAX)),
+    )
+
+    rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
+    columns = int(data.get('columns', 2))
+    if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
+        raise ValueError(
+            f"rows and columns must be at least {nuts_calc_tex.MIN_ROWS_OR_COLUMNS}."
+        )
+
+    engine_adapter = nuts_calc_tex.get_latex_engine_adapter()
+    if shutil.which(engine_adapter.binary_name) is None:
+        raise ValueError(
+            f"{engine_adapter.binary_name} not found. Install a LaTeX distribution first "
+            "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
+        )
+
+    nums_a = list(range(params.a_min, params.a_max + 1))
+    nums_b = list(range(params.b_min, params.b_max + 1))
+    pages = _build_presentation_pages(
+        data,
+        rows * columns,
+        lambda start_index: nuts_calc_tex.generate_approx_problems(
+            params.kind, params.round_method, params.sig_digits, params.round_place,
+            params.operator, params.quotient_decimal_places, params.dividend_decimal_places,
+            nums_a, nums_b, rows * columns, start_index,
+        ),
+        nuts_calc_tex.build_approx_bottom_answer_tex,
+    )
+    tex_source = nuts_calc_tex.build_presentation_document_tex(
+        data['paper_size'],
+        pages=pages,
+        content_format=nuts_calc_tex.build_approx_slot_content_tex,
+        page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        engine_adapter=engine_adapter,
+        show_answer=False,
+        with_name_field=bool(data.get('with_name_field', False)),
+    )
+
+    output_filename = f"worksheet_{uuid.uuid4()}.pdf"
+    output_filepath = os.path.join(output_dir, output_filename)
+    captured_stdout = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(captured_stdout):
+            engine_adapter.compile(tex_source, output_filepath)
+    except SystemExit as e:
+        error_reason = captured_stdout.getvalue().strip() or "PDF compilation failed"
+        raise RuntimeError(f'PDF generation failed: {error_reason}') from e
+
+    return output_filepath, output_filename
+
+
 def _generate_gcd_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """
     Build a 'gcd' command PDF via nuts_calc_tex.py's internal presentation
@@ -2228,6 +2303,8 @@ def render_worksheet_pdf(
         return _generate_lcm_pdf(data, output_dir)
     if data.get('command_type') == 'divfrac':
         return _generate_divfrac_pdf(data, output_dir)
+    if data.get('command_type') == 'approx':
+        return _generate_approx_pdf(data, output_dir)
     if data.get('command_type') == 'gcd':
         return _generate_gcd_pdf(data, output_dir)
     if data.get('command_type') == 'evenodd':

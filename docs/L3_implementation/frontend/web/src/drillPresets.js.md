@@ -259,6 +259,15 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 
 `strings.ja.json` に `menu_g5_decimal_div_remainder_{title,desc,point}` の3キーを `menu_g5_decimal_div_point` の直後へ追加([[./strings.ja.json]] 参照)。`docs/uiux/calculation_drill_menu_parameters_v1.md` の小学5年生表に「小数のわり算（あまり）」行を「整数と小数の割り算」の直後へ追加。`drillPresets.test.js` に grade5 `decimal` の順序リスト更新と、`buildParams()` の deep-equal(`b_decimal_places: 1`/`decimal_remainder: true` を含む)・2固定ピル・`DISPLAY_FORMAT_ITEM_IDS` に含まれないこと・`g5-decimal-div` が無変更であることを検証する #334 テストを追加([[./drillPresets.test.js]] 参照)。`CATEGORY_ORDER` は無変更。
 
+### 概数（がい数）ドリルの新設(issue #346)
+
+学習指導要領解説 算数編 第4学年 A(2)「概数」(四捨五入・切り上げ・切り捨て、和差積商の見積もり=概算)と第5学年「四捨五入して商を概数で表す」に対応する2項目を追加した。バックエンドは専用コマンド `approx`([[../../../backend/nuts_calc_tex.py]] の `### approx (概数)` 参照)。
+
+- **4年生に `number-sense` カテゴリを新設**して `g4-approx` を置く(それまで grade4 は `division`/`addition`/`subtraction`/`multiplication`/`four-operations` のみ。`number-sense` は `CATEGORY_ORDER`・`KNOWN_CATEGORIES` に既存で `category_number-sense` ラベルもあるため追加コストなし。grade5 の非算術ドリルが同カテゴリに集約されているのと同じ扱い)。`difficulty_standard`・`latexOnly: true`・`supportLevel: 'full'`。`settings` は2つの `choice`: `approxKind`(`round` 四捨五入して概数 / `estimate` 式の見積もり、既定 `round`)と `approxOperator`(和/差/積/商、既定 `mul`)。`approxOperator` は `kind=estimate` のときだけ `buildParams` に反映される(`round` では backend が無視するためコメントで明記)。`buildParams(state)` は `{ command_type: 'approx', kind, ...(kind==='estimate' && { operator: [<add|sub|mul|div>] }) }` -- オペランドレンジは送らず、backend `resolve_approx_params` の kind 別既定(round は 1000..99999、estimate は 100..999)に委ねる。`examplesFor` は `approxKind`/`approxOperator` で例題を切り替える inline 関数(`examplesByChoice` は全 'mixed' キーを要求するため不適。`g1-three-terms` と同じ inline 方式)。
+- **5年生の既存 `number-sense` カテゴリ**に `g5-approx-quotient` を追加(`g5-gcd` の直後)。`approxKind` は `type: 'fixed'`(`valueLabelKey: 'setting_option_approx_quotient_kind'` = 「商のがい数」)。`buildParams()`(引数無視)は `{ command_type: 'approx', kind: 'quotient', dividend_decimal_places: 1, quotient_decimal_places: 2 }`(`5.8 ÷ 7 ≒ 0.83`)。
+- 両項目とも `displayFormatSetting` は付けない(≒ の矢印式に筆算形式はない。`DISPLAY_FORMAT_ITEM_IDS` には加えない)。`isLivePreviewSupported()` は `command_type === 'ope'` のみ true のため、`preset.html` のライブ例題チップは他の非-`ope` ドリルと同じく静的 `examples` を使う(`/generate-problems` の `approx` 対応はエンドポイント完全性・テスト用)。
+- `strings.ja.json` にメニュー6キー + 設定/選択肢9キーを追加([[./strings.ja.json]] 参照)。`docs/uiux/calculation_drill_menu_parameters_v1.md` の第4・第5学年表に行を追加(/docs-sync)。`drillPresets.test.js` に g4-approx / g5-approx-quotient の検証テスト2件を追加([[./drillPresets.test.js]] 参照)。`CATEGORY_ORDER` は `number-sense` を既に含むため無変更。
+
 ### `ope` プリセットの桁数指定が `a_value`/`b_value` から `a_digits`/`b_digits` へ移行した理由(issue #230)
 
 `backend/nuts_calc_tex.py` の `-a/--a-value` は、`ope`(と `100`/`lcm`/`gcd`/`divfrac`)では「桁数」、`99`/`squ`/`pi` では「値そのもの」という2つの異なる意味をコマンドによって切り替えて解釈していた。この単一パラメータへの意味の二重化を根本的に解消するため、issue #230 で `ope`/`100`/`lcm`/`gcd`/`divfrac` 専用の新フィールド `a_digits`/`b_digits` を新設し、`a_value`/`b_value` はこれらのコマンドで一切読まれなくなった(`docs/L3_implementation/backend/nuts_calc_tex.py.md` の該当セクション参照)。これに伴い、`ope` の桁数ショートハンドを使っていた13箇所のプリセット(`g3-decimal-addsub`/`g3-decimal-sub`/`g3-mul-2x1`/`g3-mul-3x1`/`g3-mul-2x2`/`g4-decimal-div-int`/`g4-decimal-add`/`g4-decimal-sub`/`g4-decimal-mul-int`/`g4-four-operations`/`g4-parentheses`/`g5-decimal-mul`/`g5-decimal-div`)を `a_value`/`b_value` から `a_digits`/`b_digits` へ機械的に置き換えた(値そのものは無変更)。`99`(`g2-kuku`)/`squ` プリセットの `a_value` は値そのものの意味のままなので無変更。`lcm`/`gcd`/`divfrac` プリセットはこの移行以前から `a_min`/`a_max`(明示レンジ)を直接指定しており対象外だった。
@@ -284,13 +293,13 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 
 ## 変更履歴（git log より自動生成）
 
-- 912657b fix(#342): guarantee non-trivial division in g4-parentheses (括弧を含む四則混合計算)
+- ca9967c feat(#346): add the 概数 (approx) rounding / estimation drill
+- e493735 feat(#334): extend --decimal-remainder to a decimal divisor and add the grade 5 小数のわり算 (あまり) drill (#347)
+- 9da1116 feat(#333): add grade 4 decimal-remainder division drill and --decimal-remainder flag (#345)
+- b2df846 feat(#332): add grade 3 two-digit-quotient division drill and --quotient-digits flag (#344)
+- 36de01d fix(#342): guarantee a non-trivial division in every g4-parentheses problem (#343)
 - 960657f refactor(#340): consolidate grade 4 parentheses drills to two tiers (#341)
 - b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)
 - d37b593 fix(#330): move parentheses add/sub drill from grade 2 to grade 4 and set difficulty to basic (#338)
 - cbeb0a6 fix(#329): restrict grade 4 decimal×integer multiplication to an integer multiplier (#337)
 - 5d42151 fix(#328): move parenthesized mixed-operation drill from grade 3 to grade 4 (#336)
-- d31e15c fix(#327): reassign fraction-by-integer mul/div drills from grade 6 to grade 5 (#335)
-- f440b57 refactor(#320): replace grade 5 multiplication/division sections with a dedicated 小数 section (#321)
-- f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)
-- 697db43 refactor(#315): move grade 4 fraction add/sub into addition/subtraction categories (#316)

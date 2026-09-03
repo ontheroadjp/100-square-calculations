@@ -750,6 +750,36 @@ def _generate_divfrac_problems(params: renderer_config.RendererRequest, num: int
     return [_dataclass_to_dict(problem) for problem in problems]
 
 
+def _generate_approx_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
+    """`approx` (概数, issue #346): resolve/validate the parameter set the same
+    way nuts_calc_tex._init() does (via the shared resolve_approx_params), then
+    generate `num` ApproxProblem dataclasses as plain dicts. `approx` is not a
+    digit-count-shorthand command, so ranges come straight from a_min/a_max
+    (and b_min/b_max for estimate/quotient)."""
+    operator_field = params.get("operator") or []
+    resolved = nuts_calc_tex.resolve_approx_params(
+        kind=str(params.get("kind", "round")),
+        round_method=str(params.get("round_method", "round")),
+        round_place=params.get("round_place"),
+        sig_digits=params.get("sig_digits"),
+        quotient_decimal_places=params.get("quotient_decimal_places"),
+        dividend_decimal_places=params.get("dividend_decimal_places"),
+        operator=operator_field[0] if operator_field else None,
+        a_min=int(params.get("a_min", DEFAULT_A_MIN)),
+        a_max=int(params.get("a_max", DEFAULT_A_MAX)),
+        b_min=int(params.get("b_min", DEFAULT_B_MIN)),
+        b_max=int(params.get("b_max", DEFAULT_B_MAX)),
+    )
+    problems = nuts_calc_tex.generate_approx_problems(
+        resolved.kind, resolved.round_method, resolved.sig_digits, resolved.round_place,
+        resolved.operator, resolved.quotient_decimal_places, resolved.dividend_decimal_places,
+        list(range(resolved.a_min, resolved.a_max + 1)),
+        list(range(resolved.b_min, resolved.b_max + 1)),
+        num, 1,
+    )
+    return [_dataclass_to_dict(problem) for problem in problems]
+
+
 # command_type -> generator dispatch table (issue #167's contract): each
 # sub-issue of #166 adds one generator function and one entry here, without
 # touching the shared if/elif chain generate_problems() used to have.
@@ -777,4 +807,5 @@ _COMMAND_GENERATORS = {
     "frac2dec": _generate_frac2dec_problems,
     "dec2frac": _generate_dec2frac_problems,
     "divfrac": _generate_divfrac_problems,
+    "approx": _generate_approx_problems,
 }
