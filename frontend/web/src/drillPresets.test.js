@@ -905,13 +905,13 @@ test('examplesFor returns a non-empty array of non-empty strings for every optio
 const DISPLAY_FORMAT_ITEM_IDS = [
   'g2-add-2digit', 'g2-add-result-1000', 'g2-sub-2digit', 'g2-sub-result-1000',
   'g3-add-result-10000', 'g3-decimal-addsub', 'g3-sub-result-10000', 'g3-decimal-sub',
-  'g3-mul-2x1', 'g3-mul-3x1', 'g3-mul-2x2',
+  'g3-mul-2x1', 'g3-mul-3x1', 'g3-mul-2x2', 'g3-mul-3x2',
   'g4-decimal-add', 'g4-decimal-sub', 'g4-decimal-mul-int',
   'g4-div-1digit', 'g4-div-2digit', 'g4-decimal-div-int',
   'g5-decimal-mul',
 ];
 
-test('exactly the enumerated 18 items carry a displayFormat setting (issue #134)', () => {
+test('exactly the enumerated 19 items carry a displayFormat setting (issue #134)', () => {
   const actualIds = allItems()
     .filter(({ item }) => item.settings.some((setting) => setting.id === 'displayFormat'))
     .map(({ item }) => item.id)

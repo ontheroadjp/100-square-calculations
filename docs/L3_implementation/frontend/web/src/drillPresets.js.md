@@ -106,7 +106,7 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 
 `g4-decimal-mul-int`(multiplication カテゴリ)は「小数(第1位)× 整数」の1形態のみを出す。学習指導要領解説 算数編 第4学年 A数と計算「小数」が扱うのは*乗数・除数が整数の場合*の小数の乗除法であり、乗数が小数になる場合(整数×小数・小数×小数)は第5学年「小数の乗法」の内容のため。5年生側は `g5-decimal-mul`(小数×小数)がカバーする。
 
-- 設定: `settings: [fixedSetting('multiplier', 'setting_multiplier_label', 'setting_option_integer'), displayFormatSetting()]`。第1設定は非活性の「乗数：整数」固定ピル(兄弟 `g4-decimal-div-int` の「除数：整数」・`g5-decimal-mul` の「乗数：小数」と同じ形)。`displayFormatSetting()` を第2設定に持つため `DISPLAY_FORMAT_ITEM_IDS`(前述「出題形式(式/筆算)設定」)の18項目列挙に含まれ続ける。
+- 設定: `settings: [fixedSetting('multiplier', 'setting_multiplier_label', 'setting_option_integer'), displayFormatSetting()]`。第1設定は非活性の「乗数：整数」固定ピル(兄弟 `g4-decimal-div-int` の「除数：整数」・`g5-decimal-mul` の「乗数：小数」と同じ形)。`displayFormatSetting()` を第2設定に持つため `DISPLAY_FORMAT_ITEM_IDS`(前述「出題形式(式/筆算)設定」)の19項目列挙に含まれ続ける。
 - `buildParams(state)` は `state` を参照せず常に `{ command_type: 'ope', operator: ['mul'], a_digits: 2, b_digits: 1, a_decimal_places: 1, ...displayFormatParam(state) }` を返す(被乗数 `a` = 小数第1位、乗数 `b` = 整数)。`displayFormat: 'written'` のときのみ `vertical: true` が加わる。
 - `examples` は `['3.6×7', '2.35×4', '5.8×3']`(すべて小数×整数)。設定に選択肢がないため `examplesFor` は持たない。
 - `strings.ja.json`: `menu_g4_decimal_mul_int_title` =「小数×整数」、desc =「小数に整数を掛ける計算を練習します。」、point =「小数×整数の計算です。答えの小数点をどこに打つかがポイントになります。」([[./strings.ja.json]] 参照)。
@@ -152,9 +152,9 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 
 `displayFormatSetting(disabledWhen)`(issue #349)は任意で述語 `disabledWhen(state)` を受け取り、渡されたときは `disabledWhen` と `resolveValue`(無効時 `'horizontal'` に解決)を設定へ足す。`presetDetail.js` の汎用 `isSettingDisabled`/`resolveSettingValue` がこれを解釈する(`g2-kuku` の `dan`→`questionOrder` と同じ仕組み)。
 
-対象は次の18項目に限定し、機械的な「`--vertical` と併用可能かどうか」の判定だけで対象範囲を決めていない(ユーザー指示による明示的な列挙): `g2-add-2digit`/`g2-add-result-1000`/`g2-sub-2digit`/`g2-sub-result-1000`/`g3-add-result-10000`/`g3-decimal-addsub`/`g3-sub-result-10000`/`g3-decimal-sub`/`g3-mul-2x1`/`g3-mul-3x1`/`g3-mul-2x2`/`g4-decimal-add`/`g4-decimal-sub`/`g4-decimal-mul-int`/`g4-div-1digit`/`g4-div-2digit`/`g4-decimal-div-int`/`g5-decimal-mul`(`drillPresets.test.js` の `DISPLAY_FORMAT_ITEM_IDS` で厳密に一致検証)。ほとんどの項目は無条件で `command_type: 'ope'` を返すため `disabledWhen`/`resolveValue` は不要だが、**`g4-decimal-div-int` のみ例外**(issue #349): 統合された小数÷整数ドリルは 余り設定が「なし」以外(あり/わり進み)のとき筆算をレイアウトできないため、`displayFormatSetting((state) => (state?.remainderMode ?? 'none') !== 'none')` として筆算トグルを無効化する。`DISPLAY_FORMAT_ITEM_IDS` には引き続き含まれる(設定自体は持つ)。
+対象は次の19項目に限定し、機械的な「`--vertical` と併用可能かどうか」の判定だけで対象範囲を決めていない(ユーザー指示による明示的な列挙): `g2-add-2digit`/`g2-add-result-1000`/`g2-sub-2digit`/`g2-sub-result-1000`/`g3-add-result-10000`/`g3-decimal-addsub`/`g3-sub-result-10000`/`g3-decimal-sub`/`g3-mul-2x1`/`g3-mul-3x1`/`g3-mul-2x2`/`g3-mul-3x2`/`g4-decimal-add`/`g4-decimal-sub`/`g4-decimal-mul-int`/`g4-div-1digit`/`g4-div-2digit`/`g4-decimal-div-int`/`g5-decimal-mul`(`drillPresets.test.js` の `DISPLAY_FORMAT_ITEM_IDS` で厳密に一致検証)。ほとんどの項目は無条件で `command_type: 'ope'` を返すため `disabledWhen`/`resolveValue` は不要だが、**`g4-decimal-div-int` のみ例外**(issue #349): 統合された小数÷整数ドリルは 余り設定が「なし」以外(あり/わり進み)のとき筆算をレイアウトできないため、`displayFormatSetting((state) => (state?.remainderMode ?? 'none') !== 'none')` として筆算トグルを無効化する。`DISPLAY_FORMAT_ITEM_IDS` には引き続き含まれる(設定自体は持つ)。
 
-`g5-decimal-div`(issue #349 で「整数と小数の割り算」から「小数のわり算」へ戻した)は 18 項目から除外したまま。vendor済み `longdivision` パッケージの `\intlongdivision` が整数の除数しか受け付けないため、除数が小数の 5年ドリルはどの余り設定でも筆算を出せない(issue #180(agenda)で対応方針を検討中、実装は保留)。よって `displayFormat` 設定自体を持たない。
+`g5-decimal-div`(issue #349 で「整数と小数の割り算」から「小数のわり算」へ戻した)は 19 項目から除外したまま。vendor済み `longdivision` パッケージの `\intlongdivision` が整数の除数しか受け付けないため、除数が小数の 5年ドリルはどの余り設定でも筆算を出せない(issue #180(agenda)で対応方針を検討中、実装は保留)。よって `displayFormat` 設定自体を持たない。
 
 ### 九九(`g2-kuku`)の段選択
 
@@ -284,6 +284,15 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 - 両項目とも `displayFormatSetting` は付けない(≒ の矢印式に筆算形式はない。`DISPLAY_FORMAT_ITEM_IDS` には加えない)。`isLivePreviewSupported()` は `command_type === 'ope'` のみ true のため、`preset.html` のライブ例題チップは他の非-`ope` ドリルと同じく静的 `examples` を使う(`/generate-problems` の `approx` 対応はエンドポイント完全性・テスト用)。
 - `strings.ja.json` にメニュー6キー + 設定/選択肢9キーを追加([[./strings.ja.json]] 参照)。`docs/uiux/calculation_drill_menu_parameters_v1.md` の第4・第5学年表に行を追加(/docs-sync)。`drillPresets.test.js` に g4-approx / g5-approx-quotient の検証テスト2件を追加([[./drillPresets.test.js]] 参照)。`CATEGORY_ORDER` は `number-sense` を既に含むため無変更。
 
+### 3年生「3桁×2桁」ドリル追加と6年生「分数・小数の混合計算」の四則化(issue #351)
+
+#318 監査(→ #326)が見落としていた2つのギャップに対応した。バックエンド([[../../../backend/nuts_calc_tex.py]] / [[../../../backend/problem_generation.py]])は変更せず、既存の `ope`・`mixed` コマンドで実現できることを実機確認した。
+
+- **3年生 `multiplication` に `g3-mul-3x2` を追加**(`g3-mul-2x2` の直後)。解説算数編 第3学年 A(3)「乗法」が(2位数)・(3位数)×(1位数)・(2位数)を扱うのに合わせ、既存の `g3-mul-2x1`/`g3-mul-3x1`/`g3-mul-2x2` と完全に同形で `a_digits: 3, b_digits: 2` にしただけ。`difficultyKey: 'difficulty_standard'`、`settings: [displayFormatSetting()]`、`supportLevel: 'full'`、`latexOnly: false`、`buildParams(state)` は `{ command_type: 'ope', operator: ['mul'], a_digits: 3, b_digits: 2, ...displayFormatParam(state) }`。`DISPLAY_FORMAT_ITEM_IDS`(前述「出題形式(式/筆算)設定」)に加え、列挙は18→19項目になった。
+- **`g6-fraction-decimal-mixed` を加算のみ→四則混合へ拡張**。変更前は `buildParams: () => ({ command_type: 'mixed', operator: ['add'], a_kind: ['fraction', 'decimal'], b_kind: ['fraction', 'decimal'], numerator_digits: 1, denominator_digits: 1, decimal_places: 1 })` で2項の加算のみ。変更後は `operator: ['add', 'sub', 'mul', 'div']` + `mixed_operators: true` + `terms: 3` にし、`a_kind`/`b_kind` に `'int'` を足して分数・小数・整数が混ざる3項式を出す。`mixed_operators: true` は `terms >= 3` のときだけ意味を持つ(2項だと演算子スロットが1つ)ため `terms: 3` を併記した。兄弟の `g6-fraction-four-ops`/`g6-fraction-muldiv-mixed` も `terms: 3` を使う。
+- 固有設定は非活性ピル1個のまま。値ラベルキーを `setting_option_fraction_decimal_mixed`(「分数・小数混合」、他に参照なし)→ `setting_option_fraction_decimal_int_mixed`(「分数・小数・整数混合」)へ置換した。`examples` は `['2/3+0.5×4', '0.75-1/4÷2', '3+1/5×0.9']`。`latexOnly: true`・`command_type: 'mixed'` のため `isLivePreviewSupported()` は false のまま(`preset.html` は静的 `examples` を使う)。
+- `strings.ja.json` にメニュー3キー(`menu_g3_mul_3x2_*`)を追加、`menu_g6_fraction_decimal_mixed_desc`/`_point` を四則・整数を含む文言へ更新、`setting_option_fraction_decimal_mixed` を上記キーへリネーム([[./strings.ja.json]] 参照)。`drillPresets.test.js` の `DISPLAY_FORMAT_ITEM_IDS` に `g3-mul-3x2` を追加しテスト名を19項目へ更新([[./drillPresets.test.js]] 参照)。`docs/uiux/calculation_drill_menu_parameters_v1.md` の第3・第6学年表を更新(/docs-sync)。
+
 ### `ope` プリセットの桁数指定が `a_value`/`b_value` から `a_digits`/`b_digits` へ移行した理由(issue #230)
 
 `backend/nuts_calc_tex.py` の `-a/--a-value` は、`ope`(と `100`/`lcm`/`gcd`/`divfrac`)では「桁数」、`99`/`squ`/`pi` では「値そのもの」という2つの異なる意味をコマンドによって切り替えて解釈していた。この単一パラメータへの意味の二重化を根本的に解消するため、issue #230 で `ope`/`100`/`lcm`/`gcd`/`divfrac` 専用の新フィールド `a_digits`/`b_digits` を新設し、`a_value`/`b_value` はこれらのコマンドで一切読まれなくなった(`docs/L3_implementation/backend/nuts_calc_tex.py.md` の該当セクション参照)。これに伴い、`ope` の桁数ショートハンドを使っていた13箇所のプリセット(`g3-decimal-addsub`/`g3-decimal-sub`/`g3-mul-2x1`/`g3-mul-3x1`/`g3-mul-2x2`/`g4-decimal-div-int`/`g4-decimal-add`/`g4-decimal-sub`/`g4-decimal-mul-int`/`g4-four-operations`/`g4-parentheses`/`g5-decimal-mul`/`g5-decimal-div`)を `a_value`/`b_value` から `a_digits`/`b_digits` へ機械的に置き換えた(値そのものは無変更)。`99`(`g2-kuku`)/`squ` プリセットの `a_value` は値そのものの意味のままなので無変更。`lcm`/`gcd`/`divfrac` プリセットはこの移行以前から `a_min`/`a_max`(明示レンジ)を直接指定しており対象外だった。
@@ -309,7 +318,8 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 
 ## 変更履歴（git log より自動生成）
 
-- ebbe3c0 feat(#349): redesign decimal-division drills around a 余り setting and add --divide-through
+- 1542a1d feat(#351): add grade-3 3x2 multiplication drill and broaden g6 fraction/decimal mixed to four operations
+- 7203e9e feat(#349): redesign decimal-division drills around a remainder setting and add a divide-through mode (#352)
 - ffd182f feat(#346): add the 概数 (approx) rounding / estimation drill (#348)
 - e493735 feat(#334): extend --decimal-remainder to a decimal divisor and add the grade 5 小数のわり算 (あまり) drill (#347)
 - 9da1116 feat(#333): add grade 4 decimal-remainder division drill and --decimal-remainder flag (#345)
@@ -318,4 +328,3 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 - 960657f refactor(#340): consolidate grade 4 parentheses drills to two tiers (#341)
 - b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)
 - d37b593 fix(#330): move parentheses add/sub drill from grade 2 to grade 4 and set difficulty to basic (#338)
-- cbeb0a6 fix(#329): restrict grade 4 decimal×integer multiplication to an integer multiplier (#337)
