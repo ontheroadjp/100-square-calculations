@@ -420,6 +420,62 @@ test('grade 2 review worksheet mixes the grade-2 A「数と計算」 units throu
   );
 });
 
+test('grade 4 review worksheet mixes the grade-4 A「数と計算」 units through the shared review layer (issue #367)', () => {
+  const item = presetsByGrade[4].review.find((candidate) => candidate.id === 'g4-review');
+  assert.ok(item, 'g4-review must exist');
+  assert.equal(item.titleKey, 'menu_g4_review_title');
+  assert.equal(item.supportLevel, 'full');
+  assert.equal(item.latexOnly, true);
+  assert.deepEqual(item.settings, []);
+
+  const params = item.buildParams();
+  assert.equal(params.command_type, 'review');
+  assert.equal(params.shuffle, true);
+  assert.ok(Array.isArray(params.sources) && params.sources.length === 6, 'g4-review must expose 6 sources');
+
+  // every source carries an equal relative weight (even split at 10/20/30).
+  for (const source of params.sources) {
+    assert.equal(source.num, 1, 'every g4-review source has weight 1 (even split)');
+  }
+
+  // Unlike g1/g2-review, the recipe intentionally carries the wide options
+  // #364/P3 unblocked, so the backend keeps the default gutter placement --
+  // at least one source must exercise a previously-dropped wide option.
+  assert.ok(
+    params.sources.some((s) => s.divide_through === true) &&
+      params.sources.some((s) => s.use_parentheses === true && s.mixed_operators === true),
+    'g4-review must carry divide_through and use_parentheses sources (issue #367 / P3 option parity)',
+  );
+
+  // each 第4学年 A「数と計算」 unit is represented, matching its standalone drill.
+  assert.ok(
+    params.sources.some((s) => s.operator?.join() === 'div' && s.remainder_mode === 'mixed' && s.b_max === 99),
+    'a ÷2桁 division source must be present (mirrors g4-div-2digit)',
+  );
+  assert.ok(
+    params.sources.some((s) => s.operator?.join() === 'mul' && s.a_decimal_places === 1 && s.b_digits === 1),
+    'a 小数×整数 source must be present (mirrors g4-decimal-mul-int)',
+  );
+  assert.ok(
+    params.sources.some((s) => s.operator?.join() === 'div' && s.divide_through === true && s.a_decimal_places === 1),
+    'a 小数÷整数 わり進み source must be present (mirrors g4-decimal-div-int)',
+  );
+  assert.ok(
+    params.sources.some((s) => s.command_type === 'frac' && s.same_denominator === true),
+    'a 同分母分数 source must be present (mirrors g4-fraction-add / g4-fraction-sub)',
+  );
+  assert.ok(
+    params.sources.some(
+      (s) => s.command_type === 'ope' && s.use_parentheses === true && s.mixed_operators === true && s.nontrivial_division === true,
+    ),
+    'a (　)を用いた四則混合 source must be present (mirrors g4-parentheses)',
+  );
+  assert.ok(
+    params.sources.some((s) => s.command_type === 'approx' && s.kind === 'round'),
+    'a がい数 source must be present (mirrors g4-approx)',
+  );
+});
+
 test('grade 2 basic addition caps the answer at 100 (issue #176)', () => {
   const item = presetsByGrade[2].addition.find((candidate) => candidate.id === 'g2-add-2digit');
 

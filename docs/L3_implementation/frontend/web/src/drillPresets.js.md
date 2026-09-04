@@ -217,6 +217,18 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 - `command_type: 'review'` は `POST /generate-problems` 非対応(g3-review / g1-review と同じ)。
 - `drillPresets.test.js` に `g2-review` 専用テストを追加(5 source・全 `ope`・`num:1`・`terms`/`mixed_operators`/`vertical` なし・2桁加減 / 3桁筆算加減 / 九九 各単元の存在、[[./drillPresets.test.js]] 参照)。文言3キーは [[./strings.ja.json]] に追加。
 
+### 4年生の総合問題(複数ソース混在ワークシート)(issue #367)
+
+4年生に `review` カテゴリを新設し、1項目 `g4-review`(`titleKey: 'menu_g4_review_title'`「4年の総合問題」)を置いた(親 issue #358 の全学年 `review` 展開の一子。g1-review #365 / g2-review #366 と同型)。学習指導要領 第4学年 A「数と計算」の複数単元 ―― 2桁で割る割り算(余りあり含む)、小数×整数、小数÷整数(わり進み)、同分母・真分数のたし算・ひき算、(　)を用いた四則混合、がい数(四捨五入) ―― を1枚に混在させる。`CATEGORY_ORDER` は既に `'review'` を先頭に持つため、`catalog.js`/`pcMakeFlow.js` は無変更。
+
+- `settings: []`、`supportLevel: 'full'`、`latexOnly: true`。`examples` は静的(`['312÷24', '3.6×7', '9.4÷8', '3/8+2/8', '(8+4)÷3', '38472 → 38000']`)。
+- `buildParams()` は引数を取らず `{ command_type: 'review', shuffle: true, sources: [...6件...] }` を返す。`sources` 各要素は既存の4年生メニュードリルのオプションをそのまま流用し `num: 1` を付けたもの ―― (1) `ope` div `remainder_mode:'mixed'` `a 100..999` `b 10..99`(= `g4-div-2digit`)、(2) `ope` mul `a_digits:2` `b_digits:1` `a_decimal_places:1`(= `g4-decimal-mul-int`)、(3) `ope` div `a_digits:2` `b 2..9` `a_decimal_places:1` `divide_through:true`(= `g4-decimal-div-int` の余り「わり進み」分岐)、(4) `frac` add/sub `numerator_digits:1` `denominator_digits:1` `same_denominator:true` `proper_result:true`(= `g4-fraction-add`/`g4-fraction-sub` の numberKind `fraction` 分岐、答えを1未満に保つ)、(5) `ope` add/sub/mul/div `mixed_operators:true` `use_parentheses:true` `nontrivial_division:true` `a_digits:1` `b_digits:1`(= `g4-parentheses`)、(6) `approx` `kind:'round'`(= `g4-approx` の approxKind `round` 分岐)。`num` は相対ウェイトで [[../../../../backend/three_layer_renderer.py]] `_generate_review_pdf` が全問題数(10/20/30)へ按分する。等ウェイト×6。
+- **番号配置**: g1/g2-review と異なり、`frac` source・`use_parentheses`/`mixed_operators` を持つ `ope` source(→ `tree_ope` kind)・`approx` source を含むため、`_resolve_number_placement`([[../../../../backend/three_layer_renderer.py]] `_review_is_short_single_line`)は短1行ドリルと判定せず、既定の左 `gutter` 番号配置を返す(g3-review と同じ)。backend 変更なし・既存の全 review / 他コマンドの出力バイト不変。
+- **P3(#364)オプションパリティ**: `_generate_review_pdf` が共有生成層へ載せ替わった #364 以前は review source が `ope`/`frac` に限定され `divide_through` 等の wide オプションが落ちていた。`g4-review` は `divide_through`(小数÷整数のわり進み)・`use_parentheses`+`mixed_operators`(四則混合)・`approx` を意図的に source に含め、standalone ドリルと同じコードパス・オプションで出題する。
+- **「多位数の四則」を source 化しない理由**: 整数の多位数かけ算に対応する4年生 standalone ドリルのコードパスが存在しないため source から除外した(issue のスコープ見積もりは "finalized during implementation" を許容)。多位数の除法は (1) の ÷2位数 source(被除数3桁)がカバーする。
+- `command_type: 'review'` は `POST /generate-problems` 非対応(g1/g2/g3-review と同じ)。
+- `drillPresets.test.js` に `g4-review` 専用テストを追加(6 source・`num:1`・`divide_through` と `use_parentheses`+`mixed_operators` source の存在・6単元それぞれの standalone ドリル対応の検証、[[./drillPresets.test.js]] 参照)。文言3キーは [[./strings.ja.json]] に追加。
+
 ### 括弧・かけ算を含む混合計算を3年生から4年生へ移設(issue #328)
 
 `(45+38)×12-56` 形式の「括弧・四則混合・演算の順序」は学習指導要領解説 算数編 第4学年 A「数量の関係を表す式」(（）を用いた式・四則の混合した式・計算の順序のきまり)の内容で、第3学年ではない。issue #161 で3年生 `four-operations` に新設した `g3-parentheses-mul-result-1000` を、`id`・`titleKey`/`descKey`/`pointKey` を `g3-`→`g4-` に付け替えて `g4-parentheses-mul-result-1000` として `grade4['four-operations']` の `g4-parentheses` 直後へ移した(この `g4-parentheses-mul-result-1000` 項目自体は後続の issue #340 で削除された。下記「4年生の括弧ドリルを2段階へ統合(issue #340)」参照)。移設時点では `examples`・`settings`・`supportLevel`・`latexOnly`・`buildParams` 本体を一切変更していない。3年生から括弧・かけ算を含む項目を除いた点(下記)は #340 後も有効。
