@@ -24,7 +24,8 @@ issue #110 で `drillCatalog.js`(旧絞り込み/検索UIのアダプター)を�
 
 ## 変更履歴（git log より自動生成）
 
-- b029f6a feat(#368): add the grade-5 multi-source review (総合問題) worksheet
+- 9ea74e2 feat(#369): add the grade-6 multi-source review (総合問題) worksheet
+- e363d47 feat(#368): add the grade-5 multi-source review (総合問題) worksheet (#379)
 - 1ae402d feat(#367): add the grade-4 multi-source review (総合問題) worksheet (#378)
 - 8ec62cd feat(#366): add the grade-2 multi-source review (総合問題) worksheet (#377)
 - 1d8b71d feat(#365): add the grade-1 multi-source review (総合問題) worksheet (#376)
