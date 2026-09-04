@@ -52,6 +52,8 @@ issue #342 で「grade 4 four-operations consolidates parentheses drills to two 
 
 5年生の総合問題(issue #368)については専用テスト「grade 5 review worksheet mixes the grade-5 A「数と計算」 units through the shared review layer (issue #368)」を1件持つ(g1/g2/g4-review テストと同型)。`presetsByGrade[5].review` に `g5-review` が存在し `titleKey === 'menu_g5_review_title'`・`supportLevel === 'full'`・`latexOnly === true`・`settings` が `[]` であること、`buildParams()` が `command_type:'review'`・`shuffle:true`・`sources.length === 4` を返すこと、各 source が `num:1` であること、および4単元それぞれが対応 standalone ドリルの形で含まれること ―― 小数×小数(`command_type==='ope'`+`operator:['mul']`+`a_decimal_places===1`+`b_decimal_places===1`+`a_digits===2`+`b_digits===2`)、小数÷小数あまりあり(`command_type==='ope'`+`operator:['div']`+`decimal_remainder===true`)、異分母分数のたし算・ひき算(`command_type==='frac'`+`operator:['add','sub']`+`different_denominators===true`)、分数×整数・分数÷整数(`command_type==='mixed'`+`operator:['mul','div']`+`a_kind:['fraction']`+`b_kind:['int']`+`reducible_mode==='mixed'`) ―― を検証する。
 
+6年生の総合問題(issue #369)については専用テスト「grade 6 review worksheet mixes the grade-6 A「数と計算」 units through the shared review layer (issue #369)」を1件持つ(g1/g2/g4/g5-review テストと同型)。`presetsByGrade[6].review` に `g6-review` が存在し `titleKey === 'menu_g6_review_title'`・`supportLevel === 'full'`・`latexOnly === true`・`settings` が `[]` であること、`buildParams()` が `command_type:'review'`・`shuffle:true`・`sources.length === 4` を返すこと、各 source が `num:1` であること、および3単元(4 source)それぞれが対応 standalone ドリル(または6年生に standalone が無い単元は grade-5 の対応ドリル)の形で含まれること ―― 分数×分数・分数÷分数(`command_type==='frac'`+`operator:['mul','div']`+`proper_operands===true`+`reducible_mode==='mixed'`)、分数・小数を含む四則混合(`command_type==='mixed'`+`operator:['add','sub','mul','div']`+`mixed_operators===true`+`terms===3`+`a_kind`/`b_kind===['fraction','decimal','int']`)、分数→小数の変換(`command_type==='frac2dec'`)、小数→分数の変換(`command_type==='dec2frac'`) ―― を検証する。issue #358(親)が全学年の review 展開を追跡しており、本 issue で1〜6年生すべてに `review` カテゴリが揃った。
+
 括弧の足し引きドリルの2年生→4年生移設(issue #330)について2つのテストを持つ。「grade 2 four-operations no longer contains parentheses (#330)」は `presetsByGrade[2]['four-operations']` の id 配列がちょうど `['g2-addsub-mixed']` であること、および全項目の `buildParams()` が `use_parentheses` キーを持たないことを検証する。「grade 4 parentheses add/sub drill is a basic add/sub-only four-operations item (#330)」は `presetsByGrade[4]['four-operations']` に `g4-parentheses-addsub` が存在し、`difficultyKey` が `difficulty_basic`(移設前の `difficulty_standard` から引き下げ)、`buildParams()` が `command_type:'ope', operator:['add','sub'], terms:3, use_parentheses:true, a_min:1,a_max:90,b_min:1,b_max:90` を返すことを検証する(同 学習指導要領解説 第4学年 A「数量の関係を表す式」が（　）を用いた式・（　）の中を先に計算するきまりを第4学年の内容とすることに対応)。
 
 ## 重要な設計判断とその理由
@@ -69,8 +71,8 @@ issue #342 で「grade 4 four-operations consolidates parentheses drills to two 
 
 ## 変更履歴（git log より自動生成）
 
-- 9223f12 fix(#368): switch g5-review decimal-div source to divide_through mode
-- b029f6a feat(#368): add the grade-5 multi-source review (総合問題) worksheet
+- 9ea74e2 feat(#369): add the grade-6 multi-source review (総合問題) worksheet
+- e363d47 feat(#368): add the grade-5 multi-source review (総合問題) worksheet (#379)
 - 1ae402d feat(#367): add the grade-4 multi-source review (総合問題) worksheet (#378)
 - 8ec62cd feat(#366): add the grade-2 multi-source review (総合問題) worksheet (#377)
 - 1d8b71d feat(#365): add the grade-1 multi-source review (総合問題) worksheet (#376)
