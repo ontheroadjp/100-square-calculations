@@ -240,7 +240,7 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 - **異分母を選んだ理由**: 学習指導要領 第5学年の分数の目玉は「異分母」の通分を伴うたし算・ひき算(同分母は第3〜4学年で既習)のため、`denominator: 'different'` 相当(`different_denominators: true`)を選んだ。`numberKind: 'fraction'` 相当(帯分数を含めない、`proper_result: true` で答えを1未満に保つ)は g4-review の同分母分数 source と同じ簡潔さの水準に揃えた。
 - **「四捨五入して商を概数で表す」(`g5-approx-quotient`)を source 化しない理由**: issue #368 の本文が学習指導要領の引用ではこの単元に触れているが、確定した Scope 箇条書きからは意図的に外されているため source に含めない。
 - `command_type: 'review'` は `POST /generate-problems` 非対応(g1/g2/g3/g4-review と同じ)。
-- `drillPresets.test.js` に `g5-review` 専用テストを追加(4 source・`num:1`・`decimal_remainder`/`different_denominators`/`reducible_mode` を含む4単元それぞれの standalone ドリル対応の検証、[[./drillPresets.test.js]] 参照)。文言3キーは [[./strings.ja.json]] に追加。
+- `drillPresets.test.js` に `g5-review` 専用テストを追加(4 source・`num:1`・`divide_through`/`different_denominators`/`reducible_mode` を含む4単元それぞれの standalone ドリル対応の検証、[[./drillPresets.test.js]] 参照)。文言3キーは [[./strings.ja.json]] に追加。
 
 ### 括弧・かけ算を含む混合計算を3年生から4年生へ移設(issue #328)
 
@@ -373,6 +373,7 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 
 ## 変更履歴（git log より自動生成）
 
+- 9223f12 fix(#368): switch g5-review decimal-div source to divide_through mode
 - b029f6a feat(#368): add the grade-5 multi-source review (総合問題) worksheet
 - 1ae402d feat(#367): add the grade-4 multi-source review (総合問題) worksheet (#378)
 - 8ec62cd feat(#366): add the grade-2 multi-source review (総合問題) worksheet (#377)
@@ -382,4 +383,3 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 - 7203e9e feat(#349): redesign decimal-division drills around a remainder setting and add a divide-through mode (#352)
 - ffd182f feat(#346): add the 概数 (approx) rounding / estimation drill (#348)
 - e493735 feat(#334): extend --decimal-remainder to a decimal divisor and add the grade 5 小数のわり算 (あまり) drill (#347)
-- 9da1116 feat(#333): add grade 4 decimal-remainder division drill and --decimal-remainder flag (#345)

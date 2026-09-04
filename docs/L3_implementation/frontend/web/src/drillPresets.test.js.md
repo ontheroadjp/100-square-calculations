@@ -69,6 +69,7 @@ issue #342 で「grade 4 four-operations consolidates parentheses drills to two 
 
 ## 変更履歴（git log より自動生成）
 
+- 9223f12 fix(#368): switch g5-review decimal-div source to divide_through mode
 - b029f6a feat(#368): add the grade-5 multi-source review (総合問題) worksheet
 - 1ae402d feat(#367): add the grade-4 multi-source review (総合問題) worksheet (#378)
 - 8ec62cd feat(#366): add the grade-2 multi-source review (総合問題) worksheet (#377)
@@ -78,4 +79,3 @@ issue #342 で「grade 4 four-operations consolidates parentheses drills to two 
 - 7203e9e feat(#349): redesign decimal-division drills around a remainder setting and add a divide-through mode (#352)
 - ffd182f feat(#346): add the 概数 (approx) rounding / estimation drill (#348)
 - e493735 feat(#334): extend --decimal-remainder to a decimal divisor and add the grade 5 小数のわり算 (あまり) drill (#347)
-- 9da1116 feat(#333): add grade 4 decimal-remainder division drill and --decimal-remainder flag (#345)
