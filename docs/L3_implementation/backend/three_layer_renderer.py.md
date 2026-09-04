@@ -95,7 +95,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- 9d727e5 feat(#355): center the problem number and equation for short single-line drills
+- a7fe480 refactor(#360): migrate the ope-family _generate_*_pdf builders to the shared generate() layer
+- 7b92770 feat(#355): center the problem number and equation for short single-line drills (#356)
 - e9083d6 feat(#140): add the grade-3 multi-source review (総合問題) worksheet (#354)
 - 7203e9e feat(#349): redesign decimal-division drills around a remainder setting and add a divide-through mode (#352)
 - ffd182f feat(#346): add the 概数 (approx) rounding / estimation drill (#348)
@@ -104,4 +105,3 @@
 - 36de01d fix(#342): guarantee a non-trivial division in every g4-parentheses problem (#343)
 - b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)
 - 7bbec1b refactor(#297): delete the legacy /generate-pdf subprocess rendering path (#325)
-- f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)
