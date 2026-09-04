@@ -242,6 +242,18 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 - `command_type: 'review'` は `POST /generate-problems` 非対応(g1/g2/g3/g4-review と同じ)。
 - `drillPresets.test.js` に `g5-review` 専用テストを追加(4 source・`num:1`・`divide_through`/`different_denominators`/`reducible_mode` を含む4単元それぞれの standalone ドリル対応の検証、[[./drillPresets.test.js]] 参照)。文言3キーは [[./strings.ja.json]] に追加。
 
+### 6年生の総合問題(複数ソース混在ワークシート)(issue #369)
+
+6年生に `review` カテゴリを新設し、1項目 `g6-review`(`titleKey: 'menu_g6_review_title'`「6年の総合問題」)を置いた(親 issue #358 の全学年 `review` 展開の最後の子。g1-review #365 / g2-review #366 / g4-review #367 / g5-review #368 と同型)。学習指導要領 第6学年 A「数と計算」の複数単元 ―― 分数×分数・分数÷分数、分数・小数を含む四則混合、分数⇔小数の変換 ―― を1枚に混在させる。`CATEGORY_ORDER` は既に `'review'` を先頭に持つため、`catalog.js`/`pcMakeFlow.js` は無変更。`review` は `grade6` オブジェクト内では `fraction` の後、最後のカテゴリキーとして追加した(grade1〜5 の `review` が常に最後のカテゴリキーである慣例に合わせる)。
+
+- `settings: []`、`supportLevel: 'full'`、`latexOnly: true`。`examples` は静的(`['3/5×7/9', '2/3+0.5×4', '3/4 → 0.75', '0.6 → 3/5']`)。
+- `buildParams()` は引数を取らず `{ command_type: 'review', shuffle: true, sources: [...4件...] }` を返す。`sources` 各要素は既存メニュードリルのオプションをそのまま流用し `num: 1` を付けたもの ―― (1) `frac` mul/div `numerator_digits:1` `denominator_digits:1` `proper_operands:true` `reducible_mode:'mixed'`(= `g6-fraction-mul`/`g6-fraction-div` の統合)、(2) `mixed` add/sub/mul/div `mixed_operators:true` `terms:3` `a_kind`/`b_kind:['fraction','decimal','int']` `numerator_digits:1` `denominator_digits:1` `decimal_places:1`(= `g6-fraction-decimal-mixed`)、(3) `frac2dec` `numerator_digits:1` `denominator_digits:1`(= `g5-frac2dec`、6年生に standalone drill 無し)、(4) `dec2frac`(引数無し、= `g5-dec2frac`、同じく6年生に standalone drill 無し)。`num` は相対ウェイトで [[../../../../backend/three_layer_renderer.py]] `_generate_review_pdf` が全問題数(10/20/30)へ按分する。等ウェイト×4。
+- **分数×分数・分数÷分数を1つに統合した理由**: `g6-fraction-mul`/`g6-fraction-div` は `operator` 以外の全パラメータ(`numerator_digits`/`denominator_digits`/`proper_operands`/`reducible_mode`)が完全に同一形状のため、g5-review の分数×整数・分数÷整数 source が使っている「同一形状の演算子違いは `operator: [...]` 配列で1 source に統合する」規約をそのまま適用した。`problem_generation._validate_reducible_operators`(`frac`/`mixed` 共有)は `{'mul','div'}` の組を許容するためバックエンド変更は不要。
+- **分数⇔小数の変換に standalone 6年生ドリルがない理由**: `frac2dec`/`dec2frac` はいずれも学習指導要領上の5年生メニュー項目(`g5-frac2dec`/`g5-dec2frac`)で、6年生の grade メニューには対応する単発ドリルが存在しない。issue #369 の Scope はこの単元を6年生の総合問題に明示的に含めているため、5年生ドリルのパラメータをそのまま source として再利用した(`command_type` が異なる `frac2dec`/`dec2frac` は同一 source に統合できないため2 source のまま)。
+- **6年生スコープ外の4項目を source 化しない理由**: `g6-int-mul-fraction`/`g6-int-div-fraction`(整数×分数・整数÷分数)/`g6-fraction-muldiv-mixed`/`g6-fraction-four-ops` は issue #369 の確定済み Scope 箇条書き(分数×分数・分数÷分数、分数・小数を含む四則混合、分数⇔小数の変換の3単元のみ)に含まれないため source から除外した(g5-review が `g5-approx-quotient` を除外したのと同じ判断)。
+- `command_type: 'review'` は `POST /generate-problems` 非対応(g1/g2/g3/g4/g5-review と同じ)。
+- `drillPresets.test.js` に `g6-review` 専用テストを追加(4 source・`num:1`・`frac` mul/div 統合・`mixed` 四則混合・`frac2dec`/`dec2frac` 各単元の存在の検証、[[./drillPresets.test.js]] 参照)。文言3キーは [[./strings.ja.json]] に追加。issue #358(親)が全学年の review 展開を追跡しており、本 issue で1〜6年生すべてに `review` カテゴリが揃った。
+
 ### 括弧・かけ算を含む混合計算を3年生から4年生へ移設(issue #328)
 
 `(45+38)×12-56` 形式の「括弧・四則混合・演算の順序」は学習指導要領解説 算数編 第4学年 A「数量の関係を表す式」(（）を用いた式・四則の混合した式・計算の順序のきまり)の内容で、第3学年ではない。issue #161 で3年生 `four-operations` に新設した `g3-parentheses-mul-result-1000` を、`id`・`titleKey`/`descKey`/`pointKey` を `g3-`→`g4-` に付け替えて `g4-parentheses-mul-result-1000` として `grade4['four-operations']` の `g4-parentheses` 直後へ移した(この `g4-parentheses-mul-result-1000` 項目自体は後続の issue #340 で削除された。下記「4年生の括弧ドリルを2段階へ統合(issue #340)」参照)。移設時点では `examples`・`settings`・`supportLevel`・`latexOnly`・`buildParams` 本体を一切変更していない。3年生から括弧・かけ算を含む項目を除いた点(下記)は #340 後も有効。

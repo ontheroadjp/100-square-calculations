@@ -523,6 +523,51 @@ test('grade 5 review worksheet mixes the grade-5 A「数と計算」 units throu
   );
 });
 
+test('grade 6 review worksheet mixes the grade-6 A「数と計算」 units through the shared review layer (issue #369)', () => {
+  const item = presetsByGrade[6].review.find((candidate) => candidate.id === 'g6-review');
+  assert.ok(item, 'g6-review must exist');
+  assert.equal(item.titleKey, 'menu_g6_review_title');
+  assert.equal(item.supportLevel, 'full');
+  assert.equal(item.latexOnly, true);
+  assert.deepEqual(item.settings, []);
+
+  const params = item.buildParams();
+  assert.equal(params.command_type, 'review');
+  assert.equal(params.shuffle, true);
+  assert.ok(Array.isArray(params.sources) && params.sources.length === 4, 'g6-review must expose 4 sources');
+
+  // every source carries an equal relative weight (even split at 10/20/30).
+  for (const source of params.sources) {
+    assert.equal(source.num, 1, 'every g6-review source has weight 1 (even split)');
+  }
+
+  // each 第6学年 A「数と計算」 unit is represented, matching its standalone drill
+  // (or, for 分数⇔小数の変換, its grade-5 equivalent -- see #369).
+  assert.ok(
+    params.sources.some(
+      (s) => s.command_type === 'frac' && s.operator?.join() === 'mul,div'
+        && s.proper_operands === true && s.reducible_mode === 'mixed',
+    ),
+    'a 分数×分数・分数÷分数 source must be present (mirrors g6-fraction-mul / g6-fraction-div)',
+  );
+  assert.ok(
+    params.sources.some(
+      (s) => s.command_type === 'mixed' && s.operator?.join() === 'add,sub,mul,div'
+        && s.mixed_operators === true && s.terms === 3
+        && s.a_kind?.join() === 'fraction,decimal,int' && s.b_kind?.join() === 'fraction,decimal,int',
+    ),
+    'a 分数・小数を含む四則混合 source must be present (mirrors g6-fraction-decimal-mixed)',
+  );
+  assert.ok(
+    params.sources.some((s) => s.command_type === 'frac2dec'),
+    'a 分数→小数の変換 source must be present (mirrors g5-frac2dec)',
+  );
+  assert.ok(
+    params.sources.some((s) => s.command_type === 'dec2frac'),
+    'a 小数→分数の変換 source must be present (mirrors g5-dec2frac)',
+  );
+});
+
 test('grade 2 basic addition caps the answer at 100 (issue #176)', () => {
   const item = presetsByGrade[2].addition.find((candidate) => candidate.id === 'g2-add-2digit');
 
