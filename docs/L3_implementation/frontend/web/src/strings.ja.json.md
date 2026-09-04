@@ -24,7 +24,8 @@ issue #110 で `drillCatalog.js`(旧絞り込み/検索UIのアダプター)を�
 
 ## 変更履歴（git log より自動生成）
 
-- 6aabc3e feat(#367): add the grade-4 multi-source review (総合問題) worksheet
+- b029f6a feat(#368): add the grade-5 multi-source review (総合問題) worksheet
+- 1ae402d feat(#367): add the grade-4 multi-source review (総合問題) worksheet (#378)
 - 8ec62cd feat(#366): add the grade-2 multi-source review (総合問題) worksheet (#377)
 - 1d8b71d feat(#365): add the grade-1 multi-source review (総合問題) worksheet (#376)
 - e9083d6 feat(#140): add the grade-3 multi-source review (総合問題) worksheet (#354)
@@ -33,4 +34,3 @@ issue #110 で `drillCatalog.js`(旧絞り込み/検索UIのアダプター)を�
 - ffd182f feat(#346): add the 概数 (approx) rounding / estimation drill (#348)
 - e493735 feat(#334): extend --decimal-remainder to a decimal divisor and add the grade 5 小数のわり算 (あまり) drill (#347)
 - 9da1116 feat(#333): add grade 4 decimal-remainder division drill and --decimal-remainder flag (#345)
-- b2df846 feat(#332): add grade 3 two-digit-quotient division drill and --quotient-digits flag (#344)
