@@ -549,6 +549,16 @@ def _validate_reducible_mode_value(reducible_mode: str) -> None:
         )
 
 
+# `frac` operator / fraction-form allowlists. Until issue #362 these lived only
+# in `three_layer_renderer._generate_frac_pdf` (`POST /generate-pdf`); the P2-3
+# migration moves them here so the shared layer -- and therefore
+# `POST /generate-problems` too -- rejects the same malformed values, per the
+# #357 /mtg "shared layer takes the stricter side" decision. The error wording
+# is kept byte-identical to the old builder's.
+_VALID_FRAC_OPERATORS = {"add", "sub", "mul", "div", "mix"}
+_VALID_FRAC_FRACTION_FORMS = {"proper", "mixed", "mix"}
+
+
 def _generate_frac_problems(
     params: renderer_config.RendererRequest, count: int, start_index: int,
 ) -> list[object]:
@@ -569,19 +579,31 @@ def _generate_frac_problems(
     proper_result = bool(params.get("proper_result", False))
 
     operator = list(params.get("operator") or DEFAULT_OPERATOR)
+    if not set(operator) <= _VALID_FRAC_OPERATORS:
+        raise ValueError("operator contains an unsupported value for the 'frac' command.")
+
     a_fraction_form = params.get("a_fraction_form", "proper")
     b_fraction_form = params.get("b_fraction_form", "proper")
-    if a_fraction_form != "proper" or b_fraction_form != "proper":
-        if operator not in (["add"], ["sub"]):
-            raise ValueError(
-                "a_fraction_form/b_fraction_form require operator=['add'] or "
-                "operator=['sub'] for the 'frac' command."
-            )
-        if "improper" in (a_fraction_form, b_fraction_form):
-            raise ValueError("a_fraction_form/b_fraction_form do not support 'improper' for the 'frac' command.")
+    if (
+        a_fraction_form not in _VALID_FRAC_FRACTION_FORMS
+        or b_fraction_form not in _VALID_FRAC_FRACTION_FORMS
+    ):
+        raise ValueError(
+            "a_fraction_form/b_fraction_form do not support 'improper' or unknown forms "
+            "for the 'frac' command."
+        )
+    if (a_fraction_form, b_fraction_form) != ("proper", "proper") and operator not in (
+        ["add"], ["sub"]
+    ):
+        raise ValueError(
+            "a_fraction_form/b_fraction_form require operator=['add'] or "
+            "operator=['sub'] for the 'frac' command."
+        )
 
     reducible_mode = params.get("reducible_mode")
     if reducible_mode is not None:
+        if reducible_mode not in _VALID_REDUCIBLE_MODES:
+            raise ValueError("Unknown reducible_mode for the 'frac' command.")
         _validate_reducible_operators(operator, "frac")
 
     return nuts_calc_tex.generate_fraction_problems(
