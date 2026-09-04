@@ -966,22 +966,15 @@ def _generate_ope_pdf(data: renderer_config.RendererRequest, output_dir: str) ->
     with_name_field/multi-page/merge are unsupported here too, matching
     _generate_com_pdf's scope.
 
-    'ope' is in nuts_calc_tex.DIGIT_COUNT_SHORTHAND_COMMANDS (unlike 'com'),
-    so a/b are resolved via problem_generation.resolve_digit_count_range
-    rather than read directly (see _generate_com_pdf's docstring).
+    Every parameter that feeds problem generation (the a/b range -- 'ope' is
+    in nuts_calc_tex.DIGIT_COUNT_SHORTHAND_COMMANDS so a_digits/b_digits are
+    resolved via problem_generation.resolve_digit_count_range -- the operator,
+    decimal places, carry/remainder/result_max, and the div-family options
+    dividend_mode/a_multiple/b_multiple/quotient_digits/decimal_remainder/
+    divide_through) is resolved by the shared problem_generation.generate()
+    layer (issue #360, P2-1 under #357); this builder only owns the
+    presentation half (rows/columns layout, engine compile).
     """
-    a_min, a_max = problem_generation.resolve_digit_count_range(
-        data, 'a_digits', 'a_min', 'a_max',
-        problem_generation.DEFAULT_A_MIN, problem_generation.DEFAULT_A_MAX,
-    )
-    b_min, b_max = problem_generation.resolve_digit_count_range(
-        data, 'b_digits', 'b_min', 'b_max',
-        problem_generation.DEFAULT_B_MIN, problem_generation.DEFAULT_B_MAX,
-    )
-    operator = list(data.get('operator') or problem_generation.DEFAULT_OPERATOR)
-    a_decimal_places = data.get('a_decimal_places', nuts_calc_tex.MIN_DECIMAL_PLACES)
-    b_decimal_places = data.get('b_decimal_places', nuts_calc_tex.MIN_DECIMAL_PLACES)
-
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
     if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
@@ -996,21 +989,11 @@ def _generate_ope_pdf(data: renderer_config.RendererRequest, output_dir: str) ->
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    nums_a = list(range(a_min, a_max + 1))
-    nums_b = list(range(b_min, b_max + 1))
+    order = rows * columns
     pages = _build_presentation_pages(
         data,
-        rows * columns,
-        lambda start_index: nuts_calc_tex.generate_ope_problems(
-            nums_a, nums_b, operator, rows * columns, start_index,
-            a_decimal_places, b_decimal_places,
-            data.get('carry_mode'), data.get('remainder_mode'), data.get('result_max'),
-            dividend_mode=data.get('dividend_mode'),
-            a_multiple=data.get('a_multiple'), b_multiple=data.get('b_multiple'),
-            quotient_digits=data.get('quotient_digits'),
-            decimal_remainder=bool(data.get('decimal_remainder', False)),
-            divide_through=bool(data.get('divide_through', False)),
-        ),
+        order,
+        lambda start_index: problem_generation.generate('ope', data, order, start_index),
         nuts_calc_tex.build_ope_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
@@ -1080,34 +1063,14 @@ def _generate_tree_ope_pdf(data: renderer_config.RendererRequest, output_dir: st
     with_name_field/multi-page/merge are unsupported here too, matching
     _generate_ope_pdf's scope.
 
-    'ope' is in nuts_calc_tex.DIGIT_COUNT_SHORTHAND_COMMANDS, so a/b are
-    resolved via problem_generation.resolve_digit_count_range (see
-    _generate_com_pdf's docstring). terms_min/terms_max resolution mirrors
-    problem_generation._determine_ope_variant's 'tree' branch (not called
-    directly here since that function also covers the missing_value/
-    multi_term branches this issue does not route to).
+    Every parameter that feeds problem generation (the a/b range via
+    problem_generation.resolve_digit_count_range, the operator, mixed_operators,
+    nontrivial_division, and the terms/terms_min/terms_max range resolved and
+    clamped the same way problem_generation._determine_ope_variant's 'tree'
+    branch does -- resolve_term_range(..., use_parentheses=True), floor 3) is
+    resolved by the shared problem_generation.generate() layer (issue #360,
+    P2-1 under #357); this builder only owns the presentation half.
     """
-    a_min, a_max = problem_generation.resolve_digit_count_range(
-        data, 'a_digits', 'a_min', 'a_max',
-        problem_generation.DEFAULT_A_MIN, problem_generation.DEFAULT_A_MAX,
-    )
-    b_min, b_max = problem_generation.resolve_digit_count_range(
-        data, 'b_digits', 'b_min', 'b_max',
-        problem_generation.DEFAULT_B_MIN, problem_generation.DEFAULT_B_MAX,
-    )
-    operator = list(data.get('operator') or problem_generation.DEFAULT_OPERATOR)
-    mixed_operators = bool(data.get('mixed_operators', False))
-    nontrivial_division = bool(data.get('nontrivial_division', False))
-
-    terms = data.get('terms')
-    terms_min = data.get('terms_min', nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT)
-    terms_max = data.get('terms_max', nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT)
-    if terms is not None:
-        terms_min = terms_max = terms
-    if terms_min > terms_max:
-        raise ValueError("terms_min must be less than or equal to terms_max.")
-    terms_min, terms_max = nuts_calc_tex.resolve_term_range(terms_min, terms_max, use_parentheses=True)
-
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
     if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
@@ -1122,15 +1085,11 @@ def _generate_tree_ope_pdf(data: renderer_config.RendererRequest, output_dir: st
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    nums_a = list(range(a_min, a_max + 1))
-    nums_b = list(range(b_min, b_max + 1))
+    order = rows * columns
     pages = _build_presentation_pages(
         data,
-        rows * columns,
-        lambda start_index: nuts_calc_tex.generate_tree_ope_problems(
-            nums_a, nums_b, operator, mixed_operators, terms_min, terms_max,
-            rows * columns, start_index, data.get('result_max'), nontrivial_division,
-        ),
+        order,
+        lambda start_index: problem_generation.generate('ope', data, order, start_index),
         nuts_calc_tex.build_tree_ope_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
@@ -1202,35 +1161,14 @@ def _generate_multi_term_ope_pdf(data: renderer_config.RendererRequest, output_d
     with_name_field/multi-page/merge are unsupported here too, matching
     _generate_ope_pdf/_generate_tree_ope_pdf's scope.
 
-    'ope' is in nuts_calc_tex.DIGIT_COUNT_SHORTHAND_COMMANDS, so a/b are
-    resolved via problem_generation.resolve_digit_count_range (see
-    _generate_com_pdf's docstring). terms_min/terms_max resolution mirrors
-    problem_generation._determine_ope_variant's 'multi_term' branch (not
-    called directly here since that function also covers the tree/
-    missing_value branches this issue does not route to) -- unlike
-    _generate_tree_ope_pdf, resolve_term_range is called with
-    use_parentheses=False (floor 2, not 3).
+    Every parameter that feeds problem generation (the a/b range via
+    problem_generation.resolve_digit_count_range, the operator, mixed_operators,
+    and the terms/terms_min/terms_max range resolved and clamped the same way
+    problem_generation._determine_ope_variant's 'multi_term' branch does --
+    resolve_term_range(..., use_parentheses=False), floor 2 not 3) is resolved
+    by the shared problem_generation.generate() layer (issue #360, P2-1 under
+    #357); this builder only owns the presentation half.
     """
-    a_min, a_max = problem_generation.resolve_digit_count_range(
-        data, 'a_digits', 'a_min', 'a_max',
-        problem_generation.DEFAULT_A_MIN, problem_generation.DEFAULT_A_MAX,
-    )
-    b_min, b_max = problem_generation.resolve_digit_count_range(
-        data, 'b_digits', 'b_min', 'b_max',
-        problem_generation.DEFAULT_B_MIN, problem_generation.DEFAULT_B_MAX,
-    )
-    operator = list(data.get('operator') or problem_generation.DEFAULT_OPERATOR)
-    mixed_operators = bool(data.get('mixed_operators', False))
-
-    terms = data.get('terms')
-    terms_min = data.get('terms_min', nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT)
-    terms_max = data.get('terms_max', nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT)
-    if terms is not None:
-        terms_min = terms_max = terms
-    if terms_min > terms_max:
-        raise ValueError("terms_min must be less than or equal to terms_max.")
-    terms_min, terms_max = nuts_calc_tex.resolve_term_range(terms_min, terms_max, use_parentheses=False)
-
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
     if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
@@ -1245,15 +1183,11 @@ def _generate_multi_term_ope_pdf(data: renderer_config.RendererRequest, output_d
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    nums_a = list(range(a_min, a_max + 1))
-    nums_b = list(range(b_min, b_max + 1))
+    order = rows * columns
     pages = _build_presentation_pages(
         data,
-        rows * columns,
-        lambda start_index: nuts_calc_tex.generate_multi_term_ope_problems(
-            nums_a, nums_b, operator, mixed_operators, terms_min, terms_max,
-            rows * columns, start_index, data.get('result_max'),
-        ),
+        order,
+        lambda start_index: problem_generation.generate('ope', data, order, start_index),
         nuts_calc_tex.build_multi_term_ope_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
@@ -1323,23 +1257,14 @@ def _generate_missing_value_ope_pdf(data: renderer_config.RendererRequest, outpu
     with_name_field/multi-page/merge are unsupported here too, matching
     _generate_ope_pdf's scope.
 
-    'ope' is in nuts_calc_tex.DIGIT_COUNT_SHORTHAND_COMMANDS, so a/b are
-    resolved via problem_generation.resolve_digit_count_range (see
-    _generate_com_pdf's docstring). generate_missing_value_problems takes no
-    carry/remainder/decimal parameters -- missing-value problems are
-    integer-only (see MissingValueProblem's docstring) -- so unlike
-    _generate_ope_pdf those options are not forwarded here.
+    Every parameter that feeds problem generation (the a/b range via
+    problem_generation.resolve_digit_count_range, the operator, result_max) is
+    resolved by the shared problem_generation.generate() layer, which routes a
+    missing_value request to generate_missing_value_problems -- an integer-only
+    generator that takes no carry/remainder/decimal parameters (see
+    MissingValueProblem's docstring). Issue #360, P2-1 under #357; this builder
+    only owns the presentation half.
     """
-    a_min, a_max = problem_generation.resolve_digit_count_range(
-        data, 'a_digits', 'a_min', 'a_max',
-        problem_generation.DEFAULT_A_MIN, problem_generation.DEFAULT_A_MAX,
-    )
-    b_min, b_max = problem_generation.resolve_digit_count_range(
-        data, 'b_digits', 'b_min', 'b_max',
-        problem_generation.DEFAULT_B_MIN, problem_generation.DEFAULT_B_MAX,
-    )
-    operator = list(data.get('operator') or problem_generation.DEFAULT_OPERATOR)
-
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
     if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
@@ -1354,14 +1279,11 @@ def _generate_missing_value_ope_pdf(data: renderer_config.RendererRequest, outpu
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    nums_a = list(range(a_min, a_max + 1))
-    nums_b = list(range(b_min, b_max + 1))
+    order = rows * columns
     pages = _build_presentation_pages(
         data,
-        rows * columns,
-        lambda start_index: nuts_calc_tex.generate_missing_value_problems(
-            nums_a, nums_b, operator, rows * columns, start_index, data.get('result_max'),
-        ),
+        order,
+        lambda start_index: problem_generation.generate('ope', data, order, start_index),
         nuts_calc_tex.build_missing_value_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
@@ -1441,25 +1363,25 @@ def _generate_vertical_ope_pdf(data: renderer_config.RendererRequest, output_dir
     build_vertical_ope_slot_content_tex (issue #227), composed with the Layer-2
     numbered content area.
 
+    Every parameter that feeds problem generation (the a/b range via
+    problem_generation.resolve_digit_count_range, the operator, decimal places,
+    carry/remainder/result_max) is resolved by the shared
+    problem_generation.generate() layer (issue #360, P2-1 under #357); this
+    builder only owns the presentation half (the tabular grid the multi-row
+    xlop / longdivision output needs, plus the div integer-divisor guard
+    below).
+
     `--vertical` div requires an integer divisor (longdivision's
     `\\intlongdivision`), so a decimal `b_decimal_places` divisor is rejected
     here with the same message nuts_calc_tex.py's _init() uses
     (nuts_calc_tex.py:900-912) -- app.py bypasses _init(), so that check is
-    re-implemented rather than inherited. `--vertical` + equal decimal places is
-    otherwise allowed (issue #134).
+    re-implemented rather than inherited. It is a presentation-path constraint,
+    not a generation parameter, so it stays in this builder and reads
+    `operator` / `b_decimal_places` off the request directly. `--vertical` +
+    equal decimal places is otherwise allowed (issue #134).
     """
-    a_min, a_max = problem_generation.resolve_digit_count_range(
-        data, 'a_digits', 'a_min', 'a_max',
-        problem_generation.DEFAULT_A_MIN, problem_generation.DEFAULT_A_MAX,
-    )
-    b_min, b_max = problem_generation.resolve_digit_count_range(
-        data, 'b_digits', 'b_min', 'b_max',
-        problem_generation.DEFAULT_B_MIN, problem_generation.DEFAULT_B_MAX,
-    )
     operator = list(data.get('operator') or problem_generation.DEFAULT_OPERATOR)
-    a_decimal_places = data.get('a_decimal_places', nuts_calc_tex.MIN_DECIMAL_PLACES)
     b_decimal_places = data.get('b_decimal_places', nuts_calc_tex.MIN_DECIMAL_PLACES)
-
     if 'div' in operator and b_decimal_places > nuts_calc_tex.MIN_DECIMAL_PLACES:
         raise ValueError(
             "--vertical does not yet support a decimal --b-decimal-places "
@@ -1481,16 +1403,11 @@ def _generate_vertical_ope_pdf(data: renderer_config.RendererRequest, output_dir
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    nums_a = list(range(a_min, a_max + 1))
-    nums_b = list(range(b_min, b_max + 1))
+    order = rows * columns
     pages = _build_presentation_pages(
         data,
-        rows * columns,
-        lambda start_index: nuts_calc_tex.generate_ope_problems(
-            nums_a, nums_b, operator, rows * columns, start_index,
-            a_decimal_places, b_decimal_places,
-            data.get('carry_mode'), data.get('remainder_mode'), data.get('result_max'),
-        ),
+        order,
+        lambda start_index: problem_generation.generate('ope', data, order, start_index),
         nuts_calc_tex.build_ope_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
@@ -1560,31 +1477,17 @@ def _generate_intermediate_ope_pdf(data: renderer_config.RendererRequest, output
     with_bottom_answer/with_name_field/multi-page/merge are unsupported here
     too, matching _generate_ope_pdf's scope.
 
-    'ope' is in nuts_calc_tex.DIGIT_COUNT_SHORTHAND_COMMANDS, so a/b are
-    resolved via problem_generation.resolve_digit_count_range (see
-    _generate_com_pdf's docstring). --intermediate only supports a single
-    'mul' operator and a single-digit second operand, and rejects decimal
-    places (nuts_calc_tex.py:750-797, 880-881); the same constraints are
-    enforced here with ValueError so an out-of-scope request fails explicitly
-    rather than silently producing a different worksheet. carry_mode/remainder_mode/decimal places are not forwarded --
-    they are meaningless for a mul-only variant (cf. _generate_missing_value_ope_pdf).
+    Every parameter that feeds problem generation (the a/b range via
+    problem_generation.resolve_digit_count_range, the operator, result_max) is
+    resolved by the shared problem_generation.generate() layer (issue #360,
+    P2-1 under #357); this builder only owns the presentation half.
+    --intermediate's constraints -- a single explicit 'mul' operator and a
+    single-digit second operand (nuts_calc_tex.py:750-797, 880-881) -- are
+    enforced by that shared layer's _validate_intermediate() when it sees
+    `intermediate` set, so an out-of-scope request fails explicitly there
+    (same as POST /generate-problems) rather than silently producing a
+    different worksheet.
     """
-    a_min, a_max = problem_generation.resolve_digit_count_range(
-        data, 'a_digits', 'a_min', 'a_max',
-        problem_generation.DEFAULT_A_MIN, problem_generation.DEFAULT_A_MAX,
-    )
-    b_min, b_max = problem_generation.resolve_digit_count_range(
-        data, 'b_digits', 'b_min', 'b_max',
-        problem_generation.DEFAULT_B_MIN, problem_generation.DEFAULT_B_MAX,
-    )
-    operator = list(data.get('operator') or ['mul'])
-    if operator != ['mul']:
-        raise ValueError("--intermediate only supports a single 'mul' operator (use -o mul).")
-    if b_max > nuts_calc_tex.INTERMEDIATE_SINGLE_DIGIT_MAX:
-        raise ValueError(
-            "--intermediate only supports a single-digit second operand (use -b 1 or --b-max <= 9)."
-        )
-
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
     if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
@@ -1599,15 +1502,11 @@ def _generate_intermediate_ope_pdf(data: renderer_config.RendererRequest, output
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    nums_a = list(range(a_min, a_max + 1))
-    nums_b = list(range(b_min, b_max + 1))
+    order = rows * columns
     pages = _build_presentation_pages(
         data,
-        rows * columns,
-        lambda start_index: nuts_calc_tex.generate_ope_problems(
-            nums_a, nums_b, operator, rows * columns, start_index,
-            result_max=data.get('result_max'),
-        ),
+        order,
+        lambda start_index: problem_generation.generate('ope', data, order, start_index),
         nuts_calc_tex.build_ope_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
