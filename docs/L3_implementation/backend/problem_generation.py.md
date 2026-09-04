@@ -159,22 +159,10 @@ issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマ�
 - `100` は `POST /generate-problems` から `{"table": {...}}` envelope で取得できる(issue #228)。ただし `generate_problems()` を直接呼ぶと `100` は `ValueError`(`generate_hundred_square_table()` を案内)になる — エンドポイントが手前で専用関数へルーティングするため、この非対称は HTTP 経路には影響しない。`POST /generate-pdf` の `100` は issue #229 で内部プレゼンテーション API 経路へ移行し、`backend/three_layer_renderer.py` の `_generate_hundred_square_pdf` が `resolve_hundred_square_axes()` + `nuts_calc_tex.generate_hundred_square()` をプロセス内で呼ぶ(subprocess は経由しない。`renderers.run` は issue #297 で削除)。CLI(`nuts_calc_tex.py 100 ...`)は従来どおり `build_hundred_square_pages` 経路。
 - `compare` の `a_kind`/`b_kind`(既定 `['fraction']`)は `mixed` の `MIXED_OPERAND_KINDS` 既定(3種類全て)と異なる。issue #171 以前の分数vs分数のみの挙動を後方互換のまま保つための意図的な非対称で、明示的に `a_kind`/`b_kind` を指定しない限り既存の呼び出し元(両フロントエンドとも現状未使用)の挙動は変わらない。
 
-## 変更履歴(git log より自動生成)
-
-- a88a90b feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint
-- 7bbec1b refactor(#297): delete the legacy /generate-pdf subprocess rendering path (#325)
-- f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)
-- 40dfb0a feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication (#314)
-- 7585ce7 feat(#229): migrate the 100 hundred-square command to the internal presentation API (#271)
-- c952709 feat(#228): expose the 100 hundred-square table via the /generate-problems JSON contract (#262)
-- 429c088 #210 generate-pdf: migrate pi to the internal presentation API (#244)
-- 40ad870 #209 generate-pdf: migrate squ to the internal presentation API (#243)
-- a6187e9 #208 generate-pdf: migrate 99 (kuku) to the internal presentation API (#242)
-- 36288a2 #237 app.py: dedupe 'com' a_value/target validation with problem_generation.py (#238)
-
 ## 変更履歴（git log より自動生成）
 
-- ebbe3c0 feat(#349): redesign decimal-division drills around a 余り setting and add --divide-through
+- 3d23c6e refactor(#359): split problem generation into a shared generate() layer
+- 7203e9e feat(#349): redesign decimal-division drills around a remainder setting and add a divide-through mode (#352)
 - ffd182f feat(#346): add the 概数 (approx) rounding / estimation drill (#348)
 - 9da1116 feat(#333): add grade 4 decimal-remainder division drill and --decimal-remainder flag (#345)
 - b2df846 feat(#332): add grade 3 two-digit-quotient division drill and --quotient-digits flag (#344)
@@ -183,4 +171,3 @@ issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマ�
 - 7bbec1b refactor(#297): delete the legacy /generate-pdf subprocess rendering path (#325)
 - f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)
 - 40dfb0a feat(#313): add mixed decimal operand order to grade 4 integer/decimal multiplication (#314)
-- 7585ce7 feat(#229): migrate the 100 hundred-square command to the internal presentation API (#271)
