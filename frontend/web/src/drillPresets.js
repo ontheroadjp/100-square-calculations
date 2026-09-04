@@ -372,6 +372,62 @@ const grade1 = {
       },
     },
   ],
+  // 総合問題 (multi-source review worksheet, issue #140/#365). One sheet mixing
+  // the grade-1 学習指導要領 第1学年 A「数と計算」加法・減法 units: くり上がりの
+  // ある1桁+1桁のたし算, くり下がりのある20までのひき算, 2桁±1桁(くり上がり/
+  // くり下がりなし), 何十±何十. Each `sources` entry reuses the exact ope
+  // parameters of an existing grade-1 menu drill, routed through the shared
+  // `review` generation layer (issue #364). Every source is a plain two-term
+  // ope equation, so three_layer_renderer._resolve_number_placement gives the
+  // worksheet the centered `inline` number placement (issue #355/#365) instead
+  // of the left gutter. `num` is a relative weight the backend scales to fill
+  // the chosen problem count (10/20/30), so an even split (num:1 ×5) stays even
+  // at every size.
+  review: [
+    {
+      id: 'g1-review',
+      titleKey: 'menu_g1_review_title',
+      descKey: 'menu_g1_review_desc',
+      pointKey: 'menu_g1_review_point',
+      difficultyKey: 'difficulty_standard',
+      examples: ['8+7', '13-6', '45+3', '68-5', '40+30'],
+      settings: [],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'review',
+        shuffle: true,
+        sources: [
+          // くり上がりのある1桁+1桁のたし算 (mirrors g1-add-20 / carryMode 'required')
+          {
+            command_type: 'ope', num: 1, operator: ['add'], carry_mode: 'required',
+            a_min: 1, a_max: 9, b_min: 1, b_max: 9, result_max: 20,
+          },
+          // くり下がりのある20までのひき算 (mirrors g1-sub-20 / carryMode 'required')
+          {
+            command_type: 'ope', num: 1, operator: ['sub'], carry_mode: 'required',
+            a_min: 10, a_max: 19, b_min: 1, b_max: 9, result_max: 20,
+          },
+          // 2桁＋1桁 くり上がりなし (mirrors g1-add-100)
+          {
+            command_type: 'ope', num: 1, operator: ['add'], carry_mode: 'none',
+            a_min: 10, a_max: 99, b_min: 1, b_max: 9, result_max: 100,
+          },
+          // 2桁－1桁 くり下がりなし (mirrors g1-sub-100)
+          {
+            command_type: 'ope', num: 1, operator: ['sub'], carry_mode: 'none',
+            a_min: 10, a_max: 99, b_min: 1, b_max: 9, result_max: 100,
+          },
+          // 何十±何十 くり上がり/くり下がりなし (mirrors g1-add-tens / g1-sub-tens)
+          {
+            command_type: 'ope', num: 1, operator: ['add', 'sub'], carry_mode: 'none',
+            a_min: 10, a_max: 90, b_min: 10, b_max: 90,
+            a_multiple: 10, b_multiple: 10, result_max: 100,
+          },
+        ],
+      }),
+    },
+  ],
 };
 
 // ---------------------------------------------------------------------

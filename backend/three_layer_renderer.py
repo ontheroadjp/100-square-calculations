@@ -92,6 +92,32 @@ def _ope_is_short_single_line(data: renderer_config.RendererRequest) -> bool:
     return True
 
 
+def _review_is_short_single_line(data: renderer_config.RendererRequest) -> bool:
+    """Whether every `review` source renders as a short single-line row (#365).
+
+    A `review` worksheet mixes several drills onto one grid, so it only takes
+    the alternate placement when *all* of its sources would individually
+    qualify (each source is checked with the same rules as a standalone
+    request). A single wide source -- a fraction, a multi-term chain -- makes
+    the centered columns look ragged, so any such source falls back to the
+    default gutter. Grade 3's `g3-review` keeps the gutter this way (its
+    `frac` source disqualifies), so its output stays byte-identical.
+    """
+    sources = data.get('sources')
+    if not isinstance(sources, list) or not sources:
+        return False
+    for source in sources:
+        if not isinstance(source, dict):
+            return False
+        command_type = source.get('command_type')
+        if command_type in _SHORT_SINGLE_LINE_COMMAND_TYPES:
+            continue
+        if command_type == 'ope' and _ope_is_short_single_line(source):
+            continue
+        return False
+    return True
+
+
 def _resolve_number_placement(
     data: renderer_config.RendererRequest,
 ) -> nuts_calc_tex.NumberPlacement:
@@ -105,8 +131,10 @@ def _resolve_number_placement(
     if int(data.get('columns', 2)) > _SHORT_DRILL_MAX_COLUMNS:
         return nuts_calc_tex.DEFAULT_NUMBER_PLACEMENT
     command_type = data.get('command_type')
-    is_short_single_line = command_type in _SHORT_SINGLE_LINE_COMMAND_TYPES or (
-        command_type == 'ope' and _ope_is_short_single_line(data)
+    is_short_single_line = (
+        command_type in _SHORT_SINGLE_LINE_COMMAND_TYPES
+        or (command_type == 'ope' and _ope_is_short_single_line(data))
+        or (command_type == 'review' and _review_is_short_single_line(data))
     )
     if not is_short_single_line:
         return nuts_calc_tex.DEFAULT_NUMBER_PLACEMENT

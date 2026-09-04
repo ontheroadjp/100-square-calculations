@@ -53,6 +53,18 @@ def test_the_alternate_placement_is_a_valid_non_default_number_placement() -> No
         {'command_type': 'ope', 'operator': ['add'], 'a_decimal_places': 1, 'b_decimal_places': 1},
         {'command_type': 'ope', 'operator': ['div'], 'remainder_mode': 'required'},
         {'command_type': 'ope', 'operator': ['add', 'sub']},
+        # a `review` worksheet whose every source is a plain two-term ope
+        # equation (grade-1 g1-review, issue #365)
+        {'command_type': 'review', 'sources': [{'command_type': 'ope', 'num': 1}]},
+        {
+            'command_type': 'review',
+            'sources': [
+                {'command_type': 'ope', 'num': 1, 'operator': ['add'], 'carry_mode': 'required'},
+                {'command_type': 'ope', 'num': 1, 'operator': ['add', 'sub'],
+                 'a_multiple': 10, 'b_multiple': 10},
+                {'command_type': 'evenodd', 'num': 1},
+            ],
+        },
     ],
 )
 def test_short_single_line_drills_get_the_alternate_placement(data) -> None:
@@ -72,7 +84,16 @@ def test_short_single_line_drills_get_the_alternate_placement(data) -> None:
         {'command_type': 'multiples'},
         {'command_type': 'divisors'},
         {'command_type': 'aBc'},
-        {'command_type': 'review', 'sources': [{'command_type': 'ope', 'num': 1}]},
+        # a `review` worksheet keeps the gutter as soon as one source is wide:
+        # a fraction (grade-3 g3-review), a multi-term chain, or a vertical
+        # hissan -- and an empty / malformed sources list is not short either
+        {'command_type': 'review', 'sources': [
+            {'command_type': 'ope', 'num': 1}, {'command_type': 'frac', 'num': 1}]},
+        {'command_type': 'review', 'sources': [{'command_type': 'ope', 'num': 1, 'terms': 3}]},
+        {'command_type': 'review', 'sources': [
+            {'command_type': 'ope', 'num': 1, 'vertical': True}]},
+        {'command_type': 'review', 'sources': []},
+        {'command_type': 'review'},
         # 3+ columns already pack tightly
         {'command_type': '99', 'columns': 3},
         {'command_type': 'ope', 'operator': ['add'], 'a_max': 99, 'b_max': 99, 'columns': 3},
