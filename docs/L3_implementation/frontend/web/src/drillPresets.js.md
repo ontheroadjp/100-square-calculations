@@ -197,6 +197,16 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 - `command_type: 'review'` は `POST /generate-problems`(データのみ)非対応。CLI(`nuts_calc_tex.py`)にも `review` サブコマンドは無い(合成は backend の presentation 層専用)。
 - `drillPresets.test.js` の `KNOWN_CATEGORIES` に `'review'` を追加した([[./drillPresets.test.js]] 参照)。`catalog.js`/`pcMakeFlow.js` は `CATEGORY_ORDER` 先頭に `'review'` を1語足すだけ([[./catalog.js]]/[[./pcMakeFlow.js]] 参照)。文言3キーは [[./strings.ja.json]] に追加。
 
+### 1年生の総合問題(複数ソース混在ワークシート)(issue #365)
+
+1年生に `review` カテゴリを新設し、1項目 `g1-review`(`titleKey: 'menu_g1_review_title'`「1年の総合問題」)を置いた(親 issue #358 の全学年 `review` 展開の第1子。#357 P3 = #364 で `review` が共有生成層に載ったことが前提)。学習指導要領 第1学年 A「数と計算」加法・減法の複数単元 ―― くり上がりのある1桁+1桁のたし算、くり下がりのある20までのひき算、2桁±1桁(くり上がり/くり下がりなし)、何十±何十 ―― を1枚に混在させる。`CATEGORY_ORDER` は既に `'review'` を先頭に持つため、`catalog.js`/`pcMakeFlow.js` は無変更。
+
+- `settings: []`、`supportLevel: 'full'`、`latexOnly: true`。`examples` は静的(`['8+7', '13-6', '45+3', '68-5', '40+30']`)。
+- `buildParams()` は引数を取らず `{ command_type: 'review', shuffle: true, sources: [...5件...] }` を返す。`sources` 各要素は既存の1年生メニュードリルの `buildParams()` 出力(その `ope` オプション)をそのまま流用し `num: 1` を付けたもの ―― (1) `ope` add `carry_mode:'required'` `a/b 1..9` `result_max:20`(= `g1-add-20` あり)、(2) `ope` sub `carry_mode:'required'` `a 10..19` `b 1..9` `result_max:20`(= `g1-sub-20` あり)、(3) `ope` add `carry_mode:'none'` `a 10..99` `b 1..9` `result_max:100`(= `g1-add-100`)、(4) `ope` sub 同(= `g1-sub-100`)、(5) `ope` add/sub `carry_mode:'none'` `a/b 10..90` `a_multiple:10`/`b_multiple:10` `result_max:100`(= `g1-add-tens`/`g1-sub-tens`)。`num` は相対ウェイトで [[../../../../backend/three_layer_renderer.py]] `_generate_review_pdf` が全問題数(10/20/30)へ按分する。等ウェイト×5。
+- **番号配置**: 5 source すべてが plain 2項 `ope`(`terms`/`mixed_operators`/`vertical` なし)なので、`_resolve_number_placement`([[../../../../backend/three_layer_renderer.py]])が `review` を短1行ドリルと判定し、中央寄せの `inline` 番号配置(issue #355)を返す。左 gutter だと右に空白帯が出て左に寄って見えるため。`g3-review` は `frac` source を含むため引き続き `gutter`(出力バイト不変)。この判定のため `g1-review` の source からは3項計算(`g1-three-terms` 相当、`terms:3`)を意図的に外している(issue #365 のスコープも「1〜2位数のたし算・ひき算」で3項は対象外)。
+- `command_type: 'review'` は `POST /generate-problems` 非対応(g3-review と同じ)。
+- `drillPresets.test.js` に `g1-review` 専用テストを追加(5 source・全 `ope`・`num:1`・`terms`/`mixed_operators`/`vertical` なし・くり上がり/くり下がり/何十 各単元の存在、[[./drillPresets.test.js]] 参照)。文言3キーは [[./strings.ja.json]] に追加。
+
 ### 括弧・かけ算を含む混合計算を3年生から4年生へ移設(issue #328)
 
 `(45+38)×12-56` 形式の「括弧・四則混合・演算の順序」は学習指導要領解説 算数編 第4学年 A「数量の関係を表す式」(（）を用いた式・四則の混合した式・計算の順序のきまり)の内容で、第3学年ではない。issue #161 で3年生 `four-operations` に新設した `g3-parentheses-mul-result-1000` を、`id`・`titleKey`/`descKey`/`pointKey` を `g3-`→`g4-` に付け替えて `g4-parentheses-mul-result-1000` として `grade4['four-operations']` の `g4-parentheses` 直後へ移した(この `g4-parentheses-mul-result-1000` 項目自体は後続の issue #340 で削除された。下記「4年生の括弧ドリルを2段階へ統合(issue #340)」参照)。移設時点では `examples`・`settings`・`supportLevel`・`latexOnly`・`buildParams` 本体を一切変更していない。3年生から括弧・かけ算を含む項目を除いた点(下記)は #340 後も有効。
@@ -328,7 +338,8 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 
 ## 変更履歴（git log より自動生成）
 
-- a116853 feat(#140): add the grade-3 multi-source review (総合問題) worksheet
+- f76b2d4 feat(#365): add the grade-1 multi-source review (総合問題) worksheet
+- e9083d6 feat(#140): add the grade-3 multi-source review (総合問題) worksheet (#354)
 - a249fb2 feat(#351): add grade-3 3x2 multiplication drill and broaden g6 fraction/decimal mixed to four operations (#353)
 - 7203e9e feat(#349): redesign decimal-division drills around a remainder setting and add a divide-through mode (#352)
 - ffd182f feat(#346): add the 概数 (approx) rounding / estimation drill (#348)
@@ -337,4 +348,3 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 - b2df846 feat(#332): add grade 3 two-digit-quotient division drill and --quotient-digits flag (#344)
 - 36de01d fix(#342): guarantee a non-trivial division in every g4-parentheses problem (#343)
 - 960657f refactor(#340): consolidate grade 4 parentheses drills to two tiers (#341)
-- b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)

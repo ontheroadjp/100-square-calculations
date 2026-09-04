@@ -332,6 +332,46 @@ test('grade 1 three-term drill offers add-only / sub-only / mixed operators (iss
   assert.deepEqual(item.examplesFor(), item.examples);
 });
 
+test('grade 1 review worksheet mixes the grade-1 A「数と計算」 units through the shared review layer (issue #365)', () => {
+  const item = presetsByGrade[1].review.find((candidate) => candidate.id === 'g1-review');
+  assert.ok(item, 'g1-review must exist');
+  assert.equal(item.titleKey, 'menu_g1_review_title');
+  assert.equal(item.supportLevel, 'full');
+  assert.equal(item.latexOnly, true);
+  assert.deepEqual(item.settings, []);
+
+  const params = item.buildParams();
+  assert.equal(params.command_type, 'review');
+  assert.equal(params.shuffle, true);
+  assert.ok(Array.isArray(params.sources) && params.sources.length === 5, 'g1-review must expose 5 sources');
+
+  // every source is a plain two-term ope drill carrying an equal relative
+  // weight -- no terms / mixed_operators / vertical, so the backend gives the
+  // worksheet the centered `inline` number placement (issue #355/#365).
+  for (const source of params.sources) {
+    assert.equal(source.command_type, 'ope', 'every g1-review source is an ope drill');
+    assert.equal(source.num, 1, 'every g1-review source has weight 1 (even split)');
+    assert.equal('terms' in source, false, 'g1-review sources stay two-term for the inline layout');
+    assert.equal('mixed_operators' in source, false, 'g1-review sources omit mixed_operators');
+    assert.equal('vertical' in source, false, 'g1-review sources are horizontal');
+  }
+
+  // くり上がり / くり下がり units are explicitly represented (issue #365 scope).
+  assert.ok(
+    params.sources.some((s) => s.operator.join() === 'add' && s.carry_mode === 'required'),
+    'a くり上がり addition source must be present',
+  );
+  assert.ok(
+    params.sources.some((s) => s.operator.join() === 'sub' && s.carry_mode === 'required'),
+    'a くり下がり subtraction source must be present',
+  );
+  // 何十±何十 forwards a_multiple/b_multiple exactly like g1-add-tens / g1-sub-tens.
+  assert.ok(
+    params.sources.some((s) => s.a_multiple === 10 && s.b_multiple === 10),
+    'the 何十 source must forward a_multiple/b_multiple',
+  );
+});
+
 test('grade 2 basic addition caps the answer at 100 (issue #176)', () => {
   const item = presetsByGrade[2].addition.find((candidate) => candidate.id === 'g2-add-2digit');
 
