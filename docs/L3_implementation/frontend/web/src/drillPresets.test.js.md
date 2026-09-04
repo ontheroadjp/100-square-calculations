@@ -67,7 +67,8 @@ issue #342 で「grade 4 four-operations consolidates parentheses drills to two 
 
 ## 変更履歴（git log より自動生成）
 
-- 63fc3ec feat(#366): add the grade-2 multi-source review (総合問題) worksheet
+- 6aabc3e feat(#367): add the grade-4 multi-source review (総合問題) worksheet
+- 8ec62cd feat(#366): add the grade-2 multi-source review (総合問題) worksheet (#377)
 - 1d8b71d feat(#365): add the grade-1 multi-source review (総合問題) worksheet (#376)
 - e9083d6 feat(#140): add the grade-3 multi-source review (総合問題) worksheet (#354)
 - a249fb2 feat(#351): add grade-3 3x2 multiplication drill and broaden g6 fraction/decimal mixed to four operations (#353)
@@ -76,4 +77,3 @@ issue #342 で「grade 4 four-operations consolidates parentheses drills to two 
 - e493735 feat(#334): extend --decimal-remainder to a decimal divisor and add the grade 5 小数のわり算 (あまり) drill (#347)
 - 9da1116 feat(#333): add grade 4 decimal-remainder division drill and --decimal-remainder flag (#345)
 - b2df846 feat(#332): add grade 3 two-digit-quotient division drill and --quotient-digits flag (#344)
-- 36de01d fix(#342): guarantee a non-trivial division in every g4-parentheses problem (#343)
