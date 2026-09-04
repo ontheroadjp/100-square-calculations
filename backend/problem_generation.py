@@ -516,6 +516,39 @@ def _validate_reducible_operators(operator: list[str], command_type: str) -> Non
         )
 
 
+# `mixed` operand-kind / operator / reducible_mode value allowlists. Until
+# issue #361 these lived only in `three_layer_renderer._generate_mixed_pdf`
+# (`POST /generate-pdf`); the P2-2 migration moves them here so the shared
+# layer -- and therefore `POST /generate-problems` too -- rejects the same
+# malformed values, per the #357 /mtg "shared layer takes the stricter side"
+# decision. The error message wording is kept byte-identical to the old
+# builder's so its `test_web_backend_app.py` assertions stay green.
+_VALID_MIXED_OPERATORS = set(nuts_calc_tex.MIX_OPERATORS) | {"mix"}
+_VALID_REDUCIBLE_MODES = {"required", "none", "mixed"}
+
+
+def _validate_mixed_operand_kinds(a_kind: list[str], b_kind: list[str]) -> None:
+    valid_operand_kinds = set(nuts_calc_tex.MIXED_OPERAND_KINDS)
+    if not set(a_kind) <= valid_operand_kinds or not set(b_kind) <= valid_operand_kinds:
+        raise ValueError(
+            f"a_kind and b_kind must contain only: {', '.join(nuts_calc_tex.MIXED_OPERAND_KINDS)}."
+        )
+
+
+def _validate_mixed_operators(operator: list[str]) -> None:
+    if not set(operator) <= _VALID_MIXED_OPERATORS:
+        raise ValueError(
+            f"operator must contain only: {', '.join(sorted(_VALID_MIXED_OPERATORS))}."
+        )
+
+
+def _validate_reducible_mode_value(reducible_mode: str) -> None:
+    if reducible_mode not in _VALID_REDUCIBLE_MODES:
+        raise ValueError(
+            f"reducible_mode must be one of: {', '.join(sorted(_VALID_REDUCIBLE_MODES))}."
+        )
+
+
 def _generate_frac_problems(
     params: renderer_config.RendererRequest, count: int, start_index: int,
 ) -> list[object]:
@@ -600,11 +633,14 @@ def _generate_mixed_problems(
     b_kind = list(params.get("b_kind") or nuts_calc_tex.MIXED_OPERAND_KINDS)
     operator = list(params.get("operator") or DEFAULT_OPERATOR)
     mixed_operators = bool(params.get("mixed_operators", False))
+    _validate_mixed_operand_kinds(a_kind, b_kind)
+    _validate_mixed_operators(operator)
 
     terms_min, terms_max, terms_options_given = _determine_mixed_terms(params, mixed_operators)
 
     reducible_mode = params.get("reducible_mode")
     if reducible_mode is not None:
+        _validate_reducible_mode_value(reducible_mode)
         _validate_reducible_operators(operator, "mixed")
         if terms_options_given:
             raise ValueError(
