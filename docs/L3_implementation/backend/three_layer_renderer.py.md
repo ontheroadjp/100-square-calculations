@@ -101,7 +101,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- d2727b8 refactor(#364): route the review worksheet through the shared generate() layer
+- f76b2d4 feat(#365): add the grade-1 multi-source review (総合問題) worksheet
+- 16f1d11 refactor(#364): route the review worksheet through the shared generate() layer (#375)
 - 6d55279 refactor(#363): migrate the group-4 _generate_*_pdf builders to the shared generate() layer (#374)
 - 65a529b refactor(#362): migrate the group-3 _generate_*_pdf builders to the shared generate() layer (#373)
 - 9c02d4b refactor(#361): migrate the group-2 _generate_*_pdf builders to the shared generate() layer (#372)
@@ -110,4 +111,3 @@
 - e9083d6 feat(#140): add the grade-3 multi-source review (総合問題) worksheet (#354)
 - 7203e9e feat(#349): redesign decimal-division drills around a remainder setting and add a divide-through mode (#352)
 - ffd182f feat(#346): add the 概数 (approx) rounding / estimation drill (#348)
-- 9da1116 feat(#333): add grade 4 decimal-remainder division drill and --decimal-remainder flag (#345)

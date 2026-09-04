@@ -338,7 +338,8 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 
 ## 変更履歴（git log より自動生成）
 
-- a116853 feat(#140): add the grade-3 multi-source review (総合問題) worksheet
+- f76b2d4 feat(#365): add the grade-1 multi-source review (総合問題) worksheet
+- e9083d6 feat(#140): add the grade-3 multi-source review (総合問題) worksheet (#354)
 - a249fb2 feat(#351): add grade-3 3x2 multiplication drill and broaden g6 fraction/decimal mixed to four operations (#353)
 - 7203e9e feat(#349): redesign decimal-division drills around a remainder setting and add a divide-through mode (#352)
 - ffd182f feat(#346): add the 概数 (approx) rounding / estimation drill (#348)
@@ -347,4 +348,3 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 - b2df846 feat(#332): add grade 3 two-digit-quotient division drill and --quotient-digits flag (#344)
 - 36de01d fix(#342): guarantee a non-trivial division in every g4-parentheses problem (#343)
 - 960657f refactor(#340): consolidate grade 4 parentheses drills to two tiers (#341)
-- b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)

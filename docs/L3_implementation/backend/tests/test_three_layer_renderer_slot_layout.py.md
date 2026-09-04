@@ -56,4 +56,5 @@ frontend 側の `g1-review` recipe は `frontend/web/src/drillPresets.test.js` �
 
 ## 変更履歴（git log より自動生成）
 
-- feat(#365): add the grade-1 multi-source review (総合問題) worksheet
+- f76b2d4 feat(#365): add the grade-1 multi-source review (総合問題) worksheet
+- 7b92770 feat(#355): center the problem number and equation for short single-line drills (#356)
