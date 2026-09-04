@@ -166,7 +166,8 @@ issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマ�
 
 ## 変更履歴（git log より自動生成）
 
-- e8ed09b refactor(#361): migrate the group-2 _generate_*_pdf builders to the shared generate() layer
+- e1ab682 refactor(#362): migrate the group-3 _generate_*_pdf builders to the shared generate() layer
+- 9c02d4b refactor(#361): migrate the group-2 _generate_*_pdf builders to the shared generate() layer (#372)
 - 9ff06c9 refactor(#359): split problem generation into a shared generate() layer (#370)
 - 7203e9e feat(#349): redesign decimal-division drills around a remainder setting and add a divide-through mode (#352)
 - ffd182f feat(#346): add the 概数 (approx) rounding / estimation drill (#348)
@@ -175,4 +176,3 @@ issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマ�
 - 36de01d fix(#342): guarantee a non-trivial division in every g4-parentheses problem (#343)
 - b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)
 - 7bbec1b refactor(#297): delete the legacy /generate-pdf subprocess rendering path (#325)
-- f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)
