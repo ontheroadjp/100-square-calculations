@@ -8,6 +8,7 @@ of these tests; nuts_calc.py/reportlab has since been removed, so there is
 only one implementation to exercise and the parametrization was dropped.
 """
 
+import dataclasses
 import math
 import sys
 from fractions import Fraction
@@ -1025,3 +1026,69 @@ def test_generate_problems_approx_rejects_conflicting_rounding_spec() -> None:
     }
     with pytest.raises(ValueError, match="cannot be combined"):
         problem_generation.generate_problems(params, "latex")
+
+
+# --- shared generate() layer (issue #359) -----------------------------------
+
+
+def test_generate_returns_problem_dataclasses_not_dicts() -> None:
+    params = {"paper_size": "A4", "command_type": "ope", "operator": ["add"]}
+    problems = problem_generation.generate("ope", params, 4, 1)
+    assert len(problems) == 4
+    assert all(dataclasses.is_dataclass(problem) and not isinstance(problem, type) for problem in problems)
+    assert all(isinstance(problem, nuts_calc_tex.OpeProblem) for problem in problems)
+
+
+@pytest.mark.parametrize(
+    "command_type, params",
+    [
+        ("frac", {"operator": ["add"]}),
+        ("compare", {}),
+        ("lcm", {"a_min": 2, "a_max": 9, "b_min": 2, "b_max": 9}),
+        ("approx", {"kind": "round", "sig_digits": 2, "a_min": 100, "a_max": 9999}),
+        ("99", {"a_value": 3}),
+    ],
+)
+def test_generate_covers_registered_command_types(command_type: str, params: dict) -> None:
+    problems = problem_generation.generate(command_type, {"paper_size": "A4", **params}, 3, 1)
+    assert len(problems) == 3
+    assert all(dataclasses.is_dataclass(problem) and not isinstance(problem, type) for problem in problems)
+
+
+def test_generate_threads_start_index() -> None:
+    params = {"paper_size": "A4", "command_type": "ope", "operator": ["add"]}
+    problems = problem_generation.generate("ope", params, 3, 7)
+    assert [problem.index for problem in problems] == [7, 8, 9]
+
+
+@pytest.mark.parametrize("count", [0, -1, 1.5, "5", None, True])
+def test_generate_rejects_invalid_count(count: object) -> None:
+    with pytest.raises(ValueError, match="count must be a positive integer"):
+        problem_generation.generate("ope", {"paper_size": "A4", "command_type": "ope"}, count, 1)
+
+
+def test_generate_hundred_square_points_to_dedicated_helper() -> None:
+    with pytest.raises(ValueError, match="generate_hundred_square_table"):
+        problem_generation.generate("100", {"paper_size": "A4", "command_type": "100"}, 1, 1)
+
+
+def test_generate_rejects_unsupported_command_type() -> None:
+    with pytest.raises(ValueError, match="not yet supported"):
+        problem_generation.generate("unknown_command", {"paper_size": "A4"}, 1, 1)
+
+
+def test_generate_problems_wrapper_still_returns_serialized_dicts() -> None:
+    ope = problem_generation.generate_problems(
+        {"paper_size": "A4", "command_type": "ope", "num": 3, "operator": ["add"]}
+    )
+    assert all(isinstance(problem, dict) and "result" in problem for problem in ope)
+
+    compare = problem_generation.generate_problems(
+        {"paper_size": "A4", "command_type": "compare", "num": 3}
+    )
+    assert all(isinstance(problem, dict) and "relation" in problem for problem in compare)
+
+    frac2dec = problem_generation.generate_problems(
+        {"paper_size": "A4", "command_type": "frac2dec", "num": 3}
+    )
+    assert all(isinstance(problem, dict) and "decimal_display" in problem for problem in frac2dec)

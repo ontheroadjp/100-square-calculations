@@ -4,20 +4,38 @@ Python data, without a subprocess call and without generating a PDF/LaTeX
 document. This is the data-layer counterpart to
 backend/three_layer_renderer.py's PDF-generation (presentation) layer.
 
-`command_type == 'ope'` is supported, including its --use-parentheses/
+Two public entry points, layered (issue #359):
+
+- ``generate(command_type, params, count, start_index) -> list[<problem
+  dataclass>]`` is the shared generation layer. It owns parameter
+  validation/normalization and returns the raw problem dataclasses produced
+  by ``nuts_calc_tex.py``'s ``generate_*`` functions -- no dict
+  serialization, no response-envelope shaping. It is the single place a
+  future ``three_layer_renderer._generate_*_pdf`` builder resolves its
+  problems (that migration is issues #360-#363; no builder calls it yet).
+- ``generate_problems(params, renderer_name=None) -> list[dict]`` is the
+  thin ``POST /generate-problems`` wrapper (issue #138): it calls
+  ``generate(...)`` and then serializes each dataclass to a plain
+  JSON-friendly dict, injecting the few computed properties the response
+  contract carries (``ope``'s curated ``OpeProblemData`` shape, ``compare``'s
+  ``relation``, ``frac2dec``/``dec2frac``'s ``decimal_display``).
+
+``command_type == 'ope'`` is supported, including its --use-parentheses/
 --missing-value/--terms*/--mixed-operators variants (issue #168), as are
-`com`/`99`/`aBc`/`squ`/`pi` (issue #169), `frac`/`mixed` (issue #170),
-`compare` (issue #171), `evenodd`/`multiples`/`divisors`/`lcm`/`gcd`
-(issue #172), and `simplify`/`commondenom`/`frac2dec`/`dec2frac`/`divfrac`
-(issue #173) via `_COMMAND_GENERATORS`. `100` is also supported, but NOT
-through `_COMMAND_GENERATORS` or the `{"problems": [...]}` envelope: its
-nuts_calc_tex.py `generate_hundred_square()` output is a single 10x10
-HundredSquareTable, not a `num`-many problem list, so
-`generate_hundred_square_table()` returns it in a dedicated top-level
-`{"table": {...}}` envelope instead (a sibling key to `problems`, never
-nested inside it). This reverses issue #169's earlier decision to exclude
-`100` here, per the 2026-08-19 /mtg on issue #174 (issue #228). Every other
-command type raises ValueError; see issue #166.
+``com``/``99``/``aBc``/``squ``/``pi`` (issue #169), ``frac``/``mixed``
+(issue #170), ``compare`` (issue #171),
+``evenodd``/``multiples``/``divisors``/``lcm``/``gcd`` (issue #172),
+``simplify``/``commondenom``/``frac2dec``/``dec2frac``/``divfrac``
+(issue #173), and ``approx`` (issue #346) via ``_COMMAND_GENERATORS``.
+``100`` is also supported, but NOT through ``_COMMAND_GENERATORS`` or the
+``{"problems": [...]}`` envelope: its nuts_calc_tex.py
+``generate_hundred_square()`` output is a single 10x10 HundredSquareTable,
+not a ``count``-many problem list, so ``generate_hundred_square_table()``
+returns it in a dedicated top-level ``{"table": {...}}`` envelope instead (a
+sibling key to ``problems``, never nested inside it). This reverses issue
+#169's earlier decision to exclude ``100`` here, per the 2026-08-19 /mtg on
+issue #174 (issue #228). Every other command type raises ValueError; see
+issue #166.
 """
 
 import dataclasses
@@ -51,9 +69,13 @@ class OpeProblemData(TypedDict, total=False):
 
 def generate_problems(params: renderer_config.RendererRequest, renderer_name: str | None = None) -> list[dict[str, object]]:
     """
-    Generate `params['num']` problems for `params['command_type']` using
-    nuts_calc_tex.py's data-generation functions, called directly in-process
-    (no subprocess, no PDF/LaTeX byte output).
+    Generate `params['num']` problems for `params['command_type']` as plain
+    JSON-friendly dicts, for the `POST /generate-problems` endpoint.
+
+    This is a thin wrapper over the shared `generate(...)` layer (issue
+    #359): it delegates all problem generation and parameter validation to
+    `generate(command_type, params, num, 1)` and then serializes the
+    returned dataclasses via `_serialize_problems(...)`.
 
     `renderer_name` is resolved via `renderer_config.get_renderer_name()` when not
     given, purely to fail fast with a clear error for any renderer other
@@ -70,20 +92,39 @@ def generate_problems(params: renderer_config.RendererRequest, renderer_name: st
     if not isinstance(num, int) or isinstance(num, bool) or num < 1:
         raise ValueError("num must be a positive integer")
 
-    if command_type == "ope":
-        return _generate_ope_problems(params, num)
+    problems = generate(command_type, params, num, 1)
+    return _serialize_problems(command_type, params, problems)
+
+
+def generate(
+    command_type: str | None,
+    params: renderer_config.RendererRequest,
+    count: int,
+    start_index: int,
+) -> list[object]:
+    """Shared problem-generation layer (issue #359).
+
+    Resolve/validate the parameters for `command_type` and return `count`
+    problem dataclasses (the exact types `nuts_calc_tex.py`'s `generate_*`
+    functions produce), numbered from `start_index`. No dict serialization
+    and no response-envelope shaping happen here -- that is
+    `generate_problems`'s job.
+
+    `command_type == '100'` raises a targeted `ValueError` pointing at
+    `generate_hundred_square_table()`: a single 10x10 table has no
+    `count`-many decomposition and does not fit this list contract (issue
+    #228). The `/generate-problems` endpoint routes `100` to that helper
+    before ever calling this function; the branch only guards direct
+    callers. Any other unregistered `command_type` raises the issue #166
+    "not yet supported" `ValueError`.
+    """
+    if not isinstance(count, int) or isinstance(count, bool) or count < 1:
+        raise ValueError("count must be a positive integer")
 
     if command_type == "100":
-        # `100` is served through generate_hundred_square_table()'s dedicated
-        # `{"table": {...}}` envelope, not this function's `{"problems": [...]}`
-        # list contract (issue #228). The `/generate-problems` endpoint routes
-        # `100` there before ever calling generate_problems(); this branch only
-        # guards direct callers, giving them an explicit pointer instead of the
-        # generic "not yet supported" fallthrough below -- which would now be
-        # misleading, since `100` IS supported, just with a different shape.
         raise ValueError(
             "command_type '100' is served by generate_hundred_square_table(), not "
-            "generate_problems(); its single 10x10 table does not fit the "
+            "generate(); its single 10x10 table does not fit the "
             '\'{"problems": [...]}\' list contract (issue #228).'
         )
 
@@ -93,19 +134,20 @@ def generate_problems(params: renderer_config.RendererRequest, renderer_name: st
             f"command_type {command_type!r} is not yet supported by problem-only "
             "generation; see issue #166 and its sub-issues for supported command types."
         )
-    return generator(params, num)
+    return generator(params, count, start_index)
 
 
-def _generate_ope_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_ope(
+    params: renderer_config.RendererRequest, count: int, start_index: int,
+) -> list[object]:
     variant, terms_min, terms_max = _determine_ope_variant(params)
-    if variant is not None:
-        if variant == "tree":
-            return _generate_tree_ope_problems(params, num, terms_min, terms_max)
-        if variant == "missing_value":
-            return _generate_missing_value_problems(params, num)
-        return _generate_multi_term_ope_problems(params, num, terms_min, terms_max)
-
-    return _generate_ope_problems_latex(params, num)
+    if variant == "tree":
+        return _generate_tree_ope_problems(params, count, start_index, terms_min, terms_max)
+    if variant == "missing_value":
+        return _generate_missing_value_problems(params, count, start_index)
+    if variant == "multi_term":
+        return _generate_multi_term_ope_problems(params, count, start_index, terms_min, terms_max)
+    return _generate_ope_problems_latex(params, count, start_index)
 
 
 def _determine_ope_variant(params: renderer_config.RendererRequest) -> tuple[str | None, int, int]:
@@ -172,8 +214,8 @@ def _dataclass_to_dict(value: object) -> object:
 
 
 def _generate_tree_ope_problems(
-    params: renderer_config.RendererRequest, num: int, terms_min: int, terms_max: int,
-) -> list[dict[str, object]]:
+    params: renderer_config.RendererRequest, count: int, start_index: int, terms_min: int, terms_max: int,
+) -> list[object]:
     a_min, a_max = resolve_digit_count_range(params, "a_digits", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
     b_min, b_max = resolve_digit_count_range(params, "b_digits", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
     operator = list(params.get("operator") or DEFAULT_OPERATOR)
@@ -182,16 +224,15 @@ def _generate_tree_ope_problems(
 
     nums_a = list(range(a_min, a_max + 1))
     nums_b = list(range(b_min, b_max + 1))
-    problems = nuts_calc_tex.generate_tree_ope_problems(
-        nums_a, nums_b, operator, mixed_operators, terms_min, terms_max, num, 1,
+    return nuts_calc_tex.generate_tree_ope_problems(
+        nums_a, nums_b, operator, mixed_operators, terms_min, terms_max, count, start_index,
         params.get("result_max"), nontrivial_division,
     )
-    return [_dataclass_to_dict(problem) for problem in problems]
 
 
 def _generate_multi_term_ope_problems(
-    params: renderer_config.RendererRequest, num: int, terms_min: int, terms_max: int,
-) -> list[dict[str, object]]:
+    params: renderer_config.RendererRequest, count: int, start_index: int, terms_min: int, terms_max: int,
+) -> list[object]:
     a_min, a_max = resolve_digit_count_range(params, "a_digits", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
     b_min, b_max = resolve_digit_count_range(params, "b_digits", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
     operator = list(params.get("operator") or DEFAULT_OPERATOR)
@@ -199,23 +240,24 @@ def _generate_multi_term_ope_problems(
 
     nums_a = list(range(a_min, a_max + 1))
     nums_b = list(range(b_min, b_max + 1))
-    problems = nuts_calc_tex.generate_multi_term_ope_problems(
-        nums_a, nums_b, operator, mixed_operators, terms_min, terms_max, num, 1, params.get("result_max"),
+    return nuts_calc_tex.generate_multi_term_ope_problems(
+        nums_a, nums_b, operator, mixed_operators, terms_min, terms_max, count, start_index,
+        params.get("result_max"),
     )
-    return [_dataclass_to_dict(problem) for problem in problems]
 
 
-def _generate_missing_value_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_missing_value_problems(
+    params: renderer_config.RendererRequest, count: int, start_index: int,
+) -> list[object]:
     a_min, a_max = resolve_digit_count_range(params, "a_digits", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
     b_min, b_max = resolve_digit_count_range(params, "b_digits", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
     operator = list(params.get("operator") or DEFAULT_OPERATOR)
 
     nums_a = list(range(a_min, a_max + 1))
     nums_b = list(range(b_min, b_max + 1))
-    problems = nuts_calc_tex.generate_missing_value_problems(
-        nums_a, nums_b, operator, num, 1, params.get("result_max"),
+    return nuts_calc_tex.generate_missing_value_problems(
+        nums_a, nums_b, operator, count, start_index, params.get("result_max"),
     )
-    return [_dataclass_to_dict(problem) for problem in problems]
 
 
 def resolve_digit_count_range(
@@ -335,7 +377,9 @@ def _validate_intermediate(operator: list[str], b_max: int, single_digit_max: in
         raise ValueError(f"intermediate only supports a single-digit second operand (b_max <= {single_digit_max}).")
 
 
-def _generate_ope_problems_latex(params: renderer_config.RendererRequest, num: int) -> list[OpeProblemData]:
+def _generate_ope_problems_latex(
+    params: renderer_config.RendererRequest, count: int, start_index: int,
+) -> list[object]:
     a_min, a_max = resolve_digit_count_range(params, "a_digits", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
     b_min, b_max = resolve_digit_count_range(params, "b_digits", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
     operator = list(params.get("operator") or DEFAULT_OPERATOR)
@@ -347,8 +391,8 @@ def _generate_ope_problems_latex(params: renderer_config.RendererRequest, num: i
     nums_b = list(range(b_min, b_max + 1))
     a_decimal_places = params.get("a_decimal_places", nuts_calc_tex.MIN_DECIMAL_PLACES)
     b_decimal_places = params.get("b_decimal_places", nuts_calc_tex.MIN_DECIMAL_PLACES)
-    ope_problems = nuts_calc_tex.generate_ope_problems(
-        nums_a, nums_b, operator, num, 1,
+    return nuts_calc_tex.generate_ope_problems(
+        nums_a, nums_b, operator, count, start_index,
         a_decimal_places, b_decimal_places,
         params.get("carry_mode"), params.get("remainder_mode"), params.get("result_max"),
         bool(params.get("mixed_decimal_operand_order", False)),
@@ -358,30 +402,6 @@ def _generate_ope_problems_latex(params: renderer_config.RendererRequest, num: i
         decimal_remainder=bool(params.get("decimal_remainder", False)),
         divide_through=bool(params.get("divide_through", False)),
     )
-
-    problems: list[OpeProblemData] = []
-    for ope_problem in ope_problems:
-        problem: OpeProblemData = {
-            "index": ope_problem.index,
-            "a": ope_problem.a,
-            "operator": ope_problem.operator,
-            "b": ope_problem.b,
-            "result": ope_problem.c,
-            "remainder": ope_problem.remainder,
-            "remainder_decimal_places": ope_problem.remainder_decimal_places,
-            "a_decimal_places": ope_problem.a_decimal_places,
-            "b_decimal_places": ope_problem.b_decimal_places,
-        }
-        # The --decimal-remainder div mode (issue #333) and the --divide-through
-        # mode (issue #349) each set an explicit answer-display override; every
-        # other problem leaves it None and the response mirrors the pre-#333
-        # shape.
-        if ope_problem.result_decimal_places is not None:
-            problem["result_decimal_places"] = ope_problem.result_decimal_places
-        if intermediate:
-            problem["intermediate_memo"] = nuts_calc_tex.build_intermediate_memo(ope_problem.a, ope_problem.b)
-        problems.append(problem)
-    return problems
 
 
 def validate_com_target(a_value: int | None) -> int:
@@ -401,10 +421,11 @@ def validate_com_target(a_value: int | None) -> int:
     return a_value
 
 
-def _generate_com_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_com_problems(
+    params: renderer_config.RendererRequest, count: int, start_index: int,
+) -> list[object]:
     target = validate_com_target(params.get("a_value"))
-    problems = nuts_calc_tex.generate_com_problems(target, num, 1)
-    return [_dataclass_to_dict(problem) for problem in problems]
+    return nuts_calc_tex.generate_com_problems(target, count, start_index)
 
 
 def validate_kuku_a_value(a_value: int | None) -> int:
@@ -419,17 +440,19 @@ def validate_kuku_a_value(a_value: int | None) -> int:
     return a_value
 
 
-def _generate_kuku_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_kuku_problems(
+    params: renderer_config.RendererRequest, count: int, start_index: int,
+) -> list[object]:
     a_value = validate_kuku_a_value(params.get("a_value"))
     descend = bool(params.get("descend", False))
     shuffle = bool(params.get("shuffle", False))
-    problems = nuts_calc_tex.generate_kuku_problems(a_value, num, 1, descend, shuffle)
-    return [_dataclass_to_dict(problem) for problem in problems]
+    return nuts_calc_tex.generate_kuku_problems(a_value, count, start_index, descend, shuffle)
 
 
-def _generate_abc_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
-    problems = nuts_calc_tex.generate_abc_problems(num, 1)
-    return [_dataclass_to_dict(problem) for problem in problems]
+def _generate_abc_problems(
+    params: renderer_config.RendererRequest, count: int, start_index: int,
+) -> list[object]:
+    return nuts_calc_tex.generate_abc_problems(count, start_index)
 
 
 def validate_squ_start(a_value: int | None) -> int:
@@ -444,12 +467,13 @@ def validate_squ_start(a_value: int | None) -> int:
     return a_value
 
 
-def _generate_squ_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_squ_problems(
+    params: renderer_config.RendererRequest, count: int, start_index: int,
+) -> list[object]:
     start_num = validate_squ_start(params.get("a_value"))
     descend = bool(params.get("descend", False))
     shuffle = bool(params.get("shuffle", False))
-    problems = nuts_calc_tex.generate_squ_problems(start_num, num, 1, descend, shuffle)
-    return [_dataclass_to_dict(problem) for problem in problems]
+    return nuts_calc_tex.generate_squ_problems(start_num, count, start_index, descend, shuffle)
 
 
 def validate_pi_start(a_value: int | None) -> int:
@@ -464,12 +488,13 @@ def validate_pi_start(a_value: int | None) -> int:
     return a_value
 
 
-def _generate_pi_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_pi_problems(
+    params: renderer_config.RendererRequest, count: int, start_index: int,
+) -> list[object]:
     start_num = validate_pi_start(params.get("a_value"))
     descend = bool(params.get("descend", False))
     shuffle = bool(params.get("shuffle", False))
-    problems = nuts_calc_tex.generate_pi_problems(start_num, num, 1, descend, shuffle)
-    return [_dataclass_to_dict(problem) for problem in problems]
+    return nuts_calc_tex.generate_pi_problems(start_num, count, start_index, descend, shuffle)
 
 
 def _validate_fraction_digits(numerator_digits: int, denominator_digits: int, command_type: str) -> None:
@@ -491,7 +516,9 @@ def _validate_reducible_operators(operator: list[str], command_type: str) -> Non
         )
 
 
-def _generate_frac_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_frac_problems(
+    params: renderer_config.RendererRequest, count: int, start_index: int,
+) -> list[object]:
     numerator_digits = params.get("numerator_digits", 1)
     denominator_digits = params.get("denominator_digits", 1)
     _validate_fraction_digits(numerator_digits, denominator_digits, "frac")
@@ -524,12 +551,11 @@ def _generate_frac_problems(params: renderer_config.RendererRequest, num: int) -
     if reducible_mode is not None:
         _validate_reducible_operators(operator, "frac")
 
-    problems = nuts_calc_tex.generate_fraction_problems(
-        numerator_digits, denominator_digits, operator, num, 1, same_denominator,
+    return nuts_calc_tex.generate_fraction_problems(
+        numerator_digits, denominator_digits, operator, count, start_index, same_denominator,
         proper_operands, proper_result, different_denominators,
         a_fraction_form, b_fraction_form, reducible_mode,
     )
-    return [_dataclass_to_dict(problem) for problem in problems]
 
 
 def _determine_mixed_terms(params: renderer_config.RendererRequest, mixed_operators: bool) -> tuple[int, int, bool]:
@@ -556,7 +582,9 @@ def _determine_mixed_terms(params: renderer_config.RendererRequest, mixed_operat
     return terms_min, terms_max, terms_options_given
 
 
-def _generate_mixed_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_mixed_problems(
+    params: renderer_config.RendererRequest, count: int, start_index: int,
+) -> list[object]:
     numerator_digits = params.get("numerator_digits", 1)
     denominator_digits = params.get("denominator_digits", 1)
     _validate_fraction_digits(numerator_digits, denominator_digits, "mixed")
@@ -589,18 +617,19 @@ def _generate_mixed_problems(params: renderer_config.RendererRequest, num: int) 
                 "(in either order) for the 'mixed' command."
             )
 
-    problems = nuts_calc_tex.generate_mixed_problems(
+    return nuts_calc_tex.generate_mixed_problems(
         a_kind, b_kind, operator, mixed_operators,
         numerator_digits, denominator_digits, decimal_places,
-        terms_min, terms_max, num, 1, reducible_mode,
+        terms_min, terms_max, count, start_index, reducible_mode,
     )
-    return [_dataclass_to_dict(problem) for problem in problems]
 
 
 DEFAULT_COMPARISON_KIND = ["fraction"]
 
 
-def _generate_compare_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_compare_problems(
+    params: renderer_config.RendererRequest, count: int, start_index: int,
+) -> list[object]:
     numerator_digits = params.get("numerator_digits", 1)
     denominator_digits = params.get("denominator_digits", 1)
     _validate_fraction_digits(numerator_digits, denominator_digits, "compare")
@@ -629,27 +658,24 @@ def _generate_compare_problems(params: renderer_config.RendererRequest, num: int
     a_fraction_form = params.get("a_fraction_form", "proper")
     b_fraction_form = params.get("b_fraction_form", "proper")
 
-    problems = nuts_calc_tex.generate_fraction_comparison_problems(
-        pattern, a_fraction_form, b_fraction_form, numerator_digits, denominator_digits, num, 1,
+    return nuts_calc_tex.generate_fraction_comparison_problems(
+        pattern, a_fraction_form, b_fraction_form, numerator_digits, denominator_digits, count, start_index,
         a_kind, b_kind, decimal_places,
     )
-    result = []
-    for problem in problems:
-        item = _dataclass_to_dict(problem)
-        item["relation"] = problem.relation  # @property, not a dataclass field -- see _dataclass_to_dict's docstring
-        result.append(item)
-    return result
 
 
-def _generate_evenodd_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_evenodd_problems(
+    params: renderer_config.RendererRequest, count: int, start_index: int,
+) -> list[object]:
     a_min = params.get("a_min", DEFAULT_A_MIN)
     a_max = params.get("a_max", DEFAULT_A_MAX)
     nums_a = list(range(a_min, a_max + 1))
-    problems = nuts_calc_tex.generate_evenodd_problems(nums_a, num, 1)
-    return [_dataclass_to_dict(problem) for problem in problems]
+    return nuts_calc_tex.generate_evenodd_problems(nums_a, count, start_index)
 
 
-def _generate_multiples_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_multiples_problems(
+    params: renderer_config.RendererRequest, count: int, start_index: int,
+) -> list[object]:
     a_min = params.get("a_min", DEFAULT_A_MIN)
     a_max = params.get("a_max", DEFAULT_A_MAX)
     if a_min < 1:
@@ -662,24 +688,24 @@ def _generate_multiples_problems(params: renderer_config.RendererRequest, num: i
         )
 
     nums_a = list(range(a_min, a_max + 1))
-    problems = nuts_calc_tex.generate_multiples_problems(nums_a, num, 1, multiples_count)
-    return [_dataclass_to_dict(problem) for problem in problems]
+    return nuts_calc_tex.generate_multiples_problems(nums_a, count, start_index, multiples_count)
 
 
-def _generate_divisors_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_divisors_problems(
+    params: renderer_config.RendererRequest, count: int, start_index: int,
+) -> list[object]:
     a_min = params.get("a_min", DEFAULT_A_MIN)
     a_max = params.get("a_max", DEFAULT_A_MAX)
     if a_min < 1:
         raise ValueError("a_min must be at least 1 for the 'divisors' command.")
 
     nums_a = list(range(a_min, a_max + 1))
-    problems = nuts_calc_tex.generate_divisors_problems(nums_a, num, 1)
-    return [_dataclass_to_dict(problem) for problem in problems]
+    return nuts_calc_tex.generate_divisors_problems(nums_a, count, start_index)
 
 
 def _generate_number_pair_problems(
-    params: renderer_config.RendererRequest, num: int, compute: Callable[[int, int], int],
-) -> list[dict[str, object]]:
+    params: renderer_config.RendererRequest, count: int, start_index: int, compute: Callable[[int, int], int],
+) -> list[object]:
     """
     Shared by 'lcm'/'gcd' (issue #172): math.lcm/math.gcd (via `compute`) is
     the only difference between the two, mirroring how
@@ -690,72 +716,72 @@ def _generate_number_pair_problems(
     b_min, b_max = resolve_digit_count_range(params, "b_digits", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
     nums_a = list(range(a_min, a_max + 1))
     nums_b = list(range(b_min, b_max + 1))
-    problems = nuts_calc_tex.generate_number_pair_problems(compute, nums_a, nums_b, num, 1)
-    return [_dataclass_to_dict(problem) for problem in problems]
+    return nuts_calc_tex.generate_number_pair_problems(compute, nums_a, nums_b, count, start_index)
 
 
-def _generate_lcm_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
-    return _generate_number_pair_problems(params, num, math.lcm)
+def _generate_lcm_problems(
+    params: renderer_config.RendererRequest, count: int, start_index: int,
+) -> list[object]:
+    return _generate_number_pair_problems(params, count, start_index, math.lcm)
 
 
-def _generate_gcd_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
-    return _generate_number_pair_problems(params, num, math.gcd)
+def _generate_gcd_problems(
+    params: renderer_config.RendererRequest, count: int, start_index: int,
+) -> list[object]:
+    return _generate_number_pair_problems(params, count, start_index, math.gcd)
 
 
-def _generate_simplify_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_simplify_problems(
+    params: renderer_config.RendererRequest, count: int, start_index: int,
+) -> list[object]:
     numerator_digits = params.get("numerator_digits", 1)
     denominator_digits = params.get("denominator_digits", 1)
     _validate_fraction_digits(numerator_digits, denominator_digits, "simplify")
-    problems = nuts_calc_tex.generate_simplify_problems(numerator_digits, denominator_digits, num, 1)
-    return [_dataclass_to_dict(problem) for problem in problems]
+    return nuts_calc_tex.generate_simplify_problems(numerator_digits, denominator_digits, count, start_index)
 
 
-def _generate_commondenom_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_commondenom_problems(
+    params: renderer_config.RendererRequest, count: int, start_index: int,
+) -> list[object]:
     numerator_digits = params.get("numerator_digits", 1)
     denominator_digits = params.get("denominator_digits", 1)
     _validate_fraction_digits(numerator_digits, denominator_digits, "commondenom")
-    problems = nuts_calc_tex.generate_commondenom_problems(numerator_digits, denominator_digits, num, 1)
-    return [_dataclass_to_dict(problem) for problem in problems]
+    return nuts_calc_tex.generate_commondenom_problems(numerator_digits, denominator_digits, count, start_index)
 
 
-def _generate_frac2dec_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_frac2dec_problems(
+    params: renderer_config.RendererRequest, count: int, start_index: int,
+) -> list[object]:
     numerator_digits = params.get("numerator_digits", 1)
     denominator_digits = params.get("denominator_digits", 1)
     _validate_fraction_digits(numerator_digits, denominator_digits, "frac2dec")
-    problems = nuts_calc_tex.generate_frac2dec_problems(numerator_digits, denominator_digits, num, 1)
-    result = []
-    for problem in problems:
-        item = _dataclass_to_dict(problem)
-        item["decimal_display"] = problem.decimal_display  # @property, not a dataclass field -- see _dataclass_to_dict's docstring
-        result.append(item)
-    return result
+    return nuts_calc_tex.generate_frac2dec_problems(numerator_digits, denominator_digits, count, start_index)
 
 
-def _generate_dec2frac_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
-    problems = nuts_calc_tex.generate_dec2frac_problems(num, 1)
-    result = []
-    for problem in problems:
-        item = _dataclass_to_dict(problem)
-        item["decimal_display"] = problem.decimal_display
-        result.append(item)
-    return result
+def _generate_dec2frac_problems(
+    params: renderer_config.RendererRequest, count: int, start_index: int,
+) -> list[object]:
+    return nuts_calc_tex.generate_dec2frac_problems(count, start_index)
 
 
-def _generate_divfrac_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_divfrac_problems(
+    params: renderer_config.RendererRequest, count: int, start_index: int,
+) -> list[object]:
     a_min, a_max = resolve_digit_count_range(params, "a_digits", "a_min", "a_max", DEFAULT_A_MIN, DEFAULT_A_MAX)
     b_min, b_max = resolve_digit_count_range(params, "b_digits", "b_min", "b_max", DEFAULT_B_MIN, DEFAULT_B_MAX)
     if b_min < 1:
         raise ValueError("b_min must be at least 1 for the 'divfrac' command.")
     nums_a = list(range(a_min, a_max + 1))
     nums_b = list(range(b_min, b_max + 1))
-    problems = nuts_calc_tex.generate_divfrac_problems(nums_a, nums_b, num, 1)
-    return [_dataclass_to_dict(problem) for problem in problems]
+    return nuts_calc_tex.generate_divfrac_problems(nums_a, nums_b, count, start_index)
 
 
-def _generate_approx_problems(params: renderer_config.RendererRequest, num: int) -> list[dict[str, object]]:
+def _generate_approx_problems(
+    params: renderer_config.RendererRequest, count: int, start_index: int,
+) -> list[object]:
     """`approx` (概数, issue #346): resolve/validate the parameter set the same
     way nuts_calc_tex._init() does (via the shared resolve_approx_params), then
-    generate `num` ApproxProblem dataclasses as plain dicts. `approx` is not a
+    generate `count` ApproxProblem dataclasses. `approx` is not a
     digit-count-shorthand command, so ranges come straight from a_min/a_max
     (and b_min/b_max for estimate/quotient)."""
     operator_field = params.get("operator") or []
@@ -772,25 +798,116 @@ def _generate_approx_problems(params: renderer_config.RendererRequest, num: int)
         b_min=int(params.get("b_min", DEFAULT_B_MIN)),
         b_max=int(params.get("b_max", DEFAULT_B_MAX)),
     )
-    problems = nuts_calc_tex.generate_approx_problems(
+    return nuts_calc_tex.generate_approx_problems(
         resolved.kind, resolved.round_method, resolved.sig_digits, resolved.round_place,
         resolved.operator, resolved.quotient_decimal_places, resolved.dividend_decimal_places,
         list(range(resolved.a_min, resolved.a_max + 1)),
         list(range(resolved.b_min, resolved.b_max + 1)),
-        num, 1,
+        count, start_index,
     )
-    return [_dataclass_to_dict(problem) for problem in problems]
 
 
-# command_type -> generator dispatch table (issue #167's contract): each
-# sub-issue of #166 adds one generator function and one entry here, without
-# touching the shared if/elif chain generate_problems() used to have.
-# `100` has no entry: it is handled by generate_hundred_square_table() and
-# the endpoint's dedicated `command_type == '100'` branch, not this dispatch
-# table, because its single-table `{"table": {...}}` contract does not fit
-# the list-shaped generators collected here (issue #228). generate_problems()
-# also raises a targeted ValueError for `100` pointing callers there.
-_COMMAND_GENERATORS = {
+def _serialize_ope_problems(
+    params: renderer_config.RendererRequest, problems: list[object],
+) -> list[dict[str, object]]:
+    """Serialize `generate('ope', ...)` output for the `/generate-problems` response.
+
+    The plain 2-term path returns `nuts_calc_tex.OpeProblem` instances, which
+    get the curated `OpeProblemData` shape (`c` -> `"result"`, a fixed subset
+    of fields, an optional `result_decimal_places` for the --decimal-remainder
+    / --divide-through modes, and an optional `intermediate_memo`). The
+    `tree`/`missing_value`/`multi_term` variants return their own dataclasses
+    and go through the generic `_dataclass_to_dict` converter, exactly as
+    before issue #359.
+    """
+    if not problems or not isinstance(problems[0], nuts_calc_tex.OpeProblem):
+        return [_dataclass_to_dict(problem) for problem in problems]  # type: ignore[misc]
+
+    intermediate = bool(params.get("intermediate", False))
+    serialized: list[OpeProblemData] = []
+    for ope_problem in problems:
+        problem: OpeProblemData = {
+            "index": ope_problem.index,
+            "a": ope_problem.a,
+            "operator": ope_problem.operator,
+            "b": ope_problem.b,
+            "result": ope_problem.c,
+            "remainder": ope_problem.remainder,
+            "remainder_decimal_places": ope_problem.remainder_decimal_places,
+            "a_decimal_places": ope_problem.a_decimal_places,
+            "b_decimal_places": ope_problem.b_decimal_places,
+        }
+        # The --decimal-remainder div mode (issue #333) and the --divide-through
+        # mode (issue #349) each set an explicit answer-display override; every
+        # other problem leaves it None and the response mirrors the pre-#333
+        # shape.
+        if ope_problem.result_decimal_places is not None:
+            problem["result_decimal_places"] = ope_problem.result_decimal_places
+        if intermediate:
+            problem["intermediate_memo"] = nuts_calc_tex.build_intermediate_memo(ope_problem.a, ope_problem.b)
+        serialized.append(problem)
+    return serialized  # type: ignore[return-value]
+
+
+def _inject_relation(problem: object, item: dict[str, object]) -> None:
+    item["relation"] = problem.relation  # @property, not a dataclass field -- see _dataclass_to_dict's docstring
+
+
+def _inject_decimal_display(problem: object, item: dict[str, object]) -> None:
+    item["decimal_display"] = problem.decimal_display  # @property, not a dataclass field -- see _dataclass_to_dict's docstring
+
+
+# command_type -> post-serialization property injector for the derived
+# (`@property`) values the response contract carries but `_dataclass_to_dict`
+# (which walks `dataclasses.fields()` only) does not: `compare`'s `relation`
+# (issue #171) and `frac2dec`/`dec2frac`'s `decimal_display` (issue #173).
+_RESPONSE_PROPERTY_INJECTORS: dict[str, Callable[[object, dict[str, object]], None]] = {
+    "compare": _inject_relation,
+    "frac2dec": _inject_decimal_display,
+    "dec2frac": _inject_decimal_display,
+}
+
+
+def _serialize_problems(
+    command_type: str | None, params: renderer_config.RendererRequest, problems: list[object],
+) -> list[dict[str, object]]:
+    """Turn `generate(...)`'s problem dataclasses into the plain dicts the
+    `{"problems": [...]}` response envelope carries (issue #359).
+
+    `ope` has its own curated serialization (`_serialize_ope_problems`);
+    `compare`/`frac2dec`/`dec2frac` add one derived `@property` value on top
+    of the generic `_dataclass_to_dict` conversion; every other command_type
+    is a straight `_dataclass_to_dict` of each item.
+    """
+    if command_type == "ope":
+        return _serialize_ope_problems(params, problems)
+
+    injector = _RESPONSE_PROPERTY_INJECTORS.get(command_type)
+    if injector is None:
+        return [_dataclass_to_dict(problem) for problem in problems]  # type: ignore[misc]
+
+    serialized: list[dict[str, object]] = []
+    for problem in problems:
+        item = _dataclass_to_dict(problem)
+        injector(problem, item)  # type: ignore[arg-type]
+        serialized.append(item)  # type: ignore[arg-type]
+    return serialized
+
+
+# command_type -> generator dispatch table (issue #167's contract, extended
+# to the shared `generate(...)` layer in issue #359): each generator takes
+# `(params, count, start_index)` and returns a list of the problem
+# dataclasses `nuts_calc_tex.py` produces -- no dict conversion here. Each
+# sub-issue of #166 added one generator function and one entry, without
+# touching a shared if/elif chain. `ope` is now an entry too (`_generate_ope`
+# dispatches its plain/tree/missing_value/multi_term variants). `100` has no
+# entry: it is handled by generate_hundred_square_table() and the endpoint's
+# dedicated `command_type == '100'` branch, not this dispatch table, because
+# its single-table `{"table": {...}}` contract does not fit the list-shaped
+# generators collected here (issue #228). generate() also raises a targeted
+# ValueError for `100` pointing callers there.
+_COMMAND_GENERATORS: dict[str, Callable[[renderer_config.RendererRequest, int, int], list[object]]] = {
+    "ope": _generate_ope,
     "com": _generate_com_problems,
     "99": _generate_kuku_problems,
     "aBc": _generate_abc_problems,
