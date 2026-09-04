@@ -100,7 +100,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- 383fdbb refactor(#363): migrate the group-4 _generate_*_pdf builders to the shared generate() layer
+- d2727b8 refactor(#364): route the review worksheet through the shared generate() layer
+- 6d55279 refactor(#363): migrate the group-4 _generate_*_pdf builders to the shared generate() layer (#374)
 - 65a529b refactor(#362): migrate the group-3 _generate_*_pdf builders to the shared generate() layer (#373)
 - 9c02d4b refactor(#361): migrate the group-2 _generate_*_pdf builders to the shared generate() layer (#372)
 - 1e31de8 refactor(#360): migrate the ope-family _generate_*_pdf builders to the shared generate() layer (#371)
