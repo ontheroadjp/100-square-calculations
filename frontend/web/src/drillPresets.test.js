@@ -372,6 +372,54 @@ test('grade 1 review worksheet mixes the grade-1 A「数と計算」 units throu
   );
 });
 
+test('grade 2 review worksheet mixes the grade-2 A「数と計算」 units through the shared review layer (issue #366)', () => {
+  const item = presetsByGrade[2].review.find((candidate) => candidate.id === 'g2-review');
+  assert.ok(item, 'g2-review must exist');
+  assert.equal(item.titleKey, 'menu_g2_review_title');
+  assert.equal(item.supportLevel, 'full');
+  assert.equal(item.latexOnly, true);
+  assert.deepEqual(item.settings, []);
+
+  const params = item.buildParams();
+  assert.equal(params.command_type, 'review');
+  assert.equal(params.shuffle, true);
+  assert.ok(Array.isArray(params.sources) && params.sources.length === 5, 'g2-review must expose 5 sources');
+
+  // every source is a plain two-term ope drill carrying an equal relative
+  // weight -- no terms / mixed_operators / vertical, so the backend gives the
+  // worksheet the centered `inline` number placement (issue #355/#366).
+  for (const source of params.sources) {
+    assert.equal(source.command_type, 'ope', 'every g2-review source is an ope drill');
+    assert.equal(source.num, 1, 'every g2-review source has weight 1 (even split)');
+    assert.equal('terms' in source, false, 'g2-review sources stay two-term for the inline layout');
+    assert.equal('mixed_operators' in source, false, 'g2-review sources omit mixed_operators');
+    assert.equal('vertical' in source, false, 'g2-review sources are horizontal');
+  }
+
+  // 2桁の加減 / 簡単な3位数の筆算加減 / 九九 units are each represented (issue #366 scope).
+  assert.ok(
+    params.sources.some((s) => s.operator.join() === 'add' && s.a_max === 99 && s.result_max === 100),
+    'a 2-digit addition source must be present',
+  );
+  assert.ok(
+    params.sources.some((s) => s.operator.join() === 'sub' && s.a_max === 99 && s.result_max === 100),
+    'a 2-digit subtraction source must be present',
+  );
+  assert.ok(
+    params.sources.some((s) => s.operator.join() === 'add' && s.a_max === 999 && s.result_max === 1000),
+    'a 3-digit 筆算 addition source must be present (mirrors g2-add-result-1000)',
+  );
+  assert.ok(
+    params.sources.some((s) => s.operator.join() === 'sub' && s.a_max === 999 && s.result_max === 1000),
+    'a 3-digit 筆算 subtraction source must be present (mirrors g2-sub-result-1000)',
+  );
+  // 九九 mirrors g2-kuku's mixed-dan branch: ope mul over the 1..9 x 1..9 grid.
+  assert.ok(
+    params.sources.some((s) => s.operator.join() === 'mul' && s.a_min === 1 && s.a_max === 9 && s.b_min === 1 && s.b_max === 9),
+    'a 九九 multiplication source must be present',
+  );
+});
+
 test('grade 2 basic addition caps the answer at 100 (issue #176)', () => {
   const item = presetsByGrade[2].addition.find((candidate) => candidate.id === 'g2-add-2digit');
 

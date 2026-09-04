@@ -633,6 +633,60 @@ const grade2 = {
       },
     },
   ],
+  // 総合問題 (multi-source review worksheet, issue #140/#366). One sheet mixing
+  // the grade-2 学習指導要領 第2学年 A「数と計算」 units: 2桁のたし算・ひき算,
+  // 簡単な3位数の筆算たし算・ひき算, 九九(乗法). Each `sources` entry reuses the
+  // exact ope parameters of an existing grade-2 menu drill, routed through the
+  // shared `review` generation layer (issue #364). Every source is a plain
+  // two-term ope equation, so three_layer_renderer._resolve_number_placement
+  // gives the worksheet the centered `inline` number placement (issue #355/#365)
+  // instead of the left gutter. `num` is a relative weight the backend scales to
+  // fill the chosen problem count (10/20/30), so an even split (num:1 ×5) stays
+  // even at every size.
+  review: [
+    {
+      id: 'g2-review',
+      titleKey: 'menu_g2_review_title',
+      descKey: 'menu_g2_review_desc',
+      pointKey: 'menu_g2_review_point',
+      difficultyKey: 'difficulty_standard',
+      examples: ['28+45', '72-38', '346+271', '805-247', '7×8'],
+      settings: [],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'review',
+        shuffle: true,
+        sources: [
+          // 2桁のたし算 くり上がりあり/なし (mirrors g2-add-2digit / carryMode 'mixed')
+          {
+            command_type: 'ope', num: 1, operator: ['add'],
+            a_min: 1, a_max: 99, b_min: 1, b_max: 99, result_max: 100,
+          },
+          // 2桁のひき算 くり下がりあり/なし (mirrors g2-sub-2digit / carryMode 'mixed')
+          {
+            command_type: 'ope', num: 1, operator: ['sub'],
+            a_min: 10, a_max: 99, b_min: 1, b_max: 99, result_max: 100,
+          },
+          // 簡単な3位数のたし算(筆算) (mirrors g2-add-result-1000)
+          {
+            command_type: 'ope', num: 1, operator: ['add'],
+            a_min: 1, a_max: 999, b_min: 1, b_max: 999, result_max: 1000,
+          },
+          // 簡単な3位数のひき算(筆算) (mirrors g2-sub-result-1000)
+          {
+            command_type: 'ope', num: 1, operator: ['sub'],
+            a_min: 1, a_max: 999, b_min: 1, b_max: 999, result_max: 1000,
+          },
+          // 九九 (mirrors g2-kuku with dan 'mixed')
+          {
+            command_type: 'ope', num: 1, operator: ['mul'],
+            a_min: 1, a_max: 9, b_min: 1, b_max: 9,
+          },
+        ],
+      }),
+    },
+  ],
 };
 
 // ---------------------------------------------------------------------

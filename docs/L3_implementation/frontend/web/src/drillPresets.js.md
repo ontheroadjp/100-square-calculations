@@ -6,7 +6,7 @@
 
 ## 動作の概要
 
-`GRADES`(`[1,2,3,4,5,6]`)・`UNGRADED`(`'ungraded'`)・`presetsByGrade` を export する。`presetsByGrade[grade]` は `{ <categoryId>: menuItem[] }` の形で、`categoryId` は `review`/`addition`/`subtraction`/`multiplication`/`division`/`decimal`/`fraction`/`four-operations`/`number-sense` のいずれか(該当する学年にのみ出現)。`review`(総合問題)は3年生専用の試作で、その学年の複数単元を1枚に混ぜるワークシート(issue #140、下記セクション参照)。`decimal` は5年生専用で、`multiplication`/`division` カテゴリを廃止した代わりに小数×小数・整数と小数の割り算をまとめる(issue #320、下記セクション参照)。`fraction` は3年生(issue #161で撤廃)・4年生(issue #315で撤廃)を除く5〜6年生に残る。カテゴリキーは `catalog.js` の固定 `CATEGORY_ORDER`(`review, addition, subtraction, multiplication, division, decimal, fraction, four-operations, number-sense`)による学年ページのセクション見出し順序付けにのみ使われ、`drillCatalog.js` の絞り込み分類(`numberType`/`operationGroup`)には影響しない(`Object.values(categories)` でカテゴリキーを捨ててフラット化するため)。
+`GRADES`(`[1,2,3,4,5,6]`)・`UNGRADED`(`'ungraded'`)・`presetsByGrade` を export する。`presetsByGrade[grade]` は `{ <categoryId>: menuItem[] }` の形で、`categoryId` は `review`/`addition`/`subtraction`/`multiplication`/`division`/`decimal`/`fraction`/`four-operations`/`number-sense` のいずれか(該当する学年にのみ出現)。`review`(総合問題)はその学年の複数単元を1枚に混ぜる「総まとめ」ワークシートで、3年生の試作(issue #140)を起点に1年生(issue #365)・2年生(issue #366)へ展開中(親 issue #358、下記セクション参照)。`decimal` は5年生専用で、`multiplication`/`division` カテゴリを廃止した代わりに小数×小数・整数と小数の割り算をまとめる(issue #320、下記セクション参照)。`fraction` は3年生(issue #161で撤廃)・4年生(issue #315で撤廃)を除く5〜6年生に残る。カテゴリキーは `catalog.js` の固定 `CATEGORY_ORDER`(`review, addition, subtraction, multiplication, division, decimal, fraction, four-operations, number-sense`)による学年ページのセクション見出し順序付けにのみ使われ、`drillCatalog.js` の絞り込み分類(`numberType`/`operationGroup`)には影響しない(`Object.values(categories)` でカテゴリキーを捨ててフラット化するため)。
 
 各 `menuItem` は以下を持つ:
 - `id`/`titleKey`/`descKey`/`pointKey`: 全データモデル中で `id` は一意。`pointKey`(issue #157)は `presetDetail.js` のページヘッダーに表示する、保護者向けの平易な指導ポイント文言(60件、[[./pageHeader.js]] 参照)。既存の `descKey` はもともと旧 `drillCatalog.js` 向けの機械的な説明文で、同ファイルが issue #110 で削除された現在は本データモデル上のフィールドとしてのみ残る(`drillPresets.test.js` が全項目に `descKey` が存在することを検証しているため、フィールド自体は残置)。`pointKey` とは用途・文体が異なる別系統のキーとして併存する。
@@ -206,6 +206,16 @@ issue #309 の `g1-three-terms` 変更を、2年生の `four-operations` カテ�
 - **番号配置**: 5 source すべてが plain 2項 `ope`(`terms`/`mixed_operators`/`vertical` なし)なので、`_resolve_number_placement`([[../../../../backend/three_layer_renderer.py]])が `review` を短1行ドリルと判定し、中央寄せの `inline` 番号配置(issue #355)を返す。左 gutter だと右に空白帯が出て左に寄って見えるため。`g3-review` は `frac` source を含むため引き続き `gutter`(出力バイト不変)。この判定のため `g1-review` の source からは3項計算(`g1-three-terms` 相当、`terms:3`)を意図的に外している(issue #365 のスコープも「1〜2位数のたし算・ひき算」で3項は対象外)。
 - `command_type: 'review'` は `POST /generate-problems` 非対応(g3-review と同じ)。
 - `drillPresets.test.js` に `g1-review` 専用テストを追加(5 source・全 `ope`・`num:1`・`terms`/`mixed_operators`/`vertical` なし・くり上がり/くり下がり/何十 各単元の存在、[[./drillPresets.test.js]] 参照)。文言3キーは [[./strings.ja.json]] に追加。
+
+### 2年生の総合問題(複数ソース混在ワークシート)(issue #366)
+
+2年生に `review` カテゴリを新設し、1項目 `g2-review`(`titleKey: 'menu_g2_review_title'`「2年の総合問題」)を置いた(親 issue #358 の全学年 `review` 展開の一子。g1-review #365 と同型)。学習指導要領 第2学年 A「数と計算」の複数単元 ―― 2桁のたし算・ひき算、簡単な3位数の筆算たし算・ひき算、九九(乗法) ―― を1枚に混在させる。`CATEGORY_ORDER` は既に `'review'` を先頭に持つため、`catalog.js`/`pcMakeFlow.js` は無変更。
+
+- `settings: []`、`supportLevel: 'full'`、`latexOnly: true`。`examples` は静的(`['28+45', '72-38', '346+271', '805-247', '7×8']`)。
+- `buildParams()` は引数を取らず `{ command_type: 'review', shuffle: true, sources: [...5件...] }` を返す。`sources` 各要素は既存の2年生メニュードリルの `ope` オプションをそのまま流用し `num: 1` を付けたもの ―― (1) `ope` add `a 1..99` `b 1..99` `result_max:100`(= `g2-add-2digit`、carryMode 既定 `mixed` = carry_mode キー省略)、(2) `ope` sub `a 10..99` `b 1..99` `result_max:100`(= `g2-sub-2digit`)、(3) `ope` add `a 1..999` `b 1..999` `result_max:1000`(= `g2-add-result-1000`)、(4) `ope` sub 同(= `g2-sub-result-1000`)、(5) `ope` mul `a 1..9` `b 1..9`(= `g2-kuku` の dan `mixed` 分岐)。`num` は相対ウェイトで [[../../../../backend/three_layer_renderer.py]] `_generate_review_pdf` が全問題数(10/20/30)へ按分する。等ウェイト×5。
+- **番号配置**: 5 source すべてが plain 2項 `ope`(`terms`/`mixed_operators`/`vertical` なし)なので、`_resolve_number_placement`([[../../../../backend/three_layer_renderer.py]])が `review` を短1行ドリルと判定し、中央寄せの `inline` 番号配置(issue #355)を返す(g1-review と同じ、backend 変更なし)。この判定のため source からは3項の `g2-addsub-mixed`(`terms:3`)を意図的に外している(issue #366 のスコープも「2〜3位数のたし算・ひき算、九九」で3項は対象外)。`g3-review` は `frac` source を含むため引き続き `gutter`。
+- `command_type: 'review'` は `POST /generate-problems` 非対応(g3-review / g1-review と同じ)。
+- `drillPresets.test.js` に `g2-review` 専用テストを追加(5 source・全 `ope`・`num:1`・`terms`/`mixed_operators`/`vertical` なし・2桁加減 / 3桁筆算加減 / 九九 各単元の存在、[[./drillPresets.test.js]] 参照)。文言3キーは [[./strings.ja.json]] に追加。
 
 ### 括弧・かけ算を含む混合計算を3年生から4年生へ移設(issue #328)
 
