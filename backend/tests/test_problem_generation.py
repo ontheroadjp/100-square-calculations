@@ -587,6 +587,35 @@ def test_generate_problems_frac_reducible_mode_requires_mul_div_operator() -> No
         problem_generation.generate_problems(params, "latex")
 
 
+def test_generate_problems_frac_rejects_unsupported_operator() -> None:
+    # Operator allowlist was builder-only until issue #362 moved it into the
+    # shared layer, so POST /generate-problems rejects it too.
+    params = {
+        "paper_size": "A4", "command_type": "frac", "num": 1,
+        "operator": ["bogus"],
+    }
+    with pytest.raises(ValueError, match="operator contains an unsupported value for the 'frac' command."):
+        problem_generation.generate_problems(params, "latex")
+
+
+def test_generate_problems_frac_rejects_unknown_fraction_form() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "frac", "num": 1,
+        "operator": ["add"], "a_fraction_form": "bogus",
+    }
+    with pytest.raises(ValueError, match="do not support 'improper' or unknown forms"):
+        problem_generation.generate_problems(params, "latex")
+
+
+def test_generate_problems_frac_rejects_unknown_reducible_mode_value() -> None:
+    params = {
+        "paper_size": "A4", "command_type": "frac", "num": 1,
+        "operator": ["mul"], "reducible_mode": "bogus",
+    }
+    with pytest.raises(ValueError, match="Unknown reducible_mode for the 'frac' command."):
+        problem_generation.generate_problems(params, "latex")
+
+
 def test_generate_problems_frac_reducible_mode_required_yields_reducible_products() -> None:
     params = {
         "paper_size": "A4", "command_type": "frac", "num": 5,

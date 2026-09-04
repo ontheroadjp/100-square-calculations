@@ -375,21 +375,14 @@ def _generate_lcm_pdf(data: renderer_config.RendererRequest, output_dir: str) ->
 def _generate_divfrac_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
     """Build a basic division-as-fraction PDF through the presentation API.
 
-    The digit-count shorthand and explicit ranges retain the CLI contract.
-    This basic-case migration produces one blank page; extended output fields
-    remain on neither this in-process path nor its caller.
+    The digit-count shorthand / explicit a-b ranges and the divide-by-zero
+    guard (`b_min >= 1`) are resolved and validated by the shared
+    problem_generation.generate('divfrac', ...) layer (issue #362, P2-3 under
+    #357); this builder only owns the presentation half (rows/columns layout,
+    engine compile). This basic-case migration produces one blank page;
+    extended output fields remain on neither this in-process path nor its
+    caller.
     """
-    a_min, a_max = problem_generation.resolve_digit_count_range(
-        data, 'a_digits', 'a_min', 'a_max',
-        problem_generation.DEFAULT_A_MIN, problem_generation.DEFAULT_A_MAX,
-    )
-    b_min, b_max = problem_generation.resolve_digit_count_range(
-        data, 'b_digits', 'b_min', 'b_max',
-        problem_generation.DEFAULT_B_MIN, problem_generation.DEFAULT_B_MAX,
-    )
-    if b_min < 1:
-        raise ValueError("b_min must be at least 1 for the 'divfrac' command.")
-
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
     if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
@@ -404,14 +397,11 @@ def _generate_divfrac_pdf(data: renderer_config.RendererRequest, output_dir: str
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    nums_a = list(range(a_min, a_max + 1))
-    nums_b = list(range(b_min, b_max + 1))
+    order = rows * columns
     pages = _build_presentation_pages(
         data,
-        rows * columns,
-        lambda start_index: nuts_calc_tex.generate_divfrac_problems(
-            nums_a, nums_b, rows * columns, start_index
-        ),
+        order,
+        lambda start_index: problem_generation.generate('divfrac', data, order, start_index),
         nuts_calc_tex.build_divfrac_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
@@ -1668,61 +1658,19 @@ def _generate_divisors_pdf(data: renderer_config.RendererRequest, output_dir: st
 
 
 def _generate_frac_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
-    """Build one blank basic `frac` page via the presentation API."""
-    numerator_digits = int(data.get('numerator_digits', 1))
-    denominator_digits = int(data.get('denominator_digits', 1))
-    for option_name, value in (
-        ('numerator_digits', numerator_digits),
-        ('denominator_digits', denominator_digits),
-    ):
-        if not nuts_calc_tex.MIN_FRACTION_DIGITS <= value <= nuts_calc_tex.MAX_FRACTION_DIGITS:
-            raise ValueError(
-                f"{option_name} must be between {nuts_calc_tex.MIN_FRACTION_DIGITS} and "
-                f"{nuts_calc_tex.MAX_FRACTION_DIGITS} for the 'frac' command."
-            )
+    """Build one blank basic `frac` page via the presentation API.
 
-    same_denominator = bool(data.get('same_denominator', False))
-    different_denominators = bool(data.get('different_denominators', False))
-    if same_denominator and different_denominators:
-        raise ValueError("same_denominator and different_denominators cannot be combined.")
-
-    proper_operands = bool(data.get('proper_operands', False))
-    if proper_operands and numerator_digits > denominator_digits:
-        raise ValueError(
-            "proper_operands requires numerator_digits to be no greater than denominator_digits."
-        )
-    proper_result = bool(data.get('proper_result', False))
-
-    operators = list(data.get('operator') or ['add'])
-    allowed_operators = {'add', 'sub', 'mul', 'div', 'mix'}
-    if not set(operators) <= allowed_operators:
-        raise ValueError("operator contains an unsupported value for the 'frac' command.")
-
-    a_fraction_form = data.get('a_fraction_form', 'proper')
-    b_fraction_form = data.get('b_fraction_form', 'proper')
-    allowed_fraction_forms = {'proper', 'mixed', 'mix'}
-    if a_fraction_form not in allowed_fraction_forms or b_fraction_form not in allowed_fraction_forms:
-        raise ValueError(
-            "a_fraction_form/b_fraction_form do not support 'improper' or unknown forms "
-            "for the 'frac' command."
-        )
-    if (a_fraction_form, b_fraction_form) != ('proper', 'proper') and operators not in (
-        ['add'], ['sub']
-    ):
-        raise ValueError(
-            "a_fraction_form/b_fraction_form require operator=['add'] or "
-            "operator=['sub'] for the 'frac' command."
-        )
-
-    reducible_mode = data.get('reducible_mode')
-    if reducible_mode is not None:
-        if reducible_mode not in {'required', 'none', 'mixed'}:
-            raise ValueError("Unknown reducible_mode for the 'frac' command.")
-        if not operators or not set(operators) <= {'mul', 'div'}:
-            raise ValueError(
-                "reducible_mode only supports 'mul'/'div' operators for the 'frac' command."
-            )
-
+    Every parameter that feeds problem generation -- numerator/denominator digit
+    counts, same_denominator/different_denominators, proper_operands/proper_result,
+    operator (and its allowlist), a_fraction_form/b_fraction_form (and their
+    allowlist), and the reducible_mode family (its value allowlist plus the
+    mul/div-operator rule) -- is resolved and validated by the shared
+    problem_generation.generate('frac', ...) layer (issue #362, P2-3 under #357);
+    this builder only owns the presentation half (rows/columns layout, engine
+    compile). The operator / fraction-form / reducible_mode-value allowlists were
+    builder-only before #362 and now converge into the shared layer so
+    POST /generate-problems rejects the same malformed values.
+    """
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
     if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
@@ -1737,23 +1685,11 @@ def _generate_frac_pdf(data: renderer_config.RendererRequest, output_dir: str) -
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
+    order = rows * columns
     pages = _build_presentation_pages(
         data,
-        rows * columns,
-        lambda start_index: nuts_calc_tex.generate_fraction_problems(
-            numerator_digits,
-            denominator_digits,
-            operators,
-            rows * columns,
-            start_index,
-            same_denominator,
-            proper_operands,
-            proper_result,
-            different_denominators,
-            a_fraction_form,
-            b_fraction_form,
-            reducible_mode,
-        ),
+        order,
+        lambda start_index: problem_generation.generate('frac', data, order, start_index),
         nuts_calc_tex.build_fraction_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
@@ -1781,19 +1717,13 @@ def _generate_frac_pdf(data: renderer_config.RendererRequest, output_dir: str) -
 
 
 def _generate_simplify_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
-    """Build one blank basic `simplify` page via the presentation API."""
-    numerator_digits = int(data.get('numerator_digits', 1))
-    denominator_digits = int(data.get('denominator_digits', 1))
-    for option_name, value in (
-        ('numerator_digits', numerator_digits),
-        ('denominator_digits', denominator_digits),
-    ):
-        if not nuts_calc_tex.MIN_FRACTION_DIGITS <= value <= nuts_calc_tex.MAX_FRACTION_DIGITS:
-            raise ValueError(
-                f"{option_name} must be between {nuts_calc_tex.MIN_FRACTION_DIGITS} and "
-                f"{nuts_calc_tex.MAX_FRACTION_DIGITS} for the 'simplify' command."
-            )
+    """Build one blank basic `simplify` page via the presentation API.
 
+    The numerator/denominator digit-count validation is owned by the shared
+    problem_generation.generate('simplify', ...) layer (issue #362, P2-3 under
+    #357); this builder only owns the presentation half (rows/columns layout,
+    engine compile).
+    """
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
     if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
@@ -1808,12 +1738,11 @@ def _generate_simplify_pdf(data: renderer_config.RendererRequest, output_dir: st
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
+    order = rows * columns
     pages = _build_presentation_pages(
         data,
-        rows * columns,
-        lambda start_index: nuts_calc_tex.generate_simplify_problems(
-            numerator_digits, denominator_digits, rows * columns, start_index
-        ),
+        order,
+        lambda start_index: problem_generation.generate('simplify', data, order, start_index),
         nuts_calc_tex.build_simplify_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
@@ -1841,19 +1770,13 @@ def _generate_simplify_pdf(data: renderer_config.RendererRequest, output_dir: st
 
 
 def _generate_frac2dec_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
-    """Build one blank basic `frac2dec` page via the presentation API."""
-    numerator_digits = int(data.get('numerator_digits', 1))
-    denominator_digits = int(data.get('denominator_digits', 1))
-    for option_name, value in (
-        ('numerator_digits', numerator_digits),
-        ('denominator_digits', denominator_digits),
-    ):
-        if not nuts_calc_tex.MIN_FRACTION_DIGITS <= value <= nuts_calc_tex.MAX_FRACTION_DIGITS:
-            raise ValueError(
-                f"{option_name} must be between {nuts_calc_tex.MIN_FRACTION_DIGITS} and "
-                f"{nuts_calc_tex.MAX_FRACTION_DIGITS} for the 'frac2dec' command."
-            )
+    """Build one blank basic `frac2dec` page via the presentation API.
 
+    The numerator/denominator digit-count validation is owned by the shared
+    problem_generation.generate('frac2dec', ...) layer (issue #362, P2-3 under
+    #357); this builder only owns the presentation half (rows/columns layout,
+    engine compile).
+    """
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
     if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
@@ -1868,12 +1791,11 @@ def _generate_frac2dec_pdf(data: renderer_config.RendererRequest, output_dir: st
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
+    order = rows * columns
     pages = _build_presentation_pages(
         data,
-        rows * columns,
-        lambda start_index: nuts_calc_tex.generate_frac2dec_problems(
-            numerator_digits, denominator_digits, rows * columns, start_index
-        ),
+        order,
+        lambda start_index: problem_generation.generate('frac2dec', data, order, start_index),
         nuts_calc_tex.build_frac2dec_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
@@ -1904,8 +1826,10 @@ def _generate_dec2frac_pdf(data: renderer_config.RendererRequest, output_dir: st
     """Build one blank basic `dec2frac` page via the presentation API.
 
     Unlike `frac2dec`, `dec2frac` has no numerator/denominator digit options --
-    `generate_dec2frac_problems` takes only `(order, start_index)` -- so only
-    `rows`/`columns` are validated here.
+    `generate_dec2frac_problems` takes only `(count, start_index)` -- so the
+    shared problem_generation.generate('dec2frac', ...) layer (issue #362, P2-3
+    under #357) has nothing to validate beyond `count`; this builder owns only
+    the presentation half (rows/columns layout, engine compile).
     """
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
@@ -1921,12 +1845,11 @@ def _generate_dec2frac_pdf(data: renderer_config.RendererRequest, output_dir: st
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
+    order = rows * columns
     pages = _build_presentation_pages(
         data,
-        rows * columns,
-        lambda start_index: nuts_calc_tex.generate_dec2frac_problems(
-            rows * columns, start_index
-        ),
+        order,
+        lambda start_index: problem_generation.generate('dec2frac', data, order, start_index),
         nuts_calc_tex.build_dec2frac_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
@@ -2027,19 +1950,13 @@ def _generate_compare_pdf(data: renderer_config.RendererRequest, output_dir: str
 
 
 def _generate_commondenom_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
-    """Build one blank basic `commondenom` page via the presentation API."""
-    numerator_digits = int(data.get('numerator_digits', 1))
-    denominator_digits = int(data.get('denominator_digits', 1))
-    for option_name, value in (
-        ('numerator_digits', numerator_digits),
-        ('denominator_digits', denominator_digits),
-    ):
-        if not nuts_calc_tex.MIN_FRACTION_DIGITS <= value <= nuts_calc_tex.MAX_FRACTION_DIGITS:
-            raise ValueError(
-                f"{option_name} must be between {nuts_calc_tex.MIN_FRACTION_DIGITS} and "
-                f"{nuts_calc_tex.MAX_FRACTION_DIGITS} for the 'commondenom' command."
-            )
+    """Build one blank basic `commondenom` page via the presentation API.
 
+    The numerator/denominator digit-count validation is owned by the shared
+    problem_generation.generate('commondenom', ...) layer (issue #362, P2-3 under
+    #357); this builder only owns the presentation half (rows/columns layout,
+    engine compile).
+    """
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
     if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
@@ -2054,12 +1971,11 @@ def _generate_commondenom_pdf(data: renderer_config.RendererRequest, output_dir:
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
+    order = rows * columns
     pages = _build_presentation_pages(
         data,
-        rows * columns,
-        lambda start_index: nuts_calc_tex.generate_commondenom_problems(
-            numerator_digits, denominator_digits, rows * columns, start_index
-        ),
+        order,
+        lambda start_index: problem_generation.generate('commondenom', data, order, start_index),
         nuts_calc_tex.build_commondenom_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
