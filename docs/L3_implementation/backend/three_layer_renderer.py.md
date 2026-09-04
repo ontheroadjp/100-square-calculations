@@ -94,7 +94,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- a116853 feat(#140): add the grade-3 multi-source review (総合問題) worksheet
+- 9d727e5 feat(#355): center the problem number and equation for short single-line drills
+- e9083d6 feat(#140): add the grade-3 multi-source review (総合問題) worksheet (#354)
 - 7203e9e feat(#349): redesign decimal-division drills around a remainder setting and add a divide-through mode (#352)
 - ffd182f feat(#346): add the 概数 (approx) rounding / estimation drill (#348)
 - 9da1116 feat(#333): add grade 4 decimal-remainder division drill and --decimal-remainder flag (#345)
@@ -103,4 +104,3 @@
 - b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)
 - 7bbec1b refactor(#297): delete the legacy /generate-pdf subprocess rendering path (#325)
 - f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)
-- e6e0e98 fix(#298): honor descend / shuffle in _generate_squ_pdf (3-layer renderer) (#299)
