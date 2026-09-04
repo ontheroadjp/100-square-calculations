@@ -27,7 +27,6 @@ the shared ``RendererRequest`` type.
 import contextlib
 import functools
 import io
-import math
 import os
 import random
 import shutil
@@ -301,24 +300,15 @@ def _generate_lcm_pdf(data: renderer_config.RendererRequest, output_dir: str) ->
     (practice) page. with_bottom_answer/with_name_field/multi-page/merge are
     unsupported here too, matching _generate_com_pdf's scope.
 
-    'lcm' is in nuts_calc_tex.DIGIT_COUNT_SHORTHAND_COMMANDS (unlike 'com'),
-    so a/b are resolved via problem_generation.resolve_digit_count_range
-    rather than read directly -- see _generate_com_pdf's docstring, and
-    _generate_ope_pdf for the same resolution pattern. 'lcm' has no variant
-    flags (vertical/intermediate/use_parentheses/etc. are all rejected by
-    _init() for non-'ope' commands), so unlike the `ope` migrations this
-    needs no `_is_lcm_pdf_request` helper -- a plain command_type equality
-    check in generate_pdf() is enough, matching 'com'.
+    The a/b digit-count shorthand / explicit ranges (`resolve_digit_count_range`)
+    and the choice of math.lcm are resolved by the shared
+    problem_generation.generate('lcm', ...) layer (issue #363, P2-4 under #357);
+    this builder only owns the presentation half (rows/columns layout, engine
+    compile). 'lcm' has no variant flags (vertical/intermediate/use_parentheses/
+    etc. are all rejected by _init() for non-'ope' commands), so unlike the
+    `ope` migrations this needs no `_is_lcm_pdf_request` helper -- a plain
+    command_type equality check in generate_pdf() is enough, matching 'com'.
     """
-    a_min, a_max = problem_generation.resolve_digit_count_range(
-        data, 'a_digits', 'a_min', 'a_max',
-        problem_generation.DEFAULT_A_MIN, problem_generation.DEFAULT_A_MAX,
-    )
-    b_min, b_max = problem_generation.resolve_digit_count_range(
-        data, 'b_digits', 'b_min', 'b_max',
-        problem_generation.DEFAULT_B_MIN, problem_generation.DEFAULT_B_MAX,
-    )
-
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
     if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
@@ -333,14 +323,11 @@ def _generate_lcm_pdf(data: renderer_config.RendererRequest, output_dir: str) ->
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    nums_a = list(range(a_min, a_max + 1))
-    nums_b = list(range(b_min, b_max + 1))
+    order = rows * columns
     pages = _build_presentation_pages(
         data,
-        rows * columns,
-        lambda start_index: nuts_calc_tex.generate_number_pair_problems(
-            math.lcm, nums_a, nums_b, rows * columns, start_index
-        ),
+        order,
+        lambda start_index: problem_generation.generate('lcm', data, order, start_index),
         nuts_calc_tex.build_number_pair_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
@@ -433,26 +420,16 @@ def _generate_approx_pdf(data: renderer_config.RendererRequest, output_dir: str)
     internal presentation API.
 
     `approx` is not a digit-count-shorthand command: operand ranges come
-    straight from a_min/a_max (and b_min/b_max for estimate/quotient), and
-    nuts_calc_tex.resolve_approx_params() fills the same kind-specific
-    defaults and runs the same feasibility checks the CLI's _init() does,
-    raising ValueError (mapped to HTTP 500 by app.py) on an invalid request.
+    straight from a_min/a_max (and b_min/b_max for estimate/quotient). The
+    whole parameter set -- kind/round_method/round_place/sig_digits/
+    quotient_decimal_places/dividend_decimal_places/operator plus the ranges --
+    is resolved and validated (via nuts_calc_tex.resolve_approx_params, the
+    same kind-specific defaults and feasibility checks the CLI's _init() runs)
+    by the shared problem_generation.generate('approx', ...) layer (issue #363,
+    P2-4 under #357); this builder only owns the presentation half (rows/
+    columns layout, engine compile). An invalid request still raises ValueError
+    (mapped to HTTP 500 by app.py).
     """
-    operator_field = data.get('operator') or []
-    params = nuts_calc_tex.resolve_approx_params(
-        kind=str(data.get('kind', 'round')),
-        round_method=str(data.get('round_method', 'round')),
-        round_place=data.get('round_place'),
-        sig_digits=data.get('sig_digits'),
-        quotient_decimal_places=data.get('quotient_decimal_places'),
-        dividend_decimal_places=data.get('dividend_decimal_places'),
-        operator=operator_field[0] if operator_field else None,
-        a_min=int(data.get('a_min', problem_generation.DEFAULT_A_MIN)),
-        a_max=int(data.get('a_max', problem_generation.DEFAULT_A_MAX)),
-        b_min=int(data.get('b_min', problem_generation.DEFAULT_B_MIN)),
-        b_max=int(data.get('b_max', problem_generation.DEFAULT_B_MAX)),
-    )
-
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
     if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
@@ -467,16 +444,11 @@ def _generate_approx_pdf(data: renderer_config.RendererRequest, output_dir: str)
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    nums_a = list(range(params.a_min, params.a_max + 1))
-    nums_b = list(range(params.b_min, params.b_max + 1))
+    order = rows * columns
     pages = _build_presentation_pages(
         data,
-        rows * columns,
-        lambda start_index: nuts_calc_tex.generate_approx_problems(
-            params.kind, params.round_method, params.sig_digits, params.round_place,
-            params.operator, params.quotient_decimal_places, params.dividend_decimal_places,
-            nums_a, nums_b, rows * columns, start_index,
-        ),
+        order,
+        lambda start_index: problem_generation.generate('approx', data, order, start_index),
         nuts_calc_tex.build_approx_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
@@ -512,19 +484,12 @@ def _generate_gcd_pdf(data: renderer_config.RendererRequest, output_dir: str) ->
     a single blank (practice) page. with_bottom_answer/with_name_field/
     multi-page/merge remain unsupported, matching the sibling migrations.
 
-    Like 'lcm', 'gcd' is in nuts_calc_tex.DIGIT_COUNT_SHORTHAND_COMMANDS, so
-    a/b are resolved via problem_generation.resolve_digit_count_range. It has
-    no variant flags, so an exact command_type equality check is sufficient.
+    Like 'lcm', the a/b digit-count shorthand / explicit ranges and the choice
+    of math.gcd are resolved by the shared problem_generation.generate('gcd',
+    ...) layer (issue #363, P2-4 under #357); this builder only owns the
+    presentation half. 'gcd' has no variant flags, so an exact command_type
+    equality check is sufficient.
     """
-    a_min, a_max = problem_generation.resolve_digit_count_range(
-        data, 'a_digits', 'a_min', 'a_max',
-        problem_generation.DEFAULT_A_MIN, problem_generation.DEFAULT_A_MAX,
-    )
-    b_min, b_max = problem_generation.resolve_digit_count_range(
-        data, 'b_digits', 'b_min', 'b_max',
-        problem_generation.DEFAULT_B_MIN, problem_generation.DEFAULT_B_MAX,
-    )
-
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
     if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
@@ -539,14 +504,11 @@ def _generate_gcd_pdf(data: renderer_config.RendererRequest, output_dir: str) ->
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    nums_a = list(range(a_min, a_max + 1))
-    nums_b = list(range(b_min, b_max + 1))
+    order = rows * columns
     pages = _build_presentation_pages(
         data,
-        rows * columns,
-        lambda start_index: nuts_calc_tex.generate_number_pair_problems(
-            math.gcd, nums_a, nums_b, rows * columns, start_index
-        ),
+        order,
+        lambda start_index: problem_generation.generate('gcd', data, order, start_index),
         nuts_calc_tex.build_number_pair_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
@@ -580,10 +542,12 @@ def _generate_evenodd_pdf(data: renderer_config.RendererRequest, output_dir: str
     #214). Basic-case only: a_min/a_max plus optional rows/columns, always a
     single blank page. Answer pages, bottom answers, name fields, multiple
     pages, and merged output are not wired in this builder.
-    """
-    a_min = data.get('a_min', problem_generation.DEFAULT_A_MIN)
-    a_max = data.get('a_max', problem_generation.DEFAULT_A_MAX)
 
+    The a_min/a_max range is resolved by the shared
+    problem_generation.generate('evenodd', ...) layer (issue #363, P2-4 under
+    #357); this builder only owns the presentation half (rows/columns layout,
+    engine compile).
+    """
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
     if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
@@ -598,13 +562,11 @@ def _generate_evenodd_pdf(data: renderer_config.RendererRequest, output_dir: str
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    nums_a = list(range(a_min, a_max + 1))
+    order = rows * columns
     pages = _build_presentation_pages(
         data,
-        rows * columns,
-        lambda start_index: nuts_calc_tex.generate_evenodd_problems(
-            nums_a, rows * columns, start_index
-        ),
+        order,
+        lambda start_index: problem_generation.generate('evenodd', data, order, start_index),
         nuts_calc_tex.build_evenodd_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
@@ -1537,19 +1499,13 @@ def _generate_multiples_pdf(data: renderer_config.RendererRequest, output_dir: s
     This basic-case migration preserves the data-layer defaults and the
     existing multiples-count semantics. Answer pages, bottom answers, name
     fields, multiple pages, and merged output are not wired in this builder.
+
+    The a_min/a_max range, the `a_min >= 1` guard and the `multiples_count`
+    minimum check are resolved and validated by the shared
+    problem_generation.generate('multiples', ...) layer (issue #363, P2-4 under
+    #357); this builder only owns the presentation half (rows/columns layout,
+    engine compile).
     """
-    a_min = int(data.get('a_min', problem_generation.DEFAULT_A_MIN))
-    a_max = int(data.get('a_max', problem_generation.DEFAULT_A_MAX))
-    if a_min < 1:
-        raise ValueError("a_min must be at least 1 for the 'multiples' command.")
-
-    multiples_count = int(data.get('multiples_count', nuts_calc_tex.DEFAULT_MULTIPLES_COUNT))
-    if multiples_count < nuts_calc_tex.MIN_MULTIPLES_COUNT:
-        raise ValueError(
-            f"multiples_count must be at least {nuts_calc_tex.MIN_MULTIPLES_COUNT} "
-            "for the 'multiples' command."
-        )
-
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
     if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
@@ -1564,13 +1520,11 @@ def _generate_multiples_pdf(data: renderer_config.RendererRequest, output_dir: s
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    nums_a = list(range(a_min, a_max + 1))
+    order = rows * columns
     pages = _build_presentation_pages(
         data,
-        rows * columns,
-        lambda start_index: nuts_calc_tex.generate_multiples_problems(
-            nums_a, rows * columns, start_index, multiples_count
-        ),
+        order,
+        lambda start_index: problem_generation.generate('multiples', data, order, start_index),
         nuts_calc_tex.build_multiples_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
@@ -1604,12 +1558,12 @@ def _generate_divisors_pdf(data: renderer_config.RendererRequest, output_dir: st
     This basic-case migration preserves the data-layer range defaults.
     Answer pages, bottom answers, name fields, multiple pages, and merged
     output are not wired in this builder.
-    """
-    a_min = int(data.get('a_min', problem_generation.DEFAULT_A_MIN))
-    a_max = int(data.get('a_max', problem_generation.DEFAULT_A_MAX))
-    if a_min < 1:
-        raise ValueError("a_min must be at least 1 for the 'divisors' command.")
 
+    The a_min/a_max range and the `a_min >= 1` guard are resolved and
+    validated by the shared problem_generation.generate('divisors', ...) layer
+    (issue #363, P2-4 under #357); this builder only owns the presentation
+    half (rows/columns layout, engine compile).
+    """
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
     if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
@@ -1624,13 +1578,11 @@ def _generate_divisors_pdf(data: renderer_config.RendererRequest, output_dir: st
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
-    nums_a = list(range(a_min, a_max + 1))
+    order = rows * columns
     pages = _build_presentation_pages(
         data,
-        rows * columns,
-        lambda start_index: nuts_calc_tex.generate_divisors_problems(
-            nums_a, rows * columns, start_index
-        ),
+        order,
+        lambda start_index: problem_generation.generate('divisors', data, order, start_index),
         nuts_calc_tex.build_divisors_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
@@ -1883,25 +1835,23 @@ def _generate_compare_pdf(data: renderer_config.RendererRequest, output_dir: str
 
     `compare` shares `--numerator-digits`/`--denominator-digits` with
     `frac`/`simplify`/`frac2dec` and is NOT a DIGIT_COUNT_SHORTHAND_COMMANDS
-    command, so those are read straight from `data` with the
-    MIN_FRACTION_DIGITS..MAX_FRACTION_DIGITS check (like _generate_simplify_pdf).
-    Basic case only: the comparison pattern / fraction forms / operand kinds
-    use the CLI defaults (different-denominators, proper, proper,
-    fraction-vs-fraction); with_bottom_answer/with_name_field/multi-page/
-    merge/show_answer are out of scope, matching #199/#222.
-    """
-    numerator_digits = int(data.get('numerator_digits', 1))
-    denominator_digits = int(data.get('denominator_digits', 1))
-    for option_name, value in (
-        ('numerator_digits', numerator_digits),
-        ('denominator_digits', denominator_digits),
-    ):
-        if not nuts_calc_tex.MIN_FRACTION_DIGITS <= value <= nuts_calc_tex.MAX_FRACTION_DIGITS:
-            raise ValueError(
-                f"{option_name} must be between {nuts_calc_tex.MIN_FRACTION_DIGITS} and "
-                f"{nuts_calc_tex.MAX_FRACTION_DIGITS} for the 'compare' command."
-            )
+    command. The numerator/denominator digit-count check plus the comparison
+    pattern / fraction forms / operand kinds / decimal_places -- everything
+    that feeds problem generation -- are resolved and validated by the shared
+    problem_generation.generate('compare', ...) layer (issue #363, P2-4 under
+    #357); this builder only owns the presentation half (rows/columns layout,
+    the number-less slot formatter, engine compile). with_bottom_answer/
+    with_name_field/multi-page/merge/show_answer are still out of scope.
 
+    Before #363 this builder hard-coded the CLI defaults (different-
+    denominators / proper / proper / fraction-vs-fraction) and dropped every
+    non-default `comparison_pattern`/`a_fraction_form`/`b_fraction_form`/
+    `a_kind`/`b_kind`/`decimal_places` value; the shared layer now honours
+    them, converging `POST /generate-pdf` on the same resolution
+    `POST /generate-problems` already used (per the #357 /mtg "shared layer is
+    the single layer" decision). No `frontend/web` preset sends those keys, so
+    every reachable request's output is unchanged.
+    """
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
     if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
@@ -1916,13 +1866,11 @@ def _generate_compare_pdf(data: renderer_config.RendererRequest, output_dir: str
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
+    order = rows * columns
     pages = _build_presentation_pages(
         data,
-        rows * columns,
-        lambda start_index: nuts_calc_tex.generate_fraction_comparison_problems(
-            'different-denominators', 'proper', 'proper',
-            numerator_digits, denominator_digits, rows * columns, start_index,
-        ),
+        order,
+        lambda start_index: problem_generation.generate('compare', data, order, start_index),
         None,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
