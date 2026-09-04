@@ -5685,18 +5685,19 @@ def build_review_slot_content_tex(problem: ReviewProblem, show_answer: bool) -> 
 
     The problem number is Layer 2's concern (build_content_area_slot_tex),
     so like every other build_*_slot_content_tex this returns a number-free
-    body -- here the wrapped payload's own slot formatter. Only the source
-    command types the grade-3 prototype recipe needs are wired; a later
-    grade whose recipe adds another drill wires its formatter here and its
-    generator in three_layer_renderer._REVIEW_SOURCE_GENERATORS.
+    body -- here the wrapped payload's own slot formatter, looked up in
+    ``_REVIEW_SLOT_CONTENT_FORMATTERS`` (defined after the slot formatters it
+    references). Since issue #364 every ``command_type`` the shared
+    ``problem_generation.generate()`` layer supports can be a review source;
+    ``ope --vertical`` (tabular grid) and ``100`` (single block table) have
+    no review slot and never reach here (three_layer_renderer rejects them).
     """
-    if problem.kind == 'ope':
-        return build_ope_slot_content_tex(problem.payload, show_answer)
-    if problem.kind == 'frac':
-        return build_fraction_slot_content_tex(problem.payload, show_answer)
-    raise ValueError(
-        f"review worksheet has no slot formatter for kind {problem.kind!r}"
-    )
+    formatter = _REVIEW_SLOT_CONTENT_FORMATTERS.get(problem.kind)
+    if formatter is None:
+        raise ValueError(
+            f"review worksheet has no slot formatter for kind {problem.kind!r}"
+        )
+    return formatter(problem.payload, show_answer)
 
 
 def build_fraction_page_pair(problems: list[FractionProblem], columns: int) -> tuple[Page, Page]:
@@ -7496,6 +7497,44 @@ def build_approx_pages(ini: argparse.Namespace) -> tuple[list[Page], list[Page],
             blank_page.bottom_answer_tex = build_approx_bottom_answer_tex(problems)
 
     return blank_pages, filled_pages, pages_problems
+
+
+# Maps ReviewProblem.kind to the number-free Layer-3 slot formatter for that
+# source drill (issue #140, extended to the full shared-generation command
+# set in issue #364). Every entry takes ``(payload, show_answer)`` and emits
+# an inline-grid-compatible body, so any mix of these renders on one review
+# page. The two shared-layer-adjacent command types with no entry -- ``ope
+# --vertical`` (needs a tabular grid) and ``100`` (a single block table, not
+# a count-many list) -- cannot be review sources; three_layer_renderer
+# rejects them before build_review_slot_content_tex is ever called. `ope`
+# fans out to its parameter-selected variant kind
+# (three_layer_renderer._resolve_review_source_kind).
+_REVIEW_SLOT_CONTENT_FORMATTERS: dict[str, Callable[[object, bool], str]] = {
+    'ope': build_ope_slot_content_tex,
+    'tree_ope': build_tree_ope_slot_content_tex,
+    'multi_term_ope': build_multi_term_ope_slot_content_tex,
+    'missing_value_ope': build_missing_value_slot_content_tex,
+    'intermediate_ope': build_intermediate_ope_slot_content_tex,
+    'com': build_com_slot_content_tex,
+    'mixed': build_mixed_slot_content_tex,
+    'aBc': build_abc_slot_content_tex,
+    '99': build_kuku_slot_content_tex,
+    'squ': build_squ_slot_content_tex,
+    'pi': build_pi_slot_content_tex,
+    'frac': build_fraction_slot_content_tex,
+    'simplify': build_simplify_slot_content_tex,
+    'commondenom': build_commondenom_slot_content_tex,
+    'divfrac': build_divfrac_slot_content_tex,
+    'frac2dec': build_frac2dec_slot_content_tex,
+    'dec2frac': build_dec2frac_slot_content_tex,
+    'compare': build_fraction_comparison_slot_content_tex,
+    'evenodd': build_evenodd_slot_content_tex,
+    'multiples': build_multiples_slot_content_tex,
+    'divisors': build_divisors_slot_content_tex,
+    'lcm': build_lcm_slot_content_tex,
+    'gcd': build_gcd_slot_content_tex,
+    'approx': build_approx_slot_content_tex,
+}
 
 
 def main(ini: argparse.Namespace) -> None:

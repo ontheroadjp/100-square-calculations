@@ -455,12 +455,13 @@
 - CSV列: `evenodd` は `[page_number, index, a, label]` の固定4列。`multiples`/`divisors` はリスト長が可変のため、`build_multiples_csv_rows`/`build_divisors_csv_rows` はリストをスペース区切りの単一文字列に変換した `[page_number, index, a, "6 12 18 24"]` 形式にする(多項 `ope`/`mixed` の自己記述文字列カラムと同じ方針)。
 - `main()` のディスパッチは `squ`/`pi` と同じパターンで `evenodd_pages_problems`/`multiples_pages_problems`/`divisors_pages_problems` の3変数を追加し、`ini.command` の分岐と CSV 書き出し分岐の両方に対応する `elif` を追加した。
 
-### review 総合ワークシート用の共有部品(issue #140)
+### review 総合ワークシート用の共有部品(issue #140、#364 で拡張)
 
-複数の別ドリルの問題を1枚に混ぜる「総合問題」ワークシートのために、本ファイルには **追加のみ** の2部品がある。合成ロジック本体(どのドリルを何問混ぜ、シャッフルし、採番するか)は `backend/three_layer_renderer.py` の `_generate_review_pdf` にあり、CLI(positional `command` の choices・`_init()`)は無改変。
+複数の別ドリルの問題を1枚に混ぜる「総合問題」ワークシートのために、本ファイルには **追加のみ** の部品がある。合成ロジック本体(どのドリルを何問混ぜ、シャッフルし、採番するか)は `backend/three_layer_renderer.py` の `_generate_review_pdf` にあり、CLI(positional `command` の choices・`_init()`)は無改変。
 
 - `ReviewProblem` データクラス(`index: int` / `kind: str` / `payload: object`): 下位ドリルの1問(`OpeProblem` / `FractionProblem` 等)を `payload` に、それを描く slot formatter を選ぶキーを `kind` に持つ。`index` は全ソース連結・シャッフル後に呼び出し側が振る 1..N のスロット番号なので、生成器ではなく `_generate_review_pdf` が設定する(frozen にしない)。
-- `build_review_slot_content_tex(problem, show_answer)`: `ContentFormat` 契約(`Callable[[problem, bool], str]`)を満たす番号なし Layer-3 content。`problem.kind` で分岐し、`'ope'` は `build_ope_slot_content_tex(problem.payload, ...)`、`'frac'` は `build_fraction_slot_content_tex(problem.payload, ...)` へ委譲する。未知の `kind` は `ValueError`。番号ボックスは Layer 2(`build_content_area_slot_tex`)が付けるため、他の `build_*_slot_content_tex` と同じく本文のみ返す。対応する `kind` は現状 `ope` / `frac` のみ(3年の試作レシピが必要とする範囲)。別学年のレシピが別ドリルを要れば、ここに1分岐と `_generate_review_pdf` の `_REVIEW_SOURCE_GENERATORS` に生成器を足す。
+- `_REVIEW_SLOT_CONTENT_FORMATTERS`(dict、`main()` 直前・全 slot formatter 定義後に配置): `ReviewProblem.kind` → 番号なし `build_*_slot_content_tex` の registry。issue #364(#357 P3)で `ope`/`frac` の2分岐から、共有生成層 `problem_generation.generate()` が扱う全 command type 分(24 エントリ: `ope` の5 variant `ope`/`tree_ope`/`multi_term_ope`/`missing_value_ope`/`intermediate_ope` + `com`/`mixed`/`aBc`/`99`/`squ`/`pi`/`frac`/`simplify`/`commondenom`/`divfrac`/`frac2dec`/`dec2frac`/`compare`/`evenodd`/`multiples`/`divisors`/`lcm`/`gcd`/`approx`)へ拡張した。全エントリが `(payload, show_answer)` を取り inline グリッド互換の本文を返すため、任意の混在が1枚に載る。`ope --vertical`(tabular グリッド必須)と `100`(単一 block table)はエントリを持たず、`three_layer_renderer` 側(`_resolve_review_source_kind` / `_resolve_review_sources`)が先に弾くため到達しない。定義位置が離れているのは、参照する slot formatter 群がファイル後方に定義されているため(module global なので呼び出し時解決で問題ない)。
+- `build_review_slot_content_tex(problem, show_answer)`: `ContentFormat` 契約(`Callable[[problem, bool], str]`)を満たす番号なし Layer-3 content。`_REVIEW_SLOT_CONTENT_FORMATTERS.get(problem.kind)` で formatter を引き、`formatter(problem.payload, show_answer)` へ委譲する。未登録 `kind` は `ValueError`。番号ボックスは Layer 2(`build_content_area_slot_tex`)が付けるため、他の `build_*_slot_content_tex` と同じく本文のみ返す。
 
 ## 重要な設計判断とその理由
 
@@ -618,7 +619,8 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴（git log より自動生成）
 
-- 9d727e5 feat(#355): center the problem number and equation for short single-line drills
+- d2727b8 refactor(#364): route the review worksheet through the shared generate() layer
+- 7b92770 feat(#355): center the problem number and equation for short single-line drills (#356)
 - e9083d6 feat(#140): add the grade-3 multi-source review (総合問題) worksheet (#354)
 - 7203e9e feat(#349): redesign decimal-division drills around a remainder setting and add a divide-through mode (#352)
 - ffd182f feat(#346): add the 概数 (approx) rounding / estimation drill (#348)
@@ -627,4 +629,3 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - b2df846 feat(#332): add grade 3 two-digit-quotient division drill and --quotient-digits flag (#344)
 - 36de01d fix(#342): guarantee a non-trivial division in every g4-parentheses problem (#343)
 - b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)
-- f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)

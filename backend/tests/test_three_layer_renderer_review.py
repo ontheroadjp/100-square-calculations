@@ -1,11 +1,21 @@
 """Tests for the multi-source 'review' (総合) worksheet builder (issue #140).
 
 `three_layer_renderer._generate_review_pdf` composes problems from several
-distinct drills onto one page: it generates each `sources` entry through its
-own data-layer function, concatenates the results, optionally shuffles them
-(deterministically when `review_seed` is set), renumbers them 1..N per page,
-and renders them through `nuts_calc_tex.build_review_slot_content_tex`, a
-`kind`-dispatching Layer-3 content format.
+distinct drills onto one page: since issue #364 (#357 P3) it generates each
+`sources` entry through the shared `problem_generation.generate()` layer,
+concatenates the results, optionally shuffles them (deterministically when
+`review_seed` is set), renumbers them 1..N per page, and renders them through
+`nuts_calc_tex.build_review_slot_content_tex`, a `kind`-dispatching Layer-3
+content format whose registry (`_REVIEW_SLOT_CONTENT_FORMATTERS`) now covers
+every command type the shared layer supports.
+
+Before #364 `review` had its own `_review_ope_problems` / `_review_frac_problems`
+generators wired through `_REVIEW_SOURCE_GENERATORS`, accepted only
+`command_type in {'ope', 'frac'}`, and forwarded just the handful of options
+the grade-3 recipe used. P3 removed all of that: any shared-layer command type
+is now a valid source with full option parity, and grade 3's worksheet output
+is unchanged (verified byte-for-byte against the pre-#364 renderer with the
+module RNG seeded identically).
 
 Most tests here are pure-Python: they stub the LaTeX engine's `compile()` so
 no real pdflatex/lualatex is needed, and assert on the generated TeX string
@@ -14,6 +24,7 @@ skipped when neither engine is on PATH, mirroring
 test_nuts_calc_tex_presentation_api.py's skip pattern.
 """
 
+import random
 import shutil
 import sys
 from dataclasses import dataclass
@@ -109,33 +120,101 @@ def test_review_slot_content_dispatches_frac_to_the_fraction_formatter() -> None
     )
 
 
-def test_review_slot_content_rejects_an_unknown_kind() -> None:
-    problem = nuts_calc_tex.ReviewProblem(index=1, kind="compare", payload=object())
-    with pytest.raises(ValueError, match="no slot formatter for kind 'compare'"):
+def test_review_slot_content_dispatches_compare_to_the_comparison_formatter() -> None:
+    payload = nuts_calc_tex.FractionComparisonProblem(
+        index=7,
+        a=nuts_calc_tex.FractionComparisonOperand(1, 3),
+        b=nuts_calc_tex.FractionComparisonOperand(2, 3),
+    )
+    problem = nuts_calc_tex.ReviewProblem(index=1, kind="compare", payload=payload)
+    assert (
+        nuts_calc_tex.build_review_slot_content_tex(problem, False)
+        == nuts_calc_tex.build_fraction_comparison_slot_content_tex(payload, False)
+    )
+
+
+def test_review_slot_content_rejects_a_kind_with_no_review_slot() -> None:
+    # `ope --vertical` has no review slot (it needs a tabular grid); its kind
+    # is deliberately absent from _REVIEW_SLOT_CONTENT_FORMATTERS.
+    problem = nuts_calc_tex.ReviewProblem(index=1, kind="vertical_ope", payload=object())
+    with pytest.raises(ValueError, match="no slot formatter for kind 'vertical_ope'"):
         nuts_calc_tex.build_review_slot_content_tex(problem, False)
 
 
-# --- per-source generation (three_layer_renderer helpers) -------------------
+# --- source kind resolution (three_layer_renderer) -------------------------
 
 
-def test_review_ope_source_yields_that_count_of_ope_kind_problems() -> None:
-    problems = three_layer_renderer._review_ope_problems(GRADE3_SOURCES[1], 4)
-    assert len(problems) == 4
-    assert all(p.kind == "ope" for p in problems)
-    assert all(isinstance(p.payload, nuts_calc_tex.OpeProblem) for p in problems)
-    assert all(p.payload.operator == "mul" for p in problems)
+@pytest.mark.parametrize(
+    "source, expected_kind",
+    [
+        ({"command_type": "ope"}, "ope"),
+        ({"command_type": "ope", "use_parentheses": True}, "tree_ope"),
+        ({"command_type": "ope", "missing_value": True}, "missing_value_ope"),
+        ({"command_type": "ope", "terms": 3}, "multi_term_ope"),
+        ({"command_type": "ope", "mixed_operators": True}, "multi_term_ope"),
+        ({"command_type": "ope", "intermediate": True}, "intermediate_ope"),
+        ({"command_type": "frac"}, "frac"),
+        ({"command_type": "compare"}, "compare"),
+        ({"command_type": "evenodd"}, "evenodd"),
+    ],
+)
+def test_resolve_review_source_kind(source, expected_kind) -> None:
+    assert three_layer_renderer._resolve_review_source_kind(source) == expected_kind
 
 
-def test_review_frac_source_yields_that_count_of_frac_kind_problems() -> None:
-    problems = three_layer_renderer._review_frac_problems(GRADE3_SOURCES[4], 4)
-    assert len(problems) == 4
-    assert all(p.kind == "frac" for p in problems)
-    assert all(isinstance(p.payload, nuts_calc_tex.FractionProblem) for p in problems)
-    # same_denominator + proper_result: every operand pair shares a denominator
-    # and the answer stays a proper fraction.
-    for p in problems:
-        assert p.payload.a.denominator == p.payload.b.denominator
-        assert 0 < p.payload.c < 1
+def test_resolve_review_source_kind_rejects_vertical_ope() -> None:
+    with pytest.raises(ValueError, match="vertical"):
+        three_layer_renderer._resolve_review_source_kind(
+            {"command_type": "ope", "vertical": True}
+        )
+
+
+# --- per-source generation (shared problem_generation.generate layer) ------
+
+
+def test_review_pdf_generates_each_source_through_the_shared_layer(
+    stub_engine, monkeypatch, tmp_path
+) -> None:
+    calls = []
+    real_generate = three_layer_renderer.problem_generation.generate
+
+    def spy_generate(command_type, params, count, start_index):
+        calls.append((command_type, id(params), count, start_index))
+        return real_generate(command_type, params, count, start_index)
+
+    monkeypatch.setattr(
+        three_layer_renderer.problem_generation, "generate", spy_generate
+    )
+
+    data = {"paper_size": "A4", "command_type": "review", "sources": GRADE3_SOURCES}
+    _render(data, tmp_path)
+
+    # One call per source, each handed its own source dict, the weight-scaled
+    # count (4 each for the default 20-slot grid), and start_index 1.
+    assert [c[0] for c in calls] == ["ope", "ope", "ope", "ope", "frac"]
+    assert [c[2] for c in calls] == [4, 4, 4, 4, 4]
+    assert {c[3] for c in calls} == {1}
+    assert [c[1] for c in calls] == [id(s) for s in GRADE3_SOURCES]
+
+
+def test_review_source_honours_options_the_prototype_dispatch_dropped(
+    stub_engine, tmp_path
+) -> None:
+    # `different_denominators` was silently dropped by the removed
+    # `_review_frac_problems`; through the shared layer it now takes effect.
+    data = {
+        "paper_size": "A4", "command_type": "review",
+        "sources": [
+            {
+                "command_type": "frac", "num": 1, "operator": ["add"],
+                "numerator_digits": 1, "denominator_digits": 2,
+                "different_denominators": True, "proper_operands": True,
+            }
+        ],
+    }
+    _render(data, tmp_path)
+    tex = stub_engine[0]
+    assert "\\fractioneq{" in tex
 
 
 # --- _generate_review_pdf composition --------------------------------------
@@ -158,26 +237,51 @@ def test_review_pdf_interleaves_every_source_on_one_page(stub_engine, tmp_path) 
     assert "\\fractioneq{" in tex
 
 
+def test_review_accepts_a_shared_layer_source_the_prototype_rejected(stub_engine, tmp_path) -> None:
+    """Before #364 only 'ope'/'frac' sources were allowed (others were HTTP
+    500); now any command type the shared layer supports is a valid source.
+    An 'evenodd' + 'compare' mix renders onto one page."""
+    data = {
+        "paper_size": "A4", "command_type": "review",
+        "sources": [
+            {"command_type": "evenodd", "num": 1, "a_min": 1, "a_max": 100},
+            {"command_type": "compare", "num": 1},
+        ],
+    }
+    response = _render(data, tmp_path)
+    assert Path(response[0]).read_bytes().startswith(b"%PDF")
+    tex = stub_engine[0]
+    for slot in range(1, 21):
+        assert f"\\problemnumberstyle{{{slot})}}" in tex
+
+
+def test_review_pdf_grade3_output_is_stable_for_a_fixed_module_seed(stub_engine, tmp_path) -> None:
+    """The #364 shared-layer migration leaves grade 3's review worksheet
+    unchanged: with the module RNG seeded identically the generated TeX is
+    reproducible. (Byte-for-byte equality with the pre-#364 renderer was
+    verified out of band against a HEAD worktree.)"""
+    data = {
+        "paper_size": "A4", "command_type": "review",
+        "sources": GRADE3_SOURCES, "shuffle": True, "review_seed": 7,
+    }
+    random.seed(20260904)
+    _render(data, tmp_path)
+    random.seed(20260904)
+    _render(data, tmp_path)
+    assert stub_engine[0] == stub_engine[1]
+
+
 def test_review_pdf_seed_makes_the_shuffle_deterministic(stub_engine, monkeypatch, tmp_path) -> None:
     @dataclass
     class _Tag:
         name: str
 
-    def fake_ope(source, count):
-        return [
-            nuts_calc_tex.ReviewProblem(index=0, kind="ope", payload=_Tag(f"o{i}"))
-            for i in range(count)
-        ]
-
-    def fake_frac(source, count):
-        return [
-            nuts_calc_tex.ReviewProblem(index=0, kind="frac", payload=_Tag(f"f{i}"))
-            for i in range(count)
-        ]
+    def fake_generate(command_type, params, count, start_index):
+        prefix = "o" if command_type == "ope" else "f"
+        return [_Tag(f"{prefix}{i}") for i in range(count)]
 
     monkeypatch.setattr(
-        three_layer_renderer, "_REVIEW_SOURCE_GENERATORS",
-        {"ope": fake_ope, "frac": fake_frac},
+        three_layer_renderer.problem_generation, "generate", fake_generate
     )
 
     slot_orders = []
@@ -190,8 +294,8 @@ def test_review_pdf_seed_makes_the_shuffle_deterministic(stub_engine, monkeypatc
 
     base = {"paper_size": "A4", "command_type": "review", "sources": GRADE3_SOURCES}
 
-    # 4 ope sources of 4 + 1 frac source of 4, each fake generator numbering
-    # its own batch from 0, so the pre-shuffle order repeats o0..o3.
+    # 4 ope sources of 4 + 1 frac source of 4, each fake generate() batch
+    # numbered from 0, so the pre-shuffle order repeats o0..o3.
     identity = ["o0", "o1", "o2", "o3"] * 4 + ["f0", "f1", "f2", "f3"]
 
     _render({**base, "shuffle": True, "review_seed": 123}, tmp_path)
@@ -234,7 +338,11 @@ def test_review_pdf_generates_one_page_per_requested_page(stub_engine, tmp_path)
         (None, "non-empty 'sources' list"),
         ([], "non-empty 'sources' list"),
         (["not-an-object"], "must be an object"),
-        ([{"command_type": "compare", "num": 20}], "is not supported"),
+        # '100' (table envelope) and 'review' (no nesting) are the command
+        # types the shared layer does not expose as review sources.
+        ([{"command_type": "100", "num": 20}], "is not supported"),
+        ([{"command_type": "review", "num": 20}], "is not supported"),
+        ([{"command_type": "nonsense", "num": 20}], "is not supported"),
         ([{"command_type": "ope", "num": 0}], "integer num >= 1"),
         ([{"command_type": "ope", "num": 2.5}], "integer num >= 1"),
     ],
@@ -265,22 +373,22 @@ def test_distribute_review_counts_fills_the_grid_by_weight(weights, order, expec
 
 def test_review_pdf_scales_source_weights_to_a_smaller_grid(stub_engine, monkeypatch, tmp_path) -> None:
     seen_counts = []
+    real_generate = three_layer_renderer.problem_generation.generate
 
-    def spy_ope(source, count):
-        seen_counts.append(count)
-        return three_layer_renderer._review_ope_problems(source, count)
+    def spy_generate(command_type, params, count, start_index):
+        seen_counts.append((command_type, count))
+        return real_generate(command_type, params, count, start_index)
 
     monkeypatch.setattr(
-        three_layer_renderer, "_REVIEW_SOURCE_GENERATORS",
-        {"ope": spy_ope, "frac": three_layer_renderer._review_frac_problems},
+        three_layer_renderer.problem_generation, "generate", spy_generate
     )
     data = {
         "paper_size": "A4", "command_type": "review",
         "sources": GRADE3_SOURCES, "rows": 5, "columns": 2,  # the 10問 layout
     }
     _render(data, tmp_path)
-    # 4 ope sources, each scaled from weight 4 to 2 for a 10-slot grid.
-    assert seen_counts == [2, 2, 2, 2]
+    # every source scaled from weight 4 to 2 for a 10-slot grid.
+    assert seen_counts == [("ope", 2), ("ope", 2), ("ope", 2), ("ope", 2), ("frac", 2)]
     tex = stub_engine[0]
     for slot in range(1, 11):
         assert f"\\problemnumberstyle{{{slot})}}" in tex
