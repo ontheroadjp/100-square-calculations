@@ -75,6 +75,58 @@ def test_build_content_area_slot_tex_uses_layout_number_box_width() -> None:
     assert slot_tex.startswith("\\makebox[12mm][r]{\\problemnumberstyle{1)}}")
 
 
+def test_content_area_layout_number_placement_defaults_to_gutter() -> None:
+    assert tex_module.ContentAreaLayout(rows=1, columns=1).number_placement == "gutter"
+    assert tex_module.DEFAULT_NUMBER_PLACEMENT == "gutter"
+
+
+def test_build_content_area_slot_tex_gutter_centered_centers_the_content(index=4) -> None:
+    layout = tex_module.ContentAreaLayout(
+        rows=1, columns=1, number_placement="gutter-centered"
+    )
+    box_mm = tex_module.CONTENT_AREA_NUMBER_BOX_WIDTH_MM
+    gap_mm = tex_module.CONTENT_AREA_NUMBER_GAP_MM
+
+    slot_tex = tex_module.build_content_area_slot_tex(index, "$1 + 2 = 3$", layout)
+
+    # Same fixed left number box as gutter, but the content parbox centers.
+    assert slot_tex == (
+        f"\\makebox[{box_mm}mm][r]{{\\problemnumberstyle{{{index})}}}}"
+        f"\\hspace{{{gap_mm}mm}}"
+        f"\\parbox[t]{{\\dimexpr\\linewidth-{box_mm}mm-{gap_mm}mm\\relax}}"
+        f"{{\\centering\\problemcontentstyle{{$1 + 2 = 3$}}\\par}}"
+    )
+
+
+def test_build_content_area_slot_tex_inline_drops_the_fixed_number_box(index=7) -> None:
+    layout = tex_module.ContentAreaLayout(rows=1, columns=1, number_placement="inline")
+    gap_mm = tex_module.CONTENT_AREA_NUMBER_GAP_MM
+
+    slot_tex = tex_module.build_content_area_slot_tex(index, "$1 + 2 = 3$", layout)
+
+    assert slot_tex == (
+        f"{{\\problemnumberstyle{{{index})}}}}"
+        f"\\hspace{{{gap_mm}mm}}"
+        f"{{\\problemcontentstyle{{$1 + 2 = 3$}}}}"
+    )
+    assert "\\makebox" not in slot_tex
+    assert "\\parbox" not in slot_tex
+
+
+def test_number_placement_does_not_affect_the_tabular_hissan_slot() -> None:
+    gutter = tex_module.build_content_area_slot_tex(
+        1, "hissan", tex_module.ContentAreaLayout(rows=1, columns=1), grid_layout="tabular"
+    )
+    inline = tex_module.build_content_area_slot_tex(
+        1,
+        "hissan",
+        tex_module.ContentAreaLayout(rows=1, columns=1, number_placement="inline"),
+        grid_layout="tabular",
+    )
+
+    assert gutter == inline
+
+
 def test_build_content_area_tex_composes_one_block_per_slot_in_order() -> None:
     layout = tex_module.ContentAreaLayout(rows=1, columns=2)
 

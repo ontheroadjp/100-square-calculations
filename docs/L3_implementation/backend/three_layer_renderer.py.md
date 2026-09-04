@@ -24,6 +24,8 @@
 
 - `_resolve_page_count(data)` / `_build_presentation_pages(data, order, generate_page, bottom_answer_builder)`(issue #286): 移行済み各 helper に共通するページ生成を集約する。`page` は既定1かつ1以上とし、各ページを既存 CLI と同じ `start_index = (page_number - 1) * (rows * columns) + 1` で個別生成する。`with_bottom_answer` が真で command 固有 builder が存在する場合は各 `PresentationPage.bottom_answer_tex` を設定し、全 helper が `with_name_field` を document builder へ渡す。`100` はページごとに表を1つ生成し、`compare` と `100` の bottom-answer strip は既存 subprocess 経路にも存在しないため指定を無視する。`merge` は引き続き対象外。
 - `_IndexedProblem`(Protocol、`index: int`)/ `_IndexedProblemT`(TypeVar): `_build_presentation_pages` のジェネリック境界。
+- `_resolve_number_placement(data) -> nuts_calc_tex.NumberPlacement`(issue #355): request から `inline` グリッドの問題番号位置(`nuts_calc_tex.NumberPlacement`)を選ぶ。**短い単行式ドリル**に `_SHORT_DRILL_NUMBER_PLACEMENT`(= `'inline'`。番号+式をまとめて列中央寄せ)、それ以外は既定 `'gutter'`(issue #301 以来の左ガター固定)を返す。全 `_generate_*_pdf` が `ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data))` として渡す(`100` の `numbered=False` レイアウトは番号自体がないため対象外)。「短い単行式ドリル」の判定: `columns <= 2`(`_SHORT_DRILL_MAX_COLUMNS`)かつ、`command_type` が `_SHORT_SINGLE_LINE_COMMAND_TYPES`(`99`/`squ`/`pi`/`com`/`evenodd`/`lcm`/`gcd`)、または `command_type == 'ope'` かつ `_ope_is_short_single_line(data)`。
+- `_ope_is_short_single_line(data)`(issue #355): plain 2項 `ope`(`a op b =` が毎行1行に収まる)なら真。除外するのは行を複数行化・幅を大きくばらつかせる構造フラグのみ — `use_parentheses`/`vertical`(筆算)/`intermediate`(段階暗算)/`missing_value`/`mixed_operators`(`_OPE_WIDE_LAYOUT_FLAG_KEYS`)と `terms`/`terms_min`/`terms_max`(`_OPE_MULTI_TERM_KEYS`)。**オペランドの桁数・大きさ・小数・余りあり除算・加減混在は除外しない**(grade 3 の 3桁×2桁も1行に収まるため。ユーザーの実機テストで 3桁乗算が `gutter` のままだったのを受けて桁数制限を撤廃した経緯)。conservative allowlist なので非該当 command と `ope` の全 variant はバイト等価を維持する。
 
 ### コンパイル失敗の変換
 
@@ -92,7 +94,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- a116853 feat(#140): add the grade-3 multi-source review (総合問題) worksheet
+- 9d727e5 feat(#355): center the problem number and equation for short single-line drills
+- e9083d6 feat(#140): add the grade-3 multi-source review (総合問題) worksheet (#354)
 - 7203e9e feat(#349): redesign decimal-division drills around a remainder setting and add a divide-through mode (#352)
 - ffd182f feat(#346): add the 概数 (approx) rounding / estimation drill (#348)
 - 9da1116 feat(#333): add grade 4 decimal-remainder division drill and --decimal-remainder flag (#345)
@@ -101,4 +104,3 @@
 - b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)
 - 7bbec1b refactor(#297): delete the legacy /generate-pdf subprocess rendering path (#325)
 - f85a421 feat(#317): add integer/decimal dividend selection to grade 5 decimal division (#319)
-- e6e0e98 fix(#298): honor descend / shuffle in _generate_squ_pdf (3-layer renderer) (#299)
