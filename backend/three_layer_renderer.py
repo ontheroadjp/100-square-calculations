@@ -51,6 +51,67 @@ def _resolve_page_count(data: renderer_config.RendererRequest) -> int:
     return page_count
 
 
+# Command types whose slots are always short single-line equations, so the
+# left-gutter number placement leaves a lopsided blank band on the right and
+# an alternate placement reads better (issue #355). `ope` is checked
+# separately because only its plain two-term variant qualifies.
+_SHORT_SINGLE_LINE_COMMAND_TYPES = frozenset(
+    {'99', 'squ', 'pi', 'com', 'evenodd', 'lcm', 'gcd'}
+)
+# `ope` flags/keys that break the plain two-term ``a op b =`` shape into
+# something multi-line or widely variable in width per row -- a parentheses
+# tree, vertical hissan, staged mental-arithmetic chain, missing-value blank,
+# or a flat multi-term / mixed-operator expression. Any of them keeps the
+# default gutter placement; everything else (operand magnitude, digit count,
+# decimals, division-with-remainder, add/sub operator mix) is still one short
+# line per row, so it takes the alternate placement (issue #355).
+_OPE_WIDE_LAYOUT_FLAG_KEYS = (
+    'use_parentheses', 'vertical', 'intermediate', 'missing_value', 'mixed_operators',
+)
+_OPE_MULTI_TERM_KEYS = ('terms', 'terms_min', 'terms_max')
+# The alternate placement only helps a 1-2 column grid; 3+ columns already
+# pack tightly.
+_SHORT_DRILL_MAX_COLUMNS = 2
+# Which non-default nuts_calc_tex.NumberPlacement the short single-line
+# allowlist uses. Kept as one named constant so the choice is a single edit.
+_SHORT_DRILL_NUMBER_PLACEMENT = 'inline'
+
+
+def _ope_is_short_single_line(data: renderer_config.RendererRequest) -> bool:
+    """Whether an `ope` request is a plain two-term ``a op b =`` equation (#355).
+
+    Only the flags that make the row multi-line or widely variable in width
+    disqualify it; operand size, digit count and decimals do not -- e.g. a
+    grade-3 3-digit x 2-digit multiplication is still one short line.
+    """
+    if any(data.get(key) for key in _OPE_WIDE_LAYOUT_FLAG_KEYS):
+        return False
+    if any(key in data for key in _OPE_MULTI_TERM_KEYS):
+        return False
+    return True
+
+
+def _resolve_number_placement(
+    data: renderer_config.RendererRequest,
+) -> nuts_calc_tex.NumberPlacement:
+    """Pick the Layer 2 inline-slot number placement from the request (#355).
+
+    The alternate placement for a 1-2 column grid of short single-line drills
+    (so the columns are not lopsided to the left), the default ``gutter`` for
+    everything else -- a conservative allowlist that keeps byte-identical
+    output for every non-allowlisted command type and every `ope` variant.
+    """
+    if int(data.get('columns', 2)) > _SHORT_DRILL_MAX_COLUMNS:
+        return nuts_calc_tex.DEFAULT_NUMBER_PLACEMENT
+    command_type = data.get('command_type')
+    is_short_single_line = command_type in _SHORT_SINGLE_LINE_COMMAND_TYPES or (
+        command_type == 'ope' and _ope_is_short_single_line(data)
+    )
+    if not is_short_single_line:
+        return nuts_calc_tex.DEFAULT_NUMBER_PLACEMENT
+    return _SHORT_DRILL_NUMBER_PLACEMENT
+
+
 def _build_presentation_pages(
     data: renderer_config.RendererRequest,
     order: int,
@@ -123,7 +184,7 @@ def _generate_com_pdf(data: renderer_config.RendererRequest, output_dir: str) ->
         pages=pages,
         content_format=nuts_calc_tex.build_com_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         with_name_field=bool(data.get('with_name_field', False)),
@@ -260,7 +321,7 @@ def _generate_mixed_pdf(
         pages=pages,
         content_format=nuts_calc_tex.build_mixed_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         with_name_field=bool(data.get('with_name_field', False)),
@@ -358,7 +419,7 @@ def _generate_lcm_pdf(data: renderer_config.RendererRequest, output_dir: str) ->
         pages=pages,
         content_format=nuts_calc_tex.build_lcm_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         with_name_field=bool(data.get('with_name_field', False)),
@@ -429,7 +490,7 @@ def _generate_divfrac_pdf(data: renderer_config.RendererRequest, output_dir: str
         pages=pages,
         content_format=nuts_calc_tex.build_divfrac_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         with_name_field=bool(data.get('with_name_field', False)),
@@ -504,7 +565,7 @@ def _generate_approx_pdf(data: renderer_config.RendererRequest, output_dir: str)
         pages=pages,
         content_format=nuts_calc_tex.build_approx_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         with_name_field=bool(data.get('with_name_field', False)),
@@ -574,7 +635,7 @@ def _generate_gcd_pdf(data: renderer_config.RendererRequest, output_dir: str) ->
         pages=pages,
         content_format=nuts_calc_tex.build_gcd_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         with_name_field=bool(data.get('with_name_field', False)),
@@ -632,7 +693,7 @@ def _generate_evenodd_pdf(data: renderer_config.RendererRequest, output_dir: str
         pages=pages,
         content_format=nuts_calc_tex.build_evenodd_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         with_name_field=bool(data.get('with_name_field', False)),
@@ -709,7 +770,7 @@ def _generate_kuku_pdf(data: renderer_config.RendererRequest, output_dir: str) -
             nuts_calc_tex.build_kuku_slot_content_tex, reverse=reverse
         ),
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         with_name_field=bool(data.get('with_name_field', False)),
@@ -769,7 +830,7 @@ def _generate_abc_pdf(data: renderer_config.RendererRequest, output_dir: str) ->
         pages=pages,
         content_format=nuts_calc_tex.build_abc_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         with_name_field=bool(data.get('with_name_field', False)),
@@ -839,7 +900,7 @@ def _generate_pi_pdf(data: renderer_config.RendererRequest, output_dir: str) -> 
             nuts_calc_tex.build_pi_slot_content_tex, reverse=reverse
         ),
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         with_name_field=bool(data.get('with_name_field', False)),
@@ -957,7 +1018,7 @@ def _generate_ope_pdf(data: renderer_config.RendererRequest, output_dir: str) ->
         pages=pages,
         content_format=nuts_calc_tex.build_ope_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         with_name_field=bool(data.get('with_name_field', False)),
@@ -1077,7 +1138,7 @@ def _generate_tree_ope_pdf(data: renderer_config.RendererRequest, output_dir: st
         pages=pages,
         content_format=nuts_calc_tex.build_tree_ope_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         with_name_field=bool(data.get('with_name_field', False)),
@@ -1200,7 +1261,7 @@ def _generate_multi_term_ope_pdf(data: renderer_config.RendererRequest, output_d
         pages=pages,
         content_format=nuts_calc_tex.build_multi_term_ope_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         with_name_field=bool(data.get('with_name_field', False)),
@@ -1308,7 +1369,7 @@ def _generate_missing_value_ope_pdf(data: renderer_config.RendererRequest, outpu
         pages=pages,
         content_format=nuts_calc_tex.build_missing_value_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         with_name_field=bool(data.get('with_name_field', False)),
@@ -1437,7 +1498,7 @@ def _generate_vertical_ope_pdf(data: renderer_config.RendererRequest, output_dir
         pages=pages,
         content_format=nuts_calc_tex.build_vertical_ope_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         grid_layout='tabular',
@@ -1554,7 +1615,7 @@ def _generate_intermediate_ope_pdf(data: renderer_config.RendererRequest, output
         pages=pages,
         content_format=nuts_calc_tex.build_intermediate_ope_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         with_name_field=bool(data.get('with_name_field', False)),
@@ -1632,7 +1693,7 @@ def _generate_squ_pdf(data: renderer_config.RendererRequest, output_dir: str) ->
             nuts_calc_tex.build_squ_slot_content_tex, reverse=reverse
         ),
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         with_name_field=bool(data.get('with_name_field', False)),
@@ -1703,7 +1764,7 @@ def _generate_multiples_pdf(data: renderer_config.RendererRequest, output_dir: s
         pages=pages,
         content_format=nuts_calc_tex.build_multiples_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         with_name_field=bool(data.get('with_name_field', False)),
@@ -1763,7 +1824,7 @@ def _generate_divisors_pdf(data: renderer_config.RendererRequest, output_dir: st
         pages=pages,
         content_format=nuts_calc_tex.build_divisors_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         with_name_field=bool(data.get('with_name_field', False)),
@@ -1876,7 +1937,7 @@ def _generate_frac_pdf(data: renderer_config.RendererRequest, output_dir: str) -
         pages=pages,
         content_format=nuts_calc_tex.build_fraction_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         with_name_field=bool(data.get('with_name_field', False)),
@@ -1936,7 +1997,7 @@ def _generate_simplify_pdf(data: renderer_config.RendererRequest, output_dir: st
         pages=pages,
         content_format=nuts_calc_tex.build_simplify_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         with_name_field=bool(data.get('with_name_field', False)),
@@ -1996,7 +2057,7 @@ def _generate_frac2dec_pdf(data: renderer_config.RendererRequest, output_dir: st
         pages=pages,
         content_format=nuts_calc_tex.build_frac2dec_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         with_name_field=bool(data.get('with_name_field', False)),
@@ -2049,7 +2110,7 @@ def _generate_dec2frac_pdf(data: renderer_config.RendererRequest, output_dir: st
         pages=pages,
         content_format=nuts_calc_tex.build_dec2frac_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         with_name_field=bool(data.get('with_name_field', False)),
@@ -2122,7 +2183,7 @@ def _generate_compare_pdf(data: renderer_config.RendererRequest, output_dir: str
         pages=pages,
         content_format=nuts_calc_tex.build_fraction_comparison_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         with_name_field=bool(data.get('with_name_field', False)),
@@ -2182,7 +2243,7 @@ def _generate_commondenom_pdf(data: renderer_config.RendererRequest, output_dir:
         pages=pages,
         content_format=nuts_calc_tex.build_commondenom_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         with_name_field=bool(data.get('with_name_field', False)),
@@ -2477,7 +2538,7 @@ def _generate_review_pdf(
         pages=pages,
         content_format=nuts_calc_tex.build_review_slot_content_tex,
         page_shell=nuts_calc_tex.DEFAULT_PAGE_SHELL,
-        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns),
+        content_area_layout=nuts_calc_tex.ContentAreaLayout(rows=rows, columns=columns, number_placement=_resolve_number_placement(data)),
         engine_adapter=engine_adapter,
         show_answer=False,
         with_name_field=bool(data.get('with_name_field', False)),

@@ -1679,30 +1679,50 @@ def build_page_shell_body_tex(
     return "\n".join(parts)
 
 
+# Where the problem number sits in an ``inline`` slot (issue #355). Only the
+# ``inline`` grid_layout honours this; ``tabular``/``block`` are unaffected.
+#
+# - ``gutter`` (default, unchanged since issue #301): the number is
+#   right-aligned in a fixed-width box at the column's left edge and the
+#   equation is left-aligned across the rest of the column. Number column and
+#   equation start stay at a constant x on every row -- best when equation
+#   widths vary a lot (grade-3 parenthesised expressions) -- but a short
+#   equation leaves a wide blank band on the right of every column.
+# - ``gutter-centered``: the number keeps the same fixed left-edge box, but
+#   the equation is centred in the rest of the column instead of ragged-right.
+# - ``inline``: the number sits immediately left of the equation as one
+#   natural-width unit that the grid column then centres. The number's x
+#   follows the centred unit row to row.
+NumberPlacement = Literal['gutter', 'gutter-centered', 'inline']
+DEFAULT_NUMBER_PLACEMENT: NumberPlacement = 'gutter'
+
+
 @dataclass(frozen=True)
 class ContentAreaLayout:
     """
     Layer 2 of #166's presentation-layer model (#184): the content area's
     per-page grid template (problem-slot count and arrangement), placed
     inside Layer 1's page shell (PageShell, #182) and containing Layer 3
-    content formats (#122). Owns each slot's number-box width, decoupled
-    from problem content per docs/latex/tex_calculation_drill_layout_guidelines.md
-    items 2 and 10 ("number position independent of content"). rows/columns
-    accept any positive value; CONTENT_AREA_LAYOUT_PRESETS below are named
-    shortcuts on top, not a restriction.
+    content formats (#122). Owns each slot's number-box width and the
+    ``inline`` slot's number placement (issue #355), decoupled from problem
+    content per docs/latex/tex_calculation_drill_layout_guidelines.md items 2
+    and 10 ("number position independent of content"). rows/columns accept
+    any positive value; CONTENT_AREA_LAYOUT_PRESETS below are named shortcuts
+    on top, not a restriction.
 
     numbered=False selects the second Layer-2 variant (#229): a single
     unnumbered full-content-area slot, for content formats that are one
     self-contained block per page with no per-problem numbering (the `100`
     hundred-square table). In that mode build_presentation_document_tex
-    skips the number box entirely and rows/columns/number_box_width_mm are
-    unused.
+    skips the number box entirely and rows/columns/number_box_width_mm/
+    number_placement are unused.
     """
 
     rows: int | None
     columns: int
     number_box_width_mm: int = CONTENT_AREA_NUMBER_BOX_WIDTH_MM
     numbered: bool = True
+    number_placement: NumberPlacement = DEFAULT_NUMBER_PLACEMENT
 
 
 GridLayout = Literal['inline', 'tabular', 'block']
@@ -1737,14 +1757,19 @@ def build_content_area_slot_tex(
 
     Two shapes, by ``grid_layout``:
 
-    - ``inline`` (single-line equations / arrows / fractions): the number is
-      **right-aligned** in a fixed-width ``\\makebox`` (so every ``N)`` ends at
-      the same x whether it is 1 or 3 digits), then a small fixed ``\\hspace``
-      gutter, then the content **left-aligned** in a ``\\parbox`` filling the
-      rest of the column. The three pieces span exactly ``\\linewidth`` so the
-      grid columns' ``\\centering`` has no slack -- the number gutter and the
-      equation start each stay at a constant x across every row, even when
-      content width varies (grade-3 parenthesised expressions).
+    - ``inline`` (single-line equations / arrows / fractions): three
+      ``layout.number_placement`` sub-shapes (issue #355), see NumberPlacement.
+      ``gutter`` (default) right-aligns the number in a fixed-width ``\\makebox``
+      (so every ``N)`` ends at the same x whether it is 1 or 3 digits), then a
+      small fixed ``\\hspace`` gutter, then the content **left-aligned** in a
+      ``\\parbox`` filling the rest of the column. The three pieces span exactly
+      ``\\linewidth`` so the grid columns' ``\\centering`` has no slack -- the
+      number gutter and the equation start each stay at a constant x across
+      every row, even when content width varies (grade-3 parenthesised
+      expressions). ``gutter-centered`` keeps that fixed number box but
+      ``\\centering`` the content in the rest of the column. ``inline`` drops
+      the fixed box: ``N)`` sits immediately left of the content as one
+      natural-width unit that the grid column then centres.
 
     - ``tabular`` (``ope --vertical`` hissan blocks): the number sits on its
       own line above the multi-row block inside a natural-width inner
@@ -1753,7 +1778,7 @@ def build_content_area_slot_tex(
       hissan block to the column's left edge with a large dead gap on the
       right; centring the natural-width unit uses the column evenly. The
       hissan wrappers already own the block's font and size, so no
-      ``\\problemcontentstyle`` wrap here.
+      ``\\problemcontentstyle`` wrap here. ``number_placement`` does not apply.
     """
     if grid_layout == 'tabular':
         return (
@@ -1763,15 +1788,22 @@ def build_content_area_slot_tex(
             f"{content_tex}"
             "\\end{tabular}"
         )
+    number_tex = f"\\problemnumberstyle{{{index})}}"
+    gap_tex = f"\\hspace{{{CONTENT_AREA_NUMBER_GAP_MM}mm}}"
+    if layout.number_placement == 'inline':
+        return f"{{{number_tex}}}{gap_tex}{{\\problemcontentstyle{{{content_tex}}}}}"
     box_mm = layout.number_box_width_mm
     content_width_tex = (
         f"\\dimexpr\\linewidth-{box_mm}mm-{CONTENT_AREA_NUMBER_GAP_MM}mm\\relax"
     )
+    content_align_tex = (
+        "\\centering" if layout.number_placement == 'gutter-centered' else "\\raggedright"
+    )
     return (
-        f"\\makebox[{box_mm}mm][r]{{\\problemnumberstyle{{{index})}}}}"
-        f"\\hspace{{{CONTENT_AREA_NUMBER_GAP_MM}mm}}"
+        f"\\makebox[{box_mm}mm][r]{{{number_tex}}}"
+        f"{gap_tex}"
         f"\\parbox[t]{{{content_width_tex}}}"
-        f"{{\\raggedright\\problemcontentstyle{{{content_tex}}}\\par}}"
+        f"{{{content_align_tex}\\problemcontentstyle{{{content_tex}}}\\par}}"
     )
 
 
