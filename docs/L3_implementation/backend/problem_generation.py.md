@@ -168,8 +168,7 @@ issue #166 の sub-issue #167 で、残り約19個の `nuts_calc_tex.py` コマ�
 
 ## 変更履歴（git log より自動生成）
 
-- (pending) refactor(#363): migrate the group-4 _generate_*_pdf builders to the shared generate() layer
-- e1ab682 refactor(#362): migrate the group-3 _generate_*_pdf builders to the shared generate() layer
+- 65a529b refactor(#362): migrate the group-3 _generate_*_pdf builders to the shared generate() layer (#373)
 - 9c02d4b refactor(#361): migrate the group-2 _generate_*_pdf builders to the shared generate() layer (#372)
 - 9ff06c9 refactor(#359): split problem generation into a shared generate() layer (#370)
 - 7203e9e feat(#349): redesign decimal-division drills around a remainder setting and add a divide-through mode (#352)

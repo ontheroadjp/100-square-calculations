@@ -98,8 +98,8 @@
 
 ## 変更履歴（git log より自動生成）
 
-- (pending) refactor(#363): migrate the group-4 _generate_*_pdf builders to the shared generate() layer
-- e1ab682 refactor(#362): migrate the group-3 _generate_*_pdf builders to the shared generate() layer
+- 383fdbb refactor(#363): migrate the group-4 _generate_*_pdf builders to the shared generate() layer
+- 65a529b refactor(#362): migrate the group-3 _generate_*_pdf builders to the shared generate() layer (#373)
 - 9c02d4b refactor(#361): migrate the group-2 _generate_*_pdf builders to the shared generate() layer (#372)
 - 1e31de8 refactor(#360): migrate the ope-family _generate_*_pdf builders to the shared generate() layer (#371)
 - 7b92770 feat(#355): center the problem number and equation for short single-line drills (#356)
@@ -107,5 +107,3 @@
 - 7203e9e feat(#349): redesign decimal-division drills around a remainder setting and add a divide-through mode (#352)
 - ffd182f feat(#346): add the 概数 (approx) rounding / estimation drill (#348)
 - 9da1116 feat(#333): add grade 4 decimal-remainder division drill and --decimal-remainder flag (#345)
-- b2df846 feat(#332): add grade 3 two-digit-quotient division drill and --quotient-digits flag (#344)
-- 36de01d fix(#342): guarantee a non-trivial division in every g4-parentheses problem (#343)
