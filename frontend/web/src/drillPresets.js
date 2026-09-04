@@ -1753,13 +1753,13 @@ const grade5 = {
   ],
   // 総合問題 (multi-source review worksheet, issue #368). One sheet mixing
   // the grade-5 学習指導要領 第5学年 A「数と計算」 units: 小数×小数, 小数÷小数
-  // (あまりあり), 異分母分数のたし算・ひき算, 分数×整数・分数÷整数. Each source
+  // (わり進み), 異分母分数のたし算・ひき算, 分数×整数・分数÷整数. Each source
   // reuses the exact parameters of an existing grade-5 menu drill, routed
   // through the shared `review` generation layer (issue #364). 小数×小数 and
   // 小数÷小数 stay as TWO separate sources (same digit/decimal shape) only
-  // because 小数÷小数 additionally carries `decimal_remainder: true` (mirrors
-  // g5-decimal-div's remainderMode 'required'), which does not apply to the
-  // multiplication source -- same convention g4-review used to keep its
+  // because 小数÷小数 additionally carries `divide_through: true` (mirrors
+  // g5-decimal-div's remainderMode 'divide_through'), which does not apply to
+  // the multiplication source -- same convention g4-review used to keep its
   // decimal mul/div sources separate. The two 分数×整数・分数÷整数 drills
   // (g5-fraction-mul-int / g5-fraction-div-int) share an identical param
   // shape aside from operator, so per the add/sub-combining convention
@@ -1779,7 +1779,7 @@ const grade5 = {
       descKey: 'menu_g5_review_desc',
       pointKey: 'menu_g5_review_point',
       difficultyKey: 'difficulty_standard',
-      examples: ['3.6×2.4', '7.6÷2.3', '2/3+3/5', '3/5×4'],
+      examples: ['3.6×2.4', '9.0÷2.5', '2/3+3/5', '3/5×4'],
       settings: [],
       supportLevel: 'full',
       latexOnly: true,
@@ -1792,11 +1792,11 @@ const grade5 = {
             command_type: 'ope', num: 1, operator: ['mul'],
             a_digits: 2, b_digits: 2, a_decimal_places: 1, b_decimal_places: 1,
           },
-          // 小数÷小数 あまりあり (mirrors g5-decimal-div / remainderMode 'required')
+          // 小数÷小数 わり進み (mirrors g5-decimal-div / remainderMode 'divide_through')
           {
             command_type: 'ope', num: 1, operator: ['div'],
             a_digits: 2, b_digits: 2, a_decimal_places: 1, b_decimal_places: 1,
-            decimal_remainder: true,
+            divide_through: true,
           },
           // 異分母・真分数のたし算・ひき算 (mirrors g5-fraction-add / g5-fraction-sub の
           // denominator 'different' + numberKind 'fraction' 分岐)

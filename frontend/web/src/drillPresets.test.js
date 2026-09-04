@@ -504,9 +504,9 @@ test('grade 5 review worksheet mixes the grade-5 A「数と計算」 units throu
   );
   assert.ok(
     params.sources.some(
-      (s) => s.command_type === 'ope' && s.operator?.join() === 'div' && s.decimal_remainder === true,
+      (s) => s.command_type === 'ope' && s.operator?.join() === 'div' && s.divide_through === true,
     ),
-    'a 小数÷小数 あまりあり source must be present (mirrors g5-decimal-div)',
+    'a 小数÷小数 わり進み source must be present (mirrors g5-decimal-div)',
   );
   assert.ok(
     params.sources.some(
