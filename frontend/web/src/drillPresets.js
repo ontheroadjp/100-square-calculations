@@ -1751,6 +1751,70 @@ const grade5 = {
       }),
     },
   ],
+  // 総合問題 (multi-source review worksheet, issue #368). One sheet mixing
+  // the grade-5 学習指導要領 第5学年 A「数と計算」 units: 小数×小数, 小数÷小数
+  // (あまりあり), 異分母分数のたし算・ひき算, 分数×整数・分数÷整数. Each source
+  // reuses the exact parameters of an existing grade-5 menu drill, routed
+  // through the shared `review` generation layer (issue #364). 小数×小数 and
+  // 小数÷小数 stay as TWO separate sources (same digit/decimal shape) only
+  // because 小数÷小数 additionally carries `decimal_remainder: true` (mirrors
+  // g5-decimal-div's remainderMode 'required'), which does not apply to the
+  // multiplication source -- same convention g4-review used to keep its
+  // decimal mul/div sources separate. The two 分数×整数・分数÷整数 drills
+  // (g5-fraction-mul-int / g5-fraction-div-int) share an identical param
+  // shape aside from operator, so per the add/sub-combining convention
+  // already used by both g3-review and g4-review's `frac` source, they are
+  // combined into ONE `mixed` source via `operator: ['mul', 'div']`
+  // (`reducible_mode` accepts a mul/div pair per
+  // problem_generation._generate_mixed_problems). 「四捨五入して商を概数で
+  // 表す」(g5-approx-quotient) is intentionally NOT a source: the issue's own
+  // finalized Scope list omits it despite the Course-of-Study citation
+  // mentioning it. `num` is a relative weight the backend scales to fill the
+  // chosen problem count (10/20/30), so an even split (num:1 ×4) stays even
+  // at every size.
+  review: [
+    {
+      id: 'g5-review',
+      titleKey: 'menu_g5_review_title',
+      descKey: 'menu_g5_review_desc',
+      pointKey: 'menu_g5_review_point',
+      difficultyKey: 'difficulty_standard',
+      examples: ['3.6×2.4', '7.6÷2.3', '2/3+3/5', '3/5×4'],
+      settings: [],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'review',
+        shuffle: true,
+        sources: [
+          // 小数×小数 (mirrors g5-decimal-mul)
+          {
+            command_type: 'ope', num: 1, operator: ['mul'],
+            a_digits: 2, b_digits: 2, a_decimal_places: 1, b_decimal_places: 1,
+          },
+          // 小数÷小数 あまりあり (mirrors g5-decimal-div / remainderMode 'required')
+          {
+            command_type: 'ope', num: 1, operator: ['div'],
+            a_digits: 2, b_digits: 2, a_decimal_places: 1, b_decimal_places: 1,
+            decimal_remainder: true,
+          },
+          // 異分母・真分数のたし算・ひき算 (mirrors g5-fraction-add / g5-fraction-sub の
+          // denominator 'different' + numberKind 'fraction' 分岐)
+          {
+            command_type: 'frac', num: 1, operator: ['add', 'sub'],
+            numerator_digits: 1, denominator_digits: 1,
+            different_denominators: true, proper_result: true,
+          },
+          // 分数×整数・分数÷整数 (mirrors g5-fraction-mul-int / g5-fraction-div-int)
+          {
+            command_type: 'mixed', num: 1, operator: ['mul', 'div'],
+            a_kind: ['fraction'], b_kind: ['int'],
+            numerator_digits: 1, denominator_digits: 1, reducible_mode: 'mixed',
+          },
+        ],
+      }),
+    },
+  ],
 };
 
 // ---------------------------------------------------------------------
