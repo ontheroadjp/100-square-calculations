@@ -657,6 +657,42 @@ def test_generate_problems_mixed_terms_family_returns_multi_term_problems() -> N
         assert len(problem["operators"]) == 3
 
 
+def test_generate_problems_mixed_rejects_unknown_operand_kind() -> None:
+    """issue #361: the a_kind/b_kind allowlist check moved from
+    `three_layer_renderer._generate_mixed_pdf` into the shared layer, so
+    `POST /generate-problems` now rejects an unknown operand kind with the same
+    wording `POST /generate-pdf` uses.
+    """
+    params = {
+        "paper_size": "A4", "command_type": "mixed", "num": 1, "a_kind": ["bogus"],
+    }
+    with pytest.raises(ValueError, match="a_kind and b_kind must contain only"):
+        problem_generation.generate_problems(params, "latex")
+
+
+def test_generate_problems_mixed_rejects_unknown_operator() -> None:
+    """issue #361: the operator allowlist check likewise moved into the shared
+    layer (previously only `POST /generate-pdf` enforced it).
+    """
+    params = {
+        "paper_size": "A4", "command_type": "mixed", "num": 1, "operator": ["bogus"],
+    }
+    with pytest.raises(ValueError, match="operator must contain only"):
+        problem_generation.generate_problems(params, "latex")
+
+
+def test_generate_problems_mixed_rejects_unknown_reducible_mode_value() -> None:
+    """issue #361: the reducible_mode value allowlist check moved into the
+    shared layer, so an unknown value is rejected before it reaches
+    `nuts_calc_tex.generate_mixed_problems`.
+    """
+    params = {
+        "paper_size": "A4", "command_type": "mixed", "num": 1, "reducible_mode": "unknown",
+    }
+    with pytest.raises(ValueError, match="reducible_mode must be one of"):
+        problem_generation.generate_problems(params, "latex")
+
+
 def test_generate_problems_mixed_reducible_mode_requires_mul_div_operator() -> None:
     params = {
         "paper_size": "A4", "command_type": "mixed", "num": 1,

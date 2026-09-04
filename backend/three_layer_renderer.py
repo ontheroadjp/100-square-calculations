@@ -1,9 +1,11 @@
 """Flask-agnostic PDF generation glue for the internal presentation API.
 
 This module owns the "3-layer model" worksheet-PDF pipeline (issue #183's
-``build_presentation_document_tex`` / ``PresentationPage``): the 27
+``build_presentation_document_tex`` / ``PresentationPage``): the 26
 ``_generate_*_pdf`` builders (including the multi-source ``review`` worksheet,
-issue #140), the ``_is_*_request`` routing predicates, the
+issue #140; ``_generate_multi_term_mixed_pdf`` folded into ``_generate_mixed_pdf``
+in issue #361 once the shared layer took over terms resolution), the
+``_is_*_request`` routing predicates, the
 shared ``_resolve_page_count`` / ``_build_presentation_pages`` helpers, and the
 ``command_type`` -> builder dispatch. It was carved out of ``backend/app.py`` in
 issue #290 (a strangler-fig step under #174) so ``app.py`` is reduced to HTTP
@@ -148,15 +150,12 @@ def _generate_com_pdf(data: renderer_config.RendererRequest, output_dir: str) ->
     with_bottom_answer/with_name_field/multi-page/merge are not wired for
     'com' yet (explicitly out of scope for #199).
 
-    'com' reads a_value directly (it's always a literal value there, never a
-    digit count -- issue #230). A future _generate_*_pdf-style builder for a
-    command in nuts_calc_tex.DIGIT_COUNT_SHORTHAND_COMMANDS (ope/100/lcm/gcd/
-    divfrac) must instead resolve its range via
-    problem_generation.resolve_digit_count_range(data, 'a_digits', 'a_min',
-    'a_max', ...), not read a_value/a_digits directly like this function does.
+    The a_value (complement target) resolution/validation -- 'com' reads
+    a_value directly, it is always a literal value there, never a digit count
+    (issue #230) -- is owned by the shared problem_generation.generate('com',
+    ...) layer (issue #361, P2-2 under #357); this builder only owns the
+    presentation half (rows/columns layout, engine compile).
     """
-    target = problem_generation.validate_com_target(data.get('a_value'))
-
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
     if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
@@ -171,12 +170,11 @@ def _generate_com_pdf(data: renderer_config.RendererRequest, output_dir: str) ->
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
+    order = rows * columns
     pages = _build_presentation_pages(
         data,
-        rows * columns,
-        lambda start_index: nuts_calc_tex.generate_com_problems(
-            target, rows * columns, start_index
-        ),
+        order,
+        lambda start_index: problem_generation.generate('com', data, order, start_index),
         nuts_calc_tex.build_com_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
@@ -229,68 +227,25 @@ def _is_multi_term_mixed_pdf_request(data: renderer_config.RendererRequest) -> b
 
 
 def _generate_mixed_pdf(
-    data: renderer_config.RendererRequest,
-    output_dir: str,
-    *,
-    terms_min: int = nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT,
-    terms_max: int = nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT,
-    mixed_operators: bool = False,
+    data: renderer_config.RendererRequest, output_dir: str
 ) -> tuple[str, str]:
-    """Build a mixed PDF through the presentation API.
+    """Build a mixed PDF (basic two-term, multi-term, or mixed-operator) via
+    the presentation API.
 
-    Operand kinds, operator, fraction digit counts, and decimal places retain
-    the CLI defaults when omitted. Reducibility variants require the same
-    two-term fraction/integer and mul/div shape as the CLI.
+    Every parameter that feeds problem generation -- fraction digit counts,
+    decimal places, operand kinds (a_kind/b_kind), operator, mixed_operators,
+    the terms/terms_min/terms_max range (resolved and floor-clamped the same
+    way problem_generation._determine_mixed_terms does), and the reducible_mode
+    family (its own value allowlist plus the mul/div-operator and
+    fraction/integer-pairing rules) -- is resolved and validated by the shared
+    problem_generation.generate('mixed', ...) layer (issue #361, P2-2 under
+    #357); this builder only owns the presentation half (rows/columns layout,
+    engine compile). Both _is_plain_mixed_pdf_request and
+    _is_multi_term_mixed_pdf_request route here: the terms family lives in
+    `data`, so the shared layer selects the basic vs multi-term shape itself
+    (the pre-#361 builder took resolved terms_min/terms_max/mixed_operators as
+    keyword arguments from a separate _generate_multi_term_mixed_pdf).
     """
-    numerator_digits = data.get('numerator_digits', 1)
-    denominator_digits = data.get('denominator_digits', 1)
-    for option_name, value in (
-        ('numerator_digits', numerator_digits),
-        ('denominator_digits', denominator_digits),
-    ):
-        if not nuts_calc_tex.MIN_FRACTION_DIGITS <= value <= nuts_calc_tex.MAX_FRACTION_DIGITS:
-            raise ValueError(
-                f"{option_name} must be between {nuts_calc_tex.MIN_FRACTION_DIGITS} and "
-                f"{nuts_calc_tex.MAX_FRACTION_DIGITS} for the 'mixed' command."
-            )
-
-    decimal_places = data.get('decimal_places', 1)
-    if not nuts_calc_tex.MIN_DECIMAL_PLACES <= decimal_places <= nuts_calc_tex.MAX_DECIMAL_PLACES:
-        raise ValueError(
-            f"decimal_places must be between {nuts_calc_tex.MIN_DECIMAL_PLACES} and "
-            f"{nuts_calc_tex.MAX_DECIMAL_PLACES} for the 'mixed' command."
-        )
-
-    a_kinds = list(data.get('a_kind') or nuts_calc_tex.MIXED_OPERAND_KINDS)
-    b_kinds = list(data.get('b_kind') or nuts_calc_tex.MIXED_OPERAND_KINDS)
-    operators = list(data.get('operator') or problem_generation.DEFAULT_OPERATOR)
-    valid_operand_kinds = set(nuts_calc_tex.MIXED_OPERAND_KINDS)
-    if not set(a_kinds) <= valid_operand_kinds or not set(b_kinds) <= valid_operand_kinds:
-        raise ValueError(
-            f"a_kind and b_kind must contain only: {', '.join(nuts_calc_tex.MIXED_OPERAND_KINDS)}."
-        )
-    valid_operators = set(nuts_calc_tex.MIX_OPERATORS) | {'mix'}
-    if not set(operators) <= valid_operators:
-        raise ValueError(
-            f"operator must contain only: {', '.join(sorted(valid_operators))}."
-        )
-
-    reducible_mode = data.get('reducible_mode')
-    if reducible_mode is not None:
-        if reducible_mode not in {'required', 'none', 'mixed'}:
-            raise ValueError(
-                "reducible_mode must be one of: mixed, none, required."
-            )
-        if not operators or not set(operators) <= {'mul', 'div'}:
-            raise ValueError(
-                "reducible_mode only supports 'mul'/'div' operators for the 'mixed' command."
-            )
-        if {tuple(a_kinds), tuple(b_kinds)} != {('fraction',), ('int',)}:
-            raise ValueError(
-                "reducible_mode requires exactly one a_kind=['fraction']/b_kind=['int'] pairing "
-                "(in either order) for the 'mixed' command."
-            )
-
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
     if rows < nuts_calc_tex.MIN_ROWS_OR_COLUMNS or columns < nuts_calc_tex.MIN_ROWS_OR_COLUMNS:
@@ -305,15 +260,11 @@ def _generate_mixed_pdf(
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
+    order = rows * columns
     pages = _build_presentation_pages(
         data,
-        rows * columns,
-        lambda start_index: nuts_calc_tex.generate_mixed_problems(
-            a_kinds, b_kinds, operators, mixed_operators,
-            numerator_digits, denominator_digits, decimal_places,
-            terms_min, terms_max, rows * columns, start_index,
-            reducible_mode,
-        ),
+        order,
+        lambda start_index: problem_generation.generate('mixed', data, order, start_index),
         nuts_calc_tex.build_mixed_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
@@ -338,28 +289,6 @@ def _generate_mixed_pdf(
         raise RuntimeError(f'PDF generation failed: {error_reason}') from e
 
     return output_filepath, output_filename
-
-
-def _generate_multi_term_mixed_pdf(
-    data: renderer_config.RendererRequest, output_dir: str
-) -> tuple[str, str]:
-    """Build a multi-term or mixed-operator mixed PDF via the presentation API."""
-    terms = data.get('terms')
-    terms_min = data.get('terms_min', nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT)
-    terms_max = data.get('terms_max', nuts_calc_tex.TERM_COUNT_FLOOR_DEFAULT)
-    if terms is not None:
-        terms_min = terms_max = terms
-    if terms_min > terms_max:
-        raise ValueError("terms_min must be less than or equal to terms_max.")
-
-    terms_min, terms_max = nuts_calc_tex.resolve_term_range(terms_min, terms_max, False)
-    return _generate_mixed_pdf(
-        data,
-        output_dir,
-        terms_min=terms_min,
-        terms_max=terms_max,
-        mixed_operators=bool(data.get('mixed_operators', False)),
-    )
 
 
 def _generate_lcm_pdf(data: renderer_config.RendererRequest, output_dir: str) -> tuple[str, str]:
@@ -721,24 +650,19 @@ def _generate_kuku_pdf(data: renderer_config.RendererRequest, output_dir: str) -
     migration (#208). Basic-case only: a_value plus optional rows/columns/
     descend/shuffle/reverse, always a single blank (practice) page
     (with_bottom_answer/with_name_field/multi-page/merge are not wired here,
-    matching _generate_com_pdf's scope). descend/shuffle are
-    supported (unlike the other omitted flags) because frontend/web's
-    g2-kuku preset (drillPresets.js) sends them for its descending/random
-    question-order settings; silently ignoring them here would regress that
-    live feature once this command_type no longer had a legacy subprocess
-    path to fall back to. `reverse` (issue #292) is the presentation-layer
-    equation side-swap (`c = a x b`), bound into the content_format via
-    functools.partial; it is distinct from the descend/shuffle data-layer
-    ordering flags.
+    matching _generate_com_pdf's scope).
 
-    '99' reads a_value directly like 'com' (it's always a literal value
-    there, never a digit count -- issue #230); see
-    problem_generation.validate_kuku_a_value's docstring for the shared
-    validation this reuses.
+    The a_value (times-table row), descend, and shuffle -- everything that
+    feeds problem generation -- are resolved and validated by the shared
+    problem_generation.generate('99', ...) layer (issue #361, P2-2 under
+    #357); '99' reads a_value directly like 'com' (always a literal value,
+    never a digit count -- issue #230). descend/shuffle stay wired (unlike
+    the omitted presentation flags) because frontend/web's g2-kuku preset
+    (drillPresets.js) sends them for its descending/random question order.
+    Only `reverse` (issue #292) stays in this builder: it is the
+    presentation-layer equation side-swap (`c = a x b`), bound into the
+    content_format via functools.partial, not a generation parameter.
     """
-    a_value = problem_generation.validate_kuku_a_value(data.get('a_value'))
-    descend = bool(data.get('descend', False))
-    shuffle = bool(data.get('shuffle', False))
     reverse = bool(data.get('reverse', False))
 
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
@@ -755,12 +679,11 @@ def _generate_kuku_pdf(data: renderer_config.RendererRequest, output_dir: str) -
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
+    order = rows * columns
     pages = _build_presentation_pages(
         data,
-        rows * columns,
-        lambda start_index: nuts_calc_tex.generate_kuku_problems(
-            a_value, rows * columns, start_index, descend, shuffle
-        ),
+        order,
+        lambda start_index: problem_generation.generate('99', data, order, start_index),
         nuts_calc_tex.build_kuku_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
@@ -802,6 +725,11 @@ def _generate_abc_pdf(data: renderer_config.RendererRequest, output_dir: str) ->
     rows/columns only, matching #199's scope. Answer pages, bottom answers,
     name fields, multiple pages, and merged output remain on the legacy CLI
     path until those presentation features are migrated separately.
+
+    'aBc' takes no generation parameters at all, but the problems still come
+    from the shared problem_generation.generate('aBc', ...) layer (issue
+    #361, P2-2 under #357) rather than a direct nuts_calc_tex call, so every
+    group-2 builder resolves problems through one entry point.
     """
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
@@ -817,12 +745,11 @@ def _generate_abc_pdf(data: renderer_config.RendererRequest, output_dir: str) ->
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
+    order = rows * columns
     pages = _build_presentation_pages(
         data,
-        rows * columns,
-        lambda start_index: nuts_calc_tex.generate_abc_problems(
-            rows * columns, start_index
-        ),
+        order,
+        lambda start_index: problem_generation.generate('aBc', data, order, start_index),
         nuts_calc_tex.build_abc_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
@@ -859,16 +786,17 @@ def _generate_pi_pdf(data: renderer_config.RendererRequest, output_dir: str) -> 
     only: a_value plus optional rows/columns/descend/shuffle/reverse, always
     a single blank (practice) page -- with_bottom_answer/with_name_field/
     multi-page/merge are not wired for 'pi' yet (explicitly out of scope for
-    #210, matching _generate_com_pdf's scope). `reverse` (issue #292) is the
-    presentation-layer equation side-swap (`c = a x 3.14`), bound into the
-    content_format via functools.partial.
+    #210, matching _generate_com_pdf's scope).
 
-    'pi' reads a_value directly (like 'com', not a digit-count shorthand --
-    see _generate_com_pdf's docstring).
+    The a_value (starting multiplicand), descend, and shuffle -- everything
+    that feeds problem generation -- are resolved and validated by the shared
+    problem_generation.generate('pi', ...) layer (issue #361, P2-2 under
+    #357); 'pi' reads a_value directly (like 'com', not a digit-count
+    shorthand -- see _generate_com_pdf's docstring). Only `reverse` (issue
+    #292) stays in this builder: it is the presentation-layer equation
+    side-swap (`c = a x 3.14`), bound into the content_format via
+    functools.partial, not a generation parameter.
     """
-    start_num = problem_generation.validate_pi_start(data.get('a_value'))
-    descend = bool(data.get('descend', False))
-    shuffle = bool(data.get('shuffle', False))
     reverse = bool(data.get('reverse', False))
 
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
@@ -885,12 +813,11 @@ def _generate_pi_pdf(data: renderer_config.RendererRequest, output_dir: str) -> 
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
+    order = rows * columns
     pages = _build_presentation_pages(
         data,
-        rows * columns,
-        lambda start_index: nuts_calc_tex.generate_pi_problems(
-            start_num, rows * columns, start_index, descend, shuffle
-        ),
+        order,
+        lambda start_index: problem_generation.generate('pi', data, order, start_index),
         nuts_calc_tex.build_pi_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
@@ -1547,20 +1474,19 @@ def _generate_squ_pdf(data: renderer_config.RendererRequest, output_dir: str) ->
     a_value plus optional rows/columns/descend/shuffle/reverse, always a
     single blank (practice) page -- with_bottom_answer/with_name_field/
     multi-page/merge are not wired for 'squ' yet (explicitly out of scope
-    for #209, matching #199's scope). descend/shuffle are read from `data`
-    and forwarded to generate_squ_problems (issue #298), matching the
-    _generate_kuku_pdf / _generate_pi_pdf helpers; they are the data-layer
-    ordering flags, distinct from the presentation-layer `reverse` flag.
-    `reverse` (issue #292) is the presentation-layer equation side-swap
-    (`c = a x a`), bound into the content_format via functools.partial.
+    for #209, matching #199's scope).
 
-    'squ' reads a_value directly (it's always a literal starting square
+    The a_value (starting square number), descend, and shuffle -- everything
+    that feeds problem generation -- are resolved and validated by the shared
+    problem_generation.generate('squ', ...) layer (issue #361, P2-2 under
+    #357); 'squ' reads a_value directly (always a literal starting square
     number, never a digit count -- like 'com', unlike
-    nuts_calc_tex.DIGIT_COUNT_SHORTHAND_COMMANDS).
+    nuts_calc_tex.DIGIT_COUNT_SHORTHAND_COMMANDS). descend/shuffle (issue
+    #298) stay wired the same way as _generate_kuku_pdf / _generate_pi_pdf.
+    Only `reverse` (issue #292) stays in this builder: it is the
+    presentation-layer equation side-swap (`c = a x a`), bound into the
+    content_format via functools.partial, not a generation parameter.
     """
-    start_num = problem_generation.validate_squ_start(data.get('a_value'))
-    descend = bool(data.get('descend', False))
-    shuffle = bool(data.get('shuffle', False))
     reverse = bool(data.get('reverse', False))
 
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
@@ -1577,12 +1503,11 @@ def _generate_squ_pdf(data: renderer_config.RendererRequest, output_dir: str) ->
             "(e.g. `sudo apt-get install texlive-latex-base texlive-latex-extra`)."
         )
 
+    order = rows * columns
     pages = _build_presentation_pages(
         data,
-        rows * columns,
-        lambda start_index: nuts_calc_tex.generate_squ_problems(
-            start_num, rows * columns, start_index, descend, shuffle
-        ),
+        order,
+        lambda start_index: problem_generation.generate('squ', data, order, start_index),
         nuts_calc_tex.build_squ_bottom_answer_tex,
     )
     tex_source = nuts_calc_tex.build_presentation_document_tex(
@@ -2181,6 +2106,16 @@ def _generate_hundred_square_pdf(data: renderer_config.RendererRequest, output_d
     single blank (practice) page -- show_answer / merge / multi-page / the
     `page` count are not wired here, matching the other _generate_*_pdf
     builders.
+
+    `100` is group 2 of the P2-2 shared-layer migration (issue #361), but
+    unlike the other group-2 builders it does NOT call
+    problem_generation.generate(): a single 10x10 table has no `count`-many
+    problem-list decomposition and does not fit that list contract, so `100`
+    keeps its dedicated `{"table": {...}}` envelope path (issue #228) and
+    generate() raises a targeted ValueError for `command_type == '100'`. The
+    shared parameter resolution `100` does need -- the a/b axis ranges and
+    the minimum-distinct-values rule -- already lives in the shared
+    resolve_hundred_square_axes, so no builder change was needed here.
     """
     nums_left, nums_top = problem_generation.resolve_hundred_square_axes(data)
 
@@ -2506,7 +2441,7 @@ def render_worksheet_pdf(
     if _is_plain_mixed_pdf_request(data):
         return _generate_mixed_pdf(data, output_dir)
     if _is_multi_term_mixed_pdf_request(data):
-        return _generate_multi_term_mixed_pdf(data, output_dir)
+        return _generate_mixed_pdf(data, output_dir)
     if _is_plain_ope_pdf_request(data):
         return _generate_ope_pdf(data, output_dir)
     if _is_tree_ope_pdf_request(data):
