@@ -476,6 +476,53 @@ test('grade 4 review worksheet mixes the grade-4 A「数と計算」 units throu
   );
 });
 
+test('grade 5 review worksheet mixes the grade-5 A「数と計算」 units through the shared review layer (issue #368)', () => {
+  const item = presetsByGrade[5].review.find((candidate) => candidate.id === 'g5-review');
+  assert.ok(item, 'g5-review must exist');
+  assert.equal(item.titleKey, 'menu_g5_review_title');
+  assert.equal(item.supportLevel, 'full');
+  assert.equal(item.latexOnly, true);
+  assert.deepEqual(item.settings, []);
+
+  const params = item.buildParams();
+  assert.equal(params.command_type, 'review');
+  assert.equal(params.shuffle, true);
+  assert.ok(Array.isArray(params.sources) && params.sources.length === 4, 'g5-review must expose 4 sources');
+
+  // every source carries an equal relative weight (even split at 10/20/30).
+  for (const source of params.sources) {
+    assert.equal(source.num, 1, 'every g5-review source has weight 1 (even split)');
+  }
+
+  // each 第5学年 A「数と計算」 unit is represented, matching its standalone drill.
+  assert.ok(
+    params.sources.some(
+      (s) => s.command_type === 'ope' && s.operator?.join() === 'mul'
+        && s.a_decimal_places === 1 && s.b_decimal_places === 1 && s.a_digits === 2 && s.b_digits === 2,
+    ),
+    'a 小数×小数 source must be present (mirrors g5-decimal-mul)',
+  );
+  assert.ok(
+    params.sources.some(
+      (s) => s.command_type === 'ope' && s.operator?.join() === 'div' && s.divide_through === true,
+    ),
+    'a 小数÷小数 わり進み source must be present (mirrors g5-decimal-div)',
+  );
+  assert.ok(
+    params.sources.some(
+      (s) => s.command_type === 'frac' && s.operator?.join() === 'add,sub' && s.different_denominators === true,
+    ),
+    'an 異分母分数のたし算・ひき算 source must be present (mirrors g5-fraction-add / g5-fraction-sub)',
+  );
+  assert.ok(
+    params.sources.some(
+      (s) => s.command_type === 'mixed' && s.operator?.join() === 'mul,div'
+        && s.a_kind?.join() === 'fraction' && s.b_kind?.join() === 'int' && s.reducible_mode === 'mixed',
+    ),
+    'a 分数×整数・分数÷整数 source must be present (mirrors g5-fraction-mul-int / g5-fraction-div-int)',
+  );
+});
+
 test('grade 2 basic addition caps the answer at 100 (issue #176)', () => {
   const item = presetsByGrade[2].addition.find((candidate) => candidate.id === 'g2-add-2digit');
 
