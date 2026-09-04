@@ -1332,6 +1332,72 @@ const grade4 = {
       },
     },
   ],
+  // 総合問題 (multi-source review worksheet, issue #140/#367). One sheet mixing
+  // the grade-4 学習指導要領 第4学年 A「数と計算」 units: 2桁で割る割り算(余りあり
+  // 含む), 小数×整数, 小数÷整数(わり進み), 同分母分数のたし算・ひき算,
+  // (　)を用いた四則混合, がい数(四捨五入). Each `sources` entry reuses the exact
+  // parameters of an existing grade-4 menu drill, routed through the shared
+  // `review` generation layer (issue #364). Unlike g1/g2-review, the recipe
+  // deliberately carries the wide options P3 (#364) unblocked -- `divide_through`
+  // on 小数÷整数, `use_parentheses`/`mixed_operators` on the 四則混合 source --
+  // and a `frac` and an `approx` source, so three_layer_renderer.
+  // _review_is_short_single_line returns false and the worksheet keeps the
+  // default left `gutter` number placement (same as g3-review; issue #355).
+  // 「多位数の四則」(整数の多位数かけ算) has no standalone grade-4 drill code
+  // path, so it is not a source; the ÷2位数 source covers multi-digit division.
+  // `num` is a relative weight the backend scales to fill the chosen problem
+  // count (10/20/30), so an even split (num:1 ×6) stays even at every size.
+  review: [
+    {
+      id: 'g4-review',
+      titleKey: 'menu_g4_review_title',
+      descKey: 'menu_g4_review_desc',
+      pointKey: 'menu_g4_review_point',
+      difficultyKey: 'difficulty_standard',
+      examples: ['312÷24', '3.6×7', '9.4÷8', '3/8+2/8', '(8+4)÷3', '38472 → 38000'],
+      settings: [],
+      supportLevel: 'full',
+      latexOnly: true,
+      buildParams: () => ({
+        command_type: 'review',
+        shuffle: true,
+        sources: [
+          // 2桁で割る割り算 あまりあり/なし (mirrors g4-div-2digit)
+          {
+            command_type: 'ope', num: 1, operator: ['div'], remainder_mode: 'mixed',
+            a_min: 100, a_max: 999, b_min: 10, b_max: 99,
+          },
+          // 小数×整数 (mirrors g4-decimal-mul-int)
+          {
+            command_type: 'ope', num: 1, operator: ['mul'],
+            a_digits: 2, b_digits: 1, a_decimal_places: 1,
+          },
+          // 小数÷整数 わり進み (mirrors g4-decimal-div-int / remainderMode 'divide_through')
+          {
+            command_type: 'ope', num: 1, operator: ['div'],
+            a_digits: 2, b_min: 2, b_max: 9, a_decimal_places: 1, divide_through: true,
+          },
+          // 同分母・真分数のたし算・ひき算 (mirrors g4-fraction-add / g4-fraction-sub の
+          // numberKind 'fraction' 分岐: proper_result で答えを1未満に保つ)
+          {
+            command_type: 'frac', num: 1, operator: ['add', 'sub'],
+            numerator_digits: 1, denominator_digits: 1,
+            same_denominator: true, proper_result: true,
+          },
+          // (　)を用いた四則混合 (mirrors g4-parentheses)
+          {
+            command_type: 'ope', num: 1, operator: ['add', 'sub', 'mul', 'div'],
+            mixed_operators: true, use_parentheses: true, nontrivial_division: true,
+            a_digits: 1, b_digits: 1,
+          },
+          // がい数(四捨五入) (mirrors g4-approx の approxKind 'round' 分岐)
+          {
+            command_type: 'approx', num: 1, kind: 'round',
+          },
+        ],
+      }),
+    },
+  ],
 };
 
 // DENOMINATOR_CHOICE_OPTIONS is declared near the top of this file (issue
