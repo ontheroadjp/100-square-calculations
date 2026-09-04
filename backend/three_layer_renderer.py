@@ -2046,86 +2046,68 @@ _UNSUPPORTED_REQUEST_ERROR = (
 # shuffle, renumber, render through one kind-dispatching content format)
 # lives here rather than in nuts_calc_tex.py so the CLI is untouched; the
 # recipe (which sources, how many of each) is the caller's -- frontend/web's
-# per-grade preset. Only the source command types the grade-3 prototype
-# recipe needs are supported; adding a later grade whose recipe needs
-# another drill means adding its generator here and its slot formatter to
-# nuts_calc_tex.build_review_slot_content_tex.
+# per-grade preset.
+#
+# Since issue #364 (#357 P3) each source is generated through the shared
+# problem_generation.generate() layer, so any command_type that layer
+# supports can be a review source with its full option set -- the dedicated
+# per-source generators and the ope/frac-only gate the prototype (#140)
+# shipped with are gone. `100` (no count-many decomposition, issue #228) and
+# `ope --vertical` (needs a tabular grid, not the review inline grid) are the
+# two the shared layer knows that still cannot be review sources.
 
-
-def _review_ope_problems(
-    source: dict[str, object], count: int
-) -> list[nuts_calc_tex.ReviewProblem]:
-    """Generate `count` plain 2-term `ope` problems for one review source.
-
-    A trimmed counterpart to _generate_ope_pdf's parameter resolution:
-    review sources pass explicit a_min/a_max/b_min/b_max (no a_digits
-    shorthand) and only the options the grade-3 recipe uses.
-    """
-    a_min = int(source.get('a_min', problem_generation.DEFAULT_A_MIN))
-    a_max = int(source.get('a_max', problem_generation.DEFAULT_A_MAX))
-    b_min = int(source.get('b_min', problem_generation.DEFAULT_B_MIN))
-    b_max = int(source.get('b_max', problem_generation.DEFAULT_B_MAX))
-    operator = list(source.get('operator') or problem_generation.DEFAULT_OPERATOR)
-    a_decimal_places = int(source.get('a_decimal_places', nuts_calc_tex.MIN_DECIMAL_PLACES))
-    b_decimal_places = int(source.get('b_decimal_places', nuts_calc_tex.MIN_DECIMAL_PLACES))
-    problems = nuts_calc_tex.generate_ope_problems(
-        list(range(a_min, a_max + 1)),
-        list(range(b_min, b_max + 1)),
-        operator,
-        count,
-        1,
-        a_decimal_places,
-        b_decimal_places,
-        source.get('carry_mode'),
-        source.get('remainder_mode'),
-        source.get('result_max'),
-    )
-    return [
-        nuts_calc_tex.ReviewProblem(index=problem.index, kind='ope', payload=problem)
-        for problem in problems
-    ]
-
-
-def _review_frac_problems(
-    source: dict[str, object], count: int
-) -> list[nuts_calc_tex.ReviewProblem]:
-    """Generate `count` basic `frac` add/sub problems for one review source."""
-    numerator_digits = int(source.get('numerator_digits', 1))
-    denominator_digits = int(source.get('denominator_digits', 1))
-    operators = list(source.get('operator') or ['add'])
-    problems = nuts_calc_tex.generate_fraction_problems(
-        numerator_digits,
-        denominator_digits,
-        operators,
-        count,
-        1,
-        bool(source.get('same_denominator', False)),
-        bool(source.get('proper_operands', False)),
-        bool(source.get('proper_result', False)),
-    )
-    return [
-        nuts_calc_tex.ReviewProblem(index=problem.index, kind='frac', payload=problem)
-        for problem in problems
-    ]
-
-
-_REVIEW_SOURCE_GENERATORS: dict[
-    str, Callable[[dict[str, object], int], list[nuts_calc_tex.ReviewProblem]]
-] = {
-    'ope': _review_ope_problems,
-    'frac': _review_frac_problems,
-}
+# review sources are exactly the command types the shared generation layer
+# handles (issue #364); '100' and 'review' are not among them.
+_REVIEW_SOURCE_COMMAND_TYPES = frozenset(problem_generation._COMMAND_GENERATORS)
 
 _REVIEW_UNSUPPORTED_SOURCE_ERROR = (
     "review worksheet source command_type {command_type!r} is not supported; "
     "supported: {supported}."
 )
 
+# Maps the `ope` variant problem_generation._determine_ope_variant reports to
+# the ReviewProblem.kind build_review_slot_content_tex dispatches on. A
+# 'plain' variant (None) and the --intermediate / --vertical flag cases are
+# handled directly in _resolve_review_source_kind.
+_OPE_VARIANT_REVIEW_KIND = {
+    "tree": "tree_ope",
+    "multi_term": "multi_term_ope",
+    "missing_value": "missing_value_ope",
+}
+
+
+def _resolve_review_source_kind(source: dict[str, object]) -> str:
+    """Return the ReviewProblem.kind for one review source.
+
+    For every command_type other than `ope` the kind is the command_type
+    itself. `ope` fans out to its parameter-selected variant kind so the
+    matching number-free slot formatter renders it; `ope --vertical` has no
+    review slot (it needs a tabular grid) and is rejected here.
+    """
+    command_type = source["command_type"]
+    if command_type != "ope":
+        return str(command_type)
+    if source.get("vertical"):
+        raise ValueError(
+            "review worksheet does not support 'ope' with a vertical (筆算) layout; "
+            "it needs a tabular grid the review page cannot provide."
+        )
+    if source.get("intermediate"):
+        return "intermediate_ope"
+    variant, _terms_min, _terms_max = problem_generation._determine_ope_variant(source)
+    return _OPE_VARIANT_REVIEW_KIND.get(variant, "ope")
+
 
 def _resolve_review_sources(
     data: renderer_config.RendererRequest,
 ) -> list[dict[str, object]]:
-    """Validate `data['sources']` and return it as a list of source dicts."""
+    """Validate `data['sources']` and return it as a list of source dicts.
+
+    Only the structural shape is checked here (non-empty list, each entry an
+    object with a shared-layer command_type and an integer num >= 1); each
+    source's own parameters are validated by problem_generation.generate()
+    when _generate_review_pdf generates it.
+    """
     sources = data.get('sources')
     if not isinstance(sources, list) or not sources:
         raise ValueError("review worksheet requires a non-empty 'sources' list.")
@@ -2134,11 +2116,11 @@ def _resolve_review_sources(
         if not isinstance(source, dict):
             raise ValueError("each review 'sources' entry must be an object.")
         command_type = source.get('command_type')
-        if command_type not in _REVIEW_SOURCE_GENERATORS:
+        if command_type not in _REVIEW_SOURCE_COMMAND_TYPES:
             raise ValueError(
                 _REVIEW_UNSUPPORTED_SOURCE_ERROR.format(
                     command_type=command_type,
-                    supported=", ".join(sorted(_REVIEW_SOURCE_GENERATORS)),
+                    supported=", ".join(sorted(_REVIEW_SOURCE_COMMAND_TYPES)),
                 )
             )
         num = source.get('num')
@@ -2179,17 +2161,19 @@ def _generate_review_pdf(
 ) -> tuple[str, str]:
     """Build a multi-source 'review' (総合) worksheet PDF (issue #140).
 
-    Each `data['sources']` entry is generated by its own drill's data-layer
-    function, the results are concatenated, optionally shuffled
-    (deterministically when `review_seed` is given), renumbered 1..N per
-    page, and rendered onto one page grid via a `kind`-dispatching content
-    format (nuts_calc_tex.build_review_slot_content_tex). Basic-case only,
-    mirroring the other _generate_*_pdf builders: a blank page per `page`,
+    Each `data['sources']` entry is generated through the shared
+    problem_generation.generate() layer (issue #364), the results are
+    concatenated, optionally shuffled (deterministically when `review_seed`
+    is given), renumbered 1..N per page, and rendered onto one page grid via
+    a `kind`-dispatching content format
+    (nuts_calc_tex.build_review_slot_content_tex). Basic-case only, mirroring
+    the other _generate_*_pdf builders: a blank page per `page`,
     with_name_field honored, no bottom-answer / merge. Source `num` values
     are relative weights (see _distribute_review_counts), so the grid is
     always exactly filled for any rows * columns.
     """
     sources = _resolve_review_sources(data)
+    kinds = [_resolve_review_source_kind(source) for source in sources]
 
     rows = int(data.get('rows', nuts_calc_tex.DEFAULT_ROWS))
     columns = int(data.get('columns', 2))
@@ -2212,12 +2196,20 @@ def _generate_review_pdf(
 
     pages = []
     for page_number in range(1, _resolve_page_count(data) + 1):
-        problems = []
-        for source, count in zip(sources, counts):
+        problems: list[nuts_calc_tex.ReviewProblem] = []
+        for source, kind, count in zip(sources, kinds, counts):
             if count < 1:
                 continue
-            generator = _REVIEW_SOURCE_GENERATORS[source['command_type']]
-            problems.extend(generator(source, count))
+            # start_index=1 per source, matching the pre-#364 per-source
+            # generators: the ReviewProblem.index is assigned by the 1..N
+            # renumber below (so 0 here), and start_index does not affect
+            # generation.
+            for payload in problem_generation.generate(
+                source['command_type'], source, count, 1
+            ):
+                problems.append(
+                    nuts_calc_tex.ReviewProblem(index=0, kind=kind, payload=payload)
+                )
         if rng is not None:
             rng.shuffle(problems)
         start_index = (page_number - 1) * order + 1
