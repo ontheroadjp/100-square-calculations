@@ -136,9 +136,11 @@ def test_review_slot_content_dispatches_compare_to_the_comparison_formatter() ->
 def test_review_slot_content_prepends_an_instruction_line_for_an_ambiguous_kind() -> None:
     # dec2frac shares the generic arrow-conversion visual with several other
     # kinds (issue #381), so build_review_slot_content_tex stacks a short
-    # instruction line above the formatter's own body in a self-centering
+    # instruction line above the formatter's own body in a left-aligned
     # tabular (so the Layer-2 number box lines up with the block's vertical
-    # centre, not its top line).
+    # centre, not its top line, and the shorter content line stays flush
+    # with the instruction line's left edge instead of being centered under
+    # it -- issue #383).
     payload = nuts_calc_tex.Dec2FracProblem(
         index=7, decimal_places=1, scaled_numerator=5, reduced=Fraction(1, 2)
     )
@@ -146,7 +148,7 @@ def test_review_slot_content_prepends_an_instruction_line_for_an_ambiguous_kind(
     content_tex = nuts_calc_tex.build_review_slot_content_tex(problem, False)
     formatter_tex = nuts_calc_tex.build_dec2frac_slot_content_tex(payload, False)
     assert content_tex == (
-        "\\begin{tabular}{@{}c@{}}"
+        "\\begin{tabular}{@{}l@{}}"
         f"\\reviewinstructionstyle{{小数を分数になおしましょう}}\\\\[{nuts_calc_tex.REVIEW_INSTRUCTION_ROW_GAP_TEX}]"
         f"{formatter_tex}"
         "\\end{tabular}"

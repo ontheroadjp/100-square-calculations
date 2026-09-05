@@ -27,7 +27,7 @@
 
 ## 変更履歴（git log より自動生成）
 
-- f2e4827 fix(#381): centre the review problem number against the two-line instruction block
-- c875f1c feat(#381): add a per-problem instruction line for ambiguous kinds in the review worksheet
+- d883110 fix(#383): correct grade5/6 review worksheet fraction-decimal conversion units and slot alignment
+- bf68643 feat(#381): add a per-problem instruction line for ambiguous kinds in the review worksheet (#382)
 - 16f1d11 refactor(#364): route the review worksheet through the shared generate() layer (#375)
 - a116853 feat(#140): add the grade-3 multi-source review (総合問題) worksheet

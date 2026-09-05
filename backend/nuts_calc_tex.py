@@ -5723,7 +5723,11 @@ def build_review_slot_content_tex(problem: ReviewProblem, show_answer: bool) -> 
     line (a ``tabular`` with no explicit ``[t]``/``[b]`` position centres
     itself on the surrounding baseline by default; every other content
     format here is a single TeX line, so build_content_area_slot_tex's
-    ``\\parbox[t]`` never needed this -- see issue #381).
+    ``\\parbox[t]`` never needed this -- see issue #381). The column spec is
+    ``l`` (not ``c``): the instruction line is usually wider than the
+    formatter's own body (e.g. "小数を分数になおしましょう" vs "0.6 ⇒ ___"),
+    and centering would indent the shorter content line instead of keeping
+    it flush with the instruction line's left edge (issue #383).
     """
     formatter = _REVIEW_SLOT_CONTENT_FORMATTERS.get(problem.kind)
     if formatter is None:
@@ -5735,7 +5739,7 @@ def build_review_slot_content_tex(problem: ReviewProblem, show_answer: bool) -> 
     if instruction is None:
         return content_tex
     return (
-        "\\begin{tabular}{@{}c@{}}"
+        "\\begin{tabular}{@{}l@{}}"
         f"\\reviewinstructionstyle{{{instruction}}}\\\\[{REVIEW_INSTRUCTION_ROW_GAP_TEX}]"
         f"{content_tex}"
         "\\end{tabular}"
