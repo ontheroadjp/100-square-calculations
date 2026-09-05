@@ -86,6 +86,15 @@ PROBLEM_CONTENT_FONT_SIZE_SPARSE_TEX = '\\Large'
 PROBLEM_FRACTION_FONT_SIZE_DENSE_TEX = '\\normalsize'
 PROBLEM_FRACTION_FONT_SIZE_SPARSE_TEX = '\\large'
 CONTENT_DENSITY_SPARSE_MAX_SLOTS = 20
+# Muted, small instruction line prepended to a review-worksheet slot whose
+# kind can't be read from symbols alone (issue #381). Reuses the footer's
+# \footnotesize + CHROME_TEXT_COLOR_TEX pairing instead of introducing a new
+# size/colour combination.
+REVIEW_INSTRUCTION_FONT_SIZE_TEX = '\\footnotesize'
+# Small vertical gap between the instruction line and the problem body in
+# that same tabular (issue #381). Same value as CONTENT_FORMAT_HISSAN_SLOT_GAP_TEX
+# (a small, distinct named constant per issue #381's own stacked-row use).
+REVIEW_INSTRUCTION_ROW_GAP_TEX = '3pt'
 PROBLEM_NUMBER_TEXT_COLOR_TEX = 'black!50'
 SUBTITLE_TEXT_COLOR_TEX = 'black!55'
 CHROME_TEXT_COLOR_TEX = 'black!45'
@@ -1954,6 +1963,14 @@ def build_content_format_macros_tex() -> str:
         f"\\color{{{PROBLEM_NUMBER_TEXT_COLOR_TEX}}}#1}}}}\n"
         f"\\newcommand{{\\problemcontentstyle}}[1]{{{{{PROBLEM_CONTENT_FONT_SIZE_DENSE_TEX} #1}}}}\n"
         f"\\newcommand{{\\problemfractionstyle}}[1]{{{{{PROBLEM_FRACTION_FONT_SIZE_DENSE_TEX} #1}}}}\n"
+        # \reviewinstructionstyle (issue #381): the small muted instruction
+        # line build_review_slot_content_tex prepends for kinds whose
+        # meaning isn't clear from symbols alone. Sized/coloured like the
+        # page footer, deliberately below \problemcontentstyle so it reads
+        # as a caption rather than part of the equation (LaTeX size
+        # commands are absolute -- the innermost one wins).
+        f"\\newcommand{{\\reviewinstructionstyle}}[1]{{{{{REVIEW_INSTRUCTION_FONT_SIZE_TEX}"
+        f"\\color{{{CHROME_TEXT_COLOR_TEX}}}#1}}}}\n"
         # Serif hissan digit font (issue #301): the LuaLaTeX adapter defines
         # this via \newfontfamily; provide an empty fallback for pdflatex
         # (already all Computer Modern). \providecommand -> only defines it if
@@ -5691,13 +5708,38 @@ def build_review_slot_content_tex(problem: ReviewProblem, show_answer: bool) -> 
     ``problem_generation.generate()`` layer supports can be a review source;
     ``ope --vertical`` (tabular grid) and ``100`` (single block table) have
     no review slot and never reach here (three_layer_renderer rejects them).
+
+    For kinds in ``_REVIEW_SLOT_INSTRUCTION_TEXT`` (issue #381), a small
+    muted instruction line is prepended above the formatter's own body,
+    both stacked inside a single-column ``tabular``. This is review-only:
+    the wrapped slot formatters (and every standalone drill that calls them
+    directly) are untouched, and the grid's problem count is unaffected --
+    only the affected slot's own content grows from one line to two.
+
+    The two lines are wrapped in a ``tabular`` rather than left as a plain
+    ``\\par``-separated paragraph so build_content_area_slot_tex's number
+    box -- which shares this slot's outer text-line baseline -- lines up
+    against the *vertical centre* of the two-line block instead of its top
+    line (a ``tabular`` with no explicit ``[t]``/``[b]`` position centres
+    itself on the surrounding baseline by default; every other content
+    format here is a single TeX line, so build_content_area_slot_tex's
+    ``\\parbox[t]`` never needed this -- see issue #381).
     """
     formatter = _REVIEW_SLOT_CONTENT_FORMATTERS.get(problem.kind)
     if formatter is None:
         raise ValueError(
             f"review worksheet has no slot formatter for kind {problem.kind!r}"
         )
-    return formatter(problem.payload, show_answer)
+    content_tex = formatter(problem.payload, show_answer)
+    instruction = _REVIEW_SLOT_INSTRUCTION_TEXT.get(problem.kind)
+    if instruction is None:
+        return content_tex
+    return (
+        "\\begin{tabular}{@{}c@{}}"
+        f"\\reviewinstructionstyle{{{instruction}}}\\\\[{REVIEW_INSTRUCTION_ROW_GAP_TEX}]"
+        f"{content_tex}"
+        "\\end{tabular}"
+    )
 
 
 def build_fraction_page_pair(problems: list[FractionProblem], columns: int) -> tuple[Page, Page]:
@@ -7534,6 +7576,25 @@ _REVIEW_SLOT_CONTENT_FORMATTERS: dict[str, Callable[[object, bool], str]] = {
     'lcm': build_lcm_slot_content_tex,
     'gcd': build_gcd_slot_content_tex,
     'approx': build_approx_slot_content_tex,
+}
+
+# Short Japanese instruction line for review-worksheet kinds that share the
+# generic "a ⇒ ___" arrow-conversion visual (build_arrow_conversion_tex /
+# build_fraction_arrow_conversion_tex) or otherwise show no operator, so a
+# problem's meaning can't be told apart from its neighbours once several
+# drills are mixed on one review page (issue #381). Kinds not listed here
+# already show a self-explanatory operator/symbol (ope family, frac, divfrac
+# with its visible ÷, compare's relation blank) or an inline text label
+# (lcm/gcd), so standalone drills and every other review kind are unchanged.
+_REVIEW_SLOT_INSTRUCTION_TEXT: dict[str, str] = {
+    'dec2frac': '小数を分数になおしましょう',
+    'frac2dec': '分数を小数になおしましょう',
+    'simplify': '約分しましょう',
+    'commondenom': '通分しましょう',
+    'evenodd': '偶数か奇数か答えましょう',
+    'multiples': '倍数を書きましょう',
+    'divisors': '約数を書きましょう',
+    'approx': 'がい数で表しましょう',
 }
 
 

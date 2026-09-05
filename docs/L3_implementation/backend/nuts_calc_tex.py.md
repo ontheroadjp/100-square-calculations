@@ -461,7 +461,9 @@
 
 - `ReviewProblem` データクラス(`index: int` / `kind: str` / `payload: object`): 下位ドリルの1問(`OpeProblem` / `FractionProblem` 等)を `payload` に、それを描く slot formatter を選ぶキーを `kind` に持つ。`index` は全ソース連結・シャッフル後に呼び出し側が振る 1..N のスロット番号なので、生成器ではなく `_generate_review_pdf` が設定する(frozen にしない)。
 - `_REVIEW_SLOT_CONTENT_FORMATTERS`(dict、`main()` 直前・全 slot formatter 定義後に配置): `ReviewProblem.kind` → 番号なし `build_*_slot_content_tex` の registry。issue #364(#357 P3)で `ope`/`frac` の2分岐から、共有生成層 `problem_generation.generate()` が扱う全 command type 分(24 エントリ: `ope` の5 variant `ope`/`tree_ope`/`multi_term_ope`/`missing_value_ope`/`intermediate_ope` + `com`/`mixed`/`aBc`/`99`/`squ`/`pi`/`frac`/`simplify`/`commondenom`/`divfrac`/`frac2dec`/`dec2frac`/`compare`/`evenodd`/`multiples`/`divisors`/`lcm`/`gcd`/`approx`)へ拡張した。全エントリが `(payload, show_answer)` を取り inline グリッド互換の本文を返すため、任意の混在が1枚に載る。`ope --vertical`(tabular グリッド必須)と `100`(単一 block table)はエントリを持たず、`three_layer_renderer` 側(`_resolve_review_source_kind` / `_resolve_review_sources`)が先に弾くため到達しない。定義位置が離れているのは、参照する slot formatter 群がファイル後方に定義されているため(module global なので呼び出し時解決で問題ない)。
-- `build_review_slot_content_tex(problem, show_answer)`: `ContentFormat` 契約(`Callable[[problem, bool], str]`)を満たす番号なし Layer-3 content。`_REVIEW_SLOT_CONTENT_FORMATTERS.get(problem.kind)` で formatter を引き、`formatter(problem.payload, show_answer)` へ委譲する。未登録 `kind` は `ValueError`。番号ボックスは Layer 2(`build_content_area_slot_tex`)が付けるため、他の `build_*_slot_content_tex` と同じく本文のみ返す。
+- `build_review_slot_content_tex(problem, show_answer)`: `ContentFormat` 契約(`Callable[[problem, bool], str]`)を満たす番号なし Layer-3 content。`_REVIEW_SLOT_CONTENT_FORMATTERS.get(problem.kind)` で formatter を引き、`formatter(problem.payload, show_answer)` へ委譲する。未登録 `kind` は `ValueError`。番号ボックスは Layer 2(`build_content_area_slot_tex`)が付けるため、他の `build_*_slot_content_tex` と同じく本文のみ返す。issue #381 以降、`_REVIEW_SLOT_INSTRUCTION_TEXT` に `kind` のエントリがあれば、formatter の本文の前に `\reviewinstructionstyle{...}\par ` を連結して返す(下記参照)。
+- `_REVIEW_SLOT_INSTRUCTION_TEXT`(dict、`_REVIEW_SLOT_CONTENT_FORMATTERS` の直後に配置、issue #381): `kind` → 短い日本語の説明文。`build_arrow_conversion_tex`/`build_fraction_arrow_conversion_tex` による汎用の「`a ⇒ ___`」矢印表示を共有する `dec2frac`/`frac2dec`/`simplify`/`commondenom`/`evenodd`/`multiples`/`divisors`(演算子を持たず表示だけでは何を求める問題か区別できない)と、`≒` 記号だけでは操作が伝わりにくい `approx` の計8エントリのみを持つ。単体ドリルでは画面側の説明(`descKey`/`pointKey`)で足りるが、総合問題ではこれらが他の演算子入り問題と混在し見分けがつかなくなるため、`build_review_slot_content_tex` だけがこの説明文を付ける(単体ドリルの PDF 出力・呼び出し経路は無改変)。`ope` 系・`frac`・`divfrac`(`÷` が見える)・`compare`(関係記号の空所)・`lcm`/`gcd`(`LCM`/`GCD` の text label が既に自明)は対象外。
+- `\reviewinstructionstyle`(`build_content_format_macros_tex()` が定義、issue #381): 説明文を描く小さいグレー文字マクロ。ページフッターと同じ `\footnotesize` + `CHROME_TEXT_COLOR_TEX` の組合せを流用し、新しいサイズ/色の組合せを増やさない。`\problemcontentstyle` より内側で展開されるため(LaTeX のサイズ指定は絶対値で内側が勝つ)、`\problemcontentstyle` に包まれても説明文だけ小さいままになる。
 
 ## 重要な設計判断とその理由
 
@@ -509,6 +511,10 @@ issue #24 の Scope には "single times-table row" とあるが、実装着手�
 列幅は `\dimexpr(\textwidth-2N\tabcolsep)/N\relax`(`N`=列数)で動的に計算しており、用紙サイズ(A3/A4/B5/A4横)や列数が変わっても `\textwidth` に追従する。
 
 横書きの `build_inline_grid_tex` と筆算の `build_tabular_grid_tex` は、共通の `build_column_major_rows` を使って問題ブロックを列優先の視覚行に変換する。これにより、どちらの形式でも左端の列を上から下へ読んだときに問題番号が連番となり、2列なら `1, 2, ...` の右側に次の列の問題が置かれる。問題データやCSVの生成順は変えず、変更するのはPDF上の配置だけである。
+
+### review の説明文をソースごとの見出し・グルーピングではなく1問ごとの1行にした理由(issue #381)
+
+当初はソース種類ごとに問題をグルーピングし、各グループの先頭に小見出しを置く案(見出し方式)を検討した。しかし `build_inline_grid_tex`/`build_tabular_grid_tex` はどちらも `build_column_major_rows` で**列優先**にブロックを敷き詰める1枚の `rows × columns` グリッドであり、全列を横断する見出し行を挿入する仕組みがない。グルーピングを実現するにはページを「ソースごとの独立したミニグリッドを縦に積む」構成に作り替える必要があり、各グループの問題数が `columns` の倍数でない場合は最終行に空白セルが生じて紙面が疎になるか、`_distribute_review_counts` の按分結果を `columns` の倍数へ丸めて問題数配分を変える必要があった。ユーザーは「総合問題の問題数(グリッドのマス数)が変わることは許容しない」と明確に判断したため、既存のグリッド・按分・シャッフルロジックを一切変更せず、該当する各スロットの中身だけを1行から2行に増やす(1問ごとの説明文)方式を採用した。
 
 ### 横書き問題を等幅セルと可変行間で配置する理由
 
@@ -619,7 +625,9 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴（git log より自動生成）
 
-- d2727b8 refactor(#364): route the review worksheet through the shared generate() layer
+- f2e4827 fix(#381): centre the review problem number against the two-line instruction block
+- c875f1c feat(#381): add a per-problem instruction line for ambiguous kinds in the review worksheet
+- 16f1d11 refactor(#364): route the review worksheet through the shared generate() layer (#375)
 - 7b92770 feat(#355): center the problem number and equation for short single-line drills (#356)
 - e9083d6 feat(#140): add the grade-3 multi-source review (総合問題) worksheet (#354)
 - 7203e9e feat(#349): redesign decimal-division drills around a remainder setting and add a divide-through mode (#352)
@@ -627,5 +635,3 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - e493735 feat(#334): extend --decimal-remainder to a decimal divisor and add the grade 5 小数のわり算 (あまり) drill (#347)
 - 9da1116 feat(#333): add grade 4 decimal-remainder division drill and --decimal-remainder flag (#345)
 - b2df846 feat(#332): add grade 3 two-digit-quotient division drill and --quotient-digits flag (#344)
-- 36de01d fix(#342): guarantee a non-trivial division in every g4-parentheses problem (#343)
-- b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)
