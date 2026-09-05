@@ -133,6 +133,28 @@ def test_review_slot_content_dispatches_compare_to_the_comparison_formatter() ->
     )
 
 
+def test_review_slot_content_prepends_an_instruction_line_for_an_ambiguous_kind() -> None:
+    # dec2frac shares the generic arrow-conversion visual with several other
+    # kinds (issue #381), so build_review_slot_content_tex prepends a short
+    # instruction line ahead of the formatter's own body.
+    payload = nuts_calc_tex.Dec2FracProblem(
+        index=7, decimal_places=1, scaled_numerator=5, reduced=Fraction(1, 2)
+    )
+    problem = nuts_calc_tex.ReviewProblem(index=1, kind="dec2frac", payload=payload)
+    content_tex = nuts_calc_tex.build_review_slot_content_tex(problem, False)
+    formatter_tex = nuts_calc_tex.build_dec2frac_slot_content_tex(payload, False)
+    assert content_tex == f"\\reviewinstructionstyle{{小数を分数になおしましょう}}\\par {formatter_tex}"
+
+
+def test_review_slot_content_omits_the_instruction_line_for_a_self_evident_kind() -> None:
+    # ope shows its own operator, so it is not in _REVIEW_SLOT_INSTRUCTION_TEXT
+    # and build_review_slot_content_tex returns the formatter's body unchanged
+    # (matching test_review_slot_content_dispatches_ope_to_the_ope_formatter).
+    payload = nuts_calc_tex.OpeProblem(index=7, a=3, b=4, operator="add", c=7)
+    problem = nuts_calc_tex.ReviewProblem(index=1, kind="ope", payload=payload)
+    assert "\\reviewinstructionstyle" not in nuts_calc_tex.build_review_slot_content_tex(problem, False)
+
+
 def test_review_slot_content_rejects_a_kind_with_no_review_slot() -> None:
     # `ope --vertical` has no review slot (it needs a tabular grid); its kind
     # is deliberately absent from _REVIEW_SLOT_CONTENT_FORMATTERS.
