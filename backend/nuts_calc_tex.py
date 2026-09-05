@@ -91,6 +91,10 @@ CONTENT_DENSITY_SPARSE_MAX_SLOTS = 20
 # \footnotesize + CHROME_TEXT_COLOR_TEX pairing instead of introducing a new
 # size/colour combination.
 REVIEW_INSTRUCTION_FONT_SIZE_TEX = '\\footnotesize'
+# Small vertical gap between the instruction line and the problem body in
+# that same tabular (issue #381). Same value as CONTENT_FORMAT_HISSAN_SLOT_GAP_TEX
+# (a small, distinct named constant per issue #381's own stacked-row use).
+REVIEW_INSTRUCTION_ROW_GAP_TEX = '3pt'
 PROBLEM_NUMBER_TEXT_COLOR_TEX = 'black!50'
 SUBTITLE_TEXT_COLOR_TEX = 'black!55'
 CHROME_TEXT_COLOR_TEX = 'black!45'
@@ -5706,11 +5710,20 @@ def build_review_slot_content_tex(problem: ReviewProblem, show_answer: bool) -> 
     no review slot and never reach here (three_layer_renderer rejects them).
 
     For kinds in ``_REVIEW_SLOT_INSTRUCTION_TEXT`` (issue #381), a small
-    muted instruction line is prepended via ``\\reviewinstructionstyle``
-    ahead of the formatter's own body. This is review-only: the wrapped
-    slot formatters (and every standalone drill that calls them directly)
-    are untouched, and the grid's problem count is unaffected -- only the
-    affected slot's own content grows from one line to two.
+    muted instruction line is prepended above the formatter's own body,
+    both stacked inside a single-column ``tabular``. This is review-only:
+    the wrapped slot formatters (and every standalone drill that calls them
+    directly) are untouched, and the grid's problem count is unaffected --
+    only the affected slot's own content grows from one line to two.
+
+    The two lines are wrapped in a ``tabular`` rather than left as a plain
+    ``\\par``-separated paragraph so build_content_area_slot_tex's number
+    box -- which shares this slot's outer text-line baseline -- lines up
+    against the *vertical centre* of the two-line block instead of its top
+    line (a ``tabular`` with no explicit ``[t]``/``[b]`` position centres
+    itself on the surrounding baseline by default; every other content
+    format here is a single TeX line, so build_content_area_slot_tex's
+    ``\\parbox[t]`` never needed this -- see issue #381).
     """
     formatter = _REVIEW_SLOT_CONTENT_FORMATTERS.get(problem.kind)
     if formatter is None:
@@ -5721,7 +5734,12 @@ def build_review_slot_content_tex(problem: ReviewProblem, show_answer: bool) -> 
     instruction = _REVIEW_SLOT_INSTRUCTION_TEXT.get(problem.kind)
     if instruction is None:
         return content_tex
-    return f"\\reviewinstructionstyle{{{instruction}}}\\par {content_tex}"
+    return (
+        "\\begin{tabular}{@{}c@{}}"
+        f"\\reviewinstructionstyle{{{instruction}}}\\\\[{REVIEW_INSTRUCTION_ROW_GAP_TEX}]"
+        f"{content_tex}"
+        "\\end{tabular}"
+    )
 
 
 def build_fraction_page_pair(problems: list[FractionProblem], columns: int) -> tuple[Page, Page]:
