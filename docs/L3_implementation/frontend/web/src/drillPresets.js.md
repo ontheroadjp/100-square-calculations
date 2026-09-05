@@ -386,7 +386,8 @@ issue #161 の3年生と同じ再編を4年生にも適用した。4年生の `f
 
 ## 変更履歴（git log より自動生成）
 
-- 9ea74e2 feat(#369): add the grade-6 multi-source review (総合問題) worksheet
+- d883110 fix(#383): correct grade5/6 review worksheet fraction-decimal conversion units and slot alignment
+- 5ba245b feat(#369): add the grade-6 multi-source review (総合問題) worksheet (#380)
 - e363d47 feat(#368): add the grade-5 multi-source review (総合問題) worksheet (#379)
 - 1ae402d feat(#367): add the grade-4 multi-source review (総合問題) worksheet (#378)
 - 8ec62cd feat(#366): add the grade-2 multi-source review (総合問題) worksheet (#377)
