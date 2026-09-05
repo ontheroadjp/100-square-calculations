@@ -625,7 +625,9 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 
 ## 変更履歴（git log より自動生成）
 
-- d2727b8 refactor(#364): route the review worksheet through the shared generate() layer
+- f2e4827 fix(#381): centre the review problem number against the two-line instruction block
+- c875f1c feat(#381): add a per-problem instruction line for ambiguous kinds in the review worksheet
+- 16f1d11 refactor(#364): route the review worksheet through the shared generate() layer (#375)
 - 7b92770 feat(#355): center the problem number and equation for short single-line drills (#356)
 - e9083d6 feat(#140): add the grade-3 multi-source review (総合問題) worksheet (#354)
 - 7203e9e feat(#349): redesign decimal-division drills around a remainder setting and add a divide-through mode (#352)
@@ -633,5 +635,3 @@ issue の Scope 本文は日本語ラベル「なまえ：____________」を提�
 - e493735 feat(#334): extend --decimal-remainder to a decimal divisor and add the grade 5 小数のわり算 (あまり) drill (#347)
 - 9da1116 feat(#333): add grade 4 decimal-remainder division drill and --decimal-remainder flag (#345)
 - b2df846 feat(#332): add grade 3 two-digit-quotient division drill and --quotient-digits flag (#344)
-- 36de01d fix(#342): guarantee a non-trivial division in every g4-parentheses problem (#343)
-- b81378d feat(#331): add grade 1 two-digit ± within 100 drills and --a-multiple/--b-multiple operand constraint (#339)
