@@ -1751,9 +1751,10 @@ const grade5 = {
       }),
     },
   ],
-  // 総合問題 (multi-source review worksheet, issue #368). One sheet mixing
-  // the grade-5 学習指導要領 第5学年 A「数と計算」 units: 小数×小数, 小数÷小数
-  // (わり進み), 異分母分数のたし算・ひき算, 分数×整数・分数÷整数. Each source
+  // 総合問題 (multi-source review worksheet, issue #368; frac2dec/dec2frac
+  // added in issue #383). One sheet mixing the grade-5 学習指導要領 第5学年
+  // A「数と計算」 units: 小数×小数, 小数÷小数(わり進み), 異分母分数のたし算・
+  // ひき算, 分数×整数・分数÷整数, 分数→小数の変換, 小数→分数の変換. Each source
   // reuses the exact parameters of an existing grade-5 menu drill, routed
   // through the shared `review` generation layer (issue #364). 小数×小数 and
   // 小数÷小数 stay as TWO separate sources (same digit/decimal shape) only
@@ -1769,9 +1770,14 @@ const grade5 = {
   // problem_generation._generate_mixed_problems). 「四捨五入して商を概数で
   // 表す」(g5-approx-quotient) is intentionally NOT a source: the issue's own
   // finalized Scope list omits it despite the Course-of-Study citation
-  // mentioning it. `num` is a relative weight the backend scales to fill the
-  // chosen problem count (10/20/30), so an even split (num:1 ×4) stays even
-  // at every size.
+  // mentioning it. 分数⇔小数の変換 (frac2dec/dec2frac) was added in issue
+  // #383: it is genuine 第5学年 Course-of-Study content (小数・整数を分数の
+  // 形に直すこと) that #368's original citation had omitted, and standalone
+  // grade-5 drills already exist for it (g5-frac2dec / g5-dec2frac) -- it had
+  // been misattributed to g6-review instead (removed there in the same
+  // issue). `num` is a relative weight the backend scales to fill the chosen
+  // problem count (10/20/30), so an even split (num:1 ×6) stays even at
+  // every size.
   review: [
     {
       id: 'g5-review',
@@ -1779,7 +1785,7 @@ const grade5 = {
       descKey: 'menu_g5_review_desc',
       pointKey: 'menu_g5_review_point',
       difficultyKey: 'difficulty_standard',
-      examples: ['3.6×2.4', '9.0÷2.5', '2/3+3/5', '3/5×4'],
+      examples: ['3.6×2.4', '9.0÷2.5', '2/3+3/5', '3/5×4', '3/4 → 0.75', '0.6 → 3/5'],
       settings: [],
       supportLevel: 'full',
       latexOnly: true,
@@ -1810,6 +1816,14 @@ const grade5 = {
             command_type: 'mixed', num: 1, operator: ['mul', 'div'],
             a_kind: ['fraction'], b_kind: ['int'],
             numerator_digits: 1, denominator_digits: 1, reducible_mode: 'mixed',
+          },
+          // 分数→小数の変換 (mirrors g5-frac2dec)
+          {
+            command_type: 'frac2dec', num: 1, numerator_digits: 1, denominator_digits: 1,
+          },
+          // 小数→分数の変換 (mirrors g5-dec2frac)
+          {
+            command_type: 'dec2frac', num: 1,
           },
         ],
       }),
@@ -1960,25 +1974,24 @@ const grade6 = {
       }),
     },
   ],
-  // 総合問題 (multi-source review worksheet, issue #369). One sheet mixing
-  // the grade-6 学習指導要領 第6学年 A「数と計算」 units: 分数×分数・分数÷分数,
-  // 分数・小数を含む四則混合, 分数⇔小数の変換. Routed through the shared
-  // `review` generation layer (issue #364), same as g1/g2/g4/g5-review.
-  // 分数×分数 (g6-fraction-mul) and 分数÷分数 (g6-fraction-div) share an
-  // identical param shape aside from operator, so per the add/sub-combining
-  // convention already used by g3/g4/g5-review's `frac`/`mixed` sources, they
-  // are combined into ONE `frac` source via `operator: ['mul', 'div']`
-  // (`reducible_mode` accepts a mul/div pair per
+  // 総合問題 (multi-source review worksheet, issue #369; conversion sources
+  // removed in issue #383). One sheet mixing the grade-6 学習指導要領 第6学年
+  // A「数と計算」 units: 分数×分数・分数÷分数, 分数・小数を含む四則混合. Routed
+  // through the shared `review` generation layer (issue #364), same as
+  // g1/g2/g4/g5-review. 分数×分数 (g6-fraction-mul) and 分数÷分数
+  // (g6-fraction-div) share an identical param shape aside from operator, so
+  // per the add/sub-combining convention already used by g3/g4/g5-review's
+  // `frac`/`mixed` sources, they are combined into ONE `frac` source via
+  // `operator: ['mul', 'div']` (`reducible_mode` accepts a mul/div pair per
   // problem_generation._validate_reducible_operators, shared by both `frac`
   // and `mixed`). 分数・小数を含む四則混合 reuses g6-fraction-decimal-mixed
   // verbatim -- it is already the single canonical drill for that unit.
-  // 分数⇔小数の変換 has no standalone grade-6 drill (it is grade-5 menu
-  // content: g5-frac2dec / g5-dec2frac); the issue's Scope explicitly calls
-  // for it in grade 6's review anyway, so both are mirrored here verbatim as
-  // two separate sources (different command_types can't combine the way
-  // same-command_type operator variants can). `num` is a relative weight the
-  // backend scales to fill the chosen problem count (10/20/30), so an even
-  // split (num:1 ×4) stays even at every size.
+  // 分数⇔小数の変換 (frac2dec/dec2frac) was removed here in issue #383: it is
+  // 第5学年 Course-of-Study content (小数・整数を分数の形に直すこと), not
+  // 第6学年 content, and grade 6 has no standalone drill for it -- it now
+  // lives in g5-review instead. `num` is a relative weight the backend
+  // scales to fill the chosen problem count (10/20/30), so an even split
+  // (num:1 ×2) stays even at every size.
   review: [
     {
       id: 'g6-review',
@@ -1986,7 +1999,7 @@ const grade6 = {
       descKey: 'menu_g6_review_desc',
       pointKey: 'menu_g6_review_point',
       difficultyKey: 'difficulty_standard',
-      examples: ['3/5×7/9', '2/3+0.5×4', '3/4 → 0.75', '0.6 → 3/5'],
+      examples: ['3/5×7/9', '2/3+0.5×4'],
       settings: [],
       supportLevel: 'full',
       latexOnly: true,
@@ -2006,15 +2019,6 @@ const grade6 = {
             mixed_operators: true, terms: 3,
             a_kind: ['fraction', 'decimal', 'int'], b_kind: ['fraction', 'decimal', 'int'],
             numerator_digits: 1, denominator_digits: 1, decimal_places: 1,
-          },
-          // 分数→小数の変換 (mirrors g5-frac2dec; grade-6 scope reuses
-          // grade-5 content, no standalone g6 drill exists for this unit)
-          {
-            command_type: 'frac2dec', num: 1, numerator_digits: 1, denominator_digits: 1,
-          },
-          // 小数→分数の変換 (mirrors g5-dec2frac)
-          {
-            command_type: 'dec2frac', num: 1,
           },
         ],
       }),

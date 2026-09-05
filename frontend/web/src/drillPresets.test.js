@@ -476,7 +476,7 @@ test('grade 4 review worksheet mixes the grade-4 A「数と計算」 units throu
   );
 });
 
-test('grade 5 review worksheet mixes the grade-5 A「数と計算」 units through the shared review layer (issue #368)', () => {
+test('grade 5 review worksheet mixes the grade-5 A「数と計算」 units through the shared review layer (issue #368, frac2dec/dec2frac added #383)', () => {
   const item = presetsByGrade[5].review.find((candidate) => candidate.id === 'g5-review');
   assert.ok(item, 'g5-review must exist');
   assert.equal(item.titleKey, 'menu_g5_review_title');
@@ -487,7 +487,7 @@ test('grade 5 review worksheet mixes the grade-5 A「数と計算」 units throu
   const params = item.buildParams();
   assert.equal(params.command_type, 'review');
   assert.equal(params.shuffle, true);
-  assert.ok(Array.isArray(params.sources) && params.sources.length === 4, 'g5-review must expose 4 sources');
+  assert.ok(Array.isArray(params.sources) && params.sources.length === 6, 'g5-review must expose 6 sources');
 
   // every source carries an equal relative weight (even split at 10/20/30).
   for (const source of params.sources) {
@@ -521,9 +521,17 @@ test('grade 5 review worksheet mixes the grade-5 A「数と計算」 units throu
     ),
     'a 分数×整数・分数÷整数 source must be present (mirrors g5-fraction-mul-int / g5-fraction-div-int)',
   );
+  assert.ok(
+    params.sources.some((s) => s.command_type === 'frac2dec'),
+    'a 分数→小数の変換 source must be present (mirrors g5-frac2dec)',
+  );
+  assert.ok(
+    params.sources.some((s) => s.command_type === 'dec2frac'),
+    'a 小数→分数の変換 source must be present (mirrors g5-dec2frac)',
+  );
 });
 
-test('grade 6 review worksheet mixes the grade-6 A「数と計算」 units through the shared review layer (issue #369)', () => {
+test('grade 6 review worksheet mixes the grade-6 A「数と計算」 units through the shared review layer (issue #369, frac2dec/dec2frac moved to g5-review #383)', () => {
   const item = presetsByGrade[6].review.find((candidate) => candidate.id === 'g6-review');
   assert.ok(item, 'g6-review must exist');
   assert.equal(item.titleKey, 'menu_g6_review_title');
@@ -534,15 +542,14 @@ test('grade 6 review worksheet mixes the grade-6 A「数と計算」 units throu
   const params = item.buildParams();
   assert.equal(params.command_type, 'review');
   assert.equal(params.shuffle, true);
-  assert.ok(Array.isArray(params.sources) && params.sources.length === 4, 'g6-review must expose 4 sources');
+  assert.ok(Array.isArray(params.sources) && params.sources.length === 2, 'g6-review must expose 2 sources');
 
   // every source carries an equal relative weight (even split at 10/20/30).
   for (const source of params.sources) {
     assert.equal(source.num, 1, 'every g6-review source has weight 1 (even split)');
   }
 
-  // each 第6学年 A「数と計算」 unit is represented, matching its standalone drill
-  // (or, for 分数⇔小数の変換, its grade-5 equivalent -- see #369).
+  // each 第6学年 A「数と計算」 unit is represented, matching its standalone drill.
   assert.ok(
     params.sources.some(
       (s) => s.command_type === 'frac' && s.operator?.join() === 'mul,div'
@@ -557,14 +564,6 @@ test('grade 6 review worksheet mixes the grade-6 A「数と計算」 units throu
         && s.a_kind?.join() === 'fraction,decimal,int' && s.b_kind?.join() === 'fraction,decimal,int',
     ),
     'a 分数・小数を含む四則混合 source must be present (mirrors g6-fraction-decimal-mixed)',
-  );
-  assert.ok(
-    params.sources.some((s) => s.command_type === 'frac2dec'),
-    'a 分数→小数の変換 source must be present (mirrors g5-frac2dec)',
-  );
-  assert.ok(
-    params.sources.some((s) => s.command_type === 'dec2frac'),
-    'a 小数→分数の変換 source must be present (mirrors g5-dec2frac)',
   );
 });
 
